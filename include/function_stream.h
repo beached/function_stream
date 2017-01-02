@@ -46,22 +46,36 @@ namespace daw {
 			return apply_tuple( func, std::forward<Tuple>( t ), Index { } );
 		}
 
-		template<size_t S, typename... Types>
-		constexpr bool const is_size = std::integral_constant<bool, S == std::tuple_size<std::tuple<Types...>>::value>::value;
+		template<size_t S, typename Tuple>
+		using is_function_tag = std::integral_constant<bool, 0<=S && S < std::tuple_size<Tuple>::value>;
+		
+		template<size_t S, typename Tuple>
+		constexpr auto const is_function_tag_v = is_function_tag<S, Tuple>::value;
+
+		template<size_t S, typename Tuple>
+		using is_function_tag_t = typename is_function_tag<S, Tuple>::type;
 
 		template<size_t pos, typename TFunctions, typename Callback, typename TArgs> struct call_task_t;
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs> struct call_task_last_t;
+		template<typename Callback, typename TArgs> struct call_task_last_t;
+
+		struct function_tag { using category = function_tag; };
+		struct callback_tag { using category = callback_tag; };
+
+		template<size_t pos, typename T>
+		struct which_type: public std::conditional<is_function_tag_v<pos, T>, function_tag, callback_tag> { };
+
+		template<size_t pos, typename T>
+		using which_type_t = typename which_type<pos, T>::type;
 
 		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
-		void call( TFunctions tfuncs, Callback cb, TArgs args, std::false_type ) {
+		auto call( TFunctions tfuncs, Callback cb, TArgs args, function_tag const & ) {
 			get_task_scheduler( ).add_task( call_task_t<pos, TFunctions, Callback, TArgs>{ tfuncs, std::move( cb ), std::move( args ) } );
 		}
 
 		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
-		void call( TFunctions tfuncs, Callback cb, TArgs args, std::true_type ) {
-			get_task_scheduler( ).add_task( call_task_last_t<pos, TFunctions, Callback, TArgs>{ tfuncs, std::move( cb ), std::move( args ) } );
+		auto call( TFunctions tfuncs, Callback cb, TArgs args, callback_tag const & ) { 
+			get_task_scheduler( ).add_task( call_task_last_t<Callback, TArgs>{ std::move( cb ), std::move( args ) } );
 		}
-
 
 		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
 		struct call_task_t {
@@ -83,21 +97,20 @@ namespace daw {
 
 			void operator( )( ) {
 				auto const func = std::get<pos>( m_tfuncs );
-				auto result = apply_tuple( func, std::move( m_targs ) );
-				call<pos + 1>( std::move( m_tfuncs ), std::move( m_cb ), std::move( result ), is_size<pos+1, TFunctions> );
+				auto result = std::make_tuple( apply_tuple( func, std::move( m_targs ) ) );
+				static size_t const new_pos = pos + 1;
+				call<new_pos>( std::move( m_tfuncs ), std::move( m_cb ), std::move( result ), typename which_type_t<new_pos, decltype(m_tfuncs)>::category{ } );
 			}
 		};	// call_task_t
 
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
+		template<typename Callback, typename TArg>
 		struct call_task_last_t {
-			TFunctions m_tfuncs;
 			Callback m_cb;
-			TArgs m_targs;
+			TArg m_targ;
 
-			constexpr call_task_last_t( TFunctions tfuncs, Callback cb, TArgs targs ):
-				m_tfuncs { std::move( tfuncs ) },
+			constexpr call_task_last_t( Callback cb, TArg targ ):
 				m_cb { std::move( cb ) },
-				m_targs { std::move( targs ) } { }
+				m_targ { std::move( targ ) } { }
 
 			call_task_last_t( ) = delete;
 			~call_task_last_t( ) = default;
@@ -107,9 +120,7 @@ namespace daw {
 			call_task_last_t & operator=( call_task_last_t && ) = default;
 
 			void operator( )( ) {
-				auto const func = std::get<pos>( m_tfuncs );
-				auto result = apply_tuple( func, std::move( m_targs ) );
-				m_cb( std::move( result ) );
+				apply_tuple( m_cb, std::move( m_targ ) );
 			}
 		};	// call_task_last_t
 	}	// namespace impl
@@ -123,10 +134,10 @@ namespace daw {
 		function_stream( Functions... funcs ):
 			m_funcs { std::make_tuple( std::move( funcs )... ) } { }
 
-	public:
 		template<typename Callback, typename... Args>
 		void operator( )( Callback && cb, Args&&... args ) const {
-			impl::call<0>( m_funcs, std::move( cb ), std::make_tuple( std::move( args )... ), std::false_type );
+			using t_type = std::tuple<Functions...>;
+			impl::call<0>( m_funcs, std::move( cb ), std::make_tuple( std::move( args )... ), typename impl::which_type_t<0, t_type>::category{ } );
 		}
 	};	// function_stream
 

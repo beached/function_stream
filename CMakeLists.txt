@@ -44,16 +44,21 @@ link_directories( ${Boost_LIBRARY_DIRS} )
 
 set( HEADER_FILES
 	${HEADER_FOLDER}/function_stream.h
+	${HEADER_FOLDER}/task_scheduler.h
 )
 
 set( SOURCE_FILES
+	${SOURCE_FOLDER}/task_scheduler.cpp
 )
+
+add_library( function_stream_lib ${HEADER_FILES} ${SOURCE_FILES} )
+target_link_libraries( function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_dependencies( function_stream_lib header_libraries_prj )
 
 add_executable( task_scheduler_test_bin ${HEADER_FOLDER}/task_scheduler.h ${SOURCE_FOLDER}/task_scheduler.cpp ${TEST_FOLDER}/task_scheduler_test.cpp )
 target_link_libraries( task_scheduler_test_bin ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( task_scheduler_test_bin header_libraries_prj )
 
 add_executable( function_stream_test_bin ${HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
-add_dependencies( function_stream_test_bin header_libraries_prj )
-target_link_libraries( function_stream_test_bin ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( function_stream_test_bin function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 

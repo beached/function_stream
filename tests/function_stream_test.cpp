@@ -20,10 +20,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <boost/multiprecision/cpp_dec_float.hpp>
 #include <cstdlib>
 #include <iostream>
 
 #include "function_stream.h"
+
+using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
+
+real_t fib( real_t n ) noexcept {
+	if( 0 == n ) {
+		return 0;
+	}
+	real_t last = 0;
+	real_t result = 1;
+	for( uintmax_t m=1; m<n; ++m ) {
+		auto new_last = result;
+		result += result + last;
+		last = new_last;
+	}
+	return result;
+}
+
 
 struct doubler_t {
 	int operator( )( int x ) {
@@ -32,16 +50,17 @@ struct doubler_t {
 };
 
 struct display_t {
-	void operator( )( int x ) {
+	void operator( )( real_t x ) {
 		std::cout << x << std::endl;
 	}
 };
 
 int main( int, char ** ) {
-	//auto fs = daw::make_function_stream( []( int x ) { return 2*x; }, []( int x ){ return x*x; }, []( int x ) { return x + 1; } );
-	auto fs = daw::make_function_stream( doubler_t{ } );
+	auto fs = daw::make_function_stream( []( real_t x ) { return fib( x ); }, []( real_t x ){ return fib( x ); }, []( real_t x ) { return fib( x ); } );
 
 	fs( display_t{ }, 5 );
+	fs( display_t{ }, 3 );
+	fs( display_t{ }, 13 );
 
 	std::this_thread::sleep_for( std::chrono::minutes( 3 ) );
 
