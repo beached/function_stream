@@ -46,19 +46,33 @@ namespace daw {
 			return apply_tuple( func, std::forward<Tuple>( t ), Index { } );
 		}
 
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
-		void call( TFunctions tfuncs, Callback cb, TArgs args );
+		template<size_t S, typename... Types>
+		constexpr bool const is_size = std::integral_constant<bool, S == std::tuple_size<std::tuple<Types...>>::value>::value;
 
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs, typename = std::enable_if_t<(pos >= 0 && pos < std::tuple_size<TFunctions>::value)>>
+		template<size_t pos, typename TFunctions, typename Callback, typename TArgs> struct call_task_t;
+		template<size_t pos, typename TFunctions, typename Callback, typename TArgs> struct call_task_last_t;
+
+		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
+		void call( TFunctions tfuncs, Callback cb, TArgs args, std::false_type ) {
+			get_task_scheduler( ).add_task( call_task_t<pos, TFunctions, Callback, TArgs>{ tfuncs, std::move( cb ), std::move( args ) } );
+		}
+
+		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
+		void call( TFunctions tfuncs, Callback cb, TArgs args, std::true_type ) {
+			get_task_scheduler( ).add_task( call_task_last_t<pos, TFunctions, Callback, TArgs>{ tfuncs, std::move( cb ), std::move( args ) } );
+		}
+
+
+		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
 		struct call_task_t {
 			TFunctions m_tfuncs;
 			Callback m_cb;
 			TArgs m_targs;
 
 			constexpr call_task_t( TFunctions tfuncs, Callback cb, TArgs targs ):
-					m_tfuncs{ std::move( tfuncs ) },
-					m_cb{ std::move( cb ) },
-					m_targs{ std::move( targs ) } { }
+				m_tfuncs { std::move( tfuncs ) },
+				m_cb { std::move( cb ) },
+				m_targs { std::move( targs ) } { }
 
 			call_task_t( ) = delete;
 			~call_task_t( ) = default;
@@ -70,54 +84,49 @@ namespace daw {
 			void operator( )( ) {
 				auto const func = std::get<pos>( m_tfuncs );
 				auto result = apply_tuple( func, std::move( m_targs ) );
-				call<pos+1>( std::move( m_tfuncs ), std::move( m_cb ), std::move( result ) );
-			}
-		};	// call_task_t
-
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs, typename = std::enable_if_t<(pos == std::tuple_size<TFunctions>::value)>>
-		struct call_task_t {
-			TFunctions m_tfuncs;
-			Callback m_cb;
-			TArgs m_targs;
-
-			constexpr call_task_t( TFunctions tfuncs, Callback cb, TArgs targs ):
-					m_tfuncs{ std::move( tfuncs ) },
-					m_cb{ std::move( cb ) },
-					m_targs{ std::move( targs ) } { }
-
-			call_task_t( ) = delete;
-			~call_task_t( ) = default;
-			call_task_t( call_task_t const & ) = default;
-			call_task_t & operator=( call_task_t const & ) = default;
-			call_task_t( call_task_t && ) = default;
-			call_task_t & operator=( call_task_t && ) = default;
-
-			void operator( )( ) {
-				auto const func = std::get<pos>( *m_tfuncs );
-				auto result = apply_tuple( func, std::move( m_targs ) );
-				m_cb( std::move( result ) );
+				call<pos + 1>( std::move( m_tfuncs ), std::move( m_cb ), std::move( result ), is_size<pos+1, TFunctions> );
 			}
 		};	// call_task_t
 
 		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
-		void call( TFunctions tfuncs, Callback cb, TArgs args ) {
-			get_task_scheduler( ).add_task( call_task_t<pos, TFunctions, Callback, TArgs>{ tfuncs, std::move( cb ), std::move( args ) } );
-		}
+		struct call_task_last_t {
+			TFunctions m_tfuncs;
+			Callback m_cb;
+			TArgs m_targs;
+
+			constexpr call_task_last_t( TFunctions tfuncs, Callback cb, TArgs targs ):
+				m_tfuncs { std::move( tfuncs ) },
+				m_cb { std::move( cb ) },
+				m_targs { std::move( targs ) } { }
+
+			call_task_last_t( ) = delete;
+			~call_task_last_t( ) = default;
+			call_task_last_t( call_task_last_t const & ) = default;
+			call_task_last_t & operator=( call_task_last_t const & ) = default;
+			call_task_last_t( call_task_last_t && ) = default;
+			call_task_last_t & operator=( call_task_last_t && ) = default;
+
+			void operator( )( ) {
+				auto const func = std::get<pos>( m_tfuncs );
+				auto result = apply_tuple( func, std::move( m_targs ) );
+				m_cb( std::move( result ) );
+			}
+		};	// call_task_last_t
 	}	// namespace impl
 
 	template<typename... Functions>
 	class function_stream {
-		static_assert( sizeof...( Functions ) > 0, "Must supply at least 1 Functor" );
+		static_assert(sizeof...(Functions) > 0, "Must supply at least 1 Functor");
 		std::tuple<std::decay_t<Functions>...> m_funcs;
 
 	public:
 		function_stream( Functions... funcs ):
-				m_funcs{ std::make_tuple( std::move( funcs )... ) } { }
+			m_funcs { std::make_tuple( std::move( funcs )... ) } { }
 
 	public:
 		template<typename Callback, typename... Args>
 		void operator( )( Callback && cb, Args&&... args ) const {
-			impl::call<0>( m_funcs, std::move( cb ), std::make_tuple( std::move( args )... ) );
+			impl::call<0>( m_funcs, std::move( cb ), std::make_tuple( std::move( args )... ), std::false_type );
 		}
 	};	// function_stream
 
@@ -126,4 +135,3 @@ namespace daw {
 		return function_stream<Functions...>{ std::forward<Functions>( funcs )... };
 	}
 }    // namespace daw
-
