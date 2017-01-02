@@ -50,7 +50,7 @@ int main( int, char** ) {
 	std::uniform_int_distribution<uintmax_t> dis{ 500, 9999 };
 	daw::impl::locked_stack_t<real_t> results;
 	daw::task_scheduler ts { };
-	size_t const ITEMS = 500;
+	size_t const ITEMS = 5000;
 	for( size_t n=0; n<ITEMS; ++n ) {
 		ts.add_task( [&]( ) {
 			auto const num = dis( gen );

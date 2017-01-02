@@ -28,7 +28,7 @@
 int main( int, char ** ) {
 	auto fs = daw::make_function_stream( []( int x ) { return 2*x; }, []( int x ){ return x*x; }, []( int x ) { return x + 1; } );
 
-	fs( []( auto x ) { std::cout << x << std::endl; }, 5 );
+	fs( []( int x ) { std::cout << x << std::endl; }, 5 );
 
 	std::this_thread::sleep_for( std::chrono::minutes( 3 ) );
 

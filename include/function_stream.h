@@ -28,12 +28,24 @@
 #include <memory>
 #include <mutex>
 #include <utility>
+#include <tuple>
 #include <vector>
 
 #include <daw/daw_expected.h>
 #include "task_scheduler.h"
 
 namespace daw {
+	namespace impl {
+		template<typename Function, typename Tuple, size_t ...S>
+		auto apply_tuple( Function func, Tuple && t, std::index_sequence<S...> ) {
+			return func( std::forward<decltype(std::get<I...>( t ))>( std::get<I...>( t ) ) );
+		}
+
+		template<typename Function, typename Tuple, typename Index = std::make_index_sequence<std::tuple_size<Tuple>::value>>
+		auto apply_tuple( Function func, Tuple && t ) {
+			return apply_tuple( func, std::forward<Tuple>( t ), Index { } );
+		}
+	}
 	template<typename Function, typename... Functions>
 	struct function_stream {
 		using sfuple_t = std::shared_ptr<std::tuple<Function, Functions...>>;
@@ -44,21 +56,19 @@ namespace daw {
 
 		template<typename Callback, typename... Args>
 		void operator( )( Callback && cb, Args&&... args ) const {
-			this->call<0>( m_funcs, std::forward<Callback>( cb ), std::forward<Args>( args )... );
+			this->template call<0>( m_funcs, std::forward<Callback>( cb ), std::forward<Args>( args )... );
 		}
 
 	private:
 		template<size_t pos, typename Callback, typename... Args>
-		void call( sfuple_t f, Callback cb, Args... args ) const {
-			auto task_scheduler = get_task_scheduler( );
-			task_scheduler.add_task( [=, funcs=std::move( f ), callback=std::move( cb )]( ) mutable {
-				auto const & t = *funcs;
-				auto func = std::get<pos>( t );
-				auto result = func( std::move( args )... );
-				if( pos == sizeof...( Functions ) ) {
+		void call( sfuple_t funcs, Callback cb, Args... args ) const {
+			get_task_scheduler( ).add_task( [funcs, cb, targs = std::make_tuple<Args...>( std::forward<Args>( args )... )]( ) mutable {
+				auto func = std::get<pos>( *funcs );
+				auto result = impl::apply_tuple( func, std::move( targs ) );
+				if( pos >= std::tuple_size<decltype(*funcs)>::value - 1 ) {					
 					callback( std::move( result ) );
 				} else {
-					this->template call<pos+1>( std::move( funcs ), std::move( callback ), std::move( result ) );
+					this->template call<pos+1>( std::move( funcs ), cb, std::move( result ) );
 				}
 			} );
 		}
