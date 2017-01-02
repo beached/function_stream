@@ -43,7 +43,7 @@ namespace daw {
 		public:	
 			locked_stack_t( ):
 					m_semaphore{ },
-					m_mutex{ },
+					m_mutex{ std::make_unique<std::mutex>( ) },
 					m_items{ } { }
 
 			~locked_stack_t( ) = default;
@@ -101,28 +101,44 @@ namespace daw {
 		};	// locked_stack_t
 	}	// namespace impl 
 
-	struct task_scheduler: public std::enable_shared_from_this<task_scheduler> {
+	struct task_scheduler_impl: public std::enable_shared_from_this<task_scheduler_impl> {
 		using task_t = std::function<void( )>;
 	private:
 		using task_queue_t = impl::locked_stack_t<task_t>;
 		std::vector<std::thread> m_threads;
 		std::vector<task_queue_t> m_tasks;
 		std::atomic_bool m_continue;
-		std::weak_ptr<task_scheduler> get_weak_this( );
+		std::weak_ptr<task_scheduler_impl> get_weak_this( );
 		bool m_block_on_destruction;
 		size_t m_num_threads;
 		std::atomic_uintmax_t m_task_count;
 	public:
+		task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
+		~task_scheduler_impl( );
+		task_scheduler_impl( task_scheduler_impl && ) = default;
+		task_scheduler_impl & operator=( task_scheduler_impl && ) = default;
+
+		task_scheduler_impl( task_scheduler_impl const & ) = delete;
+		task_scheduler_impl & operator=( task_scheduler_impl const & ) = delete;
+
+		void add_task( task_t task ) noexcept;
+		void start( );
+		void stop( bool block = true ) noexcept;
+	};	// task_scheduler_impl
+
+	class task_scheduler {
+		std::shared_ptr<task_scheduler_impl> m_impl;
+	public:
 		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ), bool block_on_destruction = true );
-		~task_scheduler( );
+		~task_scheduler( ) = default;
 		task_scheduler( task_scheduler && ) = default;
 		task_scheduler & operator=( task_scheduler && ) = default;
 
-		task_scheduler( task_scheduler const & ) = delete;
-		task_scheduler & operator=( task_scheduler const & ) = delete;
+		task_scheduler( task_scheduler const & ) = default;
+		task_scheduler & operator=( task_scheduler const & ) = default;
 
-		void add_task( task_t task ) noexcept;
-		void run( );
+		void add_task( task_scheduler_impl::task_t task ) noexcept;
+		void start( );
 		void stop( bool block = true ) noexcept;
 	};	// task_scheduler
 }    // namespace daw

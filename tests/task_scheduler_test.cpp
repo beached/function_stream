@@ -20,18 +20,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <boost/multiprecision/cpp_dec_float.hpp>
 #include <cstdlib>
 #include <iostream>
 
 #include "task_scheduler.h"
+using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
+
+real_t fib( uintmax_t n ) noexcept {
+	if( 0 == n ) {
+		return 0;
+	}
+	real_t last = 0;
+	real_t result = 1;
+	for( uintmax_t m=1; m<n; ++m ) {
+		auto new_last = result;
+		result += result + last;
+		last = new_last;
+	}
+	return result;
+}
 
 int main( int, char** ) {
 	daw::task_scheduler ts;
+	ts.start( );
 	for( size_t n=0; n<100; ++n ) {
 		ts.add_task( [n]( ) {
-			std::cout << "Entering " << n << '\n';
-			std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
-			std::cout << "Leaving " << n << '\n';
+			std::cout << n << ": result of fib 1000 = " << fib( 1000 ) << '\n';
 		} );
 	}
 
