@@ -54,6 +54,10 @@ add_library( function_queue ${HEADER_FILES} ${SOURCE_FILES} )
 add_dependencies( function_queue header_libraries_prj )
 target_link_libraries( function_queue ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
+add_executable( task_scheduler_test_bin ${HEADER_FOLDER}/task_scheduler.h ${SOURCE_FOLDER}/task_scheduler.cpp ${TEST_FOLDER}/task_scheduler_test.cpp )
+target_link_libraries( task_scheduler_test_bin ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_dependencies( task_scheduler_test_bin header_libraries_prj )
+
 add_executable( function_queue_bin ${HEADER_FILES} ${TEST_FOLDER}/function_queue_test.cpp )
 target_link_libraries( function_queue_bin function_queue ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 

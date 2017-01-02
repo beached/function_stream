@@ -21,15 +21,19 @@
 // SOFTWARE.
 
 #include <cstdlib>
+#include <iostream>
 
-#include "function_queue.h"
+#include "task_scheduler.h"
 
-int main( int, char ** ) {
-	daw::function_queue q{ };
-	
-	q.fqueue( ).push_back( []( auto & param ) -> daw::function_queue::result_t {
-		return { };		
-	} );
+int main( int, char** ) {
+	daw::task_scheduler ts;
+	for( size_t n=0; n<100; ++n ) {
+		ts.add_task( [n]( ) {
+			std::cout << "Entering " << n << '\n';
+			std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
+			std::cout << "Leaving " << n << '\n';
+		} );
+	}
 
 	return EXIT_SUCCESS;
 }

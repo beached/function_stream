@@ -23,40 +23,54 @@
 #pragma once
 
 #include <boost/any.hpp>
+#include <cstddef>
 #include <functional>
 #include <mutex>
 #include <utility>
+#include <vector>
 
 #include <daw/daw_expected.h>
 
 namespace daw {
-	struct modification_while_running_exception: public std::exception {
-		modification_while_running_exception( );
-		~modification_while_running_exception( );
-		modification_while_running_exception( modification_while_running_exception const & ) = default;
-		modification_while_running_exception( modification_while_running_exception && ) = default;
-		modification_while_running_exception & operator=( modification_while_running_exception const & ) = default;
-		modification_while_running_exception & operator=( modification_while_running_exception && ) = default;
-	};	// modification_while_running_exception
+	template<typename Function>
+	struct function_call_impl {
+		template<typename... Args>
+		void operator( )( Args&&... args ) {
+			using result_t = decltype( Function{}( std::forward<Args>( args )... ) );
+			std::pair<size_t, daw::expected<result_t>> result = { pos, {} };
+			result.second = result.from_code( []( ) {
+				return Function{}( std::forward<Args>( args )... );
+			} );
+			return result;
+		}
+	};
 
-	struct no_value_exception: public std::exception {
-		no_value_exception( );
-		~no_value_exception( );
-		no_value_exception( no_value_exception const & ) = default;
-		no_value_exception( no_value_exception && ) = default;
-		no_value_exception & operator=( no_value_exception const & ) = default;
-		no_value_exception & operator=( no_value_exception && ) = default;
-	};	// no_value_exception
+	template<typename Function>
+	struct function_call {
+		template<typename Callback, size_t pos, typename... Args>
+		void operator( )( Args&&... args ) {
+			using result_t = decltype( function_call_impl<Function>{}( std::forward<Args>( args )... ) );
+			std::pair<size_t, result_t> result = { pos, {} };
+			result.second = result.from_code( []( ) {
+				return Function{}( std::forward<Args>( args )... );
+			} );
+			Callback{}( result );
+		}
+	};
 
+	template<size_t pos, typename Function, typename... Functions>
+	struct function_call {
+		template<typename Callback, typename... Args>
+		void operator( )( Args&&... args ) {
+			auto tmp = function_call<Callback, pos, Function>( std::forward<Args>( args )... );
+			function_call<Callback, pos + 1, Functions...>{}( std::move( tmp ) );
+		}
+	};
+
+	template<typename... Functions>
 	struct function_queue {
-		using parameter_t = std::initializer_list<boost::any>;
-		using result_t = daw::Expected<parameter_t>;
-		using function_t = std::function<result_t( parameter_t );
-		private:
-		std::vector<function_t> m_functions;
-		std::vector<result_t> m_results;
-		mutable std::mutex m_result_lock;
-		public:
+		static_assert( sizeof...( Functions ) > 0, "Must supply at least one function" );
+
 		function_queue( ) = default;
 		~function_queue( ) = default;
 		function_queue( function_queue const & ) = default;
@@ -64,59 +78,77 @@ namespace daw {
 		function_queue & operator=( function_queue const & ) = default;
 		function_queue & operator=( function_queue && ) = default;
 
-		std::vector<function_t> & function_queue( );
-		std::vector<function_t> const & function_queue( ) const;
+		/// Completion is called with an std::pair<size_t, daw::expected_t<result_type>> where the value,
+		// if any is that of the last completed function and a counter
+		template<typename Completion, typename... Args>
+		void push( Completion cb, Args&&... args ) {
+			using result_t = decltype( function_call<0, Functions...>{}( std::forward<Args>( args )... ) );
 
-		bool has_results( ) const noexcept;
-		result_t pop_result( ) noexcept;
-		std::vector<result_t> pop_results( ) noexcept;
-
-		private:
+			std::pair<size_t, daw::expected_t<boost::any>>> result { 0, {} };
+			
+		}
+	private:
 		template<typename Result>
-			Result trans( result_t result ) {
-				if( !result.has_value( ) && !result.has_exception( ) ) {
-					throw no_value{ };
-				}
-				return boost::any_cast<Result>( result.get( ) );
+		Result trans( result_t result ) {
+			if( !result.has_value( ) && !result.has_exception( ) ) {
+				throw no_value_exception{ };
 			}
-
-		template<typename Tuple, std::size_t... I>
-		decltype(auto) p2t_impl( Tuple &  parameter_t param, std::index_sequence<I...>) {
-			return std::make_tuple( boost::any_cast<Args>( *std::next( param.begin( ), I ) ) );
+			return boost::any_cast<Result>( result.get( ) );
+		}
+		
+		template<typename Arg, typename Tuple>
+		void set_value( boost::optional<Arg> & out_val, boost::any const & in_val ) {
+			out_val = boost::any_cast<Arg>( in_val );
 		}
 
-		template<typename... Args, typename Indices = std::make_index_sequence<sizeof...(Args)>>
-		decltype(auto) p2t( parameter_t param ) {
-			return p2t_impl( param, Indices{ } );
+		template<typename Arg, typename Tuple, std::size_t... I>
+		auto p2t_impl( Tuple & t, parameter_t const & param, std::index_sequence<I...>) {
+			set_value( std::get<I>( t ), *std::next( param.begin( ), I ) )...;
 		}
-		public:
+
+		template<typename Tuple, typename Indices = std::make_index_sequence<sizeof...(Args)>>
+		void p2t( Tuple & t, parameter_t const & param ) {
+			return p2t_impl( t, param, Indices{ } );
+		}
+	
+
+		template<typename TupleIn, std::size_t... I>
+		auto to_base_tuple_impl( TupleIn const & in_tuple, std::index_sequence<I...> ) {
+			return std::make_tuple( std::get<I>( in_tuple ).get( )... ); 
+		}
+
 		template<typename... Args>
-			auto convert_parameters_to( parameter_t const & param ) {
-				std::tuple<Args...> result;
-				return std::make_tuple<Args...>( boost::any_cast<Args>( 
+		auto to_base_tuple( std::tuple<daw::expected_t<Args...> const & t ) {
+			return to_base_tuple_impl( t, std::make_index_sequence<sizeof...(Args)>{ } ); 
+		}
+			
+	public:
+		template<typename... Args>
+		auto convert_parameters_to( parameter_t const & param ) {
+			auto opt_tuple = std::make_tuple( daw::expected_t<Args>{ }... );
+			p2t( opt_tuple, param );	
 
-							return result;
-							}
+		}
 
-							template<typename Result>
-							Result pop_result_as( ) {
-							return trans<Result>( pop_result( ) );
-							}
+		template<typename Result>
+		Result pop_result_as( ) {
+			return trans<Result>( pop_result( ) );
+		}
 
-							template<typename Result>
-							std::vector<Result> pop_results_as( ) {
-							std::vector<Result> results;
-							auto erased_results = pop_results( );
-							std::transform( erased_results.begin( ), erased_results.end( ), std::back_inserter( results ), []( auto const & v ) { return trans<Result>( v ); } );
-							return result;
-							}
+		template<typename Result>
+		std::vector<Result> pop_results_as( ) {
+			std::vector<Result> results;
+			auto erased_results = pop_results( );
+			std::transform( erased_results.begin( ), erased_results.end( ), std::back_inserter( results ), []( auto const & v ) { return trans<Result>( v ); } );
+			return result;
+		}
 
-							void push_argument_list( parameter_t param );
+		void push_argument_list( parameter_t param );
 
-							template<typename... Args>
-								void push_arguments( Args const &... args ) {
-									push_argument_list( { boost::any{ args }... } );
-								}
+		template<typename... Args>
+		void push_arguments( Args const &... args ) {
+			push_argument_list( { boost::any{ args }... } );
+		}
 	};	// function_queue
 
 }    // namespace daw
