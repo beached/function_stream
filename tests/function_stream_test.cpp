@@ -25,10 +25,23 @@
 
 #include "function_stream.h"
 
-int main( int, char ** ) {
-	auto fs = daw::make_function_stream( []( int x ) { return 2*x; }, []( int x ){ return x*x; }, []( int x ) { return x + 1; } );
+struct doubler_t {
+	int operator( )( int x ) {
+		return x*x;
+	}
+};
 
-	fs( []( int x ) { std::cout << x << std::endl; }, 5 );
+struct display_t {
+	void operator( )( int x ) {
+		std::cout << x << std::endl;
+	}
+};
+
+int main( int, char ** ) {
+	//auto fs = daw::make_function_stream( []( int x ) { return 2*x; }, []( int x ){ return x*x; }, []( int x ) { return x + 1; } );
+	auto fs = daw::make_function_stream( doubler_t{ } );
+
+	fs( display_t{ }, 5 );
 
 	std::this_thread::sleep_for( std::chrono::minutes( 3 ) );
 
