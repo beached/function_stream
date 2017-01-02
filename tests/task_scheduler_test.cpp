@@ -23,6 +23,8 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <random>
+#include <thread>
 
 #include "task_scheduler.h"
 using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
@@ -42,14 +44,29 @@ real_t fib( uintmax_t n ) noexcept {
 }
 
 int main( int, char** ) {
-	daw::task_scheduler ts;
-	ts.start( );
-	for( size_t n=0; n<100; ++n ) {
-		ts.add_task( [n]( ) {
-			std::cout << n << ": result of fib 1000 = " << fib( 1000 ) << '\n';
+	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
+	std::random_device rd;
+	std::mt19937 gen{ rd( ) };
+	std::uniform_int_distribution<uintmax_t> dis{ 500, 9999 };
+	daw::impl::locked_stack_t<real_t> results;
+
+	daw::task_scheduler ts { };
+	size_t const ITEMS = 2000;
+	for( size_t n=0; n<ITEMS; ++n ) {
+		ts.add_task( [&]( ) {
+			auto const num = dis( gen );
+			results.push_back( fib( num ) );
 		} );
 	}
-
+	ts.start( );
+	size_t rs_size = 0;
+	while( (rs_size = results.size( )) < ITEMS ) {
+		std::cout << rs_size << " items processed\n";
+		std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
+	}
+	for( size_t n=0; n<ITEMS; ++n ) {
+		std::cout << n << ": " << results.pop_back( ) << '\n';
+	}
 	return EXIT_SUCCESS;
 }
 

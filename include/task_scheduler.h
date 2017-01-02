@@ -24,7 +24,6 @@
 
 #include <atomic>
 #include <boost/optional.hpp>
-#include <cstddef>
 #include <functional>
 #include <mutex>
 #include <memory>
@@ -97,6 +96,16 @@ namespace daw {
 					return false;
 				}
 				return true;
+			}
+
+			size_t size( ) {
+				if( m_semaphore.try_wait( ) ) {
+					std::lock_guard<std::mutex> lock( *m_mutex );
+					auto result = m_items.size( );
+					m_semaphore.notify( );
+					return result;
+				}
+				return 0;
 			}
 		};	// locked_stack_t
 	}	// namespace impl 

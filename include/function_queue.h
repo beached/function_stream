@@ -30,6 +30,7 @@
 #include <vector>
 
 #include <daw/daw_expected.h>
+#include "task_scheduler.h"
 
 namespace daw {
 	template<typename Function>

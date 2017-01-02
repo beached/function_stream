@@ -4,7 +4,7 @@ project( function_queue_prj )
 
 include( ExternalProject )
 
-find_package( Boost 1.61.0 REQUIRED )
+find_package( Boost 1.60.0 REQUIRED )
 
 enable_testing( )
 add_definitions( -DBOOST_ALL_NO_LIB ) 
