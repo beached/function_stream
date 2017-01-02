@@ -30,7 +30,7 @@ namespace daw {
 	task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction ):
 		std::enable_shared_from_this<task_scheduler_impl> { },
 		m_threads( ),
-		m_continue { true },
+		m_continue { false },
 		m_block_on_destruction { block_on_destruction },
 		m_num_threads { num_threads },
 		m_task_count { 0 } {
@@ -44,7 +44,12 @@ namespace daw {
 		stop( m_block_on_destruction );
 	}
 
+	bool task_scheduler_impl::started( ) const {
+		return m_continue;
+	}
+
 	void task_scheduler_impl::start( ) {
+		m_continue = true;
 		for( size_t n = 0; n<m_num_threads; ++n ) {
 			m_threads.emplace_back( [id = n, wself = get_weak_this( )]( ) {
 				// The self.lock( ) determines where or not the 
@@ -125,5 +130,19 @@ namespace daw {
 	void task_scheduler::stop( bool block ) noexcept {
 		m_impl->stop( block );
 	}
+
+	bool task_scheduler::started( ) const {
+		return m_impl->started( );
+	}
+
+	task_scheduler get_task_scheduler( ) {
+		static auto ts = []( ) {
+			task_scheduler result;
+			result.start( );
+			return result;
+		}( );
+		return ts; 
+	}
+
 }    // namespace daw
 

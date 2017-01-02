@@ -49,9 +49,8 @@ int main( int, char** ) {
 	std::mt19937 gen{ rd( ) };
 	std::uniform_int_distribution<uintmax_t> dis{ 500, 9999 };
 	daw::impl::locked_stack_t<real_t> results;
-
 	daw::task_scheduler ts { };
-	size_t const ITEMS = 2000;
+	size_t const ITEMS = 500;
 	for( size_t n=0; n<ITEMS; ++n ) {
 		ts.add_task( [&]( ) {
 			auto const num = dis( gen );

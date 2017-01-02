@@ -133,6 +133,7 @@ namespace daw {
 		void add_task( task_t task ) noexcept;
 		void start( );
 		void stop( bool block = true ) noexcept;
+		bool started( ) const;
 	};	// task_scheduler_impl
 
 	class task_scheduler {
@@ -149,6 +150,9 @@ namespace daw {
 		void add_task( task_scheduler_impl::task_t task ) noexcept;
 		void start( );
 		void stop( bool block = true ) noexcept;
+		bool started( ) const;
 	};	// task_scheduler
+
+	task_scheduler get_task_scheduler( );
 }    // namespace daw
 

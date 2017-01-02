@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 2.8.12 )
 
-project( function_queue_prj )
+project( function_stream_prj )
 
 include( ExternalProject )
 
@@ -15,7 +15,7 @@ if( ${CMAKE_CXX_COMPILER_ID} STREQUAL 'MSVC' )
 	add_compile_options( -D_WIN32_WINNT=0x0601 /std:c++latest ) 
 else( )
 	if( ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" )
-		add_compile_options(-std=c++14 -Weverything -pthread -Wno-c++98-compat -g -Wno-covered-switch-default -Wno-padded -Wno-exit-time-destructors -Wno-c++98-compat-pedantic -Wno-unused-parameter -Wno-missing-noreturn -Wno-missing-prototypes -Wno-disabled-macro-expansion)
+		add_compile_options(-std=c++14 -g -Weverything -pthread -Wno-c++98-compat -g -Wno-covered-switch-default -Wno-padded -Wno-exit-time-destructors -Wno-c++98-compat-pedantic -Wno-unused-parameter -Wno-missing-noreturn -Wno-missing-prototypes -Wno-disabled-macro-expansion)
 	elseif( ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" )
 		add_compile_options(-std=c++14 -g -Wall -pthread -Wno-deprecated-declarations)
 	endif( )
@@ -43,22 +43,17 @@ link_directories( "${CMAKE_BINARY_DIR}/install/lib" )
 link_directories( ${Boost_LIBRARY_DIRS} )
 
 set( HEADER_FILES
-	${HEADER_FOLDER}/function_queue.h
+	${HEADER_FOLDER}/function_stream.h
 )
 
 set( SOURCE_FILES
-	${SOURCE_FOLDER}/function_queue.cpp
 )
-
-add_library( function_queue ${HEADER_FILES} ${SOURCE_FILES} )
-add_dependencies( function_queue header_libraries_prj )
-target_link_libraries( function_queue ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
 add_executable( task_scheduler_test_bin ${HEADER_FOLDER}/task_scheduler.h ${SOURCE_FOLDER}/task_scheduler.cpp ${TEST_FOLDER}/task_scheduler_test.cpp )
 target_link_libraries( task_scheduler_test_bin ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( task_scheduler_test_bin header_libraries_prj )
 
-add_executable( function_queue_bin ${HEADER_FILES} ${TEST_FOLDER}/function_queue_test.cpp )
-target_link_libraries( function_queue_bin function_queue ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_executable( function_stream_test_bin ${HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
+add_dependencies( function_stream_test_bin header_libraries_prj )
+target_link_libraries( function_stream_test_bin ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
-install( TARGETS function_queue DESTINATION lib )
