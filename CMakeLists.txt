@@ -48,6 +48,7 @@ set( HEADER_FILES
 )
 
 set( SOURCE_FILES
+	${SOURCE_FOLDER}/function_stream.cpp
 	${SOURCE_FOLDER}/task_scheduler.cpp
 )
 

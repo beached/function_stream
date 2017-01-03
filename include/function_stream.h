@@ -31,7 +31,7 @@
 namespace daw {
 	struct Error {
 		Error( ) = default;
-		virtual ~Error( ) = default;
+		virtual ~Error( ); 
 		Error( Error const & ) = default;
 		Error( Error && ) = default;
 		Error & operator=( Error const & ) = default;
@@ -43,6 +43,7 @@ namespace daw {
 		std::exception_ptr ex_ptr;
 
 		ErrorException( ) = delete;
+
 		explicit ErrorException( std::exception_ptr ptr ):
 				ex_ptr{ std::move( ptr ) } {  }
 
@@ -94,12 +95,12 @@ namespace daw {
 		using which_type_t = typename which_type<pos, T>::type;
 
 		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
-		void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, function_tag const & ) {
+		constexpr void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, function_tag const & ) {
 			get_task_scheduler( ).add_task( call_task_t<pos, TFunctions, OnSuccess, OnError, TArgs>{ tfuncs, std::move( on_success ), std::move( on_error ), std::move( args ) } );
 		}
 
 		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
-		void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, callback_tag const & ) { 
+		constexpr void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, callback_tag const & ) { 
 			get_task_scheduler( ).add_task( call_task_last_t<OnSuccess, OnError, TArgs>{ std::move( on_success ), std::move( on_error ), std::move( args ) } );
 		}
 
@@ -165,15 +166,37 @@ namespace daw {
 
 	template<typename... Functions>
 	class function_stream {
-		static_assert(sizeof...(Functions) > 0, "Must supply at least 1 Functor");
-		std::tuple<std::decay_t<Functions>...> m_funcs;
+		static_assert(sizeof...(Functions) > 0, "Must pass more than 0 items");
+		using function_t = std::tuple<std::decay_t<Functions>...>;
+		function_t m_funcs;
 
 	public:
 		constexpr function_stream( Functions... funcs ):
 			m_funcs { std::make_tuple( std::move( funcs )... ) } { }
 
 		template<typename OnSuccess, typename OnError, typename... Args>
-		void operator( )( OnSuccess on_success, OnError on_error, Args... args ) const {
+		constexpr void operator( )( OnSuccess on_success, OnError on_error, Args... args ) const {
+			struct package_t {
+				function_t f_list;
+				OnSuccess f_success;
+				OnError f_error;
+				using arguments_t = std::tuple<Args...>;
+				arguments_t targs;
+
+				package_t( ) = delete;
+				~package_t( ) = default;
+				package_t( package_t const & ) = delete;
+				package_t( package_t && ) = default;
+				package_t & operator=( package_t const & ) = delete;
+				package_t & operator=( package_t && ) = default;
+
+				package_t( function_t functions, OnSuccess suc, OnError err, arguments_t arg ):
+					f_list{ std::move( functions ) },
+					f_success{ std::move( suc ) },
+					f_error{ std::move( err ) },
+					targs{ std::move( arg ) } { }
+			};
+
 			using t_type = std::tuple<Functions...>;
 			impl::call<0>( m_funcs, std::move( on_success ), std::move( on_error ), std::make_tuple( std::move( args )... ), typename impl::which_type_t<0, t_type>::category{ } );
 		}

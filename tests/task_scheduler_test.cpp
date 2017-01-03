@@ -45,14 +45,20 @@ real_t fib( uintmax_t n ) noexcept {
 	return result;
 }
 
-int main( int, char** ) {
+int main( int argc, char ** argv ) {
+	auto const ITEMS = [argc, argv]() -> size_t {
+		if( argc < 2 ) {
+			return 100;
+		}
+		return strtoull( argv[1], 0, 10 );
+	}( );
+
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 	std::random_device rd;
 	std::mt19937 gen{ rd( ) };
 	std::uniform_int_distribution<uintmax_t> dis{ 500, 9999 };
 	daw::locked_stack_t<real_t> results;
 	daw::task_scheduler ts { };
-	size_t const ITEMS = 100;
 	for( size_t n=0; n<ITEMS; ++n ) {
 		ts.add_task( [&]( ) {
 			auto const num = dis( gen );
