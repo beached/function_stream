@@ -169,7 +169,7 @@ namespace daw {
 		std::tuple<std::decay_t<Functions>...> m_funcs;
 
 	public:
-		function_stream( Functions... funcs ):
+		constexpr function_stream( Functions... funcs ):
 			m_funcs { std::make_tuple( std::move( funcs )... ) } { }
 
 		template<typename OnSuccess, typename OnError, typename... Args>

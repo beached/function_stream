@@ -30,90 +30,14 @@
 #include <thread>
 #include <vector>
 
+#include <daw/daw_locked_stack.h>
 #include <daw/daw_semaphore.h>
 
 namespace daw {
-	namespace impl {
-		template<typename T>
-		class locked_stack_t {
-			daw::semaphore m_semaphore;
-			std::unique_ptr<std::mutex> m_mutex;
-			std::vector<T> m_items;
-		public:	
-			locked_stack_t( ):
-					m_semaphore{ },
-					m_mutex{ std::make_unique<std::mutex>( ) },
-					m_items{ } { }
-
-			~locked_stack_t( ) = default;
-			locked_stack_t( locked_stack_t && ) = default;
-			locked_stack_t & operator=( locked_stack_t && ) = default;
-
-			locked_stack_t( locked_stack_t const & ) = delete;
-			locked_stack_t & operator=( locked_stack_t const & ) = delete;
-
-			boost::optional<T> try_pop_back( ) {
-				if( !m_semaphore.try_wait( ) ) { 
-					return { };
-				}
-				std::lock_guard<std::mutex> lock( *m_mutex );
-				if( m_items.empty( ) ) {
-					return { };
-				}
-				auto result = m_items.back( );
-				m_items.pop_back( );
-				return result;
-			}
-
-			T pop_back( ) {
-				m_semaphore.wait( );
-				std::lock_guard<std::mutex> lock( *m_mutex );
-				if( m_items.empty( ) ) {
-					return { };
-				}
-				auto result = m_items.back( );
-				m_items.pop_back( );
-				return result;
-			}
-
-			template<typename U>
-			void push_back( U && value ) {
-				std::lock_guard<std::mutex> lock( *m_mutex );
-				m_items.push_back( std::forward<U>( value ) );
-				m_semaphore.notify( );
-			}
-
-			template<typename... Args>
-			void emplace_back( Args&&... args ) {
-				std::lock_guard<std::mutex> lock( *m_mutex );
-				m_items.emplace_back( std::forward<Args>( args )... );
-				m_semaphore.notify( );
-			}
-
-			bool empty( ) {
-				if( m_semaphore.try_wait( ) ) {
-					m_semaphore.notify( );
-					return false;
-				}
-				return true;
-			}
-
-			size_t size( ) {
-				if( m_semaphore.try_wait( ) ) {
-					std::lock_guard<std::mutex> lock( *m_mutex );
-					auto result = m_items.size( );
-					m_semaphore.notify( );
-					return result;
-				}
-				return 0;
-			}
-		};	// locked_stack_t
-	}	// namespace impl 
-
 	struct task_scheduler_impl: public std::enable_shared_from_this<task_scheduler_impl> {
 		using task_t = std::function<void( )>;
 	private:
-		using task_queue_t = impl::locked_stack_t<task_t>;
+		using task_queue_t = daw::locked_stack_t<task_t>;
 		std::vector<std::thread> m_threads;
 		std::vector<task_queue_t> m_tasks;
 		std::atomic_bool m_continue;

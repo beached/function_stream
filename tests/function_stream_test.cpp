@@ -25,7 +25,11 @@
 
 #include "function_stream.h"
 
-using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
+using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<12500>>;
+
+real_t operator"" _R( long double d ) {
+	return real_t{ d };
+}
 
 real_t fib( real_t n ) noexcept {
 	if( 0 == n ) {
@@ -41,6 +45,19 @@ real_t fib( real_t n ) noexcept {
 	return result;
 }
 
+real_t fib_fast( real_t const n ) {
+	// Use Binet's formula, limited n to decimal for perf increase
+	if( n < 1 ) {
+		return 0.0_R;
+	}
+	static real_t const sqrt_five = sqrt( 5.0_R );
+	static real_t const a_part = (1.0_R + sqrt_five) / 2.0_R;
+	static real_t const b_part = (1.0_R - sqrt_five) / 2.0_R;
+	
+	real_t const a = pow( a_part, n );
+	real_t const b = pow( b_part, n );
+	return round( (a - b)/sqrt_five );
+}
 
 struct doubler_t {
 	int operator( )( int x ) {
@@ -69,7 +86,7 @@ struct coordinates_t {
 int main( int, char ** ) {
 /*	constexpr coordinates_t<size_t, 1024> to_pos;
 	std::array<intmax_t, to_pos( 1024, 1024 )> data;*/
-	auto fs = daw::make_function_stream( []( real_t x ) { return fib( x ); }, display_t { }, []( real_t x ) { return fib( x ); }, []( real_t x ) { return fib( x ); } );
+	auto fs = daw::make_function_stream( &fib_fast, display_t{ }, &fib_fast, display_t{ }, &fib_fast );
 	
 	auto on_error = []( auto err ) {
 		try {
@@ -81,10 +98,22 @@ int main( int, char ** ) {
 		}
 	};
 
-	fs( display_t{ }, on_error, 1 );
-	fs( display_t{ }, on_error, 4 );
-	fs( display_t{ }, on_error, 16 );
-	fs( display_t{ }, on_error, 64 );
+	auto on_complete = []( auto x ) {
+		static std::mutex m;
+		std::lock_guard<std::mutex> lck{ m };
+		std::cout << "Completed->";
+		static display_t disp;
+		disp( x );
+	};
+
+	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 7 );
 
 	std::this_thread::sleep_for( std::chrono::minutes( 3 ) );
 
