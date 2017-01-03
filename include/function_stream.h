@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <utility>
+#include <iostream>
 #include <tuple>
 
 #include "task_scheduler.h"
@@ -82,8 +83,8 @@ namespace daw {
 		template<size_t S, typename Tuple>
 		using is_function_tag_t = typename is_function_tag<S, Tuple>::type;
 
-		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs> struct call_task_t;
-		template<typename OnSuccess, typename OnError, typename TArgs> struct call_task_last_t;
+		template<size_t pos, typename Package> struct call_task_t;
+		template<typename Package> struct call_task_last_t;
 
 		struct function_tag { using category = function_tag; };
 		struct callback_tag { using category = callback_tag; };
@@ -94,28 +95,22 @@ namespace daw {
 		template<size_t pos, typename T>
 		using which_type_t = typename which_type<pos, T>::type;
 
-		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
-		constexpr void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, function_tag const & ) {
-			get_task_scheduler( ).add_task( call_task_t<pos, TFunctions, OnSuccess, OnError, TArgs>{ tfuncs, std::move( on_success ), std::move( on_error ), std::move( args ) } );
+		template<size_t pos, typename Package>
+		constexpr void call( Package package, function_tag const & ) { 
+			get_task_scheduler( ).add_task( call_task_t<pos, Package>{ std::move( package ) } );
 		}
 
-		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
-		constexpr void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, callback_tag const & ) { 
-			get_task_scheduler( ).add_task( call_task_last_t<OnSuccess, OnError, TArgs>{ std::move( on_success ), std::move( on_error ), std::move( args ) } );
+		template<size_t pos, typename Package>
+		constexpr void call( Package package, callback_tag const & ) { 
+			get_task_scheduler( ).add_task( call_task_last_t<Package>{ std::move( package ) } );
 		}
 
-		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
+		template<size_t pos, typename Package>
 		struct call_task_t {
-			TFunctions m_tfuncs;
-			OnSuccess m_on_success;
-			OnError m_on_error;
-			TArgs m_targs;
+			Package m_package;
 
-			constexpr call_task_t( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs targs ):
-				m_tfuncs { std::move( tfuncs ) },
-				m_on_success{ std::move( on_success ) },
-				m_on_error{ std::move( on_error ) },
-				m_targs { std::move( targs ) } { }
+			constexpr call_task_t( Package package ):
+				m_package { std::move( package ) } { }
 
 			call_task_t( ) = delete;
 			~call_task_t( ) = default;
@@ -125,27 +120,24 @@ namespace daw {
 			call_task_t & operator=( call_task_t && ) = default;
 
 			void operator( )( ) {
-				auto const func = std::get<pos>( m_tfuncs );
+				auto const func = std::get<pos>( m_package->f_list );
 				try {
-					auto result = std::make_tuple( apply_tuple( func, std::move( m_targs ) ) );
+					std::clog << "A\n";
+					auto result = apply_tuple( func, std::move( m_package->targs ) );
 					static size_t const new_pos = pos + 1;
-					call<new_pos>( std::move( m_tfuncs ), std::move( m_on_success ), m_on_error, std::move( result ), typename which_type_t<new_pos, decltype(m_tfuncs)>::category { } );
+					call<new_pos>( m_package->next_package( std::move( result ) ), typename which_type_t<new_pos, decltype(m_package->f_list)>::category { } );
 				} catch(...) {
-					m_on_error( ErrorException<pos>{ std::current_exception( ) } );
+					m_package->f_error( ErrorException<pos>{ std::current_exception( ) } );
 				}
 			}
 		};	// call_task_t
 
-		template<typename OnSuccess, typename OnError, typename TArg>
+		template<typename Package>
 		struct call_task_last_t {
-			OnSuccess m_on_success;
-			OnError m_on_error;
-			TArg m_targ;
+			Package m_package;
 
-			constexpr call_task_last_t( OnSuccess on_success, OnError on_error, TArg targ ):
-				m_on_success{ std::move( on_success ) },
-				m_on_error { std::move( on_error ) },
-				m_targ { std::move( targ ) } { }
+			constexpr call_task_last_t( Package package ):
+				m_package{ std::move( package ) } { }
 
 			call_task_last_t( ) = delete;
 			~call_task_last_t( ) = default;
@@ -156,12 +148,46 @@ namespace daw {
 
 			void operator( )( ) {
 				try {
-					apply_tuple( m_on_success, std::move( m_targ ) );
+					std::clog << "B\n";
+					apply_tuple( m_package->f_success, std::move( m_package->targs ) );
 				} catch(...) {
-					m_on_error( ErrorException<std::numeric_limits<size_t>::max( )>{ std::current_exception( ) } );
+					m_package->f_error( ErrorException<std::numeric_limits<size_t>::max( )>{ std::current_exception( ) } );
 				}
 			}
 		};	// call_task_last_t
+
+		template<typename Functions, typename OnSuccess, typename OnError, typename... Args>
+		struct package_t {
+			using functions_t = Functions;
+			using on_success_t = OnSuccess;
+			using on_error_t = OnError;
+			using arguments_t = std::tuple<Args...>;
+			
+			functions_t f_list;
+			on_success_t f_success;
+			on_error_t f_error;
+			arguments_t targs;
+
+			package_t( ) = delete;
+			~package_t( ) = default;
+			package_t( package_t const & ) = delete;
+			package_t( package_t && ) = default;
+			package_t & operator=( package_t const & ) = delete;
+			package_t & operator=( package_t && ) = default;
+
+			template<typename... NewArgs>
+			auto next_package( NewArgs... nargs ) {
+				return std::make_shared<package_t<functions_t, on_success_t, on_error_t, NewArgs...>>( std::move( f_list ), std::move( f_success ), std::move( f_error ), std::move( nargs )... );
+			}
+
+			package_t( functions_t functions, on_success_t on_success, on_error_t on_error, Args... args ):
+				f_list{ std::move( functions ) },
+				f_success{ std::move( on_success ) },
+				f_error{ std::move( on_error ) },
+				targs{ std::make_tuple( std::move( args )... ) } { }
+		};
+
+
 	}	// namespace impl
 
 	template<typename... Functions>
@@ -176,29 +202,7 @@ namespace daw {
 
 		template<typename OnSuccess, typename OnError, typename... Args>
 		constexpr void operator( )( OnSuccess on_success, OnError on_error, Args... args ) const {
-			struct package_t {
-				function_t f_list;
-				OnSuccess f_success;
-				OnError f_error;
-				using arguments_t = std::tuple<Args...>;
-				arguments_t targs;
-
-				package_t( ) = delete;
-				~package_t( ) = default;
-				package_t( package_t const & ) = delete;
-				package_t( package_t && ) = default;
-				package_t & operator=( package_t const & ) = delete;
-				package_t & operator=( package_t && ) = default;
-
-				package_t( function_t functions, OnSuccess suc, OnError err, arguments_t arg ):
-					f_list{ std::move( functions ) },
-					f_success{ std::move( suc ) },
-					f_error{ std::move( err ) },
-					targs{ std::move( arg ) } { }
-			};
-
-			using t_type = std::tuple<Functions...>;
-			impl::call<0>( m_funcs, std::move( on_success ), std::move( on_error ), std::make_tuple( std::move( args )... ), typename impl::which_type_t<0, t_type>::category{ } );
+			impl::call<0>( std::make_shared<impl::package_t<function_t, OnSuccess, OnError, Args...>>( m_funcs, std::move( on_success ), std::move( on_error ), std::move( args )... ), typename impl::which_type_t<0, function_t>::category{ } );
 		}
 	};	// function_stream
 

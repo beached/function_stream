@@ -86,7 +86,8 @@ struct coordinates_t {
 int main( int, char ** ) {
 /*	constexpr coordinates_t<size_t, 1024> to_pos;
 	std::array<intmax_t, to_pos( 1024, 1024 )> data;*/
-	auto fs = daw::make_function_stream( &fib_fast, display_t{ }, &fib_fast, display_t{ }, &fib_fast );
+
+	auto const fs = daw::make_function_stream( &fib, &fib, &fib );
 	
 	auto on_error = []( auto err ) {
 		try {
@@ -105,15 +106,22 @@ int main( int, char ** ) {
 		static display_t disp;
 		disp( x );
 	};
-
+	
+	for( size_t n=0; n<1000; ++n ) {
+		fs( on_complete, on_error, 5 );
+		fs( on_complete, on_error, 5 );
+		fs( on_complete, on_error, 5 );
+		fs( on_complete, on_error, 5 );
+	}
+	fs( on_complete, on_error, 5 );
+	fs( on_complete, on_error, 6 );
 	fs( on_complete, on_error, 7 );
-	fs( on_complete, on_error, 7 );
-	fs( on_complete, on_error, 7 );
-	fs( on_complete, on_error, 7 );
-	fs( on_complete, on_error, 7 );
-	fs( on_complete, on_error, 7 );
-	fs( on_complete, on_error, 7 );
-	fs( on_complete, on_error, 7 );
+	fs( on_complete, on_error, 6 );
+	fs( on_complete, on_error, 5 );
+	fs( on_complete, on_error, 4 );
+	fs( on_complete, on_error, 3 );
+	fs( on_complete, on_error, 2 );
+	fs( on_complete, on_error, 1 );
 
 	std::this_thread::sleep_for( std::chrono::minutes( 3 ) );
 
