@@ -24,7 +24,6 @@
 
 #include <memory>
 #include <utility>
-#include <iostream>
 #include <tuple>
 
 #include "task_scheduler.h"
@@ -122,7 +121,6 @@ namespace daw {
 			void operator( )( ) {
 				auto const func = std::get<pos>( m_package->f_list );
 				try {
-					std::clog << "A\n";
 					auto result = apply_tuple( func, std::move( m_package->targs ) );
 					static size_t const new_pos = pos + 1;
 					call<new_pos>( m_package->next_package( std::move( result ) ), typename which_type_t<new_pos, decltype(m_package->f_list)>::category { } );
@@ -148,7 +146,6 @@ namespace daw {
 
 			void operator( )( ) {
 				try {
-					std::clog << "B\n";
 					apply_tuple( m_package->f_success, std::move( m_package->targs ) );
 				} catch(...) {
 					m_package->f_error( ErrorException<std::numeric_limits<size_t>::max( )>{ std::current_exception( ) } );
@@ -186,8 +183,20 @@ namespace daw {
 				f_error{ std::move( on_error ) },
 				targs{ std::make_tuple( std::move( args )... ) } { }
 		};
-
-
+		template<typename Function>
+		struct get_result_of {
+			template<typename... Args>
+			static constexpr auto test( Args&&... args ) {
+				return std::declval<Function>( )(std::forward<Args>( args )...);
+			}
+		};
+		template<typename Function, typename... Functions>
+		struct get_result_of {
+			template<typename... Args>
+			static constexpr auto test( Args&&... args ) {
+				return get_result_of<Functions...>{ }.test( std::declval<Function>( )(std::forward<Args>( args )...); )
+			}
+		};
 	}	// namespace impl
 
 	template<typename... Functions>
@@ -195,13 +204,14 @@ namespace daw {
 		static_assert(sizeof...(Functions) > 0, "Must pass more than 0 items");
 		using function_t = std::tuple<std::decay_t<Functions>...>;
 		function_t m_funcs;
-
+		using result_t = impl::get_result_of<Functions...>;
 	public:
 		constexpr function_stream( Functions... funcs ):
 			m_funcs { std::make_tuple( std::move( funcs )... ) } { }
 
 		template<typename OnSuccess, typename OnError, typename... Args>
-		constexpr void operator( )( OnSuccess on_success, OnError on_error, Args... args ) const {
+		constexpr auto operator( )( OnSuccess on_success, OnError on_error, Args... args ) const {
+			using func_result_t = decltype(std::declval<result_t>( ).test( args... ));
 			impl::call<0>( std::make_shared<impl::package_t<function_t, OnSuccess, OnError, Args...>>( m_funcs, std::move( on_success ), std::move( on_error ), std::move( args )... ), typename impl::which_type_t<0, function_t>::category{ } );
 		}
 	};	// function_stream

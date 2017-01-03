@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <condition_variable>
-#include <iostream>
 #include <functional>
 #include <thread>
 
@@ -36,7 +35,6 @@ namespace daw {
 		m_num_threads { num_threads },
 		m_task_count { 0 } {
 
-		std::clog << "Starting task scheduler with " << num_threads << " workers\n";
 		for( size_t n = 0; n<m_num_threads; ++n ) {
 			m_tasks.emplace_back( );
 		}
