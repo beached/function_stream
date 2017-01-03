@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
-#include <cstdlib>
 #include <iostream>
 
 #include "function_stream.h"
@@ -50,17 +49,42 @@ struct doubler_t {
 };
 
 struct display_t {
-	void operator( )( real_t x ) {
+	static std::mutex mut;
+	auto operator( )( real_t x ) {
+		std::lock_guard<std::mutex> lck { mut };
 		std::cout << x << std::endl;
+		return x;
+	}
+};
+
+std::mutex display_t::mut { };
+
+template<typename T, size_t Width>
+struct coordinates_t {
+	constexpr size_t operator( )( T x, T y ) const {
+		return y*Width + x;
 	}
 };
 
 int main( int, char ** ) {
-	auto fs = daw::make_function_stream( []( real_t x ) { return fib( x ); }, []( real_t x ){ return fib( x ); }, []( real_t x ) { return fib( x ); } );
+/*	constexpr coordinates_t<size_t, 1024> to_pos;
+	std::array<intmax_t, to_pos( 1024, 1024 )> data;*/
+	auto fs = daw::make_function_stream( []( real_t x ) { return fib( x ); }, display_t { }, []( real_t x ) { return fib( x ); }, []( real_t x ) { return fib( x ); } );
+	
+	auto on_error = []( auto err ) {
+		try {
+			err.get_exception( );
+		} catch( std::exception const & ex ) {
+			std::cerr << "Error during function at index " << err.function_index( ) << " with message: " << ex.what( ) << std::endl;
+		} catch(...) {
+			std::cerr << "Unknown Error during function at index " << err.function_index( ) << std::endl;
+		}
+	};
 
-	fs( display_t{ }, 5 );
-	fs( display_t{ }, 3 );
-	fs( display_t{ }, 13 );
+	fs( display_t{ }, on_error, 1 );
+	fs( display_t{ }, on_error, 4 );
+	fs( display_t{ }, on_error, 16 );
+	fs( display_t{ }, on_error, 64 );
 
 	std::this_thread::sleep_for( std::chrono::minutes( 3 ) );
 

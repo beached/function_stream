@@ -22,19 +22,45 @@
 
 #pragma once
 
-#include <boost/any.hpp>
-#include <cstddef>
-#include <functional>
 #include <memory>
-#include <mutex>
 #include <utility>
 #include <tuple>
-#include <vector>
 
-#include <daw/daw_expected.h>
 #include "task_scheduler.h"
 
 namespace daw {
+	struct Error {
+		Error( ) = default;
+		virtual ~Error( ) = default;
+		Error( Error const & ) = default;
+		Error( Error && ) = default;
+		Error & operator=( Error const & ) = default;
+		Error & operator=( Error && ) = default;
+	};
+
+	template<size_t pos>
+	struct ErrorException: public Error {
+		std::exception_ptr ex_ptr;
+
+		ErrorException( ) = delete;
+		explicit ErrorException( std::exception_ptr ptr ):
+				ex_ptr{ std::move( ptr ) } {  }
+
+		~ErrorException( ) = default;
+		ErrorException( ErrorException const & ) = default;
+		ErrorException( ErrorException && ) = default;
+		ErrorException & operator=( ErrorException const & ) = default;
+		ErrorException & operator=( ErrorException && ) = default;
+
+		static constexpr auto function_index( ) noexcept {
+			return pos;
+		}
+
+		void get_exception( ) const {
+			std::rethrow_exception( ex_ptr );
+		}		
+	};
+
 	namespace impl {
 		template<typename Function, typename Tuple, size_t ...S>
 		auto apply_tuple( Function func, Tuple && t, std::index_sequence<S...> ) {
@@ -50,13 +76,13 @@ namespace daw {
 		using is_function_tag = std::integral_constant<bool, 0<=S && S < std::tuple_size<Tuple>::value>;
 		
 		template<size_t S, typename Tuple>
-		constexpr auto const is_function_tag_v = is_function_tag<S, Tuple>::value;
+		constexpr bool const is_function_tag_v = is_function_tag<S, Tuple>::value;
 
 		template<size_t S, typename Tuple>
 		using is_function_tag_t = typename is_function_tag<S, Tuple>::type;
 
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs> struct call_task_t;
-		template<typename Callback, typename TArgs> struct call_task_last_t;
+		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs> struct call_task_t;
+		template<typename OnSuccess, typename OnError, typename TArgs> struct call_task_last_t;
 
 		struct function_tag { using category = function_tag; };
 		struct callback_tag { using category = callback_tag; };
@@ -67,25 +93,27 @@ namespace daw {
 		template<size_t pos, typename T>
 		using which_type_t = typename which_type<pos, T>::type;
 
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
-		auto call( TFunctions tfuncs, Callback cb, TArgs args, function_tag const & ) {
-			get_task_scheduler( ).add_task( call_task_t<pos, TFunctions, Callback, TArgs>{ tfuncs, std::move( cb ), std::move( args ) } );
+		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
+		void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, function_tag const & ) {
+			get_task_scheduler( ).add_task( call_task_t<pos, TFunctions, OnSuccess, OnError, TArgs>{ tfuncs, std::move( on_success ), std::move( on_error ), std::move( args ) } );
 		}
 
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
-		auto call( TFunctions tfuncs, Callback cb, TArgs args, callback_tag const & ) { 
-			get_task_scheduler( ).add_task( call_task_last_t<Callback, TArgs>{ std::move( cb ), std::move( args ) } );
+		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
+		void call( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs args, callback_tag const & ) { 
+			get_task_scheduler( ).add_task( call_task_last_t<OnSuccess, OnError, TArgs>{ std::move( on_success ), std::move( on_error ), std::move( args ) } );
 		}
 
-		template<size_t pos, typename TFunctions, typename Callback, typename TArgs>
+		template<size_t pos, typename TFunctions, typename OnSuccess, typename OnError, typename TArgs>
 		struct call_task_t {
 			TFunctions m_tfuncs;
-			Callback m_cb;
+			OnSuccess m_on_success;
+			OnError m_on_error;
 			TArgs m_targs;
 
-			constexpr call_task_t( TFunctions tfuncs, Callback cb, TArgs targs ):
+			constexpr call_task_t( TFunctions tfuncs, OnSuccess on_success, OnError on_error, TArgs targs ):
 				m_tfuncs { std::move( tfuncs ) },
-				m_cb { std::move( cb ) },
+				m_on_success{ std::move( on_success ) },
+				m_on_error{ std::move( on_error ) },
 				m_targs { std::move( targs ) } { }
 
 			call_task_t( ) = delete;
@@ -97,19 +125,25 @@ namespace daw {
 
 			void operator( )( ) {
 				auto const func = std::get<pos>( m_tfuncs );
-				auto result = std::make_tuple( apply_tuple( func, std::move( m_targs ) ) );
-				static size_t const new_pos = pos + 1;
-				call<new_pos>( std::move( m_tfuncs ), std::move( m_cb ), std::move( result ), typename which_type_t<new_pos, decltype(m_tfuncs)>::category{ } );
+				try {
+					auto result = std::make_tuple( apply_tuple( func, std::move( m_targs ) ) );
+					static size_t const new_pos = pos + 1;
+					call<new_pos>( std::move( m_tfuncs ), std::move( m_on_success ), m_on_error, std::move( result ), typename which_type_t<new_pos, decltype(m_tfuncs)>::category { } );
+				} catch(...) {
+					m_on_error( ErrorException<pos>{ std::current_exception( ) } );
+				}
 			}
 		};	// call_task_t
 
-		template<typename Callback, typename TArg>
+		template<typename OnSuccess, typename OnError, typename TArg>
 		struct call_task_last_t {
-			Callback m_cb;
+			OnSuccess m_on_success;
+			OnError m_on_error;
 			TArg m_targ;
 
-			constexpr call_task_last_t( Callback cb, TArg targ ):
-				m_cb { std::move( cb ) },
+			constexpr call_task_last_t( OnSuccess on_success, OnError on_error, TArg targ ):
+				m_on_success{ std::move( on_success ) },
+				m_on_error { std::move( on_error ) },
 				m_targ { std::move( targ ) } { }
 
 			call_task_last_t( ) = delete;
@@ -120,7 +154,11 @@ namespace daw {
 			call_task_last_t & operator=( call_task_last_t && ) = default;
 
 			void operator( )( ) {
-				apply_tuple( m_cb, std::move( m_targ ) );
+				try {
+					apply_tuple( m_on_success, std::move( m_targ ) );
+				} catch(...) {
+					m_on_error( ErrorException<std::numeric_limits<size_t>::max( )>{ std::current_exception( ) } );
+				}
 			}
 		};	// call_task_last_t
 	}	// namespace impl
@@ -134,10 +172,10 @@ namespace daw {
 		function_stream( Functions... funcs ):
 			m_funcs { std::make_tuple( std::move( funcs )... ) } { }
 
-		template<typename Callback, typename... Args>
-		void operator( )( Callback && cb, Args&&... args ) const {
+		template<typename OnSuccess, typename OnError, typename... Args>
+		void operator( )( OnSuccess on_success, OnError on_error, Args... args ) const {
 			using t_type = std::tuple<Functions...>;
-			impl::call<0>( m_funcs, std::move( cb ), std::make_tuple( std::move( args )... ), typename impl::which_type_t<0, t_type>::category{ } );
+			impl::call<0>( m_funcs, std::move( on_success ), std::move( on_error ), std::make_tuple( std::move( args )... ), typename impl::which_type_t<0, t_type>::category{ } );
 		}
 	};	// function_stream
 

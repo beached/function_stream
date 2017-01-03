@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
-#include <cstdlib>
 #include <iostream>
 #include <random>
 #include <thread>
@@ -58,7 +57,7 @@ int main( int, char** ) {
 		} );
 	}
 	ts.start( );
-	size_t rs_size = 0;
+	size_t rs_size;
 	while( (rs_size = results.size( )) < ITEMS ) {
 		std::cout << rs_size << " items processed\n";
 		std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
