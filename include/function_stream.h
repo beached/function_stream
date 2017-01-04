@@ -67,7 +67,7 @@ namespace daw {
 
 		template<size_t pos, typename Package>
 		void call( Package package ) {
-			get_task_scheduler( ).add_task( [p = std::move( package )]( ) {
+			get_task_scheduler( ).add_task( [p = std::move( package )]( ) mutable {
 				call_task<pos>( std::move( p ), typename impl::which_type_t<pos, decltype(p->f_list)>::category { } );
 			} );
 		}
