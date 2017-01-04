@@ -232,6 +232,9 @@ namespace daw {
 	};	// future_result_t
 
 	namespace impl {
+		template<typename Result, typename Functions, typename... Args>
+		auto make_shared_package( bool, Result &&, Functions &&, Args&&... );
+
 		template<typename R>
 		constexpr auto weak_ptr_test( std::weak_ptr<R> wp ) { return static_cast<R*>(nullptr); }
 
