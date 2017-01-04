@@ -21,12 +21,8 @@
 // SOFTWARE.
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
-#include <cmath>
 #include <iostream>
 #include <random>
-#include <array>
-
-#include <daw/daw_array.h>
 
 #include "function_stream.h"
 
@@ -51,44 +47,23 @@ real_t fib( real_t n ) noexcept {
 	return result;
 }
 
-real_t fib_fast( real_t const n ) {
-	// Use Binet's formula, limited n to decimal for perf increase
-	if( n < 1 ) {
-		return 0.0_R;
-	}
-	static real_t const sqrt_five = sqrt( 5.0_R );
-	static real_t const a_part = (1.0_R + sqrt_five) / 2.0_R;
-	static real_t const b_part = (1.0_R - sqrt_five) / 2.0_R;
-
-	real_t const a = pow( a_part, n );
-	real_t const b = pow( b_part, n );
-	return round( (a - b)/sqrt_five );
-}
-
-struct doubler_t {
-	int operator( )( int x ) {
-		return x*x;
-	}
-};
-
 int main( int, char ** ) {
 	auto const fs = daw::make_function_stream( &fib, &fib, &fib );
-	std::random_device r;
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_int_distribution<> dis(1, 6);
+	std::uniform_int_distribution<> dis(5, 7);
 
-	auto results = daw::create_vector( fs( 1 ) );
+	auto results = daw::create_vector( fs( 3 ) );
 
-	for( size_t n=1; n<100; ++n ) {	
+	for( size_t n=1; n<40; ++n ) {	
 		results.push_back( fs( dis( gen ) ) );
 	};
-
-	for( auto v: results ) {
+	
+	for( auto const & v: results ) {
 		std::cout << v.get( ) << '\n';
 	}
-
+	
 	return EXIT_SUCCESS;
 }
 

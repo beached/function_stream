@@ -23,15 +23,13 @@
 #pragma once
 
 #include <atomic>
-#include <boost/optional.hpp>
 #include <functional>
-#include <mutex>
 #include <memory>
 #include <thread>
 #include <vector>
 
 #include <daw/daw_locked_stack.h>
-#include <daw/daw_semaphore.h>
+
 
 namespace daw {
 	struct task_scheduler_impl: public std::enable_shared_from_this<task_scheduler_impl> {
