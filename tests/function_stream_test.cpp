@@ -48,9 +48,9 @@ real_t fib( real_t n ) noexcept {
 	return result;
 }
 
-int a( int x ) { return 1; }
-int b( int x ) { return 2; }
-void c( int x ) {  }
+int a( int x ) { return x*2; }
+int b( int x ) { return x*3; }
+int c( int x ) { return x*4; }
 
 struct A {
 	int operator( )( int x ) const { return 1; }
@@ -80,6 +80,8 @@ int main( int, char ** ) {
 
 	auto results = daw::create_vector( fs( 3 ) );
 
+	std::cout << fs( 1 ).get( ) << std::endl;
+	/*
 	for( size_t n=1; n<40; ++n ) {	
 		results.push_back( fs( dis( gen ) ) );
 	};
@@ -88,6 +90,7 @@ int main( int, char ** ) {
 		v.get( );
 		std::cout << "'" << "'\n";
 	}
+	*/
 	return EXIT_SUCCESS;
 }
 
