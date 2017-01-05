@@ -56,13 +56,13 @@ namespace daw {
 		template<typename Package> struct call_task_last_t;
 
 		struct function_tag { using category = function_tag; };
-		struct callback_tag { using category = callback_tag; };
+		struct last_function_tag { using category = last_function_tag; };
 
 		template<size_t S, typename Tuple>
-		using which_type_t = typename std::conditional < S < std::tuple_size<std::decay_t<Tuple>>::value - 1, function_tag, callback_tag>::type;
+		using which_type_t = typename std::conditional < S < std::tuple_size<std::decay_t<Tuple>>::value - 1, function_tag, last_function_tag>::type;
 
 		template<size_t pos, typename Package>
-		void call_task( Package, callback_tag );
+		void call_task( Package, last_function_tag );
 		template<size_t pos, typename Package>
 		void call_task( Package, function_tag );
 
@@ -74,14 +74,14 @@ namespace daw {
 		}
 
 		template<size_t pos, typename Package>
-		void call_task( Package package, callback_tag ) {
+		void call_task( Package package, last_function_tag ) {
 			if( !package->continue_processing( ) ) {
 				return;
 			}
-			auto const func = std::get<pos>( package->f_list );
+			auto func = std::get<pos>( package->f_list );
 			auto client_data = package->m_result.lock( );
 			if( client_data ) {
-				client_data->from_code( [&]( ) {
+				client_data->from_code( [&]( ) mutable {
 					return apply_tuple( func, std::move( package->targs ) );
 				} );
 			} else {
@@ -94,7 +94,7 @@ namespace daw {
 			if( !package->continue_processing( ) ) {
 				return;
 			}
-			auto const func = std::get<pos>( package->f_list );
+			auto func = std::get<pos>( package->f_list );
 			try {
 				static size_t const new_pos = pos + 1;
 				call<new_pos>( package->next_package( apply_tuple( func, std::move( package->targs ) ) ) );
@@ -169,15 +169,16 @@ namespace daw {
 		}
 
 		template<size_t pos, typename TFunctions, typename Arg>
-		constexpr auto function_composer_impl( TFunctions const &, callback_tag, Arg arg ) {
-			static_assert( pos == std::tuple_size<TFunctions>::value - 1, "callback_tag should only be retuned for last item in tuple" );
-			return arg;
+		constexpr auto function_composer_impl( TFunctions funcs, last_function_tag, Arg&& arg ) {
+			static_assert( pos == std::tuple_size<TFunctions>::value - 1, "last_function_tag should only be retuned for last item in tuple" );
+			auto func = std::get<pos>( funcs );
+			return func( std::forward<Arg>( arg ) );
 		}
 
-		template<size_t pos, typename TFunctions, typename... Args, typename = std::enable_if_t<is_function_tag_v<pos, TFunctions>>>
-		auto function_composer_impl( TFunctions const & funcs, function_tag, Args&&... args ) {
+		template<size_t pos, typename TFunctions, typename... Args>
+		auto function_composer_impl( TFunctions funcs, function_tag, Args&&... args ) {
 			static_assert( pos < std::tuple_size<TFunctions>::value - 1, "function_tag should only be retuned for all but last item in tuple" );
-			auto const func = std::get<pos>( funcs );
+			auto func = std::get<pos>( funcs );
 			static auto const next_pos = pos + 1;
 			return function_composer_impl<next_pos>( funcs, typename which_type_t<next_pos, TFunctions>::category{ }, func( std::forward<Args>( args )... ) );
 		}

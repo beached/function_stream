@@ -49,10 +49,29 @@ real_t fib( real_t n ) noexcept {
 }
 
 int a( int x ) { return 1; }
-char b( int x ) { return 'c'; }
-void c( char x ) { }
+int b( int x ) { return 2; }
+void c( int x ) {  }
+
+struct A {
+	int operator( )( int x ) const { return 1; }
+};
+
+struct B {
+	int operator( )( int x ) const { return 2; }
+};
+
+struct C {
+	void operator( )( std::string x ) const { }
+};
+
+struct D {
+	std::string operator( )( int x ) { return std::string{ "Hello" }; }
+};
 
 int main( int, char ** ) {
+	daw::impl::function_composer_t<A, B, D, C> fc{ A{ }, B{ }, D{ }, C{ } };
+	static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( C{ }( "" ) )>::value, "function_composer_t is not returning the correct type" );
+
 	auto const fs = daw::make_function_stream( &a, &b, &c );
 
 	std::random_device rd;
@@ -67,9 +86,8 @@ int main( int, char ** ) {
 	
 	for( auto const & v: results ) {
 		v.get( );
-		std::cout << static_cast<bool>(v) << '\n';
+		std::cout << "'" << "'\n";
 	}
-	
 	return EXIT_SUCCESS;
 }
 
