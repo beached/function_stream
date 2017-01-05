@@ -26,8 +26,6 @@
 #include <utility>
 #include <tuple>
 
-#include <daw/daw_expected.h>
-
 #include "task_scheduler.h"
 #include "future_result.h"
 
@@ -169,7 +167,7 @@ namespace daw {
 		}
 
 		template<size_t pos, typename TFunctions, typename Arg>
-		constexpr auto function_composer_impl( TFunctions funcs, last_function_tag, Arg&& arg ) {
+		auto function_composer_impl( TFunctions funcs, last_function_tag, Arg&& arg ) {
 			static_assert( pos == std::tuple_size<TFunctions>::value - 1, "last_function_tag should only be retuned for last item in tuple" );
 			auto func = std::get<pos>( funcs );
 			return func( std::forward<Arg>( arg ) );

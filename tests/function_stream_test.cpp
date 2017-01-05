@@ -23,7 +23,6 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
 #include <random>
-#include <string>
 
 #include "function_stream.h"
 
@@ -65,32 +64,37 @@ struct C {
 };
 
 struct D {
-	std::string operator( )( int x ) { return std::string{ "Hello" }; }
+	std::string operator( )( int x ) const { return std::string{ "Hello" }; }
 };
 
 int main( int, char ** ) {
-	daw::impl::function_composer_t<A, B, D, C> fc{ A{ }, B{ }, D{ }, C{ } };
-	static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( C{ }( "" ) )>::value, "function_composer_t is not returning the correct type" );
-
-	auto const fs = daw::make_function_stream( &a, &b, &c );
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_int_distribution<> dis(5, 7);
-
-	auto results = daw::create_vector( fs( 3 ) );
-
-	std::cout << fs( 1 ).get( ) << std::endl;
-	/*
-	for( size_t n=1; n<40; ++n ) {	
-		results.push_back( fs( dis( gen ) ) );
-	};
-	
-	for( auto const & v: results ) {
-		v.get( );
-		std::cout << "'" << "'\n";
+	{
+		daw::impl::function_composer_t<A, B, D> fc { A { }, B { }, D { } };
+		static_assert(std::is_same<decltype(fc.apply( 3 )), decltype(D { }(3)) > ::value, "function_composer_t is not returning the correct type");
+		std::cout << fc.apply( 4 ) << std::endl;
 	}
-	*/
+
+	{
+		auto fs = daw::make_function_stream( &a, &b, &c );
+		std::cout << fs( 1 ).get( ) << std::endl;
+	}
+
+	{
+		std::random_device rd;
+		std::mt19937 gen( rd( ) );
+		std::uniform_int_distribution<> dis( 5, 7 );
+
+		auto fs2 = daw::make_function_stream( &fib, &fib, &fib );
+		auto results = daw::create_vector( fs2( 3 ) );
+
+		for( size_t n = 1; n < 40; ++n ) {
+			results.push_back( fs2( dis( gen ) ) );
+		};
+
+		for( auto const & v : results ) {
+			std::cout << "'" << v.get( ) << "'\n";
+		}
+	}
 	return EXIT_SUCCESS;
 }
 
