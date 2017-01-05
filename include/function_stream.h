@@ -29,6 +29,7 @@
 #include <daw/daw_expected.h>
 
 #include "task_scheduler.h"
+#include "future_result.h"
 
 namespace daw {
 	namespace impl {
@@ -95,9 +96,8 @@ namespace daw {
 			}
 			auto const func = std::get<pos>( package->f_list );
 			try {
-				auto result = apply_tuple( func, std::move( package->targs ) );
 				static size_t const new_pos = pos + 1;
-				call<new_pos>( package->next_package( std::move( result ) ) );
+				call<new_pos>( package->next_package( apply_tuple( func, std::move( package->targs ) ) ) );
 			} catch( ... ) {
 				auto result = package->m_result.lock( );
 				if( result ) {
@@ -105,133 +105,7 @@ namespace daw {
 				}
 			}
 		}
-	}	// namespace impl 
 
-	enum class future_status { ready, timeout, deferred };
-	template<typename Result>
-	struct future_result_t {
-		struct member_data_t {
-			daw::semaphore m_semaphore;
-			daw::expected_t<Result> m_result;
-			future_status m_status;
-
-			member_data_t( ):
-				m_semaphore { },
-				m_result { },
-				m_status { future_status::deferred } { }
-
-			~member_data_t( ) = default;
-		private:
-			member_data_t( member_data_t const & ) = default;
-			member_data_t( member_data_t && ) = default;
-			member_data_t & operator=( member_data_t const & ) = default;
-			member_data_t & operator=( member_data_t && ) = default;
-		public:
-			void set_value( Result value ) noexcept {
-				m_result = std::move( value );
-				m_status = future_status::ready;
-				m_semaphore.notify( );
-			}
-
-			void set_value( member_data_t & other ) {
-				m_result = std::move( other.m_result );
-				m_status = std::move( other.m_status );
-				m_semaphore.notify( );
-			}
-
-			template<typename Function, typename... Args>
-			void from_code( Function && func, Args&&... args ) {
-				m_result.from_code( std::forward<Function>( func ), std::forward<Args>( args )... );
-				m_status = future_status::ready;
-				m_semaphore.notify( );
-			}
-
-			void from_exception( std::exception_ptr ptr ) {
-				m_result.from_exception( std::move( ptr ) );
-				m_status = future_status::ready;
-				m_semaphore.notify( );
-			}
-		};	// member_data_t
-
-		std::shared_ptr<member_data_t> m_data;
-
-	public:
-		future_result_t( ):
-			m_data { std::make_shared<member_data_t>( ) } { }
-
-		~future_result_t( ) = default;
-		future_result_t( future_result_t const & ) = default;
-		future_result_t( future_result_t && ) = default;
-		future_result_t & operator=( future_result_t const & ) = default;
-		future_result_t & operator=( future_result_t && ) = default;
-
-		std::weak_ptr<member_data_t> weak_ptr( ) {
-			return m_data;
-		}
-
-		void wait( ) const {
-			m_data->m_semaphore.wait( );
-		}
-
-		template<typename... Args>
-		future_status wait_for( Args&&... args ) const {
-			if( future_status::deferred == m_data->m_status ) {
-				return m_data->m_status;
-			}
-			if( m_data->m_semaphore.wait_for( std::forward<Args>( args )... ) ) {
-				return m_data->m_status;
-			}
-			return future_status::timeout;
-		}
-
-		template<typename... Args>
-		future_status wait_until( Args&&... args ) const {
-			if( future_status::deferred == m_data->m_status ) {
-				return m_data->m_status;
-			}
-			if( m_data->m_semaphore.wait_until( std::forward<Args>( args )... ) ) {
-				return m_data->m_status;
-			}
-			return future_status::timeout;
-		}
-
-		Result & get( ) {
-			wait( );
-			return m_data->m_result.get( );
-		}
-
-		Result const & get( ) const {
-			wait( );
-			return m_data->m_result.get( );
-		}
-
-		explicit operator bool( ) const {
-			return m_data->m_semaphore.try_wait( );
-		}
-
-		void set_value( Result value ) noexcept {
-			m_data->set_value( std::move( value ) );
-		}
-
-		template<typename Exception>
-		void set_exception( Exception const & ex ) {
-			m_data->m_result.from_exception( ex );
-			m_data->m_status = future_status::ready;
-			m_data->m_semaphore.notify( );
-		}
-
-		bool is_exception( ) const {
-			wait( );
-			return m_data->m_result.has_exception( );
-		}
-
-		template<typename Function, typename... Args>
-		void from_code( Function && func, Args&&... args ) {
-			m_data->from_code( std::forward<Function>( func ), std::forward<Args>( args )... );
-		}
-	};	// future_result_t
-
-	namespace impl {
 		template<typename Result, typename Functions, typename... Args>
 		auto make_shared_package( bool, Result &&, Functions &&, Args&&... );
 
@@ -244,12 +118,11 @@ namespace daw {
 		};
 		template<typename T>
 		using weak_ptr_type_t = typename weak_ptr_type_impl<T>::type;
-
-
+		
 		template<typename Result, typename Functions, typename... Args>
 		struct package_t {
 			using functions_t = Functions;
-			using arguments_t = std::tuple<Args...>;
+			using arguments_t = std::tuple<std::decay_t<Args>...>;
 			using result_t = Result;
 			using result_value_t = weak_ptr_type_t<result_t>;
 
@@ -297,23 +170,21 @@ namespace daw {
 
 		template<size_t pos, typename TFunctions, typename Arg>
 		constexpr auto function_composer_impl( TFunctions const &, callback_tag, Arg arg ) {
-			return std::move( arg );
-		}
-
-		template<size_t pos, typename TFunctions, typename Arg, typename = std::enable_if_t<!is_function_tag_v<pos, TFunctions>>>
-		constexpr auto function_composer_impl( TFunctions const &, function_tag, Arg arg ) {
-			return std::move( arg );
+			static_assert( pos == std::tuple_size<TFunctions>::value - 1, "callback_tag should only be retuned for last item in tuple" );
+			return arg;
 		}
 
 		template<size_t pos, typename TFunctions, typename... Args, typename = std::enable_if_t<is_function_tag_v<pos, TFunctions>>>
 		auto function_composer_impl( TFunctions const & funcs, function_tag, Args&&... args ) {
-			auto result = std::get<pos>( funcs )(std::forward<Args>( args )...);
-			return function_composer_impl<pos + 1>( funcs, typename which_type_t<pos, TFunctions>::category { }, std::move( result ) );
+			static_assert( pos < std::tuple_size<TFunctions>::value - 1, "function_tag should only be retuned for all but last item in tuple" );
+			auto const func = std::get<pos>( funcs );
+			static auto const next_pos = pos + 1;
+			return function_composer_impl<next_pos>( funcs, typename which_type_t<next_pos, TFunctions>::category{ }, func( std::forward<Args>( args )... ) );
 		}
 
 		template<typename... Functions>
 		struct function_composer_t {
-			using tfunction_t = std::tuple<Functions...>;
+			using tfunction_t = std::tuple<std::decay_t<Functions>...>;
 			tfunction_t funcs;
 
 			constexpr function_composer_t( Functions&&... fs ):

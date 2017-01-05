@@ -23,6 +23,7 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
 #include <random>
+#include <string>
 
 #include "function_stream.h"
 
@@ -47,8 +48,12 @@ real_t fib( real_t n ) noexcept {
 	return result;
 }
 
+int a( int x ) { return 1; }
+char b( int x ) { return 'c'; }
+void c( char x ) { }
+
 int main( int, char ** ) {
-	auto const fs = daw::make_function_stream( &fib, &fib, &fib );
+	auto const fs = daw::make_function_stream( &a, &b, &c );
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
@@ -61,7 +66,8 @@ int main( int, char ** ) {
 	};
 	
 	for( auto const & v: results ) {
-		std::cout << v.get( ) << '\n';
+		v.get( );
+		std::cout << static_cast<bool>(v) << '\n';
 	}
 	
 	return EXIT_SUCCESS;
