@@ -84,15 +84,16 @@ int main( int, char ** ) {
 		std::mt19937 gen( rd( ) );
 		std::uniform_int_distribution<> dis( 5, 7 );
 
-		auto fs2 = daw::make_function_stream( &fib, &fib, &fib );
+		auto fs2 = daw::make_function_stream( &fib, &fib );
 		auto results = daw::create_vector( fs2( 3 ) );
 
-		for( size_t n = 1; n < 40; ++n ) {
+		for( size_t n = 1; n < 40000; ++n ) {
 			results.push_back( fs2( dis( gen ) ) );
 		};
 
 		for( auto const & v : results ) {
-			std::cout << "'" << v.get( ) << "'\n";
+			v.get( );
+			//std::cout << "'" << v.get( ) << "'\n";
 		}
 	}
 	return EXIT_SUCCESS;

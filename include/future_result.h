@@ -29,9 +29,21 @@
 
 namespace daw {
 	enum class future_status { ready, timeout, deferred };
+	struct future_result_base_t {
+		future_result_base_t( ) = default;
+		future_result_base_t( future_result_base_t const & ) = default;
+		future_result_base_t( future_result_base_t && ) = default;
+		future_result_base_t & operator=( future_result_base_t const & ) = default;
+		future_result_base_t & operator=( future_result_base_t && ) = default;
+		
+		virtual ~future_result_base_t( );
+		virtual void wait( ) const = 0;
+		virtual bool try_wait( ) const = 0;
+		explicit operator bool( ) const;
+	};	// future_result_base_t
 
 	template<typename Result>
-	struct future_result_t {
+	struct future_result_t: public future_result_base_t {
 		struct member_data_t {
 			daw::semaphore m_semaphore;
 			daw::expected_t<Result> m_result;
@@ -91,7 +103,7 @@ namespace daw {
 			return m_data;
 		}
 
-		void wait( ) const {
+		void wait( ) const override {
 			m_data->m_semaphore.wait( );
 		}
 
@@ -122,9 +134,14 @@ namespace daw {
 			return m_data->m_result.get( );
 		}
 
-		explicit operator bool( ) const {
+		bool try_wait( ) const override {
 			return m_data->m_semaphore.try_wait( );
 		}
+
+		explicit operator bool( ) const {
+			return try_wait( );
+		}
+
 
 		void set_value( Result value ) noexcept {
 			m_data->set_value( std::move( value ) );
@@ -149,7 +166,7 @@ namespace daw {
 	};	// future_result_t
 
 	template<>
-	struct future_result_t<void> {
+	struct future_result_t<void>: public future_result_base_t {
 		struct member_data_t {
 			daw::semaphore m_semaphore;
 			daw::expected_t<void> m_result;
@@ -209,7 +226,7 @@ namespace daw {
 			return m_data;
 		}
 
-		void wait( ) const {
+		void wait( ) const override {
 			m_data->m_semaphore.wait( );
 		}
 
@@ -240,8 +257,12 @@ namespace daw {
 			m_data->m_result.get( );
 		}
 
-		explicit operator bool( ) const {
+		bool try_wait( ) const override {
 			return m_data->m_semaphore.try_wait( );
+		}
+
+		explicit operator bool( ) const {
+			return try_wait( );
 		}
 
 		void set_value( void ) noexcept {

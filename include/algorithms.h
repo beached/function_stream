@@ -23,18 +23,84 @@
 #pragma once
 
 #include <iterator>
+#include <memory>
+
+#include <daw/daw_poly_vector.h>
 
 #include "function_stream.h"
 
 namespace daw {
 	namespace algorithm {
-		template<size_t idx, typename RandomIterator, typename Compare>
-		auto ms_impl( RandomIterator, RandomIterator, Compare );
+		struct task_group_detail_t: public std::enable_shared_from_this<task_group_detail_t> {
+			daw::poly_vector_t<daw::future_result_base_t> items;
+
+			void wait( ) const {
+				for( auto const & result : items ) {
+					result->wait( );
+				}
+			}
+
+			bool try_wait( ) const {
+				for( auto const & result : items ) {
+					if( !result->try_wait( ) ) {
+						return false;
+					}
+				}
+				return true;
+			}
+
+			explicit operator bool( ) const {
+				return try_wait( );
+			}
+
+			std::weak_ptr<task_group_detail_t const> get_weak_ptr( ) const {
+				return this->shared_from_this( );
+			}
+
+			std::weak_ptr<task_group_detail_t> get_weak_ptr( ) {
+				return this->shared_from_this( );
+			}
+		};	// task_group_detail_t
+
+		template<typename... Functions>
+		struct task_group_t {
+			using functions_t = daw::function_stream<Functions...>;
+			functions_t functions;
+			
+			std::shared_ptr<task_group_detail_t> results;
+
+			template<typename OnComplete, typename... Args>
+			void operator( )( OnComplete on_complete, Args&&... args ) {
+				results.items.push_back( functions( std::forward<Args>( args )... ) );
+				std::function<void( )> check_status;
+				check_status = [check_status, on_complete]
+			}
+
+
+		};
+
+		template<typename Function>
+		auto make_task_group( Function on_competion ) {
+			return task_group_t<Function>{ };
+		}
+
+
 
 		template<size_t idx, typename RandomIterator, typename Compare>
-		daw::future_result_t<bool> ms_impl( RandomIterator first, RandomIterator last, Compare cmp ) {
+		auto ms_impl( RandomIterator first, RandomIterator last, Compare cmp ) {
 			using value_type = typename std::iterator_traits<RandomIterator>::value_type;
+
+			auto results = make_task_group( []( auto const & r ) {
+				
+
+			} );
 			auto const count = std::distance( f, l );
+			auto const chunk_size = (64 * 1024) / sizeof( value_type );
+			
+			for( size_t n=0; n<chunk_size; ++n ) {
+				results.push_back( [=]( RandomIterator f, RandomIterator l ) {
+
+				} );
 			// Using a WAG of 64k for minimum size to leave the CPU
 			if( sizeof( value_type )*count < 64*1024 ) {
 				std::sort( first, last, cmp );

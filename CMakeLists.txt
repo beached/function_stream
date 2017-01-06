@@ -43,12 +43,14 @@ link_directories( "${CMAKE_BINARY_DIR}/install/lib" )
 link_directories( ${Boost_LIBRARY_DIRS} )
 
 set( HEADER_FILES
+	${HEADER_FOLDER}/algorithms.h
 	${HEADER_FOLDER}/function_stream.h
 	${HEADER_FOLDER}/future_result.h
 	${HEADER_FOLDER}/task_scheduler.h
 )
 
 set( SOURCE_FILES
+	${SOURCE_FOLDER}/future_result.cpp
 	${SOURCE_FOLDER}/task_scheduler.cpp
 )
 
