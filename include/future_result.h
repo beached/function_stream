@@ -46,7 +46,8 @@ namespace daw {
 	struct future_result_t: public future_result_base_t {
 		struct member_data_t {
 			daw::semaphore m_semaphore;
-			daw::expected_t<Result> m_result;
+			using result_t = daw::expected_t<Result>;
+			result_t m_result;
 			future_status m_status;
 
 			member_data_t( ):
@@ -75,13 +76,13 @@ namespace daw {
 
 			template<typename Function, typename... Args>
 			void from_code( Function && func, Args&&... args ) {
-				m_result.from_code( std::forward<Function>( func ), std::forward<Args>( args )... );
+				m_result = result_t{ std::forward<Function>( func ), std::forward<Args>( args )... };
 				m_status = future_status::ready;
 				m_semaphore.notify( );
 			}
 
 			void from_exception( std::exception_ptr ptr ) {
-				m_result.from_exception( std::move( ptr ) );
+				m_result = std::move( ptr );
 				m_status = future_status::ready;
 				m_semaphore.notify( );
 			}
@@ -185,7 +186,7 @@ namespace daw {
 			member_data_t & operator=( member_data_t && ) = default;
 		public:
 			void set_value( void ) noexcept {
-				m_result.from_value( true );
+				m_result = true;
 				m_status = future_status::ready;
 				m_semaphore.notify( );
 			}
@@ -198,13 +199,13 @@ namespace daw {
 
 			template<typename Function, typename... Args>
 			void from_code( Function && func, Args&&... args ) {
-				m_result.from_code( std::forward<Function>( func ), std::forward<Args>( args )... );
+				m_result = m_result.from_code( std::forward<Function>( func ), std::forward<Args>( args )... );
 				m_status = future_status::ready;
 				m_semaphore.notify( );
 			}
 
 			void from_exception( std::exception_ptr ptr ) {
-				m_result.from_exception( std::move( ptr ) );
+				m_result = std::move( ptr );
 				m_status = future_status::ready;
 				m_semaphore.notify( );
 			}

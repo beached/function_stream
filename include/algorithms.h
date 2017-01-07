@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <iterator>
 #include <memory>
 
@@ -41,12 +42,7 @@ namespace daw {
 			}
 
 			bool try_wait( ) const {
-				for( auto const & result : items ) {
-					if( !result->try_wait( ) ) {
-						return false;
-					}
-				}
-				return true;
+				return std::all_of( items.begin( ), items.end( ), []( auto const & b ) { return b( ); } );
 			}
 
 			explicit operator bool( ) const {
