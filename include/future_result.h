@@ -44,9 +44,9 @@ namespace daw {
 
 	template<typename Result>
 	struct future_result_t: public future_result_base_t {
+		using result_t = daw::expected_t<std::decay_t<Result>>;
 		struct member_data_t {
 			daw::semaphore m_semaphore;
-			using result_t = daw::expected_t<Result>;
 			result_t m_result;
 			future_status m_status;
 
@@ -75,8 +75,8 @@ namespace daw {
 			}
 
 			template<typename Function, typename... Args>
-			void from_code( Function && func, Args&&... args ) {
-				m_result = result_t{ std::forward<Function>( func ), std::forward<Args>( args )... };
+			void from_code( Function func, Args&&... args ) {
+				m_result = result_t{ func, std::forward<Args>( args )... };
 				m_status = future_status::ready;
 				m_semaphore.notify( );
 			}
@@ -150,7 +150,7 @@ namespace daw {
 
 		template<typename Exception>
 		void set_exception( Exception const & ex ) {
-			m_data->m_result.from_exception( ex );
+			m_data->m_result = result_t{ typename result_t::exception_tag{ }, ex };
 			m_data->m_status = future_status::ready;
 			m_data->m_semaphore.notify( );
 		}
@@ -168,34 +168,22 @@ namespace daw {
 
 	template<>
 	struct future_result_t<void>: public future_result_base_t {
+		using result_t = daw::expected_t<void>;
 		struct member_data_t {
 			daw::semaphore m_semaphore;
-			daw::expected_t<void> m_result;
+			result_t m_result;
 			future_status m_status;
 
-			member_data_t( ):
-				m_semaphore { },
-				m_result { },
-				m_status { future_status::deferred } { }
-
-			~member_data_t( ) = default;
+			member_data_t( );
+			~member_data_t( );
 		private:
 			member_data_t( member_data_t const & ) = default;
 			member_data_t( member_data_t && ) = default;
 			member_data_t & operator=( member_data_t const & ) = default;
 			member_data_t & operator=( member_data_t && ) = default;
 		public:
-			void set_value( void ) noexcept {
-				m_result = true;
-				m_status = future_status::ready;
-				m_semaphore.notify( );
-			}
-
-			void set_value( member_data_t & other ) {
-				m_result = std::move( other.m_result );
-				m_status = std::move( other.m_status );
-				m_semaphore.notify( );
-			}
+			void set_value( void ) noexcept; 
+			void set_value( member_data_t & other ); 
 
 			template<typename Function, typename... Args>
 			void from_code( Function && func, Args&&... args ) {
@@ -204,32 +192,22 @@ namespace daw {
 				m_semaphore.notify( );
 			}
 
-			void from_exception( std::exception_ptr ptr ) {
-				m_result = std::move( ptr );
-				m_status = future_status::ready;
-				m_semaphore.notify( );
-			}
+			void from_exception( std::exception_ptr ptr );
 		};	// member_data_t
 
 		std::shared_ptr<member_data_t> m_data;
 
 	public:
-		future_result_t( ):
-			m_data { std::make_shared<member_data_t>( ) } { }
+		future_result_t( );
 
-		~future_result_t( ) = default;
+		~future_result_t( ); 
 		future_result_t( future_result_t const & ) = default;
 		future_result_t( future_result_t && ) = default;
 		future_result_t & operator=( future_result_t const & ) = default;
 		future_result_t & operator=( future_result_t && ) = default;
 
-		std::weak_ptr<member_data_t> weak_ptr( ) {
-			return m_data;
-		}
-
-		void wait( ) const override {
-			m_data->m_semaphore.wait( );
-		}
+		std::weak_ptr<member_data_t> weak_ptr( );
+		void wait( ) const override;
 
 		template<typename... Args>
 		future_status wait_for( Args&&... args ) const {
@@ -253,38 +231,23 @@ namespace daw {
 			return future_status::timeout;
 		}
 
-		void get( ) const {
-			wait( );
-			m_data->m_result.get( );
-		}
-
-		bool try_wait( ) const override {
-			return m_data->m_semaphore.try_wait( );
-		}
-
-		explicit operator bool( ) const {
-			return try_wait( );
-		}
-
-		void set_value( void ) noexcept {
-			m_data->set_value( );
-		}
+		void get( ) const; 
+		bool try_wait( ) const override;
+		explicit operator bool( ) const;
+		void set_value( void ) noexcept; 
 
 		template<typename Exception>
 		void set_exception( Exception const & ex ) {
-			m_data->m_result.from_exception( ex );
+			m_data->m_result = result_t{ typename result_t::exception_tag{ }, ex };
 			m_data->m_status = future_status::ready;
 			m_data->m_semaphore.notify( );
 		}
 
-		bool is_exception( ) const {
-			wait( );
-			return m_data->m_result.has_exception( );
-		}
+		bool is_exception( ) const; 
 
 		template<typename Function, typename... Args>
-		void from_code( Function && func, Args&&... args ) {
-			m_data->from_code( std::forward<Function>( func ), std::forward<Args>( args )... );
+		void from_code( Function func, Args&&... args ) {
+			m_data->from_code( func, std::forward<Args>( args )... );
 		}
 	};	// future_result_t
 }	// namespace daw

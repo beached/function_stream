@@ -26,8 +26,8 @@
 
 #include "function_stream.h"
 
-using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<12500>>;
-//using real_t = long double;
+//using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<12500>>;
+using real_t = long double;
 
 real_t operator"" _R( long double d ) {
 	return real_t{ d };
