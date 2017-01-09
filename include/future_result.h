@@ -44,7 +44,8 @@ namespace daw {
 
 	template<typename Result>
 	struct future_result_t: public future_result_base_t {
-		using result_t = daw::expected_t<std::decay_t<Result>>;
+		using result_type_t = std::decay_t<Result>;
+		using result_t = daw::expected_t<result_type_t>;
 		struct member_data_t {
 			daw::semaphore m_semaphore;
 			result_t m_result;
@@ -76,7 +77,7 @@ namespace daw {
 
 			template<typename Function, typename... Args>
 			void from_code( Function func, Args&&... args ) {
-				m_result = result_t{ func, std::forward<Args>( args )... };
+				m_result = expected_from_code<result_type_t>( func, std::forward<Args>( args )... );
 				m_status = future_status::ready;
 				m_semaphore.notify( );
 			}

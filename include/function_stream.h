@@ -29,20 +29,12 @@
 #include "task_scheduler.h"
 #include "future_result.h"
 
+#include <daw/cpp_17.h>
+
 namespace daw {
 	namespace impl {
-		template<typename Function, typename Tuple, size_t ...S>
-		auto apply_tuple( Function func, Tuple && t, std::index_sequence<S...> ) {
-			return func( std::forward<decltype(std::get<S>( t ))>( std::get<S>( t ) )... );
-		}
-
-		template<typename Function, typename Tuple, typename Index = std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>>
-		auto apply_tuple( Function func, Tuple && t ) {
-			return apply_tuple( func, std::forward<Tuple>( t ), Index { } );
-		}
-
 		template<size_t S, typename Tuple>
-		using is_function_tag = std::integral_constant<bool, 0 <= S && S < std::tuple_size<std::decay_t<Tuple>>::value>;
+		using is_function_tag = daw::bool_constant<0 <= S && S < std::tuple_size<std::decay_t<Tuple>>::value>;
 
 		template<size_t S, typename Tuple>
 		constexpr bool const is_function_tag_v = is_function_tag<S, Tuple>::value;
@@ -80,10 +72,10 @@ namespace daw {
 			auto client_data = package->m_result.lock( );
 			if( client_data ) {
 				client_data->from_code( [&]( ) mutable {
-					return apply_tuple( func, std::move( package->targs ) );
+					return daw::apply( func, std::move( package->targs ) );
 				} );
 			} else {
-				apply_tuple( func, std::move( package->targs ) );
+				daw::apply( func, std::move( package->targs ) );
 			}
 		}
 
@@ -95,7 +87,7 @@ namespace daw {
 			auto func = std::get<pos>( package->f_list );
 			try {
 				static size_t const new_pos = pos + 1;
-				call<new_pos>( package->next_package( apply_tuple( func, std::move( package->targs ) ) ) );
+				call<new_pos>( package->next_package( daw::apply( func, std::move( package->targs ) ) ) );
 			} catch( ... ) {
 				auto result = package->m_result.lock( );
 				if( result ) {

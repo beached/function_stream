@@ -30,6 +30,12 @@ namespace daw {
 	}
 
 	future_result_t<void>::member_data_t::~member_data_t( ) { } 
+	future_result_t<void>::member_data_t::member_data_t( ):
+			m_semaphore { },
+			m_result { },
+			m_status { future_status::deferred } { }
+
+
 	void future_result_t<void>::member_data_t::set_value( void ) noexcept {
 		m_result = true;
 		m_status = future_status::ready;
