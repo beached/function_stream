@@ -92,8 +92,8 @@ int main( int, char ** ) {
 		};
 
 		for( auto const & v : results ) {
-			v.get( );
-			//std::cout << "'" << v.get( ) << "'\n";
+			//v.get( );
+			std::cout << "'" << v.get( ) << "'\n";
 		}
 	}
 	return EXIT_SUCCESS;

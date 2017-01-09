@@ -119,7 +119,7 @@ namespace daw {
 			f = [compare]( size_t idx, RandomIterator f, RandomIterator l ) -> daw::future_result_t<std::pair<RandomIterator, RandomIterator>> {
 				auto const sz = std::distance( f, l );
 				using value_t = std::iterator_traits<RandomIterator>::value_type;
-				if( sz*sizeof(value_t> < 64*1024 ) {
+				if( sz*sizeof(value_t) < 64*1024 ) {
 						std::sort( f, l );
 				if( std::distance( f, l ) > 1 ) {
 					
