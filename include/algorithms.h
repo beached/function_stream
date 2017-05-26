@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016 Darrell Wright
+// Copyright (c) 2016-2017 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to deal
@@ -115,18 +115,21 @@ namespace daw {
 
 		template<typename RandomIterator, typename Compare>
 		void parallel_merge_sort( RandomIterator first, RandomIterator last ) {
-			std::function<daw::future_result_t<std::pair<RandomIterator, RandomIterator>>( size_t, RandomIterator, RandomIterator )> f;
-			f = [compare]( size_t idx, RandomIterator f, RandomIterator l ) -> daw::future_result_t<std::pair<RandomIterator, RandomIterator>> {
+			using sort_result = daw::future_result_t<std::pair<RandomIterator, RandomIterator>>;
+			std::function<void( sort_result, RandomIterator, RandomIterator )> sort_func; 
+			sort_func = []( daw::future_result_t<std::pair<RandomIterator, RandomIterator>> result, RandomIterator f, RandomIterator l ) {
 				auto const sz = std::distance( f, l );
 				using value_t = std::iterator_traits<RandomIterator>::value_type;
 				if( sz*sizeof(value_t) < 64*1024 ) {
-						std::sort( f, l );
-				if( std::distance( f, l ) > 1 ) {
-					
+					std::sort( f, l );
+				} else {
+					auto lower = sort_func( f, std::next( f, sz/2 ) );
+					auto upper = sort_func( std::next( f, sz/2 ), l ); 
 				}
 				return std::make_pair( f, l );
 			};
-
+			auto result = sort_func( first, last );
+			result.wait( );
 		}
 	}	// namespace algorithm
 }    // namespace daw
