@@ -15,9 +15,9 @@ if( ${CMAKE_CXX_COMPILER_ID} STREQUAL 'MSVC' )
 	add_compile_options( -D_WIN32_WINNT=0x0601 /std:c++latest ) 
 else( )
 	if( ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" )
-		add_compile_options(-std=c++14 -O3 -march=native -ggdb -Weverything -ftemplate-backtrace-limit=0  -pthread -Wno-c++98-compat -g -Wno-covered-switch-default -Wno-padded -Wno-exit-time-destructors -Wno-c++98-compat-pedantic -Wno-unused-parameter -Wno-missing-noreturn -Wno-missing-prototypes -Wno-disabled-macro-expansion)
+		add_compile_options(-std=c++14 -march=native -ggdb -Weverything -ftemplate-backtrace-limit=0  -pthread -Wno-c++98-compat -g -Wno-covered-switch-default -Wno-padded -Wno-exit-time-destructors -Wno-c++98-compat-pedantic -Wno-unused-parameter -Wno-missing-noreturn -Wno-missing-prototypes -Wno-disabled-macro-expansion)
 	elseif( ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" )
-		add_compile_options(-std=c++14 -O3 -march=native -ggdb -Wall -pthread -Wno-deprecated-declarations)
+		add_compile_options(-std=c++14 -march=native -ggdb -Wall -pthread -Wno-deprecated-declarations)
 	endif( )
 endif( )
 
@@ -46,6 +46,7 @@ set( HEADER_FILES
 	${HEADER_FOLDER}/algorithms.h
 	${HEADER_FOLDER}/function_stream.h
 	${HEADER_FOLDER}/future_result.h
+	${HEADER_FOLDER}/package.h
 	${HEADER_FOLDER}/task_scheduler.h
 )
 
@@ -64,4 +65,7 @@ add_dependencies( task_scheduler_test_bin header_libraries_prj )
 
 add_executable( function_stream_test_bin ${HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
 target_link_libraries( function_stream_test_bin function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+
+add_executable( reverse_test_bin ${HEADER_FILES} ${TEST_FOLDER}/reverse_test.cpp )
+target_link_libraries( reverse_test_bin function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 

@@ -28,6 +28,7 @@
 
 #include "task_scheduler.h"
 #include "future_result.h"
+#include "package.h"
 
 #include <daw/cpp_17.h>
 
@@ -96,68 +97,6 @@ namespace daw {
 			}
 		}
 
-		template<typename Result, typename Functions, typename... Args>
-		auto make_shared_package( bool, Result &&, Functions &&, Args&&... );
-
-		template<typename R>
-		constexpr auto weak_ptr_test( std::weak_ptr<R> wp ) { return static_cast<R*>(nullptr); }
-
-		template<typename T>
-		struct weak_ptr_type_impl {
-			using type = decltype(*weak_ptr_test( std::declval<T>( ) ));
-		};
-		template<typename T>
-		using weak_ptr_type_t = typename weak_ptr_type_impl<T>::type;
-		
-		template<typename Result, typename Functions, typename... Args>
-		struct package_t {
-			using functions_t = Functions;
-			using arguments_t = std::tuple<std::decay_t<Args>...>;
-			using result_t = Result;
-			using result_value_t = weak_ptr_type_t<result_t>;
-
-			functions_t f_list;
-			arguments_t targs;
-			result_t m_result;
-			bool continue_on_result_destruction;
-
-			package_t( ) = delete;
-			~package_t( ) = default;
-			package_t( package_t const & ) = delete;
-			package_t( package_t && ) = default;
-			package_t & operator=( package_t const & ) = delete;
-			package_t & operator=( package_t && ) = default;
-
-			bool destination_expired( ) const {
-				return m_result.expired( );
-			}
-
-			bool continue_processing( ) const {
-				return !destination_expired( ) || continue_on_result_destruction;
-			}
-
-			template<typename... NewArgs>
-			auto next_package( NewArgs... nargs ) {
-				return make_shared_package( continue_on_result_destruction, std::move( m_result ), std::move( f_list ), std::move( nargs )... );
-			}
-
-			package_t( bool continueonclientdestruction, result_t result, functions_t functions, Args... args ):
-				f_list { std::move( functions ) },
-				targs { std::make_tuple( std::move( args )... ) },
-				m_result { result },
-				continue_on_result_destruction { continueonclientdestruction } { }
-		};	// package_t
-
-		template<typename Result, typename Functions, typename... Args>
-		auto make_package( bool continue_on_result_destruction, Result && result, Functions && functions, Args&&... args ) {
-			return package_t<Result, Functions, Args...>{ continue_on_result_destruction, std::forward<Result>( result ), std::forward<Functions>( functions ), std::forward<Args>( args )... };
-		}
-
-		template<typename Result, typename Functions, typename... Args>
-		auto make_shared_package( bool continue_on_result_destruction, Result && result, Functions && functions, Args&&... args ) {
-			return std::make_shared<package_t<Result, Functions, Args...>>( make_package( continue_on_result_destruction, std::forward<Result>( result ), std::forward<Functions>( functions ), std::forward<Args>( args )... ) );
-		}
-
 		template<size_t pos, typename TFunctions, typename Arg>
 		auto function_composer_impl( TFunctions funcs, last_function_tag, Arg&& arg ) {
 			static_assert( pos == std::tuple_size<TFunctions>::value - 1, "last_function_tag should only be retuned for last item in tuple" );
@@ -206,7 +145,7 @@ namespace daw {
 		auto operator( )( Args... args ) const {
 			using func_result_t = decltype(std::declval<func_comp_t>( ).apply( args... ));
 			future_result_t<func_result_t> result;
-			impl::call<0>( impl::make_shared_package( continue_on_result_destruction, result.weak_ptr( ), m_funcs, std::move( args )... ) );
+			impl::call<0>( make_shared_package( continue_on_result_destruction, result.weak_ptr( ), m_funcs, std::move( args )... ) );
 			return result;
 		}
 	};	// function_stream

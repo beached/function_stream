@@ -56,6 +56,7 @@ namespace daw {
 		void start( );
 		void stop( bool block = true ) noexcept;
 		bool started( ) const;
+		size_t size( ) const { return m_tasks.size( ); }
 	};	// task_scheduler_impl
 
 	class task_scheduler {
@@ -73,6 +74,7 @@ namespace daw {
 		void start( );
 		void stop( bool block = true ) noexcept;
 		bool started( ) const;
+		size_t size( ) const { return m_impl->size( ); }
 	};	// task_scheduler
 
 	task_scheduler get_task_scheduler( );
