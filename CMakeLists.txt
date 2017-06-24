@@ -66,6 +66,3 @@ add_dependencies( task_scheduler_test_bin header_libraries_prj )
 add_executable( function_stream_test_bin ${HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
 target_link_libraries( function_stream_test_bin function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
-add_executable( reverse_test_bin ${HEADER_FILES} ${TEST_FOLDER}/reverse_test.cpp )
-target_link_libraries( reverse_test_bin function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
-
