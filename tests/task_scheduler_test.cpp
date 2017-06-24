@@ -50,7 +50,7 @@ int main( int argc, char ** argv ) {
 		if( argc < 2 ) {
 			return 100;
 		}
-		return strtoull( argv[1], 0, 10 );
+		return strtoull( argv[1], nullptr, 10 );
 	}( );
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";

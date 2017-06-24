@@ -34,9 +34,6 @@ real_t operator"" _R( long double d ) {
 }
 
 real_t fib( real_t n ) noexcept {
-	if( 0 == n ) {
-		return 0;
-	}
 	real_t last = 0;
 	real_t result = 1;
 	for( uintmax_t m=1; m<n; ++m ) {
