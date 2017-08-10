@@ -35,9 +35,9 @@ namespace daw {
 	struct future_result_base_t {
 		future_result_base_t( ) = default;
 		future_result_base_t( future_result_base_t const & ) = default;
-		future_result_base_t( future_result_base_t && ) = default;
+		future_result_base_t( future_result_base_t && ) noexcept = default;
 		future_result_base_t &operator=( future_result_base_t const & ) = default;
-		future_result_base_t &operator=( future_result_base_t && ) = default;
+		future_result_base_t &operator=( future_result_base_t && ) noexcept = default;
 
 		virtual ~future_result_base_t( );
 		virtual void wait( ) const = 0;
@@ -60,9 +60,19 @@ namespace daw {
 
 		  private:
 			member_data_t( member_data_t const & ) = default;
-			member_data_t( member_data_t && ) noexcept = default;
 			member_data_t &operator=( member_data_t const & ) = default;
-			member_data_t &operator=( member_data_t && ) noexcept = default;
+
+			member_data_t( member_data_t &&other ) noexcept
+			    : m_semaphore{std::move( other.m_semaphore )}
+			    , m_result{std::move( other.m_result )}
+			    , m_status{std::move( other.m_status )} {}
+
+			member_data_t &operator=( member_data_t && rhs ) noexcept {
+				m_semaphore = std::move( rhs.m_semaphore );
+				m_result = std::move( rhs.m_result );
+				m_status = std::move( rhs.m_status );
+				return *this;
+			}
 
 		  public:
 			void set_value( Result value ) noexcept {
@@ -183,8 +193,8 @@ namespace daw {
 			member_data_t &operator=( member_data_t const & ) =
 			    delete; // TODO: investigate what member isn't copyable. should be private
 		  private:
-			member_data_t( member_data_t && ) = default;
-			member_data_t &operator=( member_data_t && ) = default;
+			member_data_t( member_data_t && ) noexcept = default;
+			member_data_t &operator=( member_data_t && ) noexcept = default;
 
 		  public:
 			void set_value( ) noexcept;
@@ -207,9 +217,9 @@ namespace daw {
 
 		~future_result_t( ) override;
 		future_result_t( future_result_t const & ) = default;
-		future_result_t( future_result_t && ) = default;
+		future_result_t( future_result_t && ) noexcept = default;
 		future_result_t &operator=( future_result_t const & ) = default;
-		future_result_t &operator=( future_result_t && ) = default;
+		future_result_t &operator=( future_result_t && ) noexcept = default;
 
 		std::weak_ptr<member_data_t> weak_ptr( );
 		void wait( ) const override;
