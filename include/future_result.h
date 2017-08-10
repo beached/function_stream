@@ -54,15 +54,15 @@ namespace daw {
 			result_t m_result;
 			future_status m_status;
 
-			member_data_t( ) : m_semaphore{}, m_result{}, m_status{future_status::deferred} {}
+			member_data_t( ) : m_result{}, m_status{future_status::deferred} {}
 
 			~member_data_t( ) = default;
 
 		  private:
 			member_data_t( member_data_t const & ) = default;
-			member_data_t( member_data_t && ) = default;
+			member_data_t( member_data_t && ) noexcept = default;
 			member_data_t &operator=( member_data_t const & ) = default;
-			member_data_t &operator=( member_data_t && ) = default;
+			member_data_t &operator=( member_data_t && ) noexcept = default;
 
 		  public:
 			void set_value( Result value ) noexcept {
@@ -98,9 +98,9 @@ namespace daw {
 
 		~future_result_t( ) override = default;
 		future_result_t( future_result_t const & ) = default;
-		future_result_t( future_result_t && ) = default;
+		future_result_t( future_result_t && ) noexcept = default;
 		future_result_t &operator=( future_result_t const & ) = default;
-		future_result_t &operator=( future_result_t && ) = default;
+		future_result_t &operator=( future_result_t && ) noexcept = default;
 
 		std::weak_ptr<member_data_t> weak_ptr( ) {
 			return m_data;
@@ -178,14 +178,16 @@ namespace daw {
 			member_data_t( );
 			~member_data_t( );
 
+			member_data_t( member_data_t const & ) =
+			    delete; // TODO: investigate what member isn't copyable.  should be private
+			member_data_t &operator=( member_data_t const & ) =
+			    delete; // TODO: investigate what member isn't copyable. should be private
 		  private:
-			member_data_t( member_data_t const & ) = default;
 			member_data_t( member_data_t && ) = default;
-			member_data_t &operator=( member_data_t const & ) = default;
 			member_data_t &operator=( member_data_t && ) = default;
 
 		  public:
-			void set_value( void ) noexcept;
+			void set_value( ) noexcept;
 			void set_value( member_data_t &other );
 
 			template<typename Function, typename... Args>
@@ -237,7 +239,7 @@ namespace daw {
 		void get( ) const;
 		bool try_wait( ) const override;
 		explicit operator bool( ) const;
-		void set_value( void ) noexcept;
+		void set_value( ) noexcept;
 
 		template<typename Exception>
 		void set_exception( Exception const &ex ) {
@@ -261,9 +263,7 @@ namespace daw {
 			Function m_function;
 			std::tuple<Args...> m_args;
 			f_caller_t( Result &result, Function func, Args &&... args )
-			    : m_result{result}, m_function{std::move( func )}, m_args{std::forward<Args>( args )...} {
-
-			}
+			    : m_result{result}, m_function{std::move( func )}, m_args{std::forward<Args>( args )...} {}
 
 			void operator( )( ) {
 				m_result.from_code( [&]( ) { return daw::apply( m_function, m_args ); } );

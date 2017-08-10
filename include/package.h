@@ -63,9 +63,9 @@ namespace daw {
 		package_t( ) = delete;
 		~package_t( ) = default;
 		package_t( package_t const & ) = delete;
-		package_t( package_t && ) = default;
+		package_t( package_t && ) noexcept = default;
 		package_t &operator=( package_t const & ) = delete;
-		package_t &operator=( package_t && ) = default;
+		package_t &operator=( package_t && ) noexcept = default;
 
 		bool destination_expired( ) const {
 			return m_result.expired( );
@@ -104,4 +104,3 @@ namespace daw {
 	}
 
 } // namespace daw
-

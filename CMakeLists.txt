@@ -46,7 +46,7 @@ include_directories( SYSTEM ${Boost_INCLUDE_DIRS} )
 link_directories( "${CMAKE_BINARY_DIR}/install/lib" )
 link_directories( ${Boost_LIBRARY_DIRS} )
 
-set( HEADER_FILES
+set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/algorithms.h
 	${HEADER_FOLDER}/function_stream.h
 	${HEADER_FOLDER}/future_result.h
@@ -54,19 +54,30 @@ set( HEADER_FILES
 	${HEADER_FOLDER}/task_scheduler.h
 )
 
-set( SOURCE_FILES
+set( FUNCTION_STREAM_SOURCE_FILES
 	${SOURCE_FOLDER}/future_result.cpp
+)
+
+set( TASK_SCHEDULER_HEADER_FILES
+	${HEADER_FOLDER}/task_scheduler.h
+)
+
+set( TASK_SCHEDULER_SOURCE_FILES
 	${SOURCE_FOLDER}/task_scheduler.cpp
 )
 
-add_library( function_stream_lib ${HEADER_FILES} ${SOURCE_FILES} )
-target_link_libraries( function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_library( task_scheduler_lib ${TASK_SCHEDULER_HEADER_FILES} ${TASK_SCHEDULER_SOURCE_FILES} )
+target_link_libraries( task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_dependencies( task_scheduler_lib header_libraries_prj )
+
+add_library( function_stream_lib ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${FUNCTION_STREAM_SOURCE_FILES} )
+target_link_libraries( function_stream_lib task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( function_stream_lib header_libraries_prj )
 
 add_executable( task_scheduler_test_bin ${TEST_FOLDER}/task_scheduler_test.cpp )
-target_link_libraries( task_scheduler_test_bin function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( task_scheduler_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( task_scheduler_test_bin header_libraries_prj )
 
-add_executable( function_stream_test_bin ${HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
-target_link_libraries( function_stream_test_bin function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_executable( function_stream_test_bin ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
+target_link_libraries( function_stream_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 

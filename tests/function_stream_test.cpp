@@ -26,17 +26,17 @@
 
 #include "function_stream.h"
 
-//using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<12500>>;
+// using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<12500>>;
 using real_t = long double;
 
 real_t operator"" _R( long double d ) {
-	return real_t{ d };
+	return real_t{d};
 }
 
 real_t fib( real_t n ) noexcept {
 	real_t last = 0;
 	real_t result = 1;
-	for( uintmax_t m=1; m<n; ++m ) {
+	for( uintmax_t m = 1; m < n; ++m ) {
 		auto new_last = result;
 		result += result + last;
 		last = new_last;
@@ -44,30 +44,43 @@ real_t fib( real_t n ) noexcept {
 	return result;
 }
 
-int a( int x ) { return x*2; }
-int b( int x ) { return x*3; }
-int c( int x ) { return x*4; }
+int a( int x ) {
+	return x * 2;
+}
+int b( int x ) {
+	return x * 3;
+}
+int c( int x ) {
+	return x * 4;
+}
 
 struct A {
-	int operator( )( int x ) const { return 1; }
+	int operator( )( int x ) const {
+		return 1;
+	}
 };
 
 struct B {
-	int operator( )( int x ) const { return 2; }
+	int operator( )( int x ) const {
+		return 2;
+	}
 };
 
 struct C {
-	void operator( )( std::string x ) const { }
+	void operator( )( std::string const &x ) const {}
 };
 
 struct D {
-	std::string operator( )( int x ) const { return std::string{ "Hello" }; }
+	std::string operator( )( int x ) const {
+		return std::string{"Hello"};
+	}
 };
 
-int main( int, char ** ) {
+int main( int argc, char **argv ) {
 	{
-		daw::impl::function_composer_t<A, B, D> fc { A { }, B { }, D { } };
-		static_assert(std::is_same<decltype(fc.apply( 3 )), decltype(D { }(3)) > ::value, "function_composer_t is not returning the correct type");
+		daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
+		static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
+		               "function_composer_t is not returning the correct type" );
 		std::cout << fc.apply( 4 ) << std::endl;
 	}
 
@@ -88,11 +101,10 @@ int main( int, char ** ) {
 			results.push_back( fs2( dis( gen ) ) );
 		};
 
-		for( auto const & v : results ) {
-			//v.get( );
+		for( auto const &v : results ) {
+			// v.get( );
 			std::cout << "'" << v.get( ) << "'\n";
 		}
 	}
 	return EXIT_SUCCESS;
 }
-

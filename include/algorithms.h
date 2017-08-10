@@ -107,22 +107,24 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename Compare>
-			future_result_t<std::pair<RandomIterator, RandomIterator>> small_merge_sort( task_scheduler & ts, RandomIterator first, RandomIterator last ) {
+			future_result_t<std::pair<RandomIterator, RandomIterator>> small_merge_sort(
+			    task_scheduler & ts, RandomIterator first, RandomIterator last ) {
 				future_result_t<std::pair<RandomIterator, RandomIterator>> res;
-				ts.add_task( [wresult = res.weak_ptr( ), first, last]( ) {
+				ts.add_task( [ wresult = res.weak_ptr( ), first, last ]( ) {
 					auto result = wresult.lock( );
 					if( result ) {
-						std::sort( first, last, Compare{ } );
-						result->set_value( { first, last } );
+						std::sort( first, last, Compare{} );
+						result->set_value( {first, last} );
 					}
 				} );
 				return res;
 			}
 
 			template<typename RandomIterator, typename Compare>
-			future_result_t<std::pair<RandomIterator, RandomIterator>> parallel_merge_sort( task_scheduler & ts, RandomIterator first, RandomIterator last ) {
+			future_result_t<std::pair<RandomIterator, RandomIterator>> parallel_merge_sort(
+			    task_scheduler & ts, RandomIterator first, RandomIterator last ) {
 				future_result_t<std::pair<RandomIterator, RandomIterator>> res;
-				ts.add_task( [wresult = res.weak_ptr( ), first, last]( ) {
+				ts.add_task( [ wresult = res.weak_ptr( ), first, last ]( ) {
 					auto result = wresult.lock( );
 					if( result ) {
 						future_result_t<std::pair<RandomIterator, RandomIterator>> current_result;
@@ -140,7 +142,7 @@ namespace daw {
 
 			template<typename RandomIterator, typename Compare>
 			auto parallel_merge_sort( RandomIterator first, RandomIterator last ) {
-				return parallel_merge_sort( task_scheduler{ }, first, last );
+				return parallel_merge_sort( task_scheduler{}, first, last );
 			}
 		} // namespace algorithm
 	}     // namespace algorithm

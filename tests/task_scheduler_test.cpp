@@ -37,7 +37,7 @@ real_t fib( uintmax_t n ) noexcept {
 	}
 	real_t last = 0;
 	real_t result = 1;
-	for( uintmax_t m=1; m<n; ++m ) {
+	for( uintmax_t m = 1; m < n; ++m ) {
 		auto new_last = result;
 		result += result + last;
 		last = new_last;
@@ -45,8 +45,8 @@ real_t fib( uintmax_t n ) noexcept {
 	return result;
 }
 
-int main( int argc, char ** argv ) {
-	auto const ITEMS = [argc, argv]() -> size_t {
+int main( int argc, char **argv ) {
+	auto const ITEMS = [argc, argv]( ) -> size_t {
 		if( argc < 2 ) {
 			return 100;
 		}
@@ -55,11 +55,11 @@ int main( int argc, char ** argv ) {
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 	std::random_device rd;
-	std::mt19937 gen{ rd( ) };
-	std::uniform_int_distribution<uintmax_t> dis{ 500, 9999 };
+	std::mt19937 gen{rd( )};
+	std::uniform_int_distribution<uintmax_t> dis{500, 9999};
 	daw::locked_stack_t<real_t> results;
-	daw::task_scheduler ts { };
-	for( size_t n=0; n<ITEMS; ++n ) {
+	daw::task_scheduler ts{};
+	for( size_t n = 0; n < ITEMS; ++n ) {
 		ts.add_task( [&]( ) {
 			auto const num = dis( gen );
 			results.push_back( fib( num ) );
@@ -67,13 +67,12 @@ int main( int argc, char ** argv ) {
 	}
 	ts.start( );
 	size_t rs_size;
-	while( (rs_size = results.size( )) < ITEMS ) {
+	while( ( rs_size = results.size( ) ) < ITEMS ) {
 		std::cout << rs_size << " items processed\n";
 		std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
 	}
-	for( size_t n=0; n<ITEMS; ++n ) {
+	for( size_t n = 0; n < ITEMS; ++n ) {
 		std::cout << n << ": " << results.pop_back( ) << '\n';
 	}
 	return EXIT_SUCCESS;
 }
-

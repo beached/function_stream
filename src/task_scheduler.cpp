@@ -27,15 +27,10 @@
 #include "task_scheduler.h"
 
 namespace daw {
-	task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction ):
-		std::enable_shared_from_this<task_scheduler_impl> { },
-		m_threads( ),
-		m_continue { false },
-		m_block_on_destruction { block_on_destruction },
-		m_num_threads { num_threads },
-		m_task_count { 0 } {
+	task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
+	    : m_continue{false}, m_block_on_destruction{block_on_destruction}, m_num_threads{num_threads}, m_task_count{0} {
 
-		for( size_t n = 0; n<m_num_threads; ++n ) {
+		for( size_t n = 0; n < m_num_threads; ++n ) {
 			m_tasks.emplace_back( );
 		}
 	}
@@ -50,9 +45,9 @@ namespace daw {
 
 	void task_scheduler_impl::start( ) {
 		m_continue = true;
-		for( size_t n = 0; n<m_num_threads; ++n ) {
-			m_threads.emplace_back( [id = n, wself = get_weak_this( )]( ) {
-				// The self.lock( ) determines where or not the 
+		for( size_t n = 0; n < m_num_threads; ++n ) {
+			m_threads.emplace_back( [ id = n, wself = get_weak_this( ) ]( ) {
+				// The self.lock( ) determines where or not the
 				// task_scheduler_impl has destructed yet and keeps it alive while
 				// we use members
 				while( true ) {
@@ -66,7 +61,8 @@ namespace daw {
 						// Get task.  First try own queue, if not try the others and finally
 						// wait for own queue to fill
 						auto tsk = self->m_tasks[id].try_pop_back( );
-						for( auto m = (id + 1) % self->m_num_threads; !tsk && m != id; m = (m + 1) % self->m_num_threads ) {
+						for( auto m = ( id + 1 ) % self->m_num_threads; !tsk && m != id;
+						     m = ( m + 1 ) % self->m_num_threads ) {
 							tsk = self->m_tasks[m].try_pop_back( );
 						}
 						if( tsk ) {
@@ -75,11 +71,11 @@ namespace daw {
 							task = self->m_tasks[id].pop_back( );
 						}
 					}
-					if( task ) {	// Just in case we get an empty function
+					if( task ) { // Just in case we get an empty function
 						try {
 							task( );
 						} catch( ... ) {
-							// Don't let a task take down thread	
+							// Don't let a task take down thread
 							// TODO: figure out what else we can do
 						}
 					}
@@ -90,7 +86,7 @@ namespace daw {
 
 	void task_scheduler_impl::stop( bool block ) noexcept {
 		m_continue = false;
-		for( auto & th : m_threads ) {
+		for( auto &th : m_threads ) {
 			try {
 				if( th.joinable( ) ) {
 					if( block ) {
@@ -99,7 +95,7 @@ namespace daw {
 						th.detach( );
 					}
 				}
-			} catch( std::exception const & ) { }
+			} catch( std::exception const & ) {}
 		}
 	}
 
@@ -110,14 +106,14 @@ namespace daw {
 	}
 
 	void task_scheduler_impl::add_task( task_scheduler_impl::task_t task ) noexcept {
-		if( task ) {	// Only allow valid tasks
-			auto id = (m_task_count++) % m_num_threads;
+		if( task ) { // Only allow valid tasks
+			auto id = ( m_task_count++ ) % m_num_threads;
 			m_tasks[id].push_back( std::move( task ) );
 		}
 	}
 
-	task_scheduler::task_scheduler( std::size_t num_threads, bool block_on_destruction ):
-		m_impl { std::make_shared<task_scheduler_impl>( num_threads, block_on_destruction ) } { }
+	task_scheduler::task_scheduler( std::size_t num_threads, bool block_on_destruction )
+	    : m_impl{std::make_shared<task_scheduler_impl>( num_threads, block_on_destruction )} {}
 
 	void task_scheduler::add_task( task_scheduler_impl::task_t task ) noexcept {
 		m_impl->add_task( std::move( task ) );
@@ -141,8 +137,7 @@ namespace daw {
 			result.start( );
 			return result;
 		}( );
-		return ts; 
+		return ts;
 	}
 
-}    // namespace daw
-
+} // namespace daw
