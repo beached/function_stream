@@ -67,7 +67,7 @@ namespace daw {
 		template<size_t pos, typename Package>
 		void call( Package package ) {
 			get_task_scheduler( ).add_task( [p = std::move( package )]( ) mutable {
-				call_task<pos>( std::move( p ), typename impl::which_type_t<pos, decltype( p->f_list )>::category{} );
+				call_task<pos>( std::move( p ), typename impl::which_type_t<pos, decltype( p->function_list( ) )>::category{} );
 			} );
 		}
 
@@ -76,12 +76,12 @@ namespace daw {
 			if( !package->continue_processing( ) ) {
 				return;
 			}
-			auto func = std::get<pos>( package->f_list );
-			auto client_data = package->m_result.lock( );
+			auto func = std::get<pos>( package->function_list( ) );
+			auto client_data = package->result( ).lock( );
 			if( client_data ) {
-				client_data->from_code( [&]( ) mutable { return daw::apply( func, std::move( package->targs ) ); } );
+				client_data->from_code( [&]( ) mutable { return daw::apply( func, std::move( package->targs( ) ) ); } );
 			} else {
-				daw::apply( func, std::move( package->targs ) );
+				daw::apply( func, std::move( package->targs( ) ) );
 			}
 		}
 
@@ -90,12 +90,12 @@ namespace daw {
 			if( !package->continue_processing( ) ) {
 				return;
 			}
-			auto func = std::get<pos>( package->f_list );
+			auto func = std::get<pos>( package->function_list( ) );
 			try {
 				static size_t const new_pos = pos + 1;
-				call<new_pos>( package->next_package( daw::apply( func, std::move( package->targs ) ) ) );
+				call<new_pos>( package->next_package( daw::apply( func, std::move( package->targs( ) ) ) ) );
 			} catch( ... ) {
-				auto result = package->m_result.lock( );
+				auto result = package->result( ).lock( );
 				if( result ) {
 					result->from_exception( std::current_exception( ) );
 				}
