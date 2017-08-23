@@ -164,6 +164,16 @@ namespace daw {
 		return function_stream<Functions...>{std::forward<Functions>( funcs )...};
 	}
 
+	template<typename FunctionStream>
+	void wait_for_function_streams( FunctionStream & function_stream ) {
+		function_stream->wait( );
+	}
+
+	template<typename... FunctionStreams>
+	void wait_for_function_streams( FunctionStreams&... function_streams ) {
+		[](...){ }((wait_for_function_streams( function_streams ), 0)...);
+	}
+
 	template<typename T, typename... Ts>
 	std::vector<T> create_vector( T &&value, Ts &&... values ) {
 		return std::vector<T>{std::initializer_list<T>{std::forward<T>( value ), std::forward<Ts>( values )...}};

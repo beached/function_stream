@@ -81,6 +81,10 @@ add_dependencies( task_scheduler_test_bin header_libraries_prj )
 add_executable( function_stream_test_bin ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
 target_link_libraries( function_stream_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
+add_executable( algorithms_test_bin ${TEST_FOLDER}/algorithms_test.cpp )
+target_link_libraries( algorithms_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_dependencies( algorithms_test_bin header_libraries_prj )
+
 install( TARGETS function_stream_lib task_scheduler_lib DESTINATION lib )
 install( DIRECTORY ${HEADER_FOLDER}/ DESTINATION include/daw/fs )
 

@@ -29,6 +29,8 @@
 #include <vector>
 
 #include <daw/daw_locked_stack.h>
+#include <daw/daw_semaphore.h>
+#include <daw/daw_utility.h>
 
 namespace daw {
 	struct task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
@@ -85,4 +87,32 @@ namespace daw {
 	}; // task_scheduler
 
 	task_scheduler get_task_scheduler( );
+
+	namespace impl {
+		template<typename Task>
+		int schedule_task( std::shared_ptr<daw::semaphore> semaphore, task_scheduler &ts, Task task ) {
+			ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
+				task( );
+				semaphore->notify( );
+			} );
+			return 0;
+		}
+	} // namespace impl
+	template<typename... Tasks>
+	std::shared_ptr<daw::semaphore> schedule_tasks( Tasks &&... tasks ) {
+
+		auto ts = get_task_scheduler( );
+		auto semaphore = std::make_shared<daw::semaphore>( 1 - sizeof...( tasks ) );
+
+		//auto const dummy = { ( impl::schedule_task( semaphore, ts, tasks ), 0 )... };
+		auto const dummy = { impl::schedule_task( semaphore, ts, tasks )... };
+		return semaphore;
+	}
+
+	template<typename... Tasks>
+	void invoke_tasks( Tasks &&... tasks ) {
+		using namespace std::chrono_literals;
+		schedule_tasks( std::forward<Tasks>( tasks )... )->wait( );
+	}
+
 } // namespace daw

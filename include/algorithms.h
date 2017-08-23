@@ -26,123 +26,121 @@
 #include <iterator>
 #include <memory>
 
-#include <daw/daw_poly_vector.h>
+#include <daw/cpp_17.h>
+#include <daw/daw_algorithm.h>
+#include <daw/daw_semaphore.h>
 
 #include "function_stream.h"
+#include "task_scheduler.h"
 
 namespace daw {
 	namespace algorithm {
-		struct task_group_detail_t : public std::enable_shared_from_this<task_group_detail_t> {
-			daw::poly_vector_t<daw::future_result_base_t> items;
-
-			void wait( ) const {
-				for( auto const &result : items ) {
-					result->wait( );
-				}
-			}
-
-			bool try_wait( ) const {
-				return std::all_of( items.begin( ), items.end( ), []( auto const &b ) { return b( ); } );
-			}
-
-			explicit operator bool( ) const {
-				return try_wait( );
-			}
-
-			std::weak_ptr<task_group_detail_t const> get_weak_ptr( ) const {
-				return this->shared_from_this( );
-			}
-
-			std::weak_ptr<task_group_detail_t> get_weak_ptr( ) {
-				return this->shared_from_this( );
-			}
-		}; // task_group_detail_t
-
-		template<typename... Functions>
-		struct task_group_t {
-			using functions_t = daw::function_stream<Functions...>;
-			functions_t functions;
-
-			std::shared_ptr<task_group_detail_t> results;
-
-			template<typename OnComplete, typename... Args>
-			void operator( )( OnComplete on_complete, Args &&... args ) {
-				results.items.push_back( functions( std::forward<Args>( args )... ) );
-				std::function<void( )> check_status;
-				check_status = [ check_status, on_complete ]
-			}
-		};
-
-		template<typename Function>
-		auto make_task_group( Function on_competion ) {
-			return task_group_t<Function>{};
-		}
-
-		template<size_t idx, typename RandomIterator, typename Compare>
-		auto ms_impl( RandomIterator first, RandomIterator last, Compare cmp ) {
-			using value_type = typename std::iterator_traits<RandomIterator>::value_type;
-
-			auto results = make_task_group( []( auto const &r ) {
-
-			} );
-			auto const count = std::distance( f, l );
-			auto const chunk_size = ( 64 * 1024 ) / sizeof( value_type );
-
-			for( size_t n = 0; n < chunk_size; ++n ) {
-				results.push_back( [=]( RandomIterator f, RandomIterator l ) {
-
-				} );
-				// Using a WAG of 64k for minimum size to leave the CPU
-				if( sizeof( value_type ) * count < 64 * 1024 ) {
-					std::sort( first, last, cmp );
-					return;
-				}
-				auto const mid = std::next( first, count / 2 );
-			}
-
-			template<size_t idx, typename RandomIterator>
-			void ms_impl( RandomIterator first, RandomIterator last ) {
-				using value_type = typename std::iterator_traits<RandomIterator>::value_type;
-				ms_impl( first, last, std::less<value_type>{} );
-			}
-
-			template<typename RandomIterator, typename Compare>
-			future_result_t<std::pair<RandomIterator, RandomIterator>> small_merge_sort(
-			    task_scheduler & ts, RandomIterator first, RandomIterator last ) {
-				future_result_t<std::pair<RandomIterator, RandomIterator>> res;
-				ts.add_task( [ wresult = res.weak_ptr( ), first, last ]( ) {
-					auto result = wresult.lock( );
-					if( result ) {
-						std::sort( first, last, Compare{} );
-						result->set_value( {first, last} );
-					}
-				} );
-				return res;
-			}
-
-			template<typename RandomIterator, typename Compare>
-			future_result_t<std::pair<RandomIterator, RandomIterator>> parallel_merge_sort(
-			    task_scheduler & ts, RandomIterator first, RandomIterator last ) {
-				future_result_t<std::pair<RandomIterator, RandomIterator>> res;
-				ts.add_task( [ wresult = res.weak_ptr( ), first, last ]( ) {
-					auto result = wresult.lock( );
-					if( result ) {
-						future_result_t<std::pair<RandomIterator, RandomIterator>> current_result;
-						using value_t = std::iterator_traits<RandomIterator>::value_type;
-						auto const sz = std::distance( first, last );
-						if( sz * sizeof( value_t ) < 64 * 1024 ) {
-							current_result = small_merge_sort( ts, first, last );
-						} else {
-							current_result = parallel_merge_sort( ts, first, last );
+		namespace parallel {
+			namespace impl {
+				template<typename Iterator>
+				auto get_part_info( Iterator first, Iterator last, size_t max_parts ) noexcept {
+					auto const sz = std::distance( first, last );
+					struct {
+						size_t size;
+						size_t count;
+					} result;
+					result.size = [&]( ) {
+						auto r = sz / max_parts;
+						if( r < 1 ) {
+							r = 1;
 						}
+						return r;
+					}( );
+					result.count = sz / result.size;
+
+					return result;
+				}
+
+				template<typename Iterator, typename Func>
+				auto partition_range( Iterator first, Iterator const last, Func func ) {
+					auto const sz = std::distance( first, last );
+					if( sz == 0 ) {
+						return std::make_shared<daw::semaphore>( 1 );
 					}
-				} );
-				return res;
+					auto ts = get_task_scheduler( );
+					auto const part_info = get_part_info( first, last, ts.size( ) );
+					auto semaphore = std::make_shared<daw::semaphore>( 1 - part_info.count );
+					auto last_pos = first;
+					first = daw::algorithm::safe_next( first, last, part_info.size );
+					for( ; first != last; first = daw::algorithm::safe_next( first, last, part_info.size ) ) {
+						ts.add_task( [last_pos, first, func, semaphore]( ) {
+							func( last_pos, first );
+							semaphore->notify( );
+						} );
+						last_pos = first;
+					}
+					ts.add_task( [last_pos, first, func, semaphore]( ) {
+						func( last_pos, first );
+						semaphore->notify( );
+					} );
+					return semaphore;
+				}
+			} // namespace impl
+
+			template<typename RandomIterator, typename Func>
+			void for_each( RandomIterator const first, RandomIterator const last, Func func ) {
+				impl::partition_range( first, last,
+				                       [func]( RandomIterator f, RandomIterator l ) {
+					                       for( auto it = f; it != l; ++it ) {
+						                       func( *it );
+					                       }
+				                       } )
+				    ->wait( );
 			}
 
-			template<typename RandomIterator, typename Compare>
-			auto parallel_merge_sort( RandomIterator first, RandomIterator last ) {
-				return parallel_merge_sort( task_scheduler{}, first, last );
+			template<typename Iterator, typename Func>
+			void for_each_n( Iterator first, size_t N, Func func ) {
+				daw::algorithm::parallel::for_each( first, first + N, func );
 			}
-		} // namespace algorithm
+
+			template<typename Iterator, typename T>
+			void fill( Iterator first, Iterator last, T const &value ) {
+				daw::algorithm::parallel::for_each( first, last, [&value]( auto &item ) { item = value; } );
+			}
+
+			namespace impl {
+				template<typename Iterator, typename Compare>
+				void parallel_sort( Iterator first, Iterator last, Compare compare ) {
+					partition_range( first, last, [compare]( Iterator f, Iterator l ) {
+						std::sort( f, l, compare );
+					})->wait( );
+					auto ts = get_task_scheduler( );
+					auto part_info = get_part_info( first, last, ts.size( ) );
+					while( part_info.count > 1 ) {
+						auto count = part_info.count;
+						if( count%2 == 1 ) {
+							--count;
+						}
+						auto semaphore = std::make_shared<daw::semaphore>( 1 - (count/2) );
+						for( size_t n = 0; n < count; n+=2 ) {
+							auto f = daw::algorithm::safe_next( first, last, n*part_info.size );
+							auto m = daw::algorithm::safe_next( first, last, (n+1)*part_info.size );
+							auto l = daw::algorithm::safe_next( first, last, (n+2)*part_info.size );
+							ts.add_task( [f, m, l, compare, semaphore]( ) {
+								std::inplace_merge( f, m, l, compare );
+								semaphore->notify( );
+							});
+						}
+						semaphore->wait( );
+						if( part_info.count%2 == 1 ) {
+							++part_info.count;
+						}
+						part_info.count /= 2;
+						part_info.size *= 2;
+					}
+				}
+			} // namespace impl
+
+			template<typename Iterator,
+			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
+			void sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
+				impl::parallel_sort( first, last, std::move( compare ) );
+			}
+		} // namespace parallel
 	}     // namespace algorithm
+} // namespace daw
