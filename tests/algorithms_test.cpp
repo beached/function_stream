@@ -26,6 +26,7 @@
 #include <date/chrono_io.h>
 #include <date/date.h>
 #include <iostream>
+#include <numeric>
 #include <random>
 #include <vector>
 
@@ -108,14 +109,14 @@ void for_each_test( size_t SZ ) {
 		}
 	};
 	auto result_1 =
-	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.data( ), a.data( ) + a.size( ), find_even ); } );
+	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even ); } );
 	auto result_2 = daw::benchmark( [&]( ) {
 		for( auto const &item : a ) {
 			find_even( item );
 		}
 	} );
 	auto result_3 =
-	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.data( ), a.data( ) + a.size( ), find_even ); } );
+	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even ); } );
 	auto result_4 = daw::benchmark( [&]( ) {
 		for( auto const &item : a ) {
 			find_even( item );
@@ -130,10 +131,10 @@ template<typename T>
 void fill_test( size_t SZ ) {
 	std::vector<T> a;
 	a.resize( SZ );
-	auto result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::fill( a.data( ), a.data( ) + a.size( ), 1 ); } );
-	auto result_2 = daw::benchmark( [&]( ) { std::fill( a.data( ), a.data( ) + a.size( ), 2 ); } );
-	auto result_3 = daw::benchmark( [&]( ) { daw::algorithm::parallel::fill( a.data( ), a.data( ) + a.size( ), 3 ); } );
-	auto result_4 = daw::benchmark( [&]( ) { std::fill( a.data( ), a.data( ) + a.size( ), 4 ); } );
+	auto result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::fill( a.begin( ), a.end( ), 1 ); } );
+	auto result_2 = daw::benchmark( [&]( ) { std::fill( a.begin( ), a.end( ), 2 ); } );
+	auto result_3 = daw::benchmark( [&]( ) { daw::algorithm::parallel::fill( a.begin( ), a.end( ), 3 ); } );
+	auto result_4 = daw::benchmark( [&]( ) { std::fill( a.begin( ), a.end( ), 4 ); } );
 	auto const par_min = ( result_1 + result_3 ) / 2;
 	auto const seq_min = ( result_2 + result_4 ) / 2;
 	display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
@@ -182,18 +183,18 @@ void test_sort( Iterator const first, Iterator const last, daw::string_view labe
 void sort_test( size_t SZ ) {
 	std::vector<int64_t> a;
 	a.resize( SZ );
-	fill_random( a.data( ), a.data( ) + a.size( ) );
+	fill_random( a.begin( ), a.end( ) );
 	auto b = a;
-	auto result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
-	auto result_2 = daw::benchmark( [&a]( ) { std::sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_2 = daw::benchmark( [&a]( ) { std::sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
-	auto result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
-	auto result_4 = daw::benchmark( [&a]( ) { std::sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_4 = daw::benchmark( [&a]( ) { std::sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
@@ -203,24 +204,45 @@ void sort_test( size_t SZ ) {
 void stable_sort_test( size_t SZ ) {
 	std::vector<int64_t> a;
 	a.resize( SZ );
-	fill_random( a.data( ), a.data( ) + a.size( ) );
+	fill_random( a.begin( ), a.end( ) );
 	auto b = a;
-	auto result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
-	auto result_2 = daw::benchmark( [&a]( ) { std::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_2 = daw::benchmark( [&a]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
-	auto result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
-	auto result_4 = daw::benchmark( [&a]( ) { std::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	auto result_4 = daw::benchmark( [&a]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
 	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
 }
 
+template<typename T>
+void accumulate_test( size_t SZ ) {
+	std::vector<T> a;
+	a.resize( SZ );
+	std::fill( a.begin( ), a.end( ), 1 );
+	auto b = a;
+	int64_t accum_result1 = 0;
+	int64_t accum_result2 = 0;
+	auto result_1 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ) ); } );
+	a = b;
+	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( std::next( a.begin( ) ), a.end( ), a.front( ) ); } );
+	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
+	a = b;
+	auto result_3 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ) ); } );
+	a = b;
+	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( std::next( a.begin( ) ), a.end( ), a.front( ) ); } );
+	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
+	auto const par_min = std::min( result_1, result_3 );
+	auto const seq_min = std::min( result_2, result_4 );
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
+}
 
 int main( int, char ** ) {
 	auto ts = daw::get_task_scheduler( );
@@ -248,7 +270,6 @@ int main( int, char ** ) {
 	for( size_t n = 100000000; n >= 100; n /= 10 ) {
 		fill_test<int32_t>( n );
 	}
-	 */
 	std::cout << "sort tests\n";
 	std::cout << "int64_t\n";
 	sort_test( 500000000 );
@@ -261,6 +282,20 @@ int main( int, char ** ) {
 	sort_test( 500000000 );
 	for( size_t n = 100000000; n >= 100; n /= 10 ) {
 		stable_sort_test( n );
+	}
+	*/
+
+	std::cout << "accumulate tests\n";
+	std::cout << "int64_t\n";
+	accumulate_test<int64_t>( 500000000 );
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		accumulate_test<int64_t>( n );
+	}
+
+	std::cout << "double\n";
+	accumulate_test<double>( 500000000 );
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		accumulate_test<double>( n );
 	}
 
 	return EXIT_SUCCESS;

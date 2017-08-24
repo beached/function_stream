@@ -40,7 +40,7 @@ namespace daw {
 				template<size_t MinRangeSize, typename Iterator>
 				auto get_part_info( Iterator first, Iterator last, size_t max_parts ) noexcept {
 					static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
-					auto const sz = std::distance( first, last );
+					auto const sz = static_cast<size_t>( std::distance( first, last ) );
 					struct {
 						size_t size;
 						size_t count;
@@ -160,25 +160,73 @@ namespace daw {
 						std::inplace_merge( f, m, l, compare );
 					} );
 				}
+
+				template<typename Iterator, typename T, typename BinaryOp>
+				T parallel_accumulate( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
+					{
+						auto const sz = static_cast<size_t>( std::distance( first, last ) );
+						if( sz < 2 ) {
+							if( sz == 0 ) {
+								return std::move( init );
+							}
+							return binary_op( init, *first );
+						}
+					}
+					daw::locked_stack_t<T> results;
+					auto t1 =
+					    impl::partition_range( first, last, [&results, binary_op]( Iterator f, Iterator const l ) {
+						    auto result = binary_op( *f, *std::next( f ) );
+						    std::advance( f, 2 );
+						    for( ; f != l; std::advance( f, 1 ) ) {
+							    result = binary_op( result, *f );
+						    }
+						    results.push_back( std::move( result ) );
+					    } );
+					// TODO: determine if it is worth parallizing below.
+					// Not sure as it should be N=num threads
+					auto result = std::move( init );
+					auto const expected_results = get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
+					for( size_t n=0; n<expected_results; ++n ) {
+						result = binary_op( result, results.pop_back2( ) );
+					}
+					return result;
+				}
 			} // namespace impl
 
 			template<typename Iterator,
 			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
 			void sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
-				impl::parallel_sort(
-				    first,
-				    last, []( Iterator f, Iterator l, Compare cmp ) { std::sort( f, l, cmp ); },
-				    std::move( compare ) );
+				impl::parallel_sort( first, last, []( Iterator f, Iterator l, Compare cmp ) { std::sort( f, l, cmp ); },
+				                     std::move( compare ) );
 			}
 
 			template<typename Iterator,
 			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
 			void stable_sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
-				impl::parallel_sort(
-				    first, last,
-				    []( Iterator f, Iterator l, Compare cmp ) { std::stable_sort( f, l, cmp ); },
-				    std::move( compare ) );
+				impl::parallel_sort( first, last,
+				                     []( Iterator f, Iterator l, Compare cmp ) { std::stable_sort( f, l, cmp ); },
+				                     std::move( compare ) );
 			}
+
+			template<typename Iterator, typename T, typename BinaryOp>
+			T accumulate( Iterator first, Iterator last, T && init, BinaryOp binary_op ) {
+				return impl::parallel_accumulate( first, last, std::forward<T>( init ), binary_op );
+			}
+
+			template<typename Iterator, typename T>
+			auto accumulate( Iterator first, Iterator last, T && init ) {
+				using value_type = typename std::iterator_traits<Iterator>::value_type;
+				return ::daw::algorithm::parallel::accumulate(
+				    first, last, std::forward<T>( init ),
+				    []( auto const &lhs, auto const &rhs ) -> value_type { return lhs + rhs; } );
+			}
+
+			template<typename Iterator>
+			auto accumulate( Iterator first, Iterator last ) {
+				using value_type = typename std::iterator_traits<Iterator>::value_type;
+				return ::daw::algorithm::parallel::accumulate( first, last, value_type{} );
+			}
+
 		} // namespace parallel
 	}     // namespace algorithm
 } // namespace daw
