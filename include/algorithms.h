@@ -37,8 +37,9 @@ namespace daw {
 	namespace algorithm {
 		namespace parallel {
 			namespace impl {
-				template<typename Iterator>
+				template<size_t MinRangeSize, typename Iterator>
 				auto get_part_info( Iterator first, Iterator last, size_t max_parts ) noexcept {
+					static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
 					auto const sz = std::distance( first, last );
 					struct {
 						size_t size;
@@ -46,24 +47,26 @@ namespace daw {
 					} result;
 					result.size = [&]( ) {
 						auto r = sz / max_parts;
-						if( r < 1 ) {
-							r = 1;
+						if( r < MinRangeSize ) {
+							r = MinRangeSize;
 						}
 						return r;
 					}( );
 					result.count = sz / result.size;
-
+					if( result.count == 0 ) {
+						result.count = 1;
+					}
 					return result;
 				}
 
-				template<typename Iterator, typename Func>
+				template<size_t MinRangeSize = 1, typename Iterator, typename Func>
 				auto partition_range( Iterator first, Iterator const last, Func func ) {
 					auto const sz = std::distance( first, last );
 					if( sz == 0 ) {
 						return std::make_shared<daw::semaphore>( 1 );
 					}
 					auto ts = get_task_scheduler( );
-					auto const part_info = get_part_info( first, last, ts.size( ) );
+					auto const part_info = get_part_info<MinRangeSize>( first, last, ts.size( ) );
 					auto semaphore = std::make_shared<daw::semaphore>( 1 - part_info.count );
 					auto last_pos = first;
 					first = daw::algorithm::safe_next( first, last, part_info.size );
@@ -104,30 +107,34 @@ namespace daw {
 			}
 
 			namespace impl {
-				template<typename Iterator, typename Compare>
+				template<size_t MinRangeSize = 512, typename Iterator, typename Compare>
 				void parallel_sort( Iterator first, Iterator last, Compare compare ) {
-					partition_range( first, last, [compare]( Iterator f, Iterator l ) {
-						std::sort( f, l, compare );
-					})->wait( );
+					if( MinRangeSize >= static_cast<size_t>( std::distance( first, last ) ) ) {
+						std::sort( first, last, compare );
+						return;
+					}
+					partition_range<MinRangeSize>( first, last,
+					                               [compare]( Iterator f, Iterator l ) { std::sort( f, l, compare ); } )
+					    ->wait( );
 					auto ts = get_task_scheduler( );
-					auto part_info = get_part_info( first, last, ts.size( ) );
+					auto part_info = get_part_info<MinRangeSize>( first, last, ts.size( ) );
 					while( part_info.count > 1 ) {
 						auto count = part_info.count;
-						if( count%2 == 1 ) {
+						if( count % 2 == 1 ) {
 							--count;
 						}
-						auto semaphore = std::make_shared<daw::semaphore>( 1 - (count/2) );
-						for( size_t n = 0; n < count; n+=2 ) {
-							auto f = daw::algorithm::safe_next( first, last, n*part_info.size );
-							auto m = daw::algorithm::safe_next( first, last, (n+1)*part_info.size );
-							auto l = daw::algorithm::safe_next( first, last, (n+2)*part_info.size );
+						auto semaphore = std::make_shared<daw::semaphore>( 1 - ( count / 2 ) );
+						for( size_t n = 0; n < count; n += 2 ) {
+							auto f = daw::algorithm::safe_next( first, last, n * part_info.size );
+							auto m = daw::algorithm::safe_next( first, last, ( n + 1 ) * part_info.size );
+							auto l = daw::algorithm::safe_next( first, last, ( n + 2 ) * part_info.size );
 							ts.add_task( [f, m, l, compare, semaphore]( ) {
 								std::inplace_merge( f, m, l, compare );
 								semaphore->notify( );
-							});
+							} );
 						}
 						semaphore->wait( );
-						if( part_info.count%2 == 1 ) {
+						if( part_info.count % 2 == 1 ) {
 							++part_info.count;
 						}
 						part_info.count /= 2;

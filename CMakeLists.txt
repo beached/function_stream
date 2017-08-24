@@ -34,6 +34,16 @@ externalproject_add(
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/install
 )
 
+externalproject_add(
+	date_prj
+	GIT_REPOSITORY "https://github.com/beached/date.git"
+	SOURCE_DIR "${CMAKE_BINARY_DIR}/dependencies/date"
+	GIT_TAG "master"
+	INSTALL_DIR "${CMAKE_BINARY_DIR}/install"
+	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/install
+)
+
+
 set( HEADER_FOLDER "include" )
 set( SOURCE_FOLDER "src" )
 set( TEST_FOLDER "tests" )
@@ -83,7 +93,7 @@ target_link_libraries( function_stream_test_bin task_scheduler_lib function_stre
 
 add_executable( algorithms_test_bin ${TEST_FOLDER}/algorithms_test.cpp )
 target_link_libraries( algorithms_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
-add_dependencies( algorithms_test_bin header_libraries_prj )
+add_dependencies( algorithms_test_bin date_prj header_libraries_prj )
 
 install( TARGETS function_stream_lib task_scheduler_lib DESTINATION lib )
 install( DIRECTORY ${HEADER_FOLDER}/ DESTINATION include/daw/fs )

@@ -20,15 +20,59 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <date/chrono_io.h>
+#include <date/date.h>
 #include <iostream>
 #include <random>
 #include <vector>
 
+#include "task_scheduler.h"
 #include <daw/daw_benchmark.h>
+#include <daw/daw_string_view.h>
 
 #include "algorithms.h"
+
+template<typename T>
+double calc_speedup( T seq_time, T par_time ) {
+	static double const max_speedup = daw::get_task_scheduler( ).size( );
+	auto result = seq_time / par_time;
+	result = result / max_speedup;
+	return result * 100.0;
+}
+
+void display_info( long double par_time, long double seq_time, long double count, daw::string_view label ) {
+	using namespace std::chrono;
+	using namespace date;
+
+	auto const make_seconds = []( long double t, long double c ) {
+		auto val = ( t / c ) * 1000000000000.0;
+
+		if( val < 1000 ) {
+			return std::to_string( static_cast<uint64_t>( val ) ) + "ps";
+		}
+		val /= 1000.0;
+		if( val < 1000 ) {
+			return std::to_string( static_cast<uint64_t>( val ) ) + "ns";
+		}
+		val /= 1000.0;
+		if( val < 1000 ) {
+			return std::to_string( static_cast<uint64_t>( val ) ) + "µs";
+		}
+		val /= 1000.0;
+		if( val < 1000 ) {
+			return std::to_string( static_cast<uint64_t>( val ) ) + "ms";
+		}
+		val /= 1000.0;
+		return std::to_string( static_cast<uint64_t>( val ) ) + "s";
+	};
+
+	std::cout << label << " -> size: " << static_cast<uint64_t>(count) << " %cpus: " << calc_speedup( seq_time, par_time ) <<
+  " par test: " << make_seconds( par_time, 1 ) << " per item: " << make_seconds( par_time, count ) <<
+  " seq_test: " << make_seconds( seq_time, 1 ) << " per item: " << make_seconds( seq_time, count ) << '\n';
+}
 
 template<typename T>
 void for_each_test( size_t SZ ) {
@@ -58,11 +102,9 @@ void for_each_test( size_t SZ ) {
 			find_even( item );
 		}
 	} );
-	auto par_avg = ( result_1 + result_3 ) / 2;
-	auto seq_avg = ( result_2 + result_4 ) / 2;
-	std::cout << "for_each -> size: " << SZ << " found: " << found << " par test: " << par_avg
-	          << " per item: " << ( par_avg / SZ ) << " seq_test: " << seq_avg << " per item: " << ( seq_avg / SZ )
-	          << '\n';
+	auto const par_min = ( result_1 + result_3 ) / 2;
+	auto const seq_min = ( result_2 + result_4 ) / 2;
+	display_info( seq_min, par_min, SZ, "for_each" );
 }
 
 template<typename T>
@@ -73,10 +115,9 @@ void fill_test( size_t SZ ) {
 	auto result_2 = daw::benchmark( [&]( ) { std::fill( a.data( ), a.data( ) + a.size( ), 2 ); } );
 	auto result_3 = daw::benchmark( [&]( ) { daw::algorithm::parallel::fill( a.data( ), a.data( ) + a.size( ), 3 ); } );
 	auto result_4 = daw::benchmark( [&]( ) { std::fill( a.data( ), a.data( ) + a.size( ), 4 ); } );
-	auto par_avg = ( result_1 + result_3 ) / 2;
-	auto seq_avg = ( result_2 + result_4 ) / 2;
-	std::cout << "fill -> size: " << SZ << " par test: " << par_avg << " per item: " << ( par_avg / SZ )
-	          << " seq_test: " << seq_avg << " per item: " << ( seq_avg / SZ ) << '\n';
+	auto const par_min = ( result_1 + result_3 ) / 2;
+	auto const seq_min = ( result_2 + result_4 ) / 2;
+	display_info( seq_min, par_min, SZ, "fill" );
 }
 
 template<typename Iterator>
@@ -84,7 +125,7 @@ void fill_random( Iterator first, Iterator last ) {
 	std::random_device rnd_device;
 	// Specify the engine and distribution.
 	std::mt19937 mersenne_engine{rnd_device( )};
-	std::uniform_int_distribution<int64_t> dist{0, std::distance( first, last )*2 };
+	std::uniform_int_distribution<int64_t> dist{0, std::distance( first, last ) * 2};
 
 	std::generate( first, last, [&]( ) { return dist( mersenne_engine ); } );
 }
@@ -95,12 +136,6 @@ void sort_test( size_t SZ ) {
 	fill_random( a.data( ), a.data( ) + a.size( ) );
 	auto b = a;
 	auto result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.data( ), a.data( ) + a.size( ) ); } );
-	if( !std::is_sorted( a.cbegin( ), a.cend( ) ) ) {
-		for( size_t n=0; n<a.size( ); ++n ) {
-			std::cout << n << ' ' << a[n] << '\n';
-		}
-		std::cout << '\n';
-	}
 	daw::exception::daw_throw_on_false( std::is_sorted( a.data( ), a.data( ) + a.size( ) ), "Sequence not sorted" );
 	a = b;
 	auto result_2 = daw::benchmark( [&a]( ) { std::sort( a.data( ), a.data( ) + a.size( ) ); } );
@@ -111,10 +146,9 @@ void sort_test( size_t SZ ) {
 	a = b;
 	auto result_4 = daw::benchmark( [&a]( ) { std::sort( a.data( ), a.data( ) + a.size( ) ); } );
 	daw::exception::daw_throw_on_false( std::is_sorted( a.data( ), a.data( ) + a.size( ) ), "Sequence not sorted" );
-	auto par_avg = ( result_1 + result_3 ) / 2;
-	auto seq_avg = ( result_2 + result_4 ) / 2;
-	std::cout << "sort -> size: " << SZ << " par test: " << par_avg << " per item: " << ( par_avg / SZ )
-	          << " seq_test: " << seq_avg << " per item: " << ( seq_avg / SZ ) << '\n';
+	auto const par_min = std::min( result_1, result_3 );
+	auto const seq_min = std::min( result_2, result_4 );
+	display_info( seq_min, par_min, SZ, "for_each" );
 }
 
 int main( int, char ** ) {
@@ -148,13 +182,14 @@ int main( int, char ** ) {
 	fill_test<int32_t>( 10000 );
 	fill_test<int32_t>( 100 );
 
-	sort_test( 32 );
-	sort_test( 1024 );
-	sort_test( 16384 );
-	sort_test( 131072 );
-	sort_test( 1048576 );
-	sort_test( 16777216 );
-	sort_test( 134217728 );
+	std::cout << "sort tests\n";
+	sort_test( 500000000 );
+	sort_test( 100000000 );
+	sort_test( 10000000 );
+	sort_test( 1000000 );
+	sort_test( 100000 );
+	sort_test( 10000 );
+	sort_test( 100 );
 
 	return EXIT_SUCCESS;
 }
