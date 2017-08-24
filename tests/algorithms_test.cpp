@@ -43,11 +43,11 @@ double calc_speedup( T seq_time, T par_time ) {
 	return result * 100.0;
 }
 
-void display_info( long double par_time, long double seq_time, long double count, daw::string_view label ) {
+void display_info( double seq_time, double par_time, double count, size_t bytes, daw::string_view label ) {
 	using namespace std::chrono;
 	using namespace date;
 
-	auto const make_seconds = []( long double t, long double c ) {
+	auto const make_seconds = []( double t, double c ) {
 		auto val = ( t / c ) * 1000000000000.0;
 
 		if( val < 1000 ) {
@@ -69,9 +69,28 @@ void display_info( long double par_time, long double seq_time, long double count
 		return std::to_string( static_cast<uint64_t>( val ) ) + "s";
 	};
 
-	std::cout << label << " -> size: " << static_cast<uint64_t>(count) << " %cpus: " << calc_speedup( seq_time, par_time ) <<
-  " par test: " << make_seconds( par_time, 1 ) << " per item: " << make_seconds( par_time, count ) <<
-  " seq_test: " << make_seconds( seq_time, 1 ) << " per item: " << make_seconds( seq_time, count ) << '\n';
+	auto const mbs = [count, bytes]( double t ) {
+		auto val = ( count * static_cast<double>( bytes ) ) / t;
+		if( val < 1024 ) {
+			return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "bytes/s";
+		}
+		val /= 1024.0;
+		if( val < 1024 ) {
+			return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "KB/s";
+		}
+		val /= 1024.0;
+		if( val < 1024 ) {
+			return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "MB/s";
+		}
+		val /= 1024.0;
+		return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "GB/s";
+	};
+
+	std::cout << label << ": size->" << static_cast<uint64_t>( count ) << " %cpus->"
+	          << calc_speedup( seq_time, par_time ) << " par_total->" << make_seconds( par_time, 1 ) << " par_item->"
+	          << make_seconds( par_time, count ) << " throughput->" << mbs( par_time ) << " seq_total->"
+	          << make_seconds( seq_time, 1 ) << " seq_item->" << make_seconds( seq_time, count ) << " throughput->"
+	          << mbs( seq_time ) << '\n';
 }
 
 template<typename T>
@@ -104,7 +123,7 @@ void for_each_test( size_t SZ ) {
 	} );
 	auto const par_min = ( result_1 + result_3 ) / 2;
 	auto const seq_min = ( result_2 + result_4 ) / 2;
-	display_info( seq_min, par_min, SZ, "for_each" );
+	display_info( seq_min, par_min, SZ, sizeof( T ), "for_each" );
 }
 
 template<typename T>
@@ -117,7 +136,7 @@ void fill_test( size_t SZ ) {
 	auto result_4 = daw::benchmark( [&]( ) { std::fill( a.data( ), a.data( ) + a.size( ), 4 ); } );
 	auto const par_min = ( result_1 + result_3 ) / 2;
 	auto const seq_min = ( result_2 + result_4 ) / 2;
-	display_info( seq_min, par_min, SZ, "fill" );
+	display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
 }
 
 template<typename Iterator>
@@ -130,66 +149,119 @@ void fill_random( Iterator first, Iterator last ) {
 	std::generate( first, last, [&]( ) { return dist( mersenne_engine ); } );
 }
 
+template<typename Iterator>
+void test_sort( Iterator const first, Iterator const last, daw::string_view label ) {
+	if( first == last ) {
+		return;
+	}
+	auto it = first;
+	auto last_val = *it;
+	++it;
+	for( ; it != last; ++it ) {
+		if( *it < last_val ) {
+			auto const pos = std::distance( first, it );
+			std::cerr << "Sequence '" << label << "' not sorted at position (" << std::distance( first, it ) << '/'
+			          << std::distance( first, last ) << ")\n";
+
+			auto start = pos > 10 ? std::next( first, pos - 10 ) : first;
+			auto const end = std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
+			if( std::distance( start, end ) > 0 ) {
+				std::cerr << '[' << *start;
+				++start;
+				for( ; start != end; ++start ) {
+					std::cerr << ", " << *start;
+				}
+				std::cerr << " ]\n";
+			}
+			break;
+		}
+		last_val = *it;
+	}
+}
+
 void sort_test( size_t SZ ) {
 	std::vector<int64_t> a;
 	a.resize( SZ );
 	fill_random( a.data( ), a.data( ) + a.size( ) );
 	auto b = a;
 	auto result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.data( ), a.data( ) + a.size( ) ); } );
-	daw::exception::daw_throw_on_false( std::is_sorted( a.data( ), a.data( ) + a.size( ) ), "Sequence not sorted" );
+	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
 	auto result_2 = daw::benchmark( [&a]( ) { std::sort( a.data( ), a.data( ) + a.size( ) ); } );
-	daw::exception::daw_throw_on_false( std::is_sorted( a.data( ), a.data( ) + a.size( ) ), "Sequence not sorted" );
+	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
 	auto result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.data( ), a.data( ) + a.size( ) ); } );
-	daw::exception::daw_throw_on_false( std::is_sorted( a.data( ), a.data( ) + a.size( ) ), "Sequence not sorted" );
+	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
 	auto result_4 = daw::benchmark( [&a]( ) { std::sort( a.data( ), a.data( ) + a.size( ) ); } );
-	daw::exception::daw_throw_on_false( std::is_sorted( a.data( ), a.data( ) + a.size( ) ), "Sequence not sorted" );
+	test_sort( a.begin( ), a.end( ), "s_result2" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
-	display_info( seq_min, par_min, SZ, "for_each" );
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
 }
+
+void stable_sort_test( size_t SZ ) {
+	std::vector<int64_t> a;
+	a.resize( SZ );
+	fill_random( a.data( ), a.data( ) + a.size( ) );
+	auto b = a;
+	auto result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	test_sort( a.begin( ), a.end( ), "p_result_1" );
+	a = b;
+	auto result_2 = daw::benchmark( [&a]( ) { std::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	test_sort( a.begin( ), a.end( ), "s_result_1" );
+	a = b;
+	auto result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	test_sort( a.begin( ), a.end( ), "p_result2" );
+	a = b;
+	auto result_4 = daw::benchmark( [&a]( ) { std::stable_sort( a.data( ), a.data( ) + a.size( ) ); } );
+	test_sort( a.begin( ), a.end( ), "s_result2" );
+	auto const par_min = std::min( result_1, result_3 );
+	auto const seq_min = std::min( result_2, result_4 );
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
+}
+
 
 int main( int, char ** ) {
 	auto ts = daw::get_task_scheduler( );
-	for_each_test<double>( 100000000 );
-	for_each_test<double>( 10000000 );
-	for_each_test<double>( 1000000 );
-	for_each_test<double>( 100000 );
-	for_each_test<double>( 10000 );
-	for_each_test<double>( 100 );
+	/*
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		for_each_test<double>( n );
+	}
+	std::cout << "int64_t\n";
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		for_each_test<int64_t>( n );
+	}
 	std::cout << "int32_t\n";
-	for_each_test<int32_t>( 100000000 );
-	for_each_test<int32_t>( 10000000 );
-	for_each_test<int32_t>( 1000000 );
-	for_each_test<int32_t>( 100000 );
-	for_each_test<int32_t>( 10000 );
-	for_each_test<int32_t>( 100 );
-
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		for_each_test<int32_t>( n );
+	}
 	std::cout << "double\n";
-	fill_test<double>( 100000000 );
-	fill_test<double>( 10000000 );
-	fill_test<double>( 1000000 );
-	fill_test<double>( 100000 );
-	fill_test<double>( 10000 );
-	fill_test<double>( 100 );
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		fill_test<double>( n );
+	}
+	std::cout << "int64_t\n";
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		fill_test<int64_t>( n );
+	}
 	std::cout << "int32_t\n";
-	fill_test<int32_t>( 100000000 );
-	fill_test<int32_t>( 10000000 );
-	fill_test<int32_t>( 1000000 );
-	fill_test<int32_t>( 100000 );
-	fill_test<int32_t>( 10000 );
-	fill_test<int32_t>( 100 );
-
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		fill_test<int32_t>( n );
+	}
+	 */
 	std::cout << "sort tests\n";
+	std::cout << "int64_t\n";
 	sort_test( 500000000 );
-	sort_test( 100000000 );
-	sort_test( 10000000 );
-	sort_test( 1000000 );
-	sort_test( 100000 );
-	sort_test( 10000 );
-	sort_test( 100 );
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		sort_test( n );
+	}
+
+	std::cout << "stable_sort tests\n";
+	std::cout << "int64_t\n";
+	sort_test( 500000000 );
+	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+		stable_sort_test( n );
+	}
 
 	return EXIT_SUCCESS;
 }

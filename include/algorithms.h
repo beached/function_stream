@@ -53,8 +53,12 @@ namespace daw {
 						return r;
 					}( );
 					result.count = sz / result.size;
-					if( result.count == 0 ) {
-						result.count = 1;
+					if( result.count == 0 )
+						if( result.count == 0 ) {
+							result.count = 1;
+						}
+					if( static_cast<size_t>( sz ) > ( result.count * result.size ) ) {
+						++result.count;
 					}
 					return result;
 				}
@@ -107,46 +111,73 @@ namespace daw {
 			}
 
 			namespace impl {
-				template<size_t MinRangeSize = 512, typename Iterator, typename Compare>
-				void parallel_sort( Iterator first, Iterator last, Compare compare ) {
-					if( MinRangeSize >= static_cast<size_t>( std::distance( first, last ) ) ) {
-						std::sort( first, last, compare );
-						return;
-					}
-					partition_range<MinRangeSize>( first, last,
-					                               [compare]( Iterator f, Iterator l ) { std::sort( f, l, compare ); } )
-					    ->wait( );
+				template<typename Iterator, typename Function>
+				void merge_reduce_range( std::vector<std::pair<Iterator, Iterator>> ranges, Function func ) {
 					auto ts = get_task_scheduler( );
-					auto part_info = get_part_info<MinRangeSize>( first, last, ts.size( ) );
-					while( part_info.count > 1 ) {
-						auto count = part_info.count;
-						if( count % 2 == 1 ) {
-							--count;
-						}
+					while( ranges.size( ) > 1 ) {
+						std::vector<std::pair<Iterator, Iterator>> next_ranges;
+						auto const count = ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
 						auto semaphore = std::make_shared<daw::semaphore>( 1 - ( count / 2 ) );
-						for( size_t n = 0; n < count; n += 2 ) {
-							auto f = daw::algorithm::safe_next( first, last, n * part_info.size );
-							auto m = daw::algorithm::safe_next( first, last, ( n + 1 ) * part_info.size );
-							auto l = daw::algorithm::safe_next( first, last, ( n + 2 ) * part_info.size );
-							ts.add_task( [f, m, l, compare, semaphore]( ) {
-								std::inplace_merge( f, m, l, compare );
+						for( size_t n = 1; n < count; n += 2 ) {
+							daw::exception::daw_throw_on_false( ranges[n - 1].second == ranges[n].first,
+							                                    "Non continuous range" );
+
+							ts.add_task( [func, &ranges, n, semaphore]( ) {
+								func( ranges[n - 1].first, ranges[n].first, ranges[n].second );
 								semaphore->notify( );
 							} );
+							next_ranges.push_back( std::make_pair( ranges[n - 1].first, ranges[n].second ) );
 						}
 						semaphore->wait( );
-						if( part_info.count % 2 == 1 ) {
-							++part_info.count;
+						if( count != ranges.size( ) ) {
+							next_ranges.push_back( ranges.back( ) );
 						}
-						part_info.count /= 2;
-						part_info.size *= 2;
+						ranges = next_ranges;
 					}
+				}
+				template<size_t MinRangeSize = 512, typename Iterator, typename Sort, typename Compare>
+				void parallel_sort( Iterator first, Iterator last, Sort sort, Compare compare ) {
+					static_assert( MinRangeSize > 0, "MinRangeSize cannot be 0" );
+					if( MinRangeSize > static_cast<size_t>( std::distance( first, last ) ) ) {
+						sort( first, last, compare );
+						return;
+					}
+					daw::locked_stack_t<std::pair<Iterator, Iterator>> sort_ranges_stack;
+					impl::partition_range( first, last,
+					                       [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
+						                       sort_ranges_stack.push_back( std::make_pair( f, l ) );
+						                       sort( f, l, compare );
+					                       } )
+					    ->wait( );
+
+					std::vector<std::pair<Iterator, Iterator>> sort_ranges;
+					while( sort_ranges_stack.size( ) > 0 ) {
+						sort_ranges.push_back( sort_ranges_stack.pop_back( ) );
+					}
+					std::sort( sort_ranges.begin( ), sort_ranges.end( ),
+					           []( auto const &lhs, auto const &rhs ) { return lhs.first < rhs.first; } );
+					merge_reduce_range( sort_ranges, [compare]( Iterator f, Iterator m, Iterator l ) {
+						std::inplace_merge( f, m, l, compare );
+					} );
 				}
 			} // namespace impl
 
 			template<typename Iterator,
 			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
 			void sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
-				impl::parallel_sort( first, last, std::move( compare ) );
+				impl::parallel_sort(
+				    first,
+				    last, []( Iterator f, Iterator l, Compare cmp ) { std::sort( f, l, cmp ); },
+				    std::move( compare ) );
+			}
+
+			template<typename Iterator,
+			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
+			void stable_sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
+				impl::parallel_sort(
+				    first, last,
+				    []( Iterator f, Iterator l, Compare cmp ) { std::stable_sort( f, l, cmp ); },
+				    std::move( compare ) );
 			}
 		} // namespace parallel
 	}     // namespace algorithm
