@@ -108,15 +108,13 @@ void for_each_test( size_t SZ ) {
 			found = true;
 		}
 	};
-	auto result_1 =
-	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even ); } );
+	auto result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even ); } );
 	auto result_2 = daw::benchmark( [&]( ) {
 		for( auto const &item : a ) {
 			find_even( item );
 		}
 	} );
-	auto result_3 =
-	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even ); } );
+	auto result_3 = daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even ); } );
 	auto result_4 = daw::benchmark( [&]( ) {
 		for( auto const &item : a ) {
 			find_even( item );
@@ -240,12 +238,14 @@ void accumulate_test( size_t SZ ) {
 	auto b = a;
 	int64_t accum_result1 = 0;
 	int64_t accum_result2 = 0;
-	auto result_1 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
+	auto result_1 =
+	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
 	a = b;
 	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	a = b;
-	auto result_3 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
+	auto result_3 =
+	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
 	a = b;
 	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
@@ -254,28 +254,27 @@ void accumulate_test( size_t SZ ) {
 	display_info( seq_min, par_min, SZ, sizeof( T ), "accumulate" );
 }
 
-
-void accumulate_test2( size_t SZ ) {
-	using value_t = uint64_t;
+template<typename value_t, typename BinaryOp>
+void accumulate_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 	std::vector<value_t> a;
 	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), 1, 7 );
+	fill_random( a.begin( ), a.end( ), 1, 4 );
 	auto b = a;
 	value_t accum_result1 = 0;
 	value_t accum_result2 = 0;
 
-	auto const bin_op = []( value_t const & lhs, value_t const & rhs ) noexcept -> value_t {
-		return lhs+rhs;
-	};
-
-	auto result_1 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), 0, bin_op ); } );
+	auto result_1 = daw::benchmark(
+	    [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
 	a = b;
-	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), (value_t)0, bin_op ); } );
+	auto result_2 =
+	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	a = b;
-	auto result_3 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), 0, bin_op ); } );
+	auto result_3 = daw::benchmark(
+	    [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
 	a = b;
-	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), (value_t)0, bin_op ); } );
+	auto result_4 =
+	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
@@ -284,65 +283,67 @@ void accumulate_test2( size_t SZ ) {
 
 int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
-
 	auto ts = daw::get_task_scheduler( );
+
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<double>( n );
+	    for_each_test<double>( n );
 	}
 	std::cout << "int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int64_t>( n );
+	    for_each_test<int64_t>( n );
 	}
 	std::cout << "int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int32_t>( n );
+	    for_each_test<int32_t>( n );
 	}
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		fill_test<double>( n );
+	    fill_test<double>( n );
 	}
 	std::cout << "int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		fill_test<int64_t>( n );
+	    fill_test<int64_t>( n );
 	}
 	std::cout << "int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		fill_test<int32_t>( n );
+	    fill_test<int32_t>( n );
 	}
 	std::cout << "sort tests\n";
 	std::cout << "int64_t\n";
 	sort_test( 500'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		sort_test( n );
+	    sort_test( n );
 	}
 
 	std::cout << "stable_sort tests\n";
 	std::cout << "int64_t\n";
 	stable_sort_test( 500'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		stable_sort_test( n );
+	    stable_sort_test( n );
 	}
 
 	std::cout << "accumulate tests\n";
 	std::cout << "int64_t\n";
 	accumulate_test<int64_t>( 500'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		accumulate_test<int64_t>( n );
+	    accumulate_test<int64_t>( n );
 	}
 
 	std::cout << "double\n";
 	accumulate_test<double>( 500'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		accumulate_test<double>( n );
+	    accumulate_test<double>( n );
 	}
 
 	std::cout << "accumulate2 tests\n";
-	std::cout << "int64_t\n";
-	accumulate_test2<int64_t>( 500'000'000 );
+	std::cout << "uint64_t\n";
+	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
+		return lhs*rhs;
+	};
+	accumulate_test2<uint64_t>( 500'000'000, 1, bin_op );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		accumulate_test2( n );
+		accumulate_test2<uint64_t>( n, 1, bin_op );
 	}
-
 
 	return EXIT_SUCCESS;
 }
