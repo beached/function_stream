@@ -231,7 +231,7 @@ void stable_sort_test( size_t SZ ) {
 }
 
 template<typename T>
-void accumulate_test( size_t SZ ) {
+void reduce_test( size_t SZ ) {
 	std::vector<T> a;
 	a.resize( SZ );
 	std::fill( a.begin( ), a.end( ), 1 );
@@ -239,23 +239,23 @@ void accumulate_test( size_t SZ ) {
 	int64_t accum_result1 = 0;
 	int64_t accum_result2 = 0;
 	auto result_1 =
-	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
+	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), 0 ); } );
 	a = b;
 	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	a = b;
 	auto result_3 =
-	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
+	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), 0 ); } );
 	a = b;
 	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
-	display_info( seq_min, par_min, SZ, sizeof( T ), "accumulate" );
+	display_info( seq_min, par_min, SZ, sizeof( T ), "reduce" );
 }
 
 template<typename value_t, typename BinaryOp>
-void accumulate_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
+void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), 1, 4 );
@@ -264,21 +264,21 @@ void accumulate_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 	value_t accum_result2 = 0;
 
 	auto result_1 = daw::benchmark(
-	    [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
+	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
 	a = b;
 	auto result_2 =
 	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	a = b;
 	auto result_3 = daw::benchmark(
-	    [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
+	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
 	a = b;
 	auto result_4 =
 	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
-	display_info( seq_min, par_min, SZ, sizeof( value_t ), "accumulate2" );
+	display_info( seq_min, par_min, SZ, sizeof( value_t ), "reduce2" );
 }
 
 int main( int, char ** ) {
@@ -322,27 +322,27 @@ int main( int, char ** ) {
 	    stable_sort_test( n );
 	}
 
-	std::cout << "accumulate tests\n";
+	std::cout << "reduce tests\n";
 	std::cout << "int64_t\n";
-	accumulate_test<int64_t>( 500'000'000 );
+	reduce_test<int64_t>( 500'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    accumulate_test<int64_t>( n );
+	    reduce_test<int64_t>( n );
 	}
 
 	std::cout << "double\n";
-	accumulate_test<double>( 500'000'000 );
+	reduce_test<double>( 500'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    accumulate_test<double>( n );
+	    reduce_test<double>( n );
 	}
 
-	std::cout << "accumulate2 tests\n";
+	std::cout << "reduce2 tests\n";
 	std::cout << "uint64_t\n";
 	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
 		return lhs*rhs;
 	};
-	accumulate_test2<uint64_t>( 500'000'000, 1, bin_op );
+	reduce_test2<uint64_t>( 500'000'000, 1, bin_op );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		accumulate_test2<uint64_t>( n, 1, bin_op );
+		reduce_test2<uint64_t>( n, 1, bin_op );
 	}
 
 	return EXIT_SUCCESS;

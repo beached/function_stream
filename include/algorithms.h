@@ -144,14 +144,15 @@ namespace daw {
 					}
 					daw::locked_stack_t<std::pair<Iterator, Iterator>> sort_ranges_stack;
 					impl::partition_range<MinRangeSize>( first, last,
-					                       [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
-						                       sort( f, l, compare );
-											   sort_ranges_stack.push_back( std::make_pair( f, l ) );
-					                       } );
+					                                     [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
+						                                     sort( f, l, compare );
+						                                     sort_ranges_stack.push_back( std::make_pair( f, l ) );
+					                                     } );
 
-					size_t const expected_results = get_part_info<MinRangeSize>( first, last, get_task_scheduler( ).size( ) ).count;
+					size_t const expected_results =
+					    get_part_info<MinRangeSize>( first, last, get_task_scheduler( ).size( ) ).count;
 					std::vector<std::pair<Iterator, Iterator>> sort_ranges;
-					for( size_t n=0; n<expected_results; ++n ) {
+					for( size_t n = 0; n < expected_results; ++n ) {
 						sort_ranges.push_back( sort_ranges_stack.pop_back2( ) );
 					}
 					std::sort( sort_ranges.begin( ), sort_ranges.end( ),
@@ -163,7 +164,7 @@ namespace daw {
 				}
 
 				template<typename T, typename Iterator, typename BinaryOp>
-				T parallel_accumulate( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
+				T parallel_reduce( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
 					{
 						auto const sz = static_cast<size_t>( std::distance( first, last ) );
 						if( sz < 2 ) {
@@ -184,8 +185,9 @@ namespace daw {
 						    results.push_back( std::move( result ) );
 					    } );
 					auto result = std::move( init );
-					size_t const expected_results = get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
-					for( size_t n=0; n<expected_results; ++n ) {
+					size_t const expected_results =
+					    get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
+					for( size_t n = 0; n < expected_results; ++n ) {
 						result = binary_op( result, results.pop_back( ) );
 					}
 					return result;
@@ -208,22 +210,22 @@ namespace daw {
 			}
 
 			template<typename T, typename Iterator, typename BinaryOp>
-			T accumulate( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
-				return impl::parallel_accumulate( first, last, std::move( init ), binary_op );
+			T reduce( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
+				return impl::parallel_reduce( first, last, std::move( init ), binary_op );
 			}
 
 			template<typename T, typename Iterator>
-			auto accumulate( Iterator first, Iterator last, T init ) {
+			auto reduce( Iterator first, Iterator last, T init ) {
 				using value_type = typename std::iterator_traits<Iterator>::value_type;
-				return ::daw::algorithm::parallel::accumulate(
+				return ::daw::algorithm::parallel::reduce(
 				    first, last, std::move( init ),
 				    []( auto const &lhs, auto const &rhs ) -> value_type { return lhs + rhs; } );
 			}
 
 			template<typename Iterator>
-			auto accumulate( Iterator first, Iterator last ) {
+			auto reduce( Iterator first, Iterator last ) {
 				using value_type = typename std::iterator_traits<Iterator>::value_type;
-				return ::daw::algorithm::parallel::accumulate( first, last, value_type{} );
+				return ::daw::algorithm::parallel::reduce( first, last, value_type{} );
 			}
 
 		} // namespace parallel
