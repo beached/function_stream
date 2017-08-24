@@ -150,6 +150,16 @@ void fill_random( Iterator first, Iterator last ) {
 	std::generate( first, last, [&]( ) { return dist( mersenne_engine ); } );
 }
 
+template<typename Iterator, typename T>
+void fill_random( Iterator first, Iterator last, T minimum, T maximum ) {
+	std::random_device rnd_device;
+	// Specify the engine and distribution.
+	std::mt19937 mersenne_engine{rnd_device( )};
+	std::uniform_int_distribution<int64_t> dist{minimum, maximum};
+
+	std::generate( first, last, [&]( ) { return dist( mersenne_engine ); } );
+}
+
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last, daw::string_view label ) {
 	if( first == last ) {
@@ -219,7 +229,7 @@ void stable_sort_test( size_t SZ ) {
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort" );
 }
 
 template<typename T>
@@ -230,73 +240,109 @@ void accumulate_test( size_t SZ ) {
 	auto b = a;
 	int64_t accum_result1 = 0;
 	int64_t accum_result2 = 0;
-	auto result_1 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ) ); } );
+	auto result_1 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
 	a = b;
-	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( std::next( a.begin( ) ), a.end( ), a.front( ) ); } );
+	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	a = b;
-	auto result_3 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ) ); } );
+	auto result_3 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate( a.begin( ), a.end( ), 0 ); } );
 	a = b;
-	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( std::next( a.begin( ) ), a.end( ), a.front( ) ); } );
+	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
+	display_info( seq_min, par_min, SZ, sizeof( T ), "accumulate" );
+}
+
+
+void accumulate_test2( size_t SZ ) {
+	using value_t = uint64_t;
+	std::vector<value_t> a;
+	a.resize( SZ );
+	fill_random( a.begin( ), a.end( ), 1, 7 );
+	auto b = a;
+	value_t accum_result1 = 0;
+	value_t accum_result2 = 0;
+
+	auto const bin_op = []( value_t const & lhs, value_t const & rhs ) noexcept -> value_t {
+		return lhs+rhs;
+	};
+
+	auto result_1 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), 0, bin_op ); } );
+	a = b;
+	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), (value_t)0, bin_op ); } );
+	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
+	a = b;
+	auto result_3 = daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::accumulate<value_t>( a.begin( ), a.end( ), 0, bin_op ); } );
+	a = b;
+	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), (value_t)0, bin_op ); } );
+	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
+	auto const par_min = std::min( result_1, result_3 );
+	auto const seq_min = std::min( result_2, result_4 );
+	display_info( seq_min, par_min, SZ, sizeof( value_t ), "accumulate2" );
 }
 
 int main( int, char ** ) {
+	size_t const MAX_ITEMS = 100'000'000;
+
 	auto ts = daw::get_task_scheduler( );
-	/*
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<double>( n );
 	}
 	std::cout << "int64_t\n";
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<int64_t>( n );
 	}
 	std::cout << "int32_t\n";
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<int32_t>( n );
 	}
 	std::cout << "double\n";
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<double>( n );
 	}
 	std::cout << "int64_t\n";
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int64_t>( n );
 	}
 	std::cout << "int32_t\n";
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int32_t>( n );
 	}
 	std::cout << "sort tests\n";
 	std::cout << "int64_t\n";
-	sort_test( 500000000 );
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	sort_test( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		sort_test( n );
 	}
 
 	std::cout << "stable_sort tests\n";
 	std::cout << "int64_t\n";
-	sort_test( 500000000 );
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	stable_sort_test( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		stable_sort_test( n );
 	}
-	*/
 
 	std::cout << "accumulate tests\n";
 	std::cout << "int64_t\n";
-	accumulate_test<int64_t>( 500000000 );
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	accumulate_test<int64_t>( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		accumulate_test<int64_t>( n );
 	}
 
 	std::cout << "double\n";
-	accumulate_test<double>( 500000000 );
-	for( size_t n = 100000000; n >= 100; n /= 10 ) {
+	accumulate_test<double>( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		accumulate_test<double>( n );
 	}
+
+	std::cout << "accumulate2 tests\n";
+	std::cout << "int64_t\n";
+	accumulate_test2<int64_t>( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		accumulate_test2( n );
+	}
+
 
 	return EXIT_SUCCESS;
 }

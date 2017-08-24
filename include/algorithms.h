@@ -143,25 +143,26 @@ namespace daw {
 						return;
 					}
 					daw::locked_stack_t<std::pair<Iterator, Iterator>> sort_ranges_stack;
-					impl::partition_range( first, last,
+					impl::partition_range<MinRangeSize>( first, last,
 					                       [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
-						                       sort_ranges_stack.push_back( std::make_pair( f, l ) );
 						                       sort( f, l, compare );
-					                       } )
-					    ->wait( );
+											   sort_ranges_stack.push_back( std::make_pair( f, l ) );
+					                       } );
 
+					size_t const expected_results = get_part_info<MinRangeSize>( first, last, get_task_scheduler( ).size( ) ).count;
 					std::vector<std::pair<Iterator, Iterator>> sort_ranges;
-					while( sort_ranges_stack.size( ) > 0 ) {
-						sort_ranges.push_back( sort_ranges_stack.pop_back( ) );
+					for( size_t n=0; n<expected_results; ++n ) {
+						sort_ranges.push_back( sort_ranges_stack.pop_back2( ) );
 					}
 					std::sort( sort_ranges.begin( ), sort_ranges.end( ),
 					           []( auto const &lhs, auto const &rhs ) { return lhs.first < rhs.first; } );
+
 					merge_reduce_range( sort_ranges, [compare]( Iterator f, Iterator m, Iterator l ) {
 						std::inplace_merge( f, m, l, compare );
 					} );
 				}
 
-				template<typename Iterator, typename T, typename BinaryOp>
+				template<typename T, typename Iterator, typename BinaryOp>
 				T parallel_accumulate( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
 					{
 						auto const sz = static_cast<size_t>( std::distance( first, last ) );
@@ -174,7 +175,7 @@ namespace daw {
 					}
 					daw::locked_stack_t<T> results;
 					auto t1 =
-					    impl::partition_range( first, last, [&results, binary_op]( Iterator f, Iterator const l ) {
+					    impl::partition_range<1>( first, last, [&results, binary_op]( Iterator f, Iterator const l ) {
 						    auto result = binary_op( *f, *std::next( f ) );
 						    std::advance( f, 2 );
 						    for( ; f != l; std::advance( f, 1 ) ) {
@@ -182,12 +183,10 @@ namespace daw {
 						    }
 						    results.push_back( std::move( result ) );
 					    } );
-					// TODO: determine if it is worth parallizing below.
-					// Not sure as it should be N=num threads
 					auto result = std::move( init );
-					auto const expected_results = get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
+					size_t const expected_results = get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
 					for( size_t n=0; n<expected_results; ++n ) {
-						result = binary_op( result, results.pop_back2( ) );
+						result = binary_op( result, results.pop_back( ) );
 					}
 					return result;
 				}
@@ -208,16 +207,16 @@ namespace daw {
 				                     std::move( compare ) );
 			}
 
-			template<typename Iterator, typename T, typename BinaryOp>
-			T accumulate( Iterator first, Iterator last, T && init, BinaryOp binary_op ) {
-				return impl::parallel_accumulate( first, last, std::forward<T>( init ), binary_op );
+			template<typename T, typename Iterator, typename BinaryOp>
+			T accumulate( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
+				return impl::parallel_accumulate( first, last, std::move( init ), binary_op );
 			}
 
-			template<typename Iterator, typename T>
-			auto accumulate( Iterator first, Iterator last, T && init ) {
+			template<typename T, typename Iterator>
+			auto accumulate( Iterator first, Iterator last, T init ) {
 				using value_type = typename std::iterator_traits<Iterator>::value_type;
 				return ::daw::algorithm::parallel::accumulate(
-				    first, last, std::forward<T>( init ),
+				    first, last, std::move( init ),
 				    []( auto const &lhs, auto const &rhs ) -> value_type { return lhs + rhs; } );
 			}
 
