@@ -192,7 +192,7 @@ namespace daw {
 					}
 					return result;
 				}
-								template<typename Type1, typename Type2, typename Compare>
+				template<typename Type1, typename Type2, typename Compare>
 				Type1 compare_value( Type1 const &lhs, Type2 const &rhs, Compare cmp ) {
 					if( cmp( lhs, rhs ) ) {
 						return lhs;
@@ -287,6 +287,21 @@ namespace daw {
 					}
 					return result;
 				}
+
+				template<size_t MinRangeSize = 512, typename Iterator, typename OutputIterator, typename UnaryOperation>
+				void parallel_map( Iterator first1, Iterator const last1, OutputIterator first2,
+				                   UnaryOperation unary_op ) {
+
+					partition_range<MinRangeSize>( first1, last1,
+					                               [first1, first2, unary_op]( Iterator f, Iterator const l ) {
+						                               auto out_it = std::next( first2, std::distance( first1, f ) );
+
+													   for( ; f != l; ++f, ++out_it ) {
+														   *out_it = unary_op( *f );
+													   }
+					                               } )
+					    ->wait( );
+				}
 			} // namespace impl
 
 			template<typename Iterator,
@@ -331,8 +346,18 @@ namespace daw {
 
 			template<typename Iterator,
 			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<Iterator>( ) )>>>
-			auto max_element( Iterator first, Iterator last, LessCompare compare = LessCompare{} ) {
+			auto max_element( Iterator first, Iterator const last, LessCompare compare = LessCompare{} ) {
 				return impl::parallel_max_element( first, last, compare );
+			}
+
+			template<typename Iterator, typename OutputIterator, typename UnaryOperation>
+			void transform( Iterator first1, Iterator const last1, OutputIterator first2, UnaryOperation unary_op ) {
+				impl::parallel_map( first1, last1, first2, unary_op );
+			}
+
+			template<typename Iterator, typename UnaryOperation>
+			void transform( Iterator first1, Iterator last1, UnaryOperation unary_op ) {
+				impl::parallel_map( first1, last1, first1, unary_op );
 			}
 		} // namespace parallel
 	}     // namespace algorithm
