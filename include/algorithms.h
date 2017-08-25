@@ -227,7 +227,116 @@ namespace daw {
 				using value_type = typename std::iterator_traits<Iterator>::value_type;
 				return ::daw::algorithm::parallel::reduce( first, last, value_type{} );
 			}
+			namespace impl {
+				template<typename Type1, typename Type2, typename Compare>
+				Type1 compare_value( Type1 const &lhs, Type2 const &rhs, Compare cmp ) {
+					if( cmp( lhs, rhs ) ) {
+						return lhs;
+					}
+					return rhs;
+				}
 
+				template<size_t MinRangeSize = 1, typename Iterator, typename Compare>
+				auto parallel_min_element( Iterator first, Iterator last, Compare cmp ) {
+					if( first == last ) {
+						return last;
+					}
+					daw::locked_stack_t<Iterator> results;
+					auto t1 = impl::partition_range<MinRangeSize>(
+					    first, last, [&results, cmp]( Iterator const f, Iterator const l ) {
+						    auto const sz = static_cast<size_t>( std::distance( f, l ) );
+						    auto result_val = *f;
+						    auto result_pos = 0;
+						    for( size_t n = 1; n < sz; ++n ) {
+							    auto v = f[n];
+							    if( cmp( v, result_val ) ) {
+								    result_pos = n;
+								    result_val = std::move( v );
+							    }
+						    }
+						    results.push_back( std::next( f, result_pos ) );
+					    } );
+
+					size_t const expected_results =
+					    get_part_info<MinRangeSize>( first, last, get_task_scheduler( ).size( ) ).count;
+
+					auto result = results.pop_back2( );
+					size_t start_pos = 1;
+					while( start_pos < expected_results && result == last ) {
+						++start_pos;
+						result = results.pop_back2( );
+					}
+					for( size_t n = start_pos; n < expected_results; ++n ) {
+						auto value = results.pop_back2( );
+						if( value == last ) {
+							continue;
+						}
+						if( result != last ) {
+							result = cmp( *value, *result ) ? value : result;
+						} else {
+							result = value;
+						}
+					}
+					return result;
+				}
+
+				template<size_t MinRangeSize = 1, typename Iterator, typename Compare>
+				auto parallel_max_element( Iterator first, Iterator last, Compare cmp ) {
+					if( first == last ) {
+						return last;
+					}
+					daw::locked_stack_t<Iterator> results;
+					auto t1 = impl::partition_range<MinRangeSize>(
+					    first, last, [&results, cmp]( Iterator const f, Iterator const l ) {
+						    auto const sz = static_cast<size_t>( std::distance( f, l ) );
+						    auto result_val = *f;
+						    auto result_pos = 0;
+						    for( size_t n = 1; n < sz; ++n ) {
+							    auto v = f[n];
+							    if( cmp( result_val, v ) ) {
+								    result_pos = n;
+								    result_val = std::move( v );
+							    }
+						    }
+						    results.push_back( std::next( f, result_pos ) );
+					    } );
+
+					size_t const expected_results =
+					    get_part_info<MinRangeSize>( first, last, get_task_scheduler( ).size( ) ).count;
+
+					auto result = results.pop_back2( );
+					size_t start_pos = 1;
+					while( start_pos < expected_results && result == last ) {
+						++start_pos;
+						result = results.pop_back2( );
+					}
+					for( size_t n = start_pos; n < expected_results; ++n ) {
+						auto value = results.pop_back2( );
+						if( value == last ) {
+							continue;
+						}
+						if( result != last ) {
+							result = cmp( *result, *value ) ? value : result;
+						} else {
+							result = value;
+						}
+					}
+					return result;
+				}
+
+			} // namespace impl
+
+			template<typename Iterator,
+			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<Iterator>( ) )>>>
+			auto min_element( Iterator first, Iterator last, LessCompare compare = LessCompare{} ) {
+				return impl::parallel_min_element( first, last, compare );
+			}
+
+			template<typename Iterator,
+			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<Iterator>( ) )>>>
+			auto max_element( Iterator first, Iterator last, LessCompare compare = LessCompare{} ) {
+				return impl::parallel_max_element( first, last, compare );
+			}
 		} // namespace parallel
 	}     // namespace algorithm
 } // namespace daw

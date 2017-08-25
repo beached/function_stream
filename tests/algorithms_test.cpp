@@ -266,25 +266,74 @@ void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 	auto result_1 = daw::benchmark(
 	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
 	a = b;
-	auto result_2 =
-	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
+	auto result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	a = b;
 	auto result_3 = daw::benchmark(
 	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op ); } );
 	a = b;
-	auto result_4 =
-	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
+	auto result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
 	display_info( seq_min, par_min, SZ, sizeof( value_t ), "reduce2" );
 }
 
+template<typename value_t>
+void min_element_test( size_t SZ ) {
+	std::vector<value_t> a;
+	a.resize( SZ );
+	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::min( ), std::numeric_limits<value_t>::max( ) );
+	auto b = a;
+	value_t min_result1 = 0;
+	value_t min_result2 = 0;
+
+	auto result_1 =
+	    daw::benchmark( [&]( ) { min_result1 = *daw::algorithm::parallel::min_element( a.begin( ), a.end( ) ); } );
+	a = b;
+	auto result_2 = daw::benchmark( [&]( ) { min_result2 = *std::min_element( a.begin( ), a.end( ) ); } );
+	daw::exception::daw_throw_on_false( min_result1 == min_result2, "Wrong return value" );
+	a = b;
+	auto result_3 =
+	    daw::benchmark( [&]( ) { min_result1 = *daw::algorithm::parallel::min_element( a.begin( ), a.end( ) ); } );
+	a = b;
+	auto result_4 = daw::benchmark( [&]( ) { min_result2 = *std::min_element( a.begin( ), a.end( ) ); } );
+	daw::exception::daw_throw_on_false( min_result1 == min_result2, "Wrong return value" );
+	auto const par_min = std::min( result_1, result_3 );
+	auto const seq_min = std::min( result_2, result_4 );
+	display_info( seq_min, par_min, SZ, sizeof( value_t ), "min_element" );
+}
+
+template<typename value_t>
+void max_element_test( size_t SZ ) {
+	std::vector<value_t> a;
+	a.resize( SZ );
+	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::max( ), std::numeric_limits<value_t>::max( ) );
+	auto b = a;
+	value_t max_result1 = 0;
+	value_t max_result2 = 0;
+
+	auto result_1 =
+	    daw::benchmark( [&]( ) { max_result1 = *daw::algorithm::parallel::max_element( a.begin( ), a.end( ) ); } );
+	a = b;
+	auto result_2 = daw::benchmark( [&]( ) { max_result2 = *std::max_element( a.begin( ), a.end( ) ); } );
+	daw::exception::daw_throw_on_false( max_result1 == max_result2, "Wrong return value" );
+	a = b;
+	auto result_3 =
+	    daw::benchmark( [&]( ) { max_result1 = *daw::algorithm::parallel::max_element( a.begin( ), a.end( ) ); } );
+	a = b;
+	auto result_4 = daw::benchmark( [&]( ) { max_result2 = *std::max_element( a.begin( ), a.end( ) ); } );
+	daw::exception::daw_throw_on_false( max_result1 == max_result2, "Wrong return value" );
+	auto const par_max = std::max( result_1, result_3 );
+	auto const seq_max = std::max( result_2, result_4 );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "max_element" );
+}
+
 int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	auto ts = daw::get_task_scheduler( );
 
+	/*
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    for_each_test<double>( n );
 	}
@@ -338,11 +387,26 @@ int main( int, char ** ) {
 	std::cout << "reduce2 tests\n";
 	std::cout << "uint64_t\n";
 	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
-		return lhs*rhs;
+	    return lhs*rhs;
 	};
 	reduce_test2<uint64_t>( 500'000'000, 1, bin_op );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		reduce_test2<uint64_t>( n, 1, bin_op );
+	    reduce_test2<uint64_t>( n, 1, bin_op );
+	}
+	*/
+
+	std::cout << "min_element tests\n";
+	std::cout << "int64_t\n";
+	min_element_test<int64_t>( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		min_element_test<int64_t>( n );
+	}
+
+	std::cout << "max_element tests\n";
+	std::cout << "int64_t\n";
+	max_element_test<int64_t>( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		max_element_test<int64_t>( n );
 	}
 
 	return EXIT_SUCCESS;
