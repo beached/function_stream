@@ -192,43 +192,7 @@ namespace daw {
 					}
 					return result;
 				}
-			} // namespace impl
-
-			template<typename Iterator,
-			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
-			void sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
-				impl::parallel_sort( first, last, []( Iterator f, Iterator l, Compare cmp ) { std::sort( f, l, cmp ); },
-				                     std::move( compare ) );
-			}
-
-			template<typename Iterator,
-			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
-			void stable_sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
-				impl::parallel_sort( first, last,
-				                     []( Iterator f, Iterator l, Compare cmp ) { std::stable_sort( f, l, cmp ); },
-				                     std::move( compare ) );
-			}
-
-			template<typename T, typename Iterator, typename BinaryOp>
-			T reduce( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
-				return impl::parallel_reduce( first, last, std::move( init ), binary_op );
-			}
-
-			template<typename T, typename Iterator>
-			auto reduce( Iterator first, Iterator last, T init ) {
-				using value_type = typename std::iterator_traits<Iterator>::value_type;
-				return ::daw::algorithm::parallel::reduce(
-				    first, last, std::move( init ),
-				    []( auto const &lhs, auto const &rhs ) -> value_type { return lhs + rhs; } );
-			}
-
-			template<typename Iterator>
-			auto reduce( Iterator first, Iterator last ) {
-				using value_type = typename std::iterator_traits<Iterator>::value_type;
-				return ::daw::algorithm::parallel::reduce( first, last, value_type{} );
-			}
-			namespace impl {
-				template<typename Type1, typename Type2, typename Compare>
+								template<typename Type1, typename Type2, typename Compare>
 				Type1 compare_value( Type1 const &lhs, Type2 const &rhs, Compare cmp ) {
 					if( cmp( lhs, rhs ) ) {
 						return lhs;
@@ -323,8 +287,41 @@ namespace daw {
 					}
 					return result;
 				}
-
 			} // namespace impl
+
+			template<typename Iterator,
+			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
+			void sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
+				impl::parallel_sort( first, last, []( Iterator f, Iterator l, Compare cmp ) { std::sort( f, l, cmp ); },
+				                     std::move( compare ) );
+			}
+
+			template<typename Iterator,
+			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
+			void stable_sort( Iterator first, Iterator last, Compare compare = Compare{} ) {
+				impl::parallel_sort( first, last,
+				                     []( Iterator f, Iterator l, Compare cmp ) { std::stable_sort( f, l, cmp ); },
+				                     std::move( compare ) );
+			}
+
+			template<typename T, typename Iterator, typename BinaryOp>
+			T reduce( Iterator first, Iterator last, T init, BinaryOp binary_op ) {
+				return impl::parallel_reduce( first, last, std::move( init ), binary_op );
+			}
+
+			template<typename T, typename Iterator>
+			auto reduce( Iterator first, Iterator last, T init ) {
+				using value_type = typename std::iterator_traits<Iterator>::value_type;
+				return ::daw::algorithm::parallel::reduce(
+				    first, last, std::move( init ),
+				    []( auto const &lhs, auto const &rhs ) -> value_type { return lhs + rhs; } );
+			}
+
+			template<typename Iterator>
+			auto reduce( Iterator first, Iterator last ) {
+				using value_type = typename std::iterator_traits<Iterator>::value_type;
+				return ::daw::algorithm::parallel::reduce( first, last, value_type{} );
+			}
 
 			template<typename Iterator,
 			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<Iterator>( ) )>>>

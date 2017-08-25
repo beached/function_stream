@@ -333,7 +333,6 @@ int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	auto ts = daw::get_task_scheduler( );
 
-	/*
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    for_each_test<double>( n );
 	}
@@ -393,7 +392,6 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    reduce_test2<uint64_t>( n, 1, bin_op );
 	}
-	*/
 
 	std::cout << "min_element tests\n";
 	std::cout << "int64_t\n";

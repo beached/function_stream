@@ -33,6 +33,16 @@
 #include <daw/daw_utility.h>
 
 namespace daw {
+	struct task_scheduler_impl;
+
+	namespace impl {
+		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
+		                  std::shared_ptr<daw::semaphore> semaphore = nullptr );
+	}
+
+
+	void blocking( std::function<void( )> task, size_t task_count = 1 );
+
 	struct task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
 		using task_t = std::function<void( )>;
 
@@ -45,7 +55,10 @@ namespace daw {
 		bool m_block_on_destruction;
 		size_t m_num_threads;
 		std::atomic_uintmax_t m_task_count;
+		friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
+		                                      std::shared_ptr<daw::semaphore> semaphore );
 
+		friend void blocking( std::function<void( )> task, size_t task_count );
 	  public:
 		task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
 		~task_scheduler_impl( );
@@ -67,6 +80,7 @@ namespace daw {
 	class task_scheduler {
 		std::shared_ptr<task_scheduler_impl> m_impl;
 
+		friend void blocking( std::function<void( )> task, size_t task_count );
 	  public:
 		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ),
 		                bool block_on_destruction = true );
@@ -104,8 +118,9 @@ namespace daw {
 		auto ts = get_task_scheduler( );
 		auto semaphore = std::make_shared<daw::semaphore>( 1 - sizeof...( tasks ) );
 
-		//auto const dummy = { ( impl::schedule_task( semaphore, ts, tasks ), 0 )... };
-		auto const dummy = { impl::schedule_task( semaphore, ts, tasks )... };
+		// auto const dummy = { ( impl::schedule_task( semaphore, ts, tasks ), 0 )... };
+		auto const dummy = {impl::schedule_task( semaphore, ts, tasks )...};
+		Unused( dummy );
 		return semaphore;
 	}
 
@@ -114,5 +129,4 @@ namespace daw {
 		using namespace std::chrono_literals;
 		schedule_tasks( std::forward<Tasks>( tasks )... )->wait( );
 	}
-
 } // namespace daw

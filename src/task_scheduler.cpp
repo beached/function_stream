@@ -24,6 +24,8 @@
 #include <functional>
 #include <thread>
 
+#include <daw/scope_guard.h>
+
 #include "task_scheduler.h"
 
 namespace daw {
@@ -43,44 +45,50 @@ namespace daw {
 		return m_continue;
 	}
 
+	namespace impl {
+		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
+		                std::shared_ptr<daw::semaphore> semaphore ) {
+			// The self.lock( ) determines where or not the
+			// task_scheduler_impl has destructed yet and keeps it alive while
+			// we use members
+			while( !semaphore || !semaphore->try_wait( ) ) {
+				task_scheduler_impl::task_t task = nullptr;
+				{
+					auto self = wself.lock( );
+					if( !self || !self->m_continue ) {
+						// Either we have destructed already or stop has been called
+						break;
+					}
+					// Get task.  First try own queue, if not try the others and finally
+					// wait for own queue to fill
+					auto tsk = self->m_tasks[id].try_pop_back( );
+					for( auto m = ( id + 1 ) % self->m_num_threads; !tsk && m != id;
+					     m = ( m + 1 ) % self->m_num_threads ) {
+						tsk = self->m_tasks[m].try_pop_back( );
+					}
+					if( tsk ) {
+						task = *tsk;
+					} else {
+						task = self->m_tasks[id].pop_back( );
+					}
+				}
+				if( task ) { // Just in case we get an empty function
+					try {
+						task( );
+					} catch( ... ) {
+						// Don't let a task take down thread
+						// TODO: figure out what else we can do
+					}
+				}
+			}
+		}
+	} // namespace impl
+
 	void task_scheduler_impl::start( ) {
 		m_continue = true;
 		for( size_t n = 0; n < m_num_threads; ++n ) {
-			m_threads.emplace_back( [ id = n, wself = get_weak_this( ) ]( ) {
-				// The self.lock( ) determines where or not the
-				// task_scheduler_impl has destructed yet and keeps it alive while
-				// we use members
-				while( true ) {
-					task_t task = nullptr;
-					{
-						auto self = wself.lock( );
-						if( !self || !self->m_continue ) {
-							// Either we have destructed already or stop has been called
-							break;
-						}
-						// Get task.  First try own queue, if not try the others and finally
-						// wait for own queue to fill
-						auto tsk = self->m_tasks[id].try_pop_back( );
-						for( auto m = ( id + 1 ) % self->m_num_threads; !tsk && m != id;
-						     m = ( m + 1 ) % self->m_num_threads ) {
-							tsk = self->m_tasks[m].try_pop_back( );
-						}
-						if( tsk ) {
-							task = *tsk;
-						} else {
-							task = self->m_tasks[id].pop_back( );
-						}
-					}
-					if( task ) { // Just in case we get an empty function
-						try {
-							task( );
-						} catch( ... ) {
-							// Don't let a task take down thread
-							// TODO: figure out what else we can do
-						}
-					}
-				}
-			} );
+			m_threads.emplace_back(
+			    [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself, nullptr ); } );
 		}
 	}
 
@@ -139,4 +147,22 @@ namespace daw {
 		}( );
 		return ts;
 	}
+
+	void blocking( std::function<void( )> task, size_t task_count ) {
+		auto semaphore = std::make_shared<daw::semaphore>( 0 );
+		auto const at_exit = daw::on_scope_exit( [semaphore]( ) {
+			semaphore->notify( );
+		} );
+		auto ts = get_task_scheduler( );
+		// Use current time in seconds as a semi-random way to get a number, modded with size of queue
+		for( size_t n=0; n<task_count; ++n ) {
+			auto id = static_cast<size_t>(std::chrono::duration<double>( (std::chrono::high_resolution_clock::now( )).time_since_epoch( ) ).count( )) % ts.size( );
+			std::thread worker{
+					[id = id, wself = ts.m_impl->get_weak_this( ), semaphore]( ) { impl::task_runner( id, wself, semaphore ); } };
+
+			worker.detach( );
+		}
+		task( );
+	}
 } // namespace daw
+
