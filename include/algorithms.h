@@ -188,7 +188,7 @@ namespace daw {
 					size_t const expected_results =
 					    get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
 					for( size_t n = 0; n < expected_results; ++n ) {
-						result = binary_op( result, results.pop_back( ) );
+						result = binary_op( result, results.pop_back2( ) );
 					}
 					return result;
 				}
@@ -296,11 +296,41 @@ namespace daw {
 					                               [first1, first2, unary_op]( Iterator f, Iterator const l ) {
 						                               auto out_it = std::next( first2, std::distance( first1, f ) );
 
-													   for( ; f != l; ++f, ++out_it ) {
-														   *out_it = unary_op( *f );
-													   }
+						                               for( ; f != l; ++f, ++out_it ) {
+							                               *out_it = unary_op( *f );
+						                               }
 					                               } )
 					    ->wait( );
+				}
+
+				template<size_t MinRangeSize = 512, typename Iterator, typename T, typename MapFunction,
+				         typename ReduceFunction>
+				auto parallel_map_reduce( Iterator first, Iterator last, T const & init, MapFunction map_function,
+				                          ReduceFunction reduce_function ) {
+					static_assert( MinRangeSize >= 2, "MinRangeSize must be >= 2" );
+					using result_t = std::decay_t<decltype(
+					    reduce_function( map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
+					daw::locked_stack_t<result_t> results;
+
+					partition_range<MinRangeSize>(
+					    first, last,
+					    [&results, map_function, reduce_function]( Iterator f, Iterator const l ) {
+						    result_t result = reduce_function( map_function( *f ), map_function( *std::next( f ) ) );
+						    std::advance( f, 2 );
+						    for( ; f != l; ++f ) {
+							    result = reduce_function( result, map_function( *f ) );
+						    }
+						    results.push_back( std::move( result ) );
+					    } )
+					    ->wait( );
+
+					auto result = map_function( init );
+					size_t const expected_results =
+					    get_part_info<MinRangeSize>( first, last, get_task_scheduler( ).size( ) ).count;
+					for( size_t n = 0; n < expected_results; ++n ) {
+						result = reduce_function( result, results.pop_back2( ) );
+					}
+					return result;
 				}
 			} // namespace impl
 
@@ -356,9 +386,26 @@ namespace daw {
 			}
 
 			template<typename Iterator, typename UnaryOperation>
-			void transform( Iterator first1, Iterator last1, UnaryOperation unary_op ) {
-				impl::parallel_map( first1, last1, first1, unary_op );
+			void transform( Iterator first, Iterator last, UnaryOperation unary_op ) {
+				impl::parallel_map( first, last, first, unary_op );
 			}
+
+			template<typename Iterator, typename MapFunction, typename ReduceFunction>
+			auto map_reduce( Iterator first, Iterator last, MapFunction map_function,
+			                 ReduceFunction reduce_function ) {
+				auto it_init = first;
+				std::advance( first, 1 );
+				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function );
+			}
+
+			template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction>
+			auto map_reduce( Iterator first, Iterator last, T const & init, MapFunction map_function,
+			                 ReduceFunction reduce_function ) {
+				auto it_init = first;
+				std::advance( first, 1 );
+				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function );
+			}
+
 		} // namespace parallel
 	}     // namespace algorithm
 } // namespace daw

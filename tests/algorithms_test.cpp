@@ -385,10 +385,53 @@ void transform_test2( size_t SZ ) {
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "transform" );
 }
 
+template<typename value_t>
+void map_reduce_test( size_t SZ ) {
+	std::vector<value_t> a;
+	a.resize( SZ );
+	//fill_random( a.begin( ), a.end( ), -1, 1 );
+	std::fill( a.begin( ), a.end( ), 1 );
+	auto b = a;
+
+	auto const map_function = []( value_t const &value ) { return value * value; };
+	auto const reduce_function = []( value_t const &lhs, value_t const &rhs ) { return lhs + rhs; };
+
+	value_t mr_value1 = 0;
+	value_t mr_value2 = 0;
+
+	auto const result_1 = daw::benchmark( [&]( ) { mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function ); } );
+	auto const result_2 = daw::benchmark( [&]( ) {
+		std::transform( b.cbegin( ), b.cend( ), b.begin( ), map_function );
+		auto start_it = std::next( b.cbegin( ) );
+		mr_value2 = std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
+	} );
+	daw::exception::daw_throw_on_false( mr_value1 == mr_value2, "Wrong return value" );
+
+	b = a;
+	mr_value1 = 0;
+	mr_value2 = 0;
+
+	auto const result_3 = daw::benchmark( [&]( ) { mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function ); } );
+	auto const result_4 = daw::benchmark( [&]( ) {
+		std::transform( b.cbegin( ), b.cend( ), b.begin( ), map_function );
+		auto start_it = std::next( b.cbegin( ) );
+		mr_value2 = std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
+	} );
+	daw::exception::daw_throw_on_false( mr_value1 == mr_value2, "Wrong return value" );
+
+	auto const par_max = std::max( result_1, result_3 );
+	auto const seq_max = std::max( result_2, result_4 );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "transform" );
+}
+
+
 int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	auto ts = daw::get_task_scheduler( );
-
+	
+	/*	
+	std::cout << "for_each tests\n";
+	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    for_each_test<double>( n );
 	}
@@ -400,6 +443,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    for_each_test<int32_t>( n );
 	}
+	std::cout << "fill tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    fill_test<double>( n );
@@ -476,5 +520,13 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		transform_test2<int64_t>( n );
 	}
+	*/
+	std::cout << "map_reduce tests\n";
+	std::cout << "int64_t\n";
+	map_reduce_test<int64_t>( 500'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		map_reduce_test<int64_t>( n );
+	}
+
 	return EXIT_SUCCESS;
 }
