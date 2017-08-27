@@ -305,11 +305,11 @@ namespace daw {
 
 				template<size_t MinRangeSize = 512, typename Iterator, typename T, typename MapFunction,
 				         typename ReduceFunction>
-				auto parallel_map_reduce( Iterator first, Iterator last, T const & init, MapFunction map_function,
+				auto parallel_map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,
 				                          ReduceFunction reduce_function ) {
 					static_assert( MinRangeSize >= 2, "MinRangeSize must be >= 2" );
-					using result_t = std::decay_t<decltype(
-					    reduce_function( map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
+					using result_t = std::decay_t<decltype( reduce_function(
+					    map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
 					daw::locked_stack_t<result_t> results;
 
 					partition_range<MinRangeSize>(
@@ -321,8 +321,7 @@ namespace daw {
 							    result = reduce_function( result, map_function( *f ) );
 						    }
 						    results.push_back( std::move( result ) );
-					    } )
-					    ->wait( );
+					    } );
 
 					auto result = map_function( init );
 					size_t const expected_results =
@@ -391,15 +390,14 @@ namespace daw {
 			}
 
 			template<typename Iterator, typename MapFunction, typename ReduceFunction>
-			auto map_reduce( Iterator first, Iterator last, MapFunction map_function,
-			                 ReduceFunction reduce_function ) {
+			auto map_reduce( Iterator first, Iterator last, MapFunction map_function, ReduceFunction reduce_function ) {
 				auto it_init = first;
 				std::advance( first, 1 );
 				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function );
 			}
 
 			template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction>
-			auto map_reduce( Iterator first, Iterator last, T const & init, MapFunction map_function,
+			auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,
 			                 ReduceFunction reduce_function ) {
 				auto it_init = first;
 				std::advance( first, 1 );
