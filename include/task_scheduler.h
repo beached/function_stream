@@ -112,8 +112,9 @@ namespace daw {
 			return 0;
 		}
 	} // namespace impl
+
 	template<typename... Tasks>
-	std::shared_ptr<daw::semaphore> schedule_tasks( Tasks &&... tasks ) {
+	std::shared_ptr<daw::semaphore> create_task_group( Tasks &&... tasks ) {
 
 		auto ts = get_task_scheduler( );
 		auto semaphore = std::make_shared<daw::semaphore>( 1 - sizeof...( tasks ) );
@@ -126,7 +127,6 @@ namespace daw {
 
 	template<typename... Tasks>
 	void invoke_tasks( Tasks &&... tasks ) {
-		using namespace std::chrono_literals;
 		schedule_tasks( std::forward<Tasks>( tasks )... )->wait( );
 	}
 } // namespace daw
