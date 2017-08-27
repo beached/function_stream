@@ -308,6 +308,8 @@ namespace daw {
 				auto parallel_map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,
 				                          ReduceFunction reduce_function ) {
 					static_assert( MinRangeSize >= 2, "MinRangeSize must be >= 2" );
+					daw::exception::daw_throw_on_false( std::distance( first, last ) >= 2,
+					                                    "Must be at least 2 items in range" );
 					using result_t = std::decay_t<decltype( reduce_function(
 					    map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
 					daw::locked_stack_t<result_t> results;

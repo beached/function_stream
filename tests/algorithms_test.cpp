@@ -421,7 +421,53 @@ void map_reduce_test( size_t SZ ) {
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
-	display_info( seq_max, par_max, SZ, sizeof( value_t ), "transform" );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "map_reduce" );
+}
+
+template<typename value_t>
+void map_reduce_test2( size_t SZ ) {
+	std::vector<value_t> a;
+	a.resize( SZ );
+	fill_random( a.begin( ), a.end( ), 1, 10000 );
+
+	auto const map_function = []( value_t value ) { 
+		for( intmax_t n=1; n<=10000; ++n ) {
+			value = ( value ^ n ) % n;
+			if( value <= 0 ) {
+				value = 10;
+			}
+		}	
+		return value;
+	};
+	auto const reduce_function = []( value_t const &lhs, value_t const &rhs ) { return lhs + rhs; };
+
+	auto const map_reduce = []( auto first, auto const last, auto const m_func, auto const r_func ) {
+		auto result = r_func( m_func( *first ), m_func( *std::next( first ) ) );
+		std::advance( first, 2 );
+
+		for( ; first != last; ++first ) {
+			result = r_func( result, m_func( *first ) );
+		}
+		return result;
+	};
+
+	value_t mr_value1 = 0;
+	value_t mr_value2 = 0;
+
+	auto const result_1 = daw::benchmark( [&]( ) { mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function ); } );
+	auto const result_2 = daw::benchmark( [&]( ) { mr_value2 = map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function ); } );
+	daw::exception::daw_throw_on_false( mr_value1 == mr_value2, "Wrong return value" );
+
+	mr_value1 = 0;
+	mr_value2 = 0;
+
+	auto const result_3 = daw::benchmark( [&]( ) { mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function ); } );
+	auto const result_4 = daw::benchmark( [&]( ) { mr_value2 = map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function ); } );
+	daw::exception::daw_throw_on_false( mr_value1 == mr_value2, "Wrong return value" );
+
+	auto const par_max = std::max( result_1, result_3 );
+	auto const seq_max = std::max( result_2, result_4 );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "map_reduce2" );
 }
 
 
@@ -527,6 +573,14 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		map_reduce_test<int64_t>( n );
 	}
+
+	std::cout << "map_reduce2 tests\n";
+	std::cout << "int64_t\n";
+	for( size_t n = 100'000; n >= 100; n /= 10 ) {
+		map_reduce_test2<int64_t>( n );
+	}
+	map_reduce_test2<int64_t>( 3 );
+
 
 	return EXIT_SUCCESS;
 }
