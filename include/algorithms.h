@@ -74,17 +74,13 @@ namespace daw {
 					auto semaphore = std::make_shared<daw::semaphore>( 1 - part_info.count );
 					auto last_pos = first;
 					first = daw::algorithm::safe_next( first, last, part_info.size );
-					for( ; first != last; first = daw::algorithm::safe_next( first, last, part_info.size ) ) {
-						ts.add_task( [last_pos, first, func, semaphore]( ) {
-							func( last_pos, first );
-							semaphore->notify( );
-						} );
-						last_pos = first;
+					while( first != last ) {
+						schedule_task( semaphore, ts, [last_pos, first, func]( ) { func( last_pos, first ); } );
+						last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
 					}
-					ts.add_task( [last_pos, first, func, semaphore]( ) {
-						func( last_pos, first );
-						semaphore->notify( );
-					} );
+					if( std::distance( last_pos, first ) > 0 ) {
+						schedule_task( semaphore, ts, [last_pos, first, func]( ) { func( last_pos, first ); } );
+					}
 					return semaphore;
 				}
 			} // namespace impl
@@ -254,7 +250,7 @@ namespace daw {
 					    first, last, [&results, cmp]( Iterator const f, Iterator const l ) {
 						    auto const sz = static_cast<size_t>( std::distance( f, l ) );
 						    auto result_val = *f;
-						    auto result_pos = 0;
+						    size_t result_pos = 0;
 						    for( size_t n = 1; n < sz; ++n ) {
 							    auto v = f[n];
 							    if( cmp( result_val, v ) ) {
@@ -315,8 +311,7 @@ namespace daw {
 					daw::locked_stack_t<result_t> results;
 
 					partition_range<MinRangeSize>(
-					    first, last,
-					    [&results, map_function, reduce_function]( Iterator f, Iterator const l ) {
+					    first, last, [&results, map_function, reduce_function]( Iterator f, Iterator const l ) {
 						    result_t result = reduce_function( map_function( *f ), map_function( *std::next( f ) ) );
 						    std::advance( f, 2 );
 						    for( ; f != l; ++f ) {
@@ -398,6 +393,17 @@ namespace daw {
 				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function );
 			}
 
+			/// @brief Perform MapReduce on range and return result
+			/// @tparam Iterator Type of Range Iterators
+			/// @tparam T Type of initial value
+			/// @tparam MapFunction Function that maps a->a'
+			/// @tparam ReduceFunction Function that takes to items in range and returns 1
+			/// @param first Beginning of range
+			/// @param last End of range
+			/// @param init initial value to supply map/reduce
+			/// @param map_function
+			/// @param reduce_function
+			/// @return Value from reduce function after range is of size 1
 			template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction>
 			auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,
 			                 ReduceFunction reduce_function ) {

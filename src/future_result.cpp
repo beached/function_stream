@@ -32,25 +32,30 @@ namespace daw {
 	future_result_t<void>::member_data_t::~member_data_t( ) = default;
 	future_result_t<void>::member_data_t::member_data_t( ) : m_status{future_status::deferred} {}
 
+	future_result_t<void>::member_data_t::member_data_t( std::shared_ptr<daw::semaphore> semaphore )
+	    : m_semaphore{std::move( semaphore )}, m_status{future_status::deferred} {}
+
 	void future_result_t<void>::member_data_t::set_value( ) noexcept {
 		m_result = true;
 		m_status = future_status::ready;
-		m_semaphore.notify( );
+		m_semaphore->notify( );
 	}
 
 	void future_result_t<void>::member_data_t::set_value( member_data_t &other ) {
 		m_result = std::move( other.m_result );
 		m_status = other.m_status;
-		m_semaphore.notify( );
+		m_semaphore->notify( );
 	}
 
 	void future_result_t<void>::member_data_t::from_exception( std::exception_ptr ptr ) {
 		m_result = std::move( ptr );
 		m_status = future_status::ready;
-		m_semaphore.notify( );
+		m_semaphore->notify( );
 	}
 
 	future_result_t<void>::future_result_t( ) : m_data{std::make_shared<member_data_t>( )} {}
+	future_result_t<void>::future_result_t( std::shared_ptr<daw::semaphore> semaphore )
+	    : m_data{std::make_shared<member_data_t>( std::move( semaphore ) )} {}
 
 	future_result_t<void>::~future_result_t( ) = default;
 
@@ -59,7 +64,7 @@ namespace daw {
 	}
 
 	void future_result_t<void>::wait( ) const {
-		m_data->m_semaphore.wait( );
+		m_data->m_semaphore->wait( );
 	}
 
 	void future_result_t<void>::get( ) const {
@@ -68,7 +73,7 @@ namespace daw {
 	}
 
 	bool future_result_t<void>::try_wait( ) const {
-		return m_data->m_semaphore.try_wait( );
+		return m_data->m_semaphore->try_wait( );
 	}
 
 	future_result_t<void>::operator bool( ) const {

@@ -40,7 +40,6 @@ namespace daw {
 		                  std::shared_ptr<daw::semaphore> semaphore = nullptr );
 	}
 
-
 	void blocking( std::function<void( )> task, size_t task_count = 1 );
 
 	struct task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
@@ -56,9 +55,10 @@ namespace daw {
 		size_t m_num_threads;
 		std::atomic_uintmax_t m_task_count;
 		friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                                      std::shared_ptr<daw::semaphore> semaphore );
+		                               std::shared_ptr<daw::semaphore> semaphore );
 
 		friend void blocking( std::function<void( )> task, size_t task_count );
+
 	  public:
 		task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
 		~task_scheduler_impl( );
@@ -81,6 +81,7 @@ namespace daw {
 		std::shared_ptr<task_scheduler_impl> m_impl;
 
 		friend void blocking( std::function<void( )> task, size_t task_count );
+
 	  public:
 		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ),
 		                bool block_on_destruction = true );
@@ -102,17 +103,24 @@ namespace daw {
 
 	task_scheduler get_task_scheduler( );
 
-	namespace impl {
-		template<typename Task>
-		int schedule_task( std::shared_ptr<daw::semaphore> semaphore, task_scheduler &ts, Task task ) {
-			ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
-				task( );
-				semaphore->notify( );
-			} );
-			return 0;
-		}
-	} // namespace impl
+	/// Add a single task to the supplied task scheduler and notify supplied semaphore when complete
+	///
+	/// @param semaphore Semaphore to notify when task is completed
+	/// @param ts task_scheduler to add task to
+	/// @param task Task of form void( ) to run
+	template<typename Task>
+	int schedule_task( std::shared_ptr<daw::semaphore> semaphore, task_scheduler &ts, Task task ) {
+		ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
+			task( );
+			semaphore->notify( );
+		} );
+		return 0;
+	}
 
+	/// Run concurrent tasks and return when completed
+	///
+	/// @param tasks callable items of the form void( )
+	/// @returns a semaphore that will stop waiting when all tasks complete
 	template<typename... Tasks>
 	std::shared_ptr<daw::semaphore> create_task_group( Tasks &&... tasks ) {
 
@@ -120,13 +128,17 @@ namespace daw {
 		auto semaphore = std::make_shared<daw::semaphore>( 1 - sizeof...( tasks ) );
 
 		// auto const dummy = { ( impl::schedule_task( semaphore, ts, tasks ), 0 )... };
-		auto const dummy = {impl::schedule_task( semaphore, ts, tasks )...};
+		auto const dummy = {schedule_task( semaphore, ts, tasks )...};
 		Unused( dummy );
 		return semaphore;
 	}
 
+	/// Run concurrent tasks and return when completed
+	///
+	/// @param tasks callable items of the form void( )
 	template<typename... Tasks>
 	void invoke_tasks( Tasks &&... tasks ) {
-		schedule_tasks( std::forward<Tasks>( tasks )... )->wait( );
+		create_task_group( std::forward<Tasks>( tasks )... )->wait( );
 	}
 } // namespace daw
+

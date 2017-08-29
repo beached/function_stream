@@ -475,7 +475,6 @@ int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	auto ts = daw::get_task_scheduler( );
 	
-	/*	
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -566,7 +565,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		transform_test2<int64_t>( n );
 	}
-	*/
+
 	std::cout << "map_reduce tests\n";
 	std::cout << "int64_t\n";
 	map_reduce_test<int64_t>( 500'000'000 );
