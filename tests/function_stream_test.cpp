@@ -105,6 +105,16 @@ int main( int argc, char **argv ) {
 			// v.get( );
 			std::cout << "'" << v.get( ) << "'\n";
 		}
+		
+		auto fib2 = []( ) {
+			return fib( 20 );
+		};
+
+		auto f_grp = daw::make_future_result_group( fib2, fib2 );
+		std::cout << "Function Group\n";
+		std::cout << std::get<0>(f_grp.get( )) << '\n';
+		std::cout << std::get<1>(f_grp.get( )) << '\n';
+
 	}
 	return EXIT_SUCCESS;
 }

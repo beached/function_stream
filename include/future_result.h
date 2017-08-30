@@ -57,8 +57,7 @@ namespace daw {
 			result_t m_result;
 			future_status m_status;
 
-			member_data_t( )
-			    : m_semaphore{}, m_result{}, m_status{future_status::deferred} {}
+			member_data_t( ) : m_semaphore{}, m_result{}, m_status{future_status::deferred} {}
 
 			member_data_t( daw::shared_semaphore semaphore )
 			    : m_semaphore{std::move( semaphore )}, m_result{}, m_status{future_status::deferred} {}
@@ -102,8 +101,7 @@ namespace daw {
 
 	  public:
 		future_result_t( ) : m_data{std::make_shared<member_data_t>( )} {}
-		future_result_t( daw::shared_semaphore semaphore )
-		    : m_data{std::move( semaphore )} {}
+		future_result_t( daw::shared_semaphore semaphore ) : m_data{std::move( semaphore )} {}
 
 		~future_result_t( ) override = default;
 		future_result_t( future_result_t const & ) = default;
@@ -116,12 +114,14 @@ namespace daw {
 		}
 
 		void wait( ) const override {
-			m_data->m_semaphore.wait( );
+			if( m_data->m_status != future_status::ready ) {
+				m_data->m_semaphore.wait( );
+			}
 		}
 
 		template<typename... Args>
 		future_status wait_for( Args &&... args ) const {
-			if( future_status::deferred == m_data->m_status ) {
+			if( future_status::deferred == m_data->m_status || future_status::ready == m_data->m_status ) {
 				return m_data->m_status;
 			}
 			if( m_data->m_semaphore.wait_for( std::forward<Args>( args )... ) ) {
@@ -132,7 +132,7 @@ namespace daw {
 
 		template<typename... Args>
 		future_status wait_until( Args &&... args ) const {
-			if( future_status::deferred == m_data->m_status ) {
+			if( future_status::deferred == m_data->m_status || future_status::ready == m_data->m_status ) {
 				return m_data->m_status;
 			}
 			if( m_data->m_semaphore.wait_until( std::forward<Args>( args )... ) ) {
@@ -295,8 +295,7 @@ namespace daw {
 	}
 
 	template<typename Function, typename... Args>
-	auto make_future_result( task_scheduler ts, daw::shared_semaphore semaphore, Function func,
-	                         Args &&... args ) {
+	auto make_future_result( task_scheduler ts, daw::shared_semaphore semaphore, Function func, Args &&... args ) {
 		using result_t = std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		future_result_t<result_t> result{std::move( semaphore )};
 		ts.add_task( impl::make_f_caller( result, func, std::forward<Args>( args )... ) );
@@ -309,38 +308,53 @@ namespace daw {
 	}
 
 	namespace impl {
-		template<size_t N, size_t SZ, typename Callables>
+		template<size_t N, size_t SZ, typename... Callables>
 		struct call_func_t {
-			template<typename Results, Callables>
-			void operator( )( Results &results, Callables& callables ) {
-				std::get<N>( results ) = std::get<N>( callables )( );
-				call_func_t<N + 1, SZ, Callables>{}( results, callables );
+			template<typename Results>
+			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
+			                  std::tuple<Callables...> const &callables ) {
+				ts.add_task( [semaphore, &results, &callables]( ) mutable {
+					std::get<N>( results ) = std::get<N>( callables )( );
+					semaphore.notify( );
+				} );
+				call_func_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables );
 			}
 		}; // call_func_t
 
-		template<size_t SZ, typename Callables>
-		struct call_func_t<SZ, SZ, Callables> {
+		template<size_t SZ, typename... Callables>
+		struct call_func_t<SZ, SZ, Callables...> {
 			template<typename Results>
-			constexpr void operator( )( daw::shared_semaphore const &, Results const &, Callables const & ) noexcept {}
+			constexpr void operator( )( daw::task_scheduler const &, daw::shared_semaphore const &, Results const &,
+			                            std::tuple<Callables...> const & ) noexcept {}
 		}; // call_func_t<SZ, SZ, Callables..>
 
-		template<typename... Callables>
-		auto call_funcs( daw::shared_semaphore semaphore, Callables&... callables ) {
-			std::tuple<std::decay_t<decltype(callables( ))>...> result;
-			auto tp_callables = std::forward_as_tuple( callables... );
-			call_func_t<0, sizeof...(Callables), decltype(tp_callables)>{ }( semaphore, result, tp_callables );
-			return result;
+		template<typename Result, typename... Callables>
+		void call_funcs( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Result &result,
+		                 std::tuple<Callables...> const &callables ) {
+			call_func_t<0, sizeof...( Callables ), Callables...>{}( ts, semaphore, result, callables );
 		}
 	} // namespace impl
 
-	/// Create a group of functions that all return at the same time.  A tuple of futures is returned
+	/// Create a group of functions that all return at the same time.  A tuple of results is returned
 	//
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
 	auto make_future_result_group( Functions... functions ) {
-		daw::shared_semaphore semaphore{ 1 - sizeof...( Functions ) };
-		auto ts = get_task_scheduler( );
-		return std::make_tuple( make_future_result( ts, semaphore, functions )... );
+		daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
+		using result_t = std::tuple<std::decay_t<decltype( functions( ) )>...>;
+		future_result_t<result_t> result;
+		auto tp_functions = std::make_tuple( std::move( functions )... );
+		auto th = std::thread{
+			[result, semaphore, tp_functions = std::move( tp_functions )]( ) mutable {
+				auto ts = get_task_scheduler( );
+				result_t tp_result;
+				impl::call_funcs( ts, semaphore, tp_result, tp_functions );
+				semaphore.wait( );
+				result.set_value( std::move( tp_result ) );
+			}
+		};
+		th.detach( );
+		return result;
 	}
 } // namespace daw
 
