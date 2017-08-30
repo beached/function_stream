@@ -37,7 +37,7 @@ namespace daw {
 
 	namespace impl {
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  std::shared_ptr<daw::semaphore> semaphore = nullptr );
+		                  boost::optional<daw::shared_semaphore> semaphore = boost::none );
 	}
 
 	void blocking( std::function<void( )> task, size_t task_count = 1 );
@@ -55,7 +55,7 @@ namespace daw {
 		size_t m_num_threads;
 		std::atomic_uintmax_t m_task_count;
 		friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                               std::shared_ptr<daw::semaphore> semaphore );
+		                               boost::optional<daw::shared_semaphore> semaphore );
 
 		friend void blocking( std::function<void( )> task, size_t task_count );
 
@@ -109,10 +109,10 @@ namespace daw {
 	/// @param ts task_scheduler to add task to
 	/// @param task Task of form void( ) to run
 	template<typename Task>
-	int schedule_task( std::shared_ptr<daw::semaphore> semaphore, task_scheduler &ts, Task task ) {
+	int schedule_task( daw::shared_semaphore semaphore, task_scheduler &ts, Task task ) {
 		ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
 			task( );
-			semaphore->notify( );
+			semaphore.notify( );
 		} );
 		return 0;
 	}
@@ -122,10 +122,10 @@ namespace daw {
 	/// @param tasks callable items of the form void( )
 	/// @returns a semaphore that will stop waiting when all tasks complete
 	template<typename... Tasks>
-	std::shared_ptr<daw::semaphore> create_task_group( Tasks &&... tasks ) {
+	daw::shared_semaphore create_task_group( Tasks &&... tasks ) {
 
 		auto ts = get_task_scheduler( );
-		auto semaphore = std::make_shared<daw::semaphore>( 1 - sizeof...( tasks ) );
+		daw::shared_semaphore semaphore{ 1 - sizeof...( tasks ) };
 
 		// auto const dummy = { ( impl::schedule_task( semaphore, ts, tasks ), 0 )... };
 		auto const dummy = {schedule_task( semaphore, ts, tasks )...};

@@ -67,11 +67,11 @@ namespace daw {
 				auto partition_range( Iterator first, Iterator const last, Func func ) {
 					auto const sz = std::distance( first, last );
 					if( sz == 0 ) {
-						return std::make_shared<daw::semaphore>( 1 );
+						return daw::shared_semaphore{ 1 };
 					}
 					auto ts = get_task_scheduler( );
 					auto const part_info = get_part_info<MinRangeSize>( first, last, ts.size( ) );
-					auto semaphore = std::make_shared<daw::semaphore>( 1 - part_info.count );
+					daw::shared_semaphore semaphore{ 1 - static_cast<intmax_t>(part_info.count) };
 					auto last_pos = first;
 					first = daw::algorithm::safe_next( first, last, part_info.size );
 					while( first != last ) {
@@ -93,7 +93,7 @@ namespace daw {
 						                       func( *it );
 					                       }
 				                       } )
-				    ->wait( );
+				    .wait( );
 			}
 
 			template<typename Iterator, typename Func>
@@ -113,18 +113,18 @@ namespace daw {
 					while( ranges.size( ) > 1 ) {
 						std::vector<std::pair<Iterator, Iterator>> next_ranges;
 						auto const count = ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
-						auto semaphore = std::make_shared<daw::semaphore>( 1 - ( count / 2 ) );
+						daw::shared_semaphore semaphore{1 - ( static_cast<intmax_t>( count ) / 2 )};
 						for( size_t n = 1; n < count; n += 2 ) {
 							daw::exception::daw_throw_on_false( ranges[n - 1].second == ranges[n].first,
 							                                    "Non continuous range" );
 
-							ts.add_task( [func, &ranges, n, semaphore]( ) {
+							ts.add_task( [func, &ranges, n, semaphore]( ) mutable {
 								func( ranges[n - 1].first, ranges[n].first, ranges[n].second );
-								semaphore->notify( );
+								semaphore.notify( );
 							} );
 							next_ranges.push_back( std::make_pair( ranges[n - 1].first, ranges[n].second ) );
 						}
-						semaphore->wait( );
+						semaphore.wait( );
 						if( count != ranges.size( ) ) {
 							next_ranges.push_back( ranges.back( ) );
 						}
@@ -296,7 +296,7 @@ namespace daw {
 							                               *out_it = unary_op( *f );
 						                               }
 					                               } )
-					    ->wait( );
+					    .wait( );
 				}
 
 				template<size_t MinRangeSize = 512, typename Iterator, typename T, typename MapFunction,

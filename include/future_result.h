@@ -53,14 +53,14 @@ namespace daw {
 		using result_t = daw::expected_t<result_type_t>;
 
 		struct member_data_t {
-			std::shared_ptr<daw::semaphore> m_semaphore;
+			daw::shared_semaphore m_semaphore;
 			result_t m_result;
 			future_status m_status;
 
 			member_data_t( )
-			    : m_semaphore{std::make_shared<daw::semaphore>( )}, m_result{}, m_status{future_status::deferred} {}
+			    : m_semaphore{}, m_result{}, m_status{future_status::deferred} {}
 
-			member_data_t( std::shared_ptr<daw::semaphore> semaphore )
+			member_data_t( daw::shared_semaphore semaphore )
 			    : m_semaphore{std::move( semaphore )}, m_result{}, m_status{future_status::deferred} {}
 
 			~member_data_t( ) = default;
@@ -75,26 +75,26 @@ namespace daw {
 			void set_value( Result value ) noexcept {
 				m_result = std::move( value );
 				m_status = future_status::ready;
-				m_semaphore->notify( );
+				m_semaphore.notify( );
 			}
 
 			void set_value( member_data_t &other ) {
 				m_result = std::move( other.m_result );
 				m_status = std::move( other.m_status );
-				m_semaphore->notify( );
+				m_semaphore.notify( );
 			}
 
 			template<typename Function, typename... Args>
 			void from_code( Function func, Args &&... args ) {
 				m_result = expected_from_code<result_type_t>( func, std::forward<Args>( args )... );
 				m_status = future_status::ready;
-				m_semaphore->notify( );
+				m_semaphore.notify( );
 			}
 
 			void from_exception( std::exception_ptr ptr ) {
 				m_result = std::move( ptr );
 				m_status = future_status::ready;
-				m_semaphore->notify( );
+				m_semaphore.notify( );
 			}
 		}; // member_data_t
 
@@ -102,8 +102,8 @@ namespace daw {
 
 	  public:
 		future_result_t( ) : m_data{std::make_shared<member_data_t>( )} {}
-		future_result_t( std::shared_ptr<daw::semaphore> semaphore )
-		    : m_data{std::make_shared<member_data_t>( std::move( semaphore ) )} {}
+		future_result_t( daw::shared_semaphore semaphore )
+		    : m_data{std::move( semaphore )} {}
 
 		~future_result_t( ) override = default;
 		future_result_t( future_result_t const & ) = default;
@@ -116,7 +116,7 @@ namespace daw {
 		}
 
 		void wait( ) const override {
-			m_data->m_semaphore->wait( );
+			m_data->m_semaphore.wait( );
 		}
 
 		template<typename... Args>
@@ -124,7 +124,7 @@ namespace daw {
 			if( future_status::deferred == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore->wait_for( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_for( std::forward<Args>( args )... ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
@@ -135,7 +135,7 @@ namespace daw {
 			if( future_status::deferred == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore->wait_until( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_until( std::forward<Args>( args )... ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
@@ -147,7 +147,7 @@ namespace daw {
 		}
 
 		bool try_wait( ) const override {
-			return m_data->m_semaphore->try_wait( );
+			return m_data->m_semaphore.try_wait( );
 		}
 
 		explicit operator bool( ) const {
@@ -162,7 +162,7 @@ namespace daw {
 		void set_exception( Exception const &ex ) {
 			m_data->m_result = result_t{typename result_t::exception_tag{}, ex};
 			m_data->m_status = future_status::ready;
-			m_data->m_semaphore->notify( );
+			m_data->m_semaphore.notify( );
 		}
 
 		bool is_exception( ) const {
@@ -180,12 +180,12 @@ namespace daw {
 	struct future_result_t<void> : public future_result_base_t {
 		using result_t = daw::expected_t<void>;
 		struct member_data_t {
-			std::shared_ptr<daw::semaphore> m_semaphore;
+			daw::shared_semaphore m_semaphore;
 			result_t m_result;
 			future_status m_status;
 
 			member_data_t( );
-			member_data_t( std::shared_ptr<daw::semaphore> semaphore );
+			member_data_t( daw::shared_semaphore semaphore );
 
 			~member_data_t( );
 
@@ -203,7 +203,7 @@ namespace daw {
 			void from_code( Function func, Args &&... args ) {
 				m_result.from_code( func, std::forward<Args>( args )... );
 				m_status = future_status::ready;
-				m_semaphore->notify( );
+				m_semaphore.notify( );
 			}
 
 			void from_exception( std::exception_ptr ptr );
@@ -213,7 +213,7 @@ namespace daw {
 
 	  public:
 		future_result_t( );
-		future_result_t( std::shared_ptr<daw::semaphore> semaphore );
+		future_result_t( daw::shared_semaphore semaphore );
 
 		~future_result_t( ) override;
 		future_result_t( future_result_t const & ) = default;
@@ -229,7 +229,7 @@ namespace daw {
 			if( future_status::deferred == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore->wait_for( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_for( std::forward<Args>( args )... ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
@@ -240,7 +240,7 @@ namespace daw {
 			if( future_status::deferred == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore->wait_until( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_until( std::forward<Args>( args )... ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
@@ -255,7 +255,7 @@ namespace daw {
 		void set_exception( Exception const &ex ) {
 			m_data->m_result = result_t{typename result_t::exception_tag{}, ex};
 			m_data->m_status = future_status::ready;
-			m_data->m_semaphore->notify( );
+			m_data->m_semaphore.notify( );
 		}
 
 		bool is_exception( ) const;
@@ -295,7 +295,7 @@ namespace daw {
 	}
 
 	template<typename Function, typename... Args>
-	auto make_future_result( task_scheduler ts, std::shared_ptr<daw::semaphore> semaphore, Function func,
+	auto make_future_result( task_scheduler ts, daw::shared_semaphore semaphore, Function func,
 	                         Args &&... args ) {
 		using result_t = std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		future_result_t<result_t> result{std::move( semaphore )};
@@ -308,12 +308,37 @@ namespace daw {
 		return make_future_result( get_task_scheduler( ), func, std::forward<Args>( args )... );
 	}
 
+	namespace impl {
+		template<size_t N, size_t SZ, typename Callables>
+		struct call_func_t {
+			template<typename Results, Callables>
+			void operator( )( Results &results, Callables& callables ) {
+				std::get<N>( results ) = std::get<N>( callables )( );
+				call_func_t<N + 1, SZ, Callables>{}( results, callables );
+			}
+		}; // call_func_t
+
+		template<size_t SZ, typename Callables>
+		struct call_func_t<SZ, SZ, Callables> {
+			template<typename Results>
+			constexpr void operator( )( daw::shared_semaphore const &, Results const &, Callables const & ) noexcept {}
+		}; // call_func_t<SZ, SZ, Callables..>
+
+		template<typename... Callables>
+		auto call_funcs( daw::shared_semaphore semaphore, Callables&... callables ) {
+			std::tuple<std::decay_t<decltype(callables( ))>...> result;
+			auto tp_callables = std::forward_as_tuple( callables... );
+			call_func_t<0, sizeof...(Callables), decltype(tp_callables)>{ }( semaphore, result, tp_callables );
+			return result;
+		}
+	} // namespace impl
+
 	/// Create a group of functions that all return at the same time.  A tuple of futures is returned
 	//
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
 	auto make_future_result_group( Functions... functions ) {
-		auto semaphore = std::make_shared<daw::semaphore>( 1 - sizeof...( Functions ) );
+		daw::shared_semaphore semaphore{ 1 - sizeof...( Functions ) };
 		auto ts = get_task_scheduler( );
 		return std::make_tuple( make_future_result( ts, semaphore, functions )... );
 	}

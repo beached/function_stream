@@ -47,7 +47,7 @@ namespace daw {
 
 	namespace impl {
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                std::shared_ptr<daw::semaphore> semaphore ) {
+		              boost::optional<daw::shared_semaphore> semaphore ) {
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
@@ -88,7 +88,7 @@ namespace daw {
 		m_continue = true;
 		for( size_t n = 0; n < m_num_threads; ++n ) {
 			m_threads.emplace_back(
-			    [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself, nullptr ); } );
+			    [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself ); } );
 		}
 	}
 
@@ -149,9 +149,9 @@ namespace daw {
 	}
 
 	void blocking( std::function<void( )> task, size_t task_count ) {
-		auto semaphore = std::make_shared<daw::semaphore>( 0 );
-		auto const at_exit = daw::on_scope_exit( [semaphore]( ) {
-			semaphore->notify( );
+		daw::shared_semaphore semaphore;
+		auto const at_exit = daw::on_scope_exit( [&semaphore]( ) {
+			semaphore.notify( );
 		} );
 		auto ts = get_task_scheduler( );
 		// Use current time in seconds as a semi-random way to get a number, modded with size of queue
