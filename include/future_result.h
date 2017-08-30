@@ -345,7 +345,7 @@ namespace daw {
 		future_result_t<result_t> result;
 		auto tp_functions = std::make_tuple( std::move( functions )... );
 		auto th = std::thread{
-			[result, semaphore, tp_functions = std::move( tp_functions )]( ) mutable {
+			[result, semaphore, tp_functions = std::move( tp_functions )]( ) mutable noexcept {
 				auto ts = get_task_scheduler( );
 				result_t tp_result;
 				impl::call_funcs( ts, semaphore, tp_result, tp_functions );
