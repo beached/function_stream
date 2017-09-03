@@ -310,29 +310,56 @@ namespace daw {
 	namespace impl {
 		template<size_t N, size_t SZ, typename... Callables>
 		struct call_func_t {
-			template<typename Results>
+			template<typename Results, typename... Args>
 			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
-			                  std::tuple<Callables...> const &callables ) {
-				ts.add_task( [semaphore, &results, &callables]( ) mutable {
-					std::get<N>( results ) = std::get<N>( callables )( );
+			                  std::tuple<Callables...> const &callables, std::tuple<Args...> const & args ) {
+				ts.add_task( [semaphore, &results, &callables, &args]( ) mutable {
+					std::get<N>( results ) = daw::apply( std::get<N>( callables ), args );
 					semaphore.notify( );
 				} );
-				call_func_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables );
+				call_func_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables, args );
 			}
 		}; // call_func_t
 
 		template<size_t SZ, typename... Callables>
 		struct call_func_t<SZ, SZ, Callables...> {
-			template<typename Results>
+			template<typename Results, typename... Args>
 			constexpr void operator( )( daw::task_scheduler const &, daw::shared_semaphore const &, Results const &,
-			                            std::tuple<Callables...> const & ) noexcept {}
+			                            std::tuple<Callables...> const &, std::tuple<Args...> const & ) noexcept {}
 		}; // call_func_t<SZ, SZ, Callables..>
 
-		template<typename Result, typename... Callables>
+		template<typename Result, typename... Callables, typename... Args>
 		void call_funcs( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Result &result,
-		                 std::tuple<Callables...> const &callables ) {
-			call_func_t<0, sizeof...( Callables ), Callables...>{}( ts, semaphore, result, callables );
+		                 std::tuple<Callables...> const &callables, std::tuple<Args...> args ) {
+			call_func_t<0, sizeof...( Callables ), Callables...>{}( ts, semaphore, result, callables, args );
 		}
+	
+		template<typename... Functions>
+		class result_t {
+			std::tuple<Functions...> tp_functions;
+		public:
+			result_t( Functions... fs ): tp_functions{std::make_tuple( std::move( fs )... )} { }
+
+			template<typename... Args>
+			auto operator()( Args... args ) {
+				daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
+				using result_t = std::tuple<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>...>;
+				auto tp_args = std::make_tuple( std::move( args )... );
+				future_result_t<result_t> result;
+				auto th = std::thread{
+					[result, semaphore, tp_functions = std::move( tp_functions ), tp_args=std::move(tp_args)]( ) mutable noexcept {
+						auto ts = get_task_scheduler( );
+						result_t tp_result;
+						impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
+						semaphore.wait( );
+						result.set_value( std::move( tp_result ) );
+					}
+				};
+				th.detach( );
+				return result;
+
+			}
+		};	// result_t
 	} // namespace impl
 
 	/// Create a group of functions that all return at the same time.  A tuple of results is returned
@@ -340,21 +367,12 @@ namespace daw {
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
 	auto make_future_result_group( Functions... functions ) {
-		daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
-		using result_t = std::tuple<std::decay_t<decltype( functions( ) )>...>;
-		future_result_t<result_t> result;
-		auto tp_functions = std::make_tuple( std::move( functions )... );
-		auto th = std::thread{
-			[result, semaphore, tp_functions = std::move( tp_functions )]( ) mutable noexcept {
-				auto ts = get_task_scheduler( );
-				result_t tp_result;
-				impl::call_funcs( ts, semaphore, tp_result, tp_functions );
-				semaphore.wait( );
-				result.set_value( std::move( tp_result ) );
-			}
-		};
-		th.detach( );
-		return result;
+		return impl::result_t<Functions...>{ std::move( functions )... }( );
+	}
+
+	template<typename... Functions>
+	auto make_callable_future_result_group( Functions... functions ) {
+		return impl::result_t<Functions...>{ std::move( functions )... };
 	}
 } // namespace daw
 

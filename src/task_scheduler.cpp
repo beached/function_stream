@@ -25,6 +25,7 @@
 #include <thread>
 
 #include <daw/scope_guard.h>
+#include <daw/daw_semaphore.h>
 
 #include "task_scheduler.h"
 
