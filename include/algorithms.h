@@ -63,6 +63,25 @@ namespace daw {
 					return result;
 				}
 
+				template<size_t MinRangeSize = 1, typename Iterator>
+				auto split_range( Iterator f, Iterator l, size_t const max_parts ) {
+					struct rng_t {
+						Iterator first;
+						Iterator last;
+					};
+					std::vector<rng_t> results;
+					auto const part_info = get_part_info<MinRangeSize>( f, l, max_parts );
+					auto last_pos = std::exchange( f, daw::algorithm::safe_next( f, l, part_info.size ) );
+					while( f != l ) {
+						results.push_back( { last_pos, f } );
+						last_pos = std::exchange( f, daw::algorithm::safe_next( f, l, part_info.size ) );
+					}
+					if( std::distance( last_pos, f ) > 0 ) {
+						results.push_back( { last_pos, f } );
+					}
+					return results;
+				}
+
 				template<size_t MinRangeSize = 1, typename Iterator, typename Func>
 				auto partition_range( Iterator first, Iterator const last, Func func ) {
 					auto const sz = std::distance( first, last );
@@ -70,16 +89,10 @@ namespace daw {
 						return daw::shared_semaphore{ 1 };
 					}
 					auto ts = get_task_scheduler( );
-					auto const part_info = get_part_info<MinRangeSize>( first, last, ts.size( ) );
-					daw::shared_semaphore semaphore{ 1 - static_cast<intmax_t>(part_info.count) };
-					auto last_pos = first;
-					first = daw::algorithm::safe_next( first, last, part_info.size );
-					while( first != last ) {
-						schedule_task( semaphore, ts, [last_pos, first, func]( ) { func( last_pos, first ); } );
-						last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
-					}
-					if( std::distance( last_pos, first ) > 0 ) {
-						schedule_task( semaphore, ts, [last_pos, first, func]( ) { func( last_pos, first ); } );
+					auto const ranges = split_range( first, last, ts.size( ) );
+					daw::shared_semaphore semaphore{ 1 - static_cast<intmax_t>(ranges.size( )) };
+					for( auto const & rng: ranges ) {
+						schedule_task( semaphore, ts, [func, rng]( ) { func( rng.first, rng.last ); } );
 					}
 					return semaphore;
 				}
@@ -328,6 +341,43 @@ namespace daw {
 					}
 					return result;
 				}
+
+				/*
+				template<typename T, typename Iterator, typename OutputIterator, typename BinaryOp>
+				void parallel_scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out,
+				                       T init, BinaryOp binary_op ) {
+					{
+						auto const sz = static_cast<size_t>( std::distance( first, last ) );
+						daw::exeption::daw_throw_on_false(
+						    sz == static_cast<size_t>( std::distance( first_out, last_out ) ),
+						    "Output range must be the same size as input" );
+						if( sz < 2 ) {
+							if( sz == 0 ) {
+								return std::move( init );
+							}
+							*first_out = binary_op( init, *first );
+						}
+					}
+					auto t1 =
+					    impl::partition_range<1>( first, last, [&results, binary_op, first, first_out]( Iterator f, Iterator const l ) {
+							auto out_it = std::next( first_out, std::distance( first, f ) + 1 );
+						    auto result = binary_op( *f, *std::next( f ) );
+							*out_it++ = result;
+						    std::advance( f, 2 );
+						    for( ; f != l; std::advance( f, 1 ) ) {
+							    result = binary_op( result, *f );
+								*out_it++ = result;
+						    }
+					    } );
+					auto result = std::move( init );
+					size_t const expected_results =
+					    get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
+					for( size_t n = 0; n < expected_results; ++n ) {
+						result = binary_op( result, results.pop_back2( ) );
+					}
+					return result;
+				}
+				*/
 			} // namespace impl
 
 			template<typename Iterator,
