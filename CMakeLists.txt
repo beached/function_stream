@@ -60,6 +60,7 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/algorithms.h
 	${HEADER_FOLDER}/function_stream.h
 	${HEADER_FOLDER}/future_result.h
+	${HEADER_FOLDER}/iterator_range.h
 	${HEADER_FOLDER}/package.h
 	${HEADER_FOLDER}/task_scheduler.h
 )

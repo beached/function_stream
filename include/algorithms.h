@@ -31,6 +31,7 @@
 #include <daw/daw_semaphore.h>
 
 #include "function_stream.h"
+#include "iterator_range.h"
 #include "task_scheduler.h"
 
 namespace daw {
@@ -64,60 +65,35 @@ namespace daw {
 				}
 
 				template<size_t MinRangeSize = 1, typename Iterator>
-				auto split_range( Iterator f, Iterator l, size_t const max_parts ) {
-					struct rng_t {
-						Iterator first;
-						Iterator last;
-					};
-					std::vector<rng_t> results;
-					auto const part_info = get_part_info<MinRangeSize>( f, l, max_parts );
-					auto last_pos = std::exchange( f, daw::algorithm::safe_next( f, l, part_info.size ) );
-					while( f != l ) {
-						results.push_back( { last_pos, f } );
-						last_pos = std::exchange( f, daw::algorithm::safe_next( f, l, part_info.size ) );
+				std::vector<iterator_range_t<Iterator>> split_range( Iterator first, Iterator last,
+				                                                     size_t const max_parts ) {
+					std::vector<iterator_range_t<Iterator>> results;
+					auto const part_info = get_part_info<MinRangeSize>( first, last, max_parts );
+					auto last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
+					while( first != last ) {
+						results.push_back( {last_pos, first} );
+						last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
 					}
-					if( std::distance( last_pos, f ) > 0 ) {
-						results.push_back( { last_pos, f } );
+					if( std::distance( last_pos, first ) > 0 ) {
+						results.push_back( {last_pos, first} );
 					}
 					return results;
 				}
 
 				template<size_t MinRangeSize = 1, typename Iterator, typename Func>
 				auto partition_range( Iterator first, Iterator const last, Func func ) {
-					auto const sz = std::distance( first, last );
-					if( sz == 0 ) {
-						return daw::shared_semaphore{ 1 };
+					if( std::distance( first, last ) == 0 ) {
+						return daw::shared_semaphore{1};
 					}
 					auto ts = get_task_scheduler( );
-					auto const ranges = split_range( first, last, ts.size( ) );
-					daw::shared_semaphore semaphore{ 1 - static_cast<intmax_t>(ranges.size( )) };
-					for( auto const & rng: ranges ) {
+					auto const ranges = split_range<MinRangeSize>( first, last, ts.size( ) );
+					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
+					for( auto const &rng : ranges ) {
 						schedule_task( semaphore, ts, [func, rng]( ) { func( rng.first, rng.last ); } );
 					}
 					return semaphore;
 				}
 			} // namespace impl
-
-			template<typename RandomIterator, typename Func>
-			void for_each( RandomIterator const first, RandomIterator const last, Func func ) {
-				impl::partition_range( first, last,
-				                       [func]( RandomIterator f, RandomIterator l ) {
-					                       for( auto it = f; it != l; ++it ) {
-						                       func( *it );
-					                       }
-				                       } )
-				    .wait( );
-			}
-
-			template<typename Iterator, typename Func>
-			void for_each_n( Iterator first, size_t N, Func func ) {
-				daw::algorithm::parallel::for_each( first, first + N, func );
-			}
-
-			template<typename Iterator, typename T>
-			void fill( Iterator first, Iterator last, T const &value ) {
-				daw::algorithm::parallel::for_each( first, last, [&value]( auto &item ) { item = value; } );
-			}
 
 			namespace impl {
 				template<typename Iterator, typename Function>
@@ -144,6 +120,7 @@ namespace daw {
 						ranges = next_ranges;
 					}
 				}
+
 				template<size_t MinRangeSize = 512, typename Iterator, typename Sort, typename Compare>
 				void parallel_sort( Iterator first, Iterator last, Sort sort, Compare compare ) {
 					static_assert( MinRangeSize > 0, "MinRangeSize cannot be 0" );
@@ -152,11 +129,11 @@ namespace daw {
 						return;
 					}
 					daw::locked_stack_t<std::pair<Iterator, Iterator>> sort_ranges_stack;
-					impl::partition_range<MinRangeSize>( first, last,
-					                                     [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
-						                                     sort( f, l, compare );
-						                                     sort_ranges_stack.push_back( std::make_pair( f, l ) );
-					                                     } );
+					partition_range<MinRangeSize>( first, last,
+					                               [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
+						                               sort( f, l, compare );
+						                               sort_ranges_stack.push_back( std::make_pair( f, l ) );
+					                               } );
 
 					size_t const expected_results =
 					    get_part_info<MinRangeSize>( first, last, get_task_scheduler( ).size( ) ).count;
@@ -341,44 +318,91 @@ namespace daw {
 					}
 					return result;
 				}
+			} // namespace impl
 
-				/*
-				template<typename T, typename Iterator, typename OutputIterator, typename BinaryOp>
+			template<typename RandomIterator, typename Func>
+			void for_each( RandomIterator const first, RandomIterator const last, Func func ) {
+				impl::partition_range( first, last,
+				                       [func]( RandomIterator f, RandomIterator l ) {
+					                       for( auto it = f; it != l; ++it ) {
+						                       func( *it );
+					                       }
+				                       } )
+				    .wait( );
+			}
+			
+			namespace impl {
+				template<typename Iterator, typename OutputIterator, typename BinaryOp>
 				void parallel_scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out,
-				                       T init, BinaryOp binary_op ) {
+				                    BinaryOp binary_op ) {
 					{
 						auto const sz = static_cast<size_t>( std::distance( first, last ) );
-						daw::exeption::daw_throw_on_false(
+						daw::exception::daw_throw_on_false( sz != 0, "Range cannot be empty" );
+						daw::exception::daw_throw_on_false(
 						    sz == static_cast<size_t>( std::distance( first_out, last_out ) ),
 						    "Output range must be the same size as input" );
 						if( sz < 2 ) {
-							if( sz == 0 ) {
-								return std::move( init );
-							}
-							*first_out = binary_op( init, *first );
+							*first_out = *first;
+							return;
 						}
 					}
-					auto t1 =
-					    impl::partition_range<1>( first, last, [&results, binary_op, first, first_out]( Iterator f, Iterator const l ) {
-							auto out_it = std::next( first_out, std::distance( first, f ) + 1 );
-						    auto result = binary_op( *f, *std::next( f ) );
-							*out_it++ = result;
-						    std::advance( f, 2 );
-						    for( ; f != l; std::advance( f, 1 ) ) {
-							    result = binary_op( result, *f );
-								*out_it++ = result;
+					using value_t = std::decay_t<decltype( binary_op( *first, *first ) )>;
+					struct result_t {
+						iterator_range_t<Iterator> range;
+						value_t value;
+					};
+
+					auto ts = get_task_scheduler( );
+					auto ranges = impl::split_range( first, last, ts.size( ) );
+					daw::locked_stack_t<result_t> locked_results;
+					// Do partial sum on each sub range and return last value
+					daw::algorithm::parallel::for_each( ranges.cbegin( ), ranges.cend( ),
+					                                    [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
+						                                    result_t result{rng, rng.pop_front( )};
+						                                    while( !rng.empty( ) ) {
+							                                    result.value += rng.pop_front( );
+						                                    }
+						                                    locked_results.push_back( std::move( result ) );
+					                                    } );
+					auto results = locked_results.copy( );
+					std::sort( results.begin( ), results.end( ), []( auto const &lhs, auto const &rhs ) {
+						return lhs.range.cbegin( ) < rhs.range.cbegin( );
+					} );
+					{
+						std::vector<value_t> values;
+						values.resize( results.size( ) );
+						for( size_t n = 1; n < results.size( ); ++n ) {
+							values[n] = results[0].value;
+							for( size_t m = 1; m < n; ++m ) {
+								values[n] += results[m].value;
+							}
+						}
+						for( size_t n=0; n<results.size( ); ++n ) {
+							results[n].value = values[n];
+						}
+					}
+					daw::algorithm::parallel::for_each(
+					    results.begin( ), results.end( ), [first, first_out, binary_op]( result_t cur_range ) {
+						    auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );
+						    auto sum = binary_op( cur_range.value, cur_range.range.pop_front( ) );
+						    *( out_pos++ ) = sum;
+						    while( !cur_range.range.empty( ) ) {
+							    sum = binary_op( sum, cur_range.range.pop_front( ) );
+							    *( out_pos++ ) = sum;
 						    }
 					    } );
-					auto result = std::move( init );
-					size_t const expected_results =
-					    get_part_info<1>( first, last, get_task_scheduler( ).size( ) ).count;
-					for( size_t n = 0; n < expected_results; ++n ) {
-						result = binary_op( result, results.pop_back2( ) );
-					}
-					return result;
 				}
-				*/
 			} // namespace impl
+
+			template<typename Iterator, typename Func>
+			void for_each_n( Iterator first, size_t N, Func func ) {
+				daw::algorithm::parallel::for_each( first, first + N, func );
+			}
+
+			template<typename Iterator, typename T>
+			void fill( Iterator first, Iterator last, T const &value ) {
+				daw::algorithm::parallel::for_each( first, last, [&value]( auto &item ) { item = value; } );
+			}
 
 			template<typename Iterator,
 			         typename Compare = std::less<typename std::iterator_traits<Iterator>::value_type>>
@@ -462,6 +486,17 @@ namespace daw {
 				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function );
 			}
 
+			template<typename Iterator, typename OutputIterator, typename BinaryOp>
+			void scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out,
+			           BinaryOp binary_op ) {
+
+				impl::parallel_scan( first, last, first_out, last_out, binary_op );
+			}
+
+			template<typename Iterator, typename OutputIterator, typename BinaryOp>
+			void scan( Iterator first, Iterator last, BinaryOp binary_op ) {
+				impl::parallel_scan( first, last, first, last, binary_op );
+			}
 		} // namespace parallel
 	}     // namespace algorithm
 } // namespace daw

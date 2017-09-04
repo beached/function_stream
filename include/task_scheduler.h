@@ -138,7 +138,7 @@ namespace daw {
 	/// @param tasks callable items of the form void( )
 	template<typename... Tasks>
 	void invoke_tasks( Tasks &&... tasks ) {
-		create_task_group( std::forward<Tasks>( tasks )... )->wait( );
+		create_task_group( std::forward<Tasks>( tasks )... ).wait( );
 	}
 } // namespace daw
 
