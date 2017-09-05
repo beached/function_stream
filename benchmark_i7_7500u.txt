@@ -1,0 +1,166 @@
+Max concurrent tasks 4
+for_each tests
+double
+for_each: size->100000000 %cpus->68.1216 par_total->31ms par_item->316ps throughput->23GB/s seq_total->86ms seq_item->861ps throughput->8GB/s
+for_each: size->10000000 %cpus->61.7099 par_total->3ms par_item->341ps throughput->21GB/s seq_total->8ms seq_item->842ps throughput->8GB/s
+for_each: size->1000000 %cpus->19.8836 par_total->1ms par_item->1ns throughput->5GB/s seq_total->1ms seq_item->1ns throughput->6GB/s
+for_each: size->100000 %cpus->26.4119 par_total->87µs par_item->876ps throughput->8GB/s seq_total->92µs seq_item->925ps throughput->8GB/s
+for_each: size->10000 %cpus->11.3947 par_total->19µs par_item->1ns throughput->3GB/s seq_total->8µs seq_item->893ps throughput->8GB/s
+for_each: size->1000 %cpus->1.01464 par_total->21µs par_item->21ns throughput->359MB/s seq_total->861ns seq_item->861ps throughput->8GB/s
+for_each: size->100 %cpus->0.484403 par_total->8µs par_item->87ns throughput->86MB/s seq_total->170ns seq_item->1ns throughput->4GB/s
+int64_t
+for_each: size->100000000 %cpus->65.8953 par_total->31ms par_item->317ps throughput->23GB/s seq_total->83ms seq_item->836ps throughput->8GB/s
+for_each: size->10000000 %cpus->67.4876 par_total->3ms par_item->322ps throughput->23GB/s seq_total->8ms seq_item->869ps throughput->8GB/s
+for_each: size->1000000 %cpus->53.9576 par_total->403µs par_item->403ps throughput->18GB/s seq_total->869µs seq_item->869ps throughput->8GB/s
+for_each: size->100000 %cpus->31.4552 par_total->70µs par_item->701ps throughput->10GB/s seq_total->88µs seq_item->883ps throughput->8GB/s
+for_each: size->10000 %cpus->17.7873 par_total->14µs par_item->1ns throughput->5GB/s seq_total->10µs seq_item->1ns throughput->7GB/s
+for_each: size->1000 %cpus->2.2408 par_total->13µs par_item->13ns throughput->562MB/s seq_total->1µs seq_item->1ns throughput->6GB/s
+for_each: size->100 %cpus->0.273407 par_total->17µs par_item->171ns throughput->44MB/s seq_total->188ns seq_item->1ns throughput->3GB/s
+int32_t
+for_each: size->100000000 %cpus->79.2771 par_total->31ms par_item->313ps throughput->11GB/s seq_total->99ms seq_item->994ps throughput->3GB/s
+for_each: size->10000000 %cpus->45.7312 par_total->5ms par_item->558ps throughput->6GB/s seq_total->10ms seq_item->1ns throughput->3GB/s
+for_each: size->1000000 %cpus->40.6412 par_total->641µs par_item->641ps throughput->5GB/s seq_total->1ms seq_item->1ns throughput->3GB/s
+for_each: size->100000 %cpus->26.5006 par_total->99µs par_item->992ps throughput->3GB/s seq_total->105µs seq_item->1ns throughput->3GB/s
+for_each: size->10000 %cpus->3.25945 par_total->81µs par_item->8ns throughput->469MB/s seq_total->10µs seq_item->1ns throughput->3GB/s
+for_each: size->1000 %cpus->1.91417 par_total->17µs par_item->17ns throughput->223MB/s seq_total->1µs seq_item->1ns throughput->2GB/s
+for_each: size->100 %cpus->0.313706 par_total->15µs par_item->159ns throughput->23MB/s seq_total->200ns seq_item->1ns throughput->1GB/s
+fill tests
+double
+fill: size->100000000 %cpus->25.6644 par_total->57ms par_item->571ps throughput->13GB/s seq_total->58ms seq_item->586ps throughput->12GB/s
+fill: size->10000000 %cpus->25.1351 par_total->5ms par_item->567ps throughput->13GB/s seq_total->5ms seq_item->570ps throughput->13GB/s
+fill: size->1000000 %cpus->25.4024 par_total->487µs par_item->487ps throughput->15GB/s seq_total->495µs seq_item->495ps throughput->15GB/s
+fill: size->100000 %cpus->16.1013 par_total->35µs par_item->354ps throughput->21GB/s seq_total->22µs seq_item->228ps throughput->32GB/s
+fill: size->10000 %cpus->4.35589 par_total->12µs par_item->1ns throughput->5GB/s seq_total->2µs seq_item->217ps throughput->34GB/s
+fill: size->1000 %cpus->0.251407 par_total->22µs par_item->22ns throughput->332MB/s seq_total->230ns seq_item->230ps throughput->32GB/s
+fill: size->100 %cpus->0.192639 par_total->9µs par_item->98ns throughput->77MB/s seq_total->75ns seq_item->760ps throughput->9GB/s
+int64_t
+fill: size->100000000 %cpus->25.4194 par_total->57ms par_item->571ps throughput->13GB/s seq_total->58ms seq_item->580ps throughput->12GB/s
+fill: size->10000000 %cpus->24.9122 par_total->5ms par_item->568ps throughput->13GB/s seq_total->5ms seq_item->566ps throughput->13GB/s
+fill: size->1000000 %cpus->26.9482 par_total->447µs par_item->447ps throughput->16GB/s seq_total->482µs seq_item->482ps throughput->15GB/s
+fill: size->100000 %cpus->23.3273 par_total->27µs par_item->273ps throughput->27GB/s seq_total->25µs seq_item->255ps throughput->29GB/s
+fill: size->10000 %cpus->3.69837 par_total->13µs par_item->1ns throughput->5GB/s seq_total->1µs seq_item->195ps throughput->38GB/s
+fill: size->1000 %cpus->0.458894 par_total->17µs par_item->17ns throughput->439MB/s seq_total->318ns seq_item->318ps throughput->23GB/s
+fill: size->100 %cpus->0.316639 par_total->6µs par_item->60ns throughput->126MB/s seq_total->76ns seq_item->765ps throughput->9GB/s
+int32_t
+fill: size->100000000 %cpus->25.5226 par_total->28ms par_item->284ps throughput->13GB/s seq_total->29ms seq_item->290ps throughput->12GB/s
+fill: size->10000000 %cpus->25.0085 par_total->2ms par_item->278ps throughput->13GB/s seq_total->2ms seq_item->278ps throughput->13GB/s
+fill: size->1000000 %cpus->26.4489 par_total->146µs par_item->146ps throughput->25GB/s seq_total->154µs seq_item->154ps throughput->24GB/s
+fill: size->100000 %cpus->7.39006 par_total->36µs par_item->368ps throughput->10GB/s seq_total->10µs seq_item->109ps throughput->34GB/s
+fill: size->10000 %cpus->3.27359 par_total->8µs par_item->807ps throughput->4GB/s seq_total->1µs seq_item->105ps throughput->35GB/s
+fill: size->1000 %cpus->0.611039 par_total->6µs par_item->6ns throughput->617MB/s seq_total->151ns seq_item->151ps throughput->24GB/s
+fill: size->100 %cpus->0.251318 par_total->10µs par_item->102ns throughput->37MB/s seq_total->103ns seq_item->1ns throughput->3GB/s
+sort tests
+int64_t
+sort: size->200000000 %cpus->62.5267 par_total->7s par_item->36ns throughput->208MB/s seq_total->18s seq_item->91ns throughput->83MB/s
+sort: size->100000000 %cpus->62.094 par_total->3s par_item->35ns throughput->215MB/s seq_total->8s seq_item->87ns throughput->86MB/s
+sort: size->10000000 %cpus->61.1012 par_total->319ms par_item->31ns throughput->239MB/s seq_total->779ms seq_item->77ns throughput->97MB/s
+sort: size->1000000 %cpus->59.3399 par_total->28ms par_item->28ns throughput->266MB/s seq_total->67ms seq_item->67ns throughput->112MB/s
+sort: size->100000 %cpus->53.9772 par_total->2ms par_item->25ns throughput->296MB/s seq_total->5ms seq_item->55ns throughput->137MB/s
+sort: size->10000 %cpus->33.6362 par_total->336µs par_item->33ns throughput->226MB/s seq_total->453µs seq_item->45ns throughput->168MB/s
+sort: size->1000 %cpus->15.2933 par_total->56µs par_item->56ns throughput->135MB/s seq_total->34µs seq_item->34ns throughput->221MB/s
+sort: size->100 %cpus->22.3656 par_total->1µs par_item->18ns throughput->401MB/s seq_total->1µs seq_item->16ns throughput->449MB/s
+stable_sort tests
+int64_t
+stable_sort: size->100000000 %cpus->58.7319 par_total->3s par_item->30ns throughput->250MB/s seq_total->7s seq_item->71ns throughput->106MB/s
+stable_sort: size->10000000 %cpus->56.3779 par_total->273ms par_item->27ns throughput->279MB/s seq_total->616ms seq_item->61ns throughput->123MB/s
+stable_sort: size->1000000 %cpus->57.8172 par_total->23ms par_item->23ns throughput->324MB/s seq_total->54ms seq_item->54ns throughput->140MB/s
+stable_sort: size->100000 %cpus->52.7455 par_total->2ms par_item->21ns throughput->355MB/s seq_total->4ms seq_item->45ns throughput->168MB/s
+stable_sort: size->10000 %cpus->25.9922 par_total->348µs par_item->34ns throughput->218MB/s seq_total->362µs seq_item->36ns throughput->210MB/s
+stable_sort: size->1000 %cpus->16.9476 par_total->42µs par_item->42ns throughput->180MB/s seq_total->28µs seq_item->28ns throughput->266MB/s
+stable_sort: size->100 %cpus->17.3189 par_total->2µs par_item->22ns throughput->343MB/s seq_total->1µs seq_item->15ns throughput->495MB/s
+reduce tests
+int64_t
+reduce: size->200000000 %cpus->42.6601 par_total->54ms par_item->270ps throughput->27GB/s seq_total->92ms seq_item->461ps throughput->16GB/s
+reduce: size->100000000 %cpus->42.7249 par_total->26ms par_item->269ps throughput->27GB/s seq_total->46ms seq_item->461ps throughput->16GB/s
+reduce: size->10000000 %cpus->43.2049 par_total->2ms par_item->273ps throughput->27GB/s seq_total->4ms seq_item->472ps throughput->15GB/s
+reduce: size->1000000 %cpus->52.4729 par_total->245µs par_item->245ps throughput->30GB/s seq_total->515µs seq_item->515ps throughput->14GB/s
+reduce: size->100000 %cpus->41.6539 par_total->22µs par_item->221ps throughput->33GB/s seq_total->36µs seq_item->369ps throughput->20GB/s
+reduce: size->10000 %cpus->14.16 par_total->10µs par_item->1ns throughput->7GB/s seq_total->5µs seq_item->577ps throughput->12GB/s
+reduce: size->1000 %cpus->1.79794 par_total->8µs par_item->8ns throughput->855MB/s seq_total->641ns seq_item->641ps throughput->11GB/s
+reduce: size->100 %cpus->0.261879 par_total->9µs par_item->92ns throughput->82MB/s seq_total->97ns seq_item->970ps throughput->7GB/s
+double
+reduce: size->200000000 %cpus->354.961 par_total->65ms par_item->329ps throughput->22GB/s seq_total->934ms seq_item->4ns throughput->1GB/s
+reduce: size->100000000 %cpus->364.266 par_total->32ms par_item->320ps throughput->23GB/s seq_total->467ms seq_item->4ns throughput->1GB/s
+reduce: size->10000000 %cpus->364.55 par_total->3ms par_item->319ps throughput->23GB/s seq_total->46ms seq_item->4ns throughput->1GB/s
+reduce: size->1000000 %cpus->314.849 par_total->368µs par_item->368ps throughput->20GB/s seq_total->4ms seq_item->4ns throughput->1GB/s
+reduce: size->100000 %cpus->109.146 par_total->104µs par_item->1ns throughput->7GB/s seq_total->458µs seq_item->4ns throughput->1GB/s
+reduce: size->10000 %cpus->45.408 par_total->25µs par_item->2ns throughput->2GB/s seq_total->45µs seq_item->4ns throughput->1GB/s
+reduce: size->1000 %cpus->13.0988 par_total->8µs par_item->8ns throughput->847MB/s seq_total->4µs seq_item->4ns throughput->1GB/s
+reduce: size->100 %cpus->0.709972 par_total->16µs par_item->167ns throughput->45MB/s seq_total->475ns seq_item->4ns throughput->1GB/s
+reduce2 tests
+uint64_t
+reduce2: size->200000000 %cpus->57.3002 par_total->61ms par_item->307ps throughput->24GB/s seq_total->140ms seq_item->703ps throughput->10GB/s
+reduce2: size->100000000 %cpus->61.9624 par_total->28ms par_item->284ps throughput->26GB/s seq_total->70ms seq_item->704ps throughput->10GB/s
+reduce2: size->10000000 %cpus->36.4798 par_total->4ms par_item->482ps throughput->15GB/s seq_total->7ms seq_item->704ps throughput->10GB/s
+reduce2: size->1000000 %cpus->38.7724 par_total->523µs par_item->523ps throughput->14GB/s seq_total->812µs seq_item->812ps throughput->9GB/s
+reduce2: size->100000 %cpus->15.6173 par_total->105µs par_item->1ns throughput->7GB/s seq_total->65µs seq_item->659ps throughput->11GB/s
+reduce2: size->10000 %cpus->3.72117 par_total->44µs par_item->4ns throughput->1GB/s seq_total->6µs seq_item->663ps throughput->11GB/s
+reduce2: size->1000 %cpus->1.95786 par_total->9µs par_item->9ns throughput->811MB/s seq_total->736ns seq_item->736ps throughput->10GB/s
+reduce2: size->100 %cpus->0.290075 par_total->8µs par_item->88ns throughput->85MB/s seq_total->103ns seq_item->1ns throughput->7GB/s
+min_element tests
+int64_t
+min_element: size->200000000 %cpus->48.2902 par_total->66ms par_item->330ps throughput->22GB/s seq_total->127ms seq_item->638ps throughput->11GB/s
+min_element: size->100000000 %cpus->49.9155 par_total->31ms par_item->319ps throughput->23GB/s seq_total->63ms seq_item->638ps throughput->11GB/s
+min_element: size->10000000 %cpus->48.179 par_total->3ms par_item->331ps throughput->22GB/s seq_total->6ms seq_item->638ps throughput->11GB/s
+min_element: size->1000000 %cpus->42.4686 par_total->388µs par_item->388ps throughput->19GB/s seq_total->660µs seq_item->660ps throughput->11GB/s
+min_element: size->100000 %cpus->14.5344 par_total->99µs par_item->990ps throughput->7GB/s seq_total->57µs seq_item->575ps throughput->12GB/s
+min_element: size->10000 %cpus->6.76074 par_total->21µs par_item->2ns throughput->3GB/s seq_total->5µs seq_item->577ps throughput->12GB/s
+min_element: size->1000 %cpus->2.48505 par_total->9µs par_item->9ns throughput->786MB/s seq_total->964ns seq_item->964ps throughput->7GB/s
+min_element: size->100 %cpus->0.455501 par_total->7µs par_item->71ns throughput->106MB/s seq_total->130ns seq_item->1ns throughput->5GB/s
+max_element tests
+int64_t
+max_element: size->200000000 %cpus->37.0484 par_total->86ms par_item->431ps throughput->17GB/s seq_total->127ms seq_item->639ps throughput->11GB/s
+max_element: size->100000000 %cpus->52.1196 par_total->32ms par_item->320ps throughput->23GB/s seq_total->66ms seq_item->669ps throughput->11GB/s
+max_element: size->10000000 %cpus->49.9776 par_total->3ms par_item->330ps throughput->22GB/s seq_total->6ms seq_item->661ps throughput->11GB/s
+max_element: size->1000000 %cpus->46.2013 par_total->391µs par_item->391ps throughput->19GB/s seq_total->723µs seq_item->723ps throughput->10GB/s
+max_element: size->100000 %cpus->20.2241 par_total->70µs par_item->709ps throughput->10GB/s seq_total->57µs seq_item->574ps throughput->12GB/s
+max_element: size->10000 %cpus->6.11726 par_total->35µs par_item->3ns throughput->2GB/s seq_total->8µs seq_item->859ps throughput->8GB/s
+max_element: size->1000 %cpus->2.69179 par_total->9µs par_item->9ns throughput->789MB/s seq_total->1µs seq_item->1ns throughput->7GB/s
+max_element: size->100 %cpus->0.220249 par_total->14µs par_item->140ns throughput->54MB/s seq_total->124ns seq_item->1ns throughput->6GB/s
+transform tests
+int64_t
+transform: size->200000000 %cpus->26.2322 par_total->171ms par_item->858ps throughput->8GB/s seq_total->180ms seq_item->901ps throughput->8GB/s
+transform: size->100000000 %cpus->25.8413 par_total->86ms par_item->862ps throughput->8GB/s seq_total->89ms seq_item->891ps throughput->8GB/s
+transform: size->10000000 %cpus->26.1781 par_total->8ms par_item->862ps throughput->8GB/s seq_total->9ms seq_item->903ps throughput->8GB/s
+transform: size->1000000 %cpus->19.3559 par_total->1ms par_item->1ns throughput->6GB/s seq_total->848µs seq_item->848ps throughput->8GB/s
+transform: size->100000 %cpus->15.1448 par_total->62µs par_item->621ps throughput->11GB/s seq_total->37µs seq_item->376ps throughput->19GB/s
+transform: size->10000 %cpus->2.92981 par_total->31µs par_item->3ns throughput->2GB/s seq_total->3µs seq_item->369ps throughput->20GB/s
+transform: size->1000 %cpus->1.18402 par_total->7µs par_item->7ns throughput->1009MB/s seq_total->358ns seq_item->358ps throughput->20GB/s
+transform: size->100 %cpus->0.188084 par_total->16µs par_item->164ns throughput->46MB/s seq_total->124ns seq_item->1ns throughput->6GB/s
+transform2 tests
+int64_t
+transform: size->200000000 %cpus->39.1333 par_total->115ms par_item->576ps throughput->12GB/s seq_total->180ms seq_item->901ps throughput->8GB/s
+transform: size->100000000 %cpus->39.1888 par_total->57ms par_item->573ps throughput->12GB/s seq_total->89ms seq_item->898ps throughput->8GB/s
+transform: size->10000000 %cpus->38.067 par_total->5ms par_item->590ps throughput->12GB/s seq_total->8ms seq_item->898ps throughput->8GB/s
+transform: size->1000000 %cpus->29.8284 par_total->704µs par_item->704ps throughput->10GB/s seq_total->840µs seq_item->840ps throughput->8GB/s
+transform: size->100000 %cpus->13.4997 par_total->66µs par_item->663ps throughput->11GB/s seq_total->35µs seq_item->358ps throughput->20GB/s
+transform: size->10000 %cpus->6.32506 par_total->22µs par_item->2ns throughput->3GB/s seq_total->5µs seq_item->564ps throughput->13GB/s
+transform: size->1000 %cpus->1.18722 par_total->12µs par_item->12ns throughput->614MB/s seq_total->590ns seq_item->589ps throughput->12GB/s
+transform: size->100 %cpus->0.552995 par_total->8µs par_item->86ns throughput->87MB/s seq_total->192ns seq_item->1ns throughput->3GB/s
+map_reduce tests
+int64_t
+map_reduce: size->200000000 %cpus->86.0252 par_total->55ms par_item->279ps throughput->26GB/s seq_total->192ms seq_item->961ps throughput->7GB/s
+map_reduce: size->100000000 %cpus->89.1616 par_total->27ms par_item->270ps throughput->27GB/s seq_total->96ms seq_item->964ps throughput->7GB/s
+map_reduce: size->10000000 %cpus->88.3654 par_total->2ms par_item->271ps throughput->27GB/s seq_total->9ms seq_item->959ps throughput->7GB/s
+map_reduce: size->1000000 %cpus->58.1734 par_total->428µs par_item->428ps throughput->17GB/s seq_total->996µs seq_item->996ps throughput->7GB/s
+map_reduce: size->100000 %cpus->30.9388 par_total->47µs par_item->479ps throughput->15GB/s seq_total->59µs seq_item->593ps throughput->12GB/s
+map_reduce: size->10000 %cpus->9.73191 par_total->16µs par_item->1ns throughput->4GB/s seq_total->6µs seq_item->641ps throughput->11GB/s
+map_reduce: size->1000 %cpus->2.43363 par_total->6µs par_item->6ns throughput->1GB/s seq_total->660ns seq_item->660ps throughput->11GB/s
+map_reduce: size->100 %cpus->0.179316 par_total->29µs par_item->292ns throughput->26MB/s seq_total->210ns seq_item->2ns throughput->3GB/s
+map_reduce2 tests
+int64_t
+map_reduce2: size->100000 %cpus->88.4449 par_total->3s par_item->35µs throughput->220KB/s seq_total->12s seq_item->125µs throughput->62KB/s
+map_reduce2: size->10000 %cpus->88.3438 par_total->356ms par_item->35µs throughput->219KB/s seq_total->1s seq_item->125µs throughput->62KB/s
+map_reduce2: size->1000 %cpus->48.0802 par_total->65ms par_item->65µs throughput->119KB/s seq_total->125ms seq_item->125µs throughput->62KB/s
+map_reduce2: size->100 %cpus->25.0185 par_total->12ms par_item->125µs throughput->62KB/s seq_total->12ms seq_item->126µs throughput->62KB/s
+map_reduce2: size->3 %cpus->28.6694 par_total->329µs par_item->109µs throughput->71KB/s seq_total->377µs seq_item->125µs throughput->62KB/s
+scan tests
+int64_t
+scan: size->200000000 %cpus->57.9872 par_total->4s par_item->22ns throughput->344MB/s seq_total->10s seq_item->51ns throughput->148MB/s
+scan: size->100000000 %cpus->58.6725 par_total->2s par_item->21ns throughput->348MB/s seq_total->5s seq_item->51ns throughput->148MB/s
+scan: size->10000000 %cpus->58.8671 par_total->217ms par_item->21ns throughput->350MB/s seq_total->513ms seq_item->51ns throughput->148MB/s
+scan: size->1000000 %cpus->58.4341 par_total->21ms par_item->21ns throughput->347MB/s seq_total->51ms seq_item->51ns throughput->148MB/s
+scan: size->100000 %cpus->48.3242 par_total->2ms par_item->26ns throughput->286MB/s seq_total->5ms seq_item->51ns throughput->148MB/s
+scan: size->10000 %cpus->38.354 par_total->335µs par_item->33ns throughput->227MB/s seq_total->515µs seq_item->51ns throughput->148MB/s
+scan: size->1000 %cpus->9.06806 par_total->141µs par_item->141ns throughput->53MB/s seq_total->51µs seq_item->51ns throughput->148MB/s
+scan: size->100 %cpus->4.9015 par_total->28µs par_item->287ns throughput->26MB/s seq_total->5µs seq_item->56ns throughput->135MB/s
