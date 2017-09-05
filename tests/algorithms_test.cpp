@@ -521,9 +521,10 @@ void scan_test( size_t SZ ) {
 
 int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
+	size_t const LARGE_TEST_SZ = 200'000'000;
 	auto ts = daw::get_task_scheduler( );
+	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
 
-	/*
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -552,27 +553,27 @@ int main( int, char ** ) {
 	}
 	std::cout << "sort tests\n";
 	std::cout << "int64_t\n";
-	sort_test( 500'000'000 );
+	sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    sort_test( n );
 	}
 
 	std::cout << "stable_sort tests\n";
 	std::cout << "int64_t\n";
-	stable_sort_test( 500'000'000 );
+	//stable_sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    stable_sort_test( n );
 	}
 
 	std::cout << "reduce tests\n";
 	std::cout << "int64_t\n";
-	reduce_test<int64_t>( 500'000'000 );
+	reduce_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    reduce_test<int64_t>( n );
 	}
 
 	std::cout << "double\n";
-	reduce_test<double>( 500'000'000 );
+	reduce_test<double>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    reduce_test<double>( n );
 	}
@@ -582,42 +583,42 @@ int main( int, char ** ) {
 	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
 	    return lhs*rhs;
 	};
-	reduce_test2<uint64_t>( 500'000'000, 1, bin_op );
+	reduce_test2<uint64_t>( LARGE_TEST_SZ, 1, bin_op );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    reduce_test2<uint64_t>( n, 1, bin_op );
 	}
 
 	std::cout << "min_element tests\n";
 	std::cout << "int64_t\n";
-	min_element_test<int64_t>( 500'000'000 );
+	min_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    min_element_test<int64_t>( n );
 	}
 
 	std::cout << "max_element tests\n";
 	std::cout << "int64_t\n";
-	max_element_test<int64_t>( 500'000'000 );
+	max_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    max_element_test<int64_t>( n );
 	}
 
 	std::cout << "transform tests\n";
 	std::cout << "int64_t\n";
-	transform_test<int64_t>( 500'000'000 );
+	transform_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    transform_test<int64_t>( n );
 	}
 
 	std::cout << "transform2 tests\n";
 	std::cout << "int64_t\n";
-	transform_test2<int64_t>( 500'000'000 );
+	transform_test2<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    transform_test2<int64_t>( n );
 	}
 
 	std::cout << "map_reduce tests\n";
 	std::cout << "int64_t\n";
-	map_reduce_test<int64_t>( 500'000'000 );
+	map_reduce_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 	    map_reduce_test<int64_t>( n );
 	}
@@ -628,11 +629,10 @@ int main( int, char ** ) {
 	    map_reduce_test2<int64_t>( n );
 	}
 	map_reduce_test2<int64_t>( 3 );
-	*/
 
 	std::cout << "scan tests\n";
 	std::cout << "int64_t\n";
-	scan_test<int64_t>( 500'000'000 );
+	scan_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		scan_test<int64_t>( n );
 	}
