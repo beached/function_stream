@@ -2,7 +2,7 @@
 
 A parallel library
 
-## High Level Algorithms
+## [High Level Algorithms](./include/algorithms.h)
 
 ### for_each, for_each_n
 ``` C++
@@ -50,7 +50,9 @@ template<typename Iterator, typename OutputIterator, typename BinaryOp> void sca
 template<typename Iterator, typename OutputIterator, typename BinaryOp> void scan( Iterator first, Iterator last, BinaryOp binary_op );
 ```
 
-## Task Based Parallelism
+## [Task Based Parallelism](./include/task_scheduler.h)
 
 
-## Parallel Stream/Pipeline 
+## [Future's](./include/future_result.h)
+
+## [Parallel Stream/Pipeline](./include/function_stream.h)
