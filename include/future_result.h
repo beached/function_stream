@@ -314,7 +314,9 @@ namespace daw {
 			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
 			                  std::tuple<Callables...> const &callables, std::tuple<Args...> const & args ) {
 				ts.add_task( [semaphore, &results, &callables, &args]( ) mutable {
-					std::get<N>( results ) = daw::apply( std::get<N>( callables ), args );
+					try {
+						std::get<N>( results ) = daw::apply( std::get<N>( callables ), args );
+					} catch( ... ) { std::get<N>( results ) = std::current_exception; }
 					semaphore.notify( );
 				} );
 				call_func_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables, args );
@@ -343,7 +345,7 @@ namespace daw {
 			template<typename... Args>
 			auto operator()( Args... args ) {
 				daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
-				using result_t = std::tuple<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>...>;
+				using result_t = std::tuple<daw::expected_t<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>>...>;
 				auto tp_args = std::make_tuple( std::move( args )... );
 				future_result_t<result_t> result;
 				auto th = std::thread{
@@ -357,7 +359,6 @@ namespace daw {
 				};
 				th.detach( );
 				return result;
-
 			}
 		};	// result_t
 	} // namespace impl
