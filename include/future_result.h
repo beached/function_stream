@@ -313,12 +313,12 @@ namespace daw {
 			template<typename Results, typename... Args>
 			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
 			                  std::tuple<Callables...> const &callables, std::tuple<Args...> const & args ) {
-				ts.add_task( [semaphore, &results, &callables, &args]( ) mutable {
+				schedule_task( semaphore, [&results, &callables, &args ]( ) mutable noexcept {
 					try {
 						std::get<N>( results ) = daw::apply( std::get<N>( callables ), args );
 					} catch( ... ) { std::get<N>( results ) = std::current_exception; }
-					semaphore.notify( );
-				} );
+				},
+				               ts );
 				call_func_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables, args );
 			}
 		}; // call_func_t

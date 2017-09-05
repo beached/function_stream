@@ -106,15 +106,21 @@ namespace daw {
 	/// Add a single task to the supplied task scheduler and notify supplied semaphore when complete
 	///
 	/// @param semaphore Semaphore to notify when task is completed
-	/// @param ts task_scheduler to add task to
 	/// @param task Task of form void( ) to run
+	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	int schedule_task( daw::shared_semaphore semaphore, task_scheduler &ts, Task task ) {
+	void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler &ts = get_task_scheduler( ) ) {
 		ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
 			task( );
 			semaphore.notify( );
 		} );
-		return 0;
+	}
+
+	template<typename Task>
+	daw::shared_semaphore create_waitable_task( Task task, task_scheduler & ts = get_task_scheduler( ) ) {
+		daw::shared_semaphore semaphore;
+		schedule_task( semaphore, ts, task );
+		return semaphore;
 	}
 
 	/// Run concurrent tasks and return when completed
@@ -123,12 +129,16 @@ namespace daw {
 	/// @returns a semaphore that will stop waiting when all tasks complete
 	template<typename... Tasks>
 	daw::shared_semaphore create_task_group( Tasks &&... tasks ) {
-
 		auto ts = get_task_scheduler( );
 		daw::shared_semaphore semaphore{ 1 - sizeof...( tasks ) };
 
+		auto const st = [&]( auto task ) {
+			schedule_task( semaphore, std::move( task ), ts );
+			return 0;
+		};
+
 		// auto const dummy = { ( impl::schedule_task( semaphore, ts, tasks ), 0 )... };
-		auto const dummy = {schedule_task( semaphore, ts, tasks )...};
+		auto const dummy = {st( tasks )...};
 		Unused( dummy );
 		return semaphore;
 	}

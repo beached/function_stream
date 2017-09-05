@@ -92,7 +92,7 @@ namespace daw {
 					auto const ranges = split_range_t<Iterator, MinRangeSize>{}( first, last, ts.size( ) );
 					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
 					for( auto const &rng : ranges ) {
-						schedule_task( semaphore, ts, [func, rng]( ) { func( rng.first, rng.last ); } );
+						schedule_task( semaphore, [func, rng]( ) { func( rng.first, rng.last ); }, ts );
 					}
 					return semaphore;
 				}
@@ -118,11 +118,12 @@ namespace daw {
 						for( size_t n = 1; n < count; n += 2 ) {
 							daw::exception::daw_throw_on_false( ranges[n - 1].second == ranges[n].first,
 							                                    "Non continuous range" );
+							schedule_task( semaphore,
+							               [func, &ranges, n]( ) mutable {
+								               func( ranges[n - 1].first, ranges[n].first, ranges[n].second );
+							               },
+							               ts );
 
-							ts.add_task( [func, &ranges, n, semaphore]( ) mutable {
-								func( ranges[n - 1].first, ranges[n].first, ranges[n].second );
-								semaphore.notify( );
-							} );
 							next_ranges.push_back( std::make_pair( ranges[n - 1].first, ranges[n].second ) );
 						}
 						semaphore.wait( );
