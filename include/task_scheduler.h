@@ -23,12 +23,15 @@
 #pragma once
 
 #include <atomic>
+#include <boost/optional.hpp>
 #include <functional>
+#include <list>
 #include <memory>
 #include <thread>
 #include <vector>
 
 #include <daw/daw_locked_stack.h>
+#include <daw/daw_locked_value.h>
 #include <daw/daw_semaphore.h>
 #include <daw/daw_utility.h>
 
@@ -54,6 +57,7 @@ namespace daw {
 		bool m_block_on_destruction;
 		size_t m_num_threads;
 		std::atomic_uintmax_t m_task_count;
+		daw::lockable_value_t<std::list<boost::optional<std::thread>>> m_other_threads;
 		friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 		                               boost::optional<daw::shared_semaphore> semaphore );
 
@@ -75,6 +79,7 @@ namespace daw {
 		size_t size( ) const {
 			return m_tasks.size( );
 		}
+		bool am_i_in_pool( ) const noexcept;
 	}; // task_scheduler_impl
 
 	class task_scheduler {
@@ -99,6 +104,15 @@ namespace daw {
 		size_t size( ) const {
 			return m_impl->size( );
 		}
+
+		template<typename Function>
+		void blocking_section( Function func ) {
+			if( m_impl->am_i_in_pool( ) ) {
+				blocking( func, 1 );
+			} else {
+				func( );
+			}
+		}
 	}; // task_scheduler
 
 	task_scheduler get_task_scheduler( );
@@ -109,7 +123,7 @@ namespace daw {
 	/// @param task Task of form void( ) to run
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler &ts = get_task_scheduler( ) ) {
+	void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler &ts ) {
 		ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
 			task( );
 			semaphore.notify( );
@@ -117,10 +131,22 @@ namespace daw {
 	}
 
 	template<typename Task>
-	daw::shared_semaphore create_waitable_task( Task task, task_scheduler & ts = get_task_scheduler( ) ) {
+	void schedule_task( daw::shared_semaphore semaphore, Task task ) {
+		auto ts = get_task_scheduler( );
+		schedule_task( std::move( semaphore ), std::move( task ), ts );
+	}
+
+	template<typename Task>
+	daw::shared_semaphore create_waitable_task( Task task, task_scheduler & ts ) {
 		daw::shared_semaphore semaphore;
 		schedule_task( semaphore, ts, task );
 		return semaphore;
+	}
+
+	template<typename Task>
+	daw::shared_semaphore create_waitable_task( Task task ) { 
+		auto ts = get_task_scheduler( );
+		return create_waitable_task( std::move( task ), ts );
 	}
 
 	/// Run concurrent tasks and return when completed
@@ -148,7 +174,18 @@ namespace daw {
 	/// @param tasks callable items of the form void( )
 	template<typename... Tasks>
 	void invoke_tasks( Tasks &&... tasks ) {
-		create_task_group( std::forward<Tasks>( tasks )... ).wait( );
+		blocking_section( [&]( ) { create_task_group( std::forward<Tasks>( tasks )... ).wait( ); } );
+	}
+
+	template<typename Function>
+	void blocking_section( task_scheduler & ts, Function && func ) {
+		ts.blocking_section( std::forward<Function>( func ) );
+	}
+
+	template<typename Function>
+	void blocking_section( Function && func ) {
+		auto ts = get_task_scheduler( );
+		ts.blocking_section( std::forward<Function>( func ) );
 	}
 } // namespace daw
 

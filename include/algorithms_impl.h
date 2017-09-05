@@ -99,13 +99,15 @@ namespace daw {
 
 				template<typename RandomIterator, typename Func>
 				void parallel_for_each( RandomIterator const first, RandomIterator const last, Func func ) {
-					impl::partition_range( first, last,
-					                       [func]( RandomIterator f, RandomIterator l ) {
-						                       for( auto it = f; it != l; ++it ) {
-							                       func( *it );
-						                       }
-					                       } )
-					    .wait( );
+					blocking_section( [&]( ) {
+						impl::partition_range( first, last,
+						                       [func]( RandomIterator f, RandomIterator l ) {
+							                       for( auto it = f; it != l; ++it ) {
+								                       func( *it );
+							                       }
+						                       } )
+						    .wait( );
+					} );
 				}
 
 				template<typename Iterator, typename Function>
@@ -126,7 +128,7 @@ namespace daw {
 
 							next_ranges.push_back( std::make_pair( ranges[n - 1].first, ranges[n].second ) );
 						}
-						semaphore.wait( );
+						ts.blocking_section( [&semaphore]( ) { semaphore.wait( ); } );
 						if( count != ranges.size( ) ) {
 							next_ranges.push_back( ranges.back( ) );
 						}
@@ -291,15 +293,18 @@ namespace daw {
 				void parallel_map( Iterator first1, Iterator const last1, OutputIterator first2,
 				                   UnaryOperation unary_op ) {
 
-					partition_range<MinRangeSize>( first1, last1,
-					                               [first1, first2, unary_op]( Iterator f, Iterator const l ) {
-						                               auto out_it = std::next( first2, std::distance( first1, f ) );
+					blocking_section( [&]( ) {
+						partition_range<MinRangeSize>( first1, last1,
+						                               [first1, first2, unary_op]( Iterator f, Iterator const l ) {
+							                               auto out_it =
+							                                   std::next( first2, std::distance( first1, f ) );
 
-						                               for( ; f != l; ++f, ++out_it ) {
-							                               *out_it = unary_op( *f );
-						                               }
-					                               } )
-					    .wait( );
+							                               for( ; f != l; ++f, ++out_it ) {
+								                               *out_it = unary_op( *f );
+							                               }
+						                               } )
+						    .wait( );
+					} );
 				}
 
 				template<size_t MinRangeSize = 512, typename Iterator, typename T, typename MapFunction,

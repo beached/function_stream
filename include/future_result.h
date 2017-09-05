@@ -353,8 +353,10 @@ namespace daw {
 						auto ts = get_task_scheduler( );
 						result_t tp_result;
 						impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
-						semaphore.wait( );
-						result.set_value( std::move( tp_result ) );
+
+				        ts.blocking_section( [&semaphore]( ) { semaphore.wait( ); } );
+
+				        result.set_value( std::move( tp_result ) );
 					}
 				};
 				th.detach( );
