@@ -110,11 +110,10 @@ int main( int argc, char **argv ) {
 			return fib( 20 );
 		};
 
-		auto f_grp = daw::make_future_result_group( fib2, fib2 );
+		auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
 		std::cout << "Function Group\n";
-		std::cout << *std::get<0>(f_grp.get( )) << '\n';
-		std::cout << *std::get<1>(f_grp.get( )) << '\n';
-
+		std::cout << *std::get<0>( f_grp ) << '\n';
+		std::cout << *std::get<1>( f_grp ) << '\n';
 	}
 	return EXIT_SUCCESS;
 }
