@@ -2,6 +2,8 @@
 
 A parallel library
 
+## [Benchmarks](./benchmarks/)
+
 ## [High Level Algorithms](./include/algorithms.h)
 
 ### for_each, for_each_n
