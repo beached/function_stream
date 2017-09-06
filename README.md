@@ -201,7 +201,7 @@ Check if waiting would block.
  explicit future_result_t::operator bool( ) const;
  ```
 
-### Setting value in future
+### Setting value in future_result_t
 Sets the value and allows threads waiting to proceed.
 ``` C++
 void future_result_t::set_value( Result value ) noexcept;
