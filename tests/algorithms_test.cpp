@@ -103,8 +103,8 @@ void for_each_test( size_t SZ ) {
 		a.emplace_back( 1 );
 	}
 	a[SZ / 2] = 4;
-	auto find_even = [&]( int x ) {
-		if( x % 2 == 0 ) {
+	auto const find_even = [&]( auto x ) {
+		if( static_cast<intmax_t>(x) % 2 == 0 ) {
 			found = true;
 		}
 	};

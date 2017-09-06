@@ -78,7 +78,7 @@ namespace daw {
 				using value_type = typename std::iterator_traits<Iterator>::value_type;
 				return ::daw::algorithm::parallel::reduce(
 				    first, last, std::move( init ),
-				    []( auto const &lhs, auto const &rhs ) -> value_type { return lhs + rhs; } );
+				    []( auto const &lhs, auto const &rhs ) -> value_type { retyrn lhs + rhs; } );
 			}
 
 			template<typename Iterator>

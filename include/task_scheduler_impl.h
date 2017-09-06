@@ -55,6 +55,7 @@ namespace daw {
 			size_t m_num_threads;
 			std::atomic_uintmax_t m_task_count;
 			daw::lockable_value_t<std::list<boost::optional<std::thread>>> m_other_threads;
+
 			friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 			                               boost::optional<daw::shared_semaphore> semaphore );
 
