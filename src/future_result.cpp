@@ -23,10 +23,12 @@
 #include "future_result.h"
 
 namespace daw {
-	future_result_base_t::~future_result_base_t( ) = default;
+	namespace impl {
+		future_result_base_t::~future_result_base_t( ) = default;
 
-	future_result_base_t::operator bool( ) const {
-		return this->try_wait( );
+		future_result_base_t::operator bool( ) const {
+			return this->try_wait( );
+		}
 	}
 
 	future_result_t<void>::member_data_t::~member_data_t( ) = default;
