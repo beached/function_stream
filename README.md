@@ -5,6 +5,7 @@ A parallel library
 ## [High Level Algorithms](./include/algorithms.h)
 
 ### for_each, for_each_n
+Applies the given function object func to the result of dereferencing every iterator in the range [first, last) (not necessarily in order)
 ``` C++
 template<typename RandomIterator, typename Func> 
 void for_each( RandomIterator const first, RandomIterator const last, Func func );			
@@ -14,16 +15,22 @@ void for_each_n( Iterator first, size_t N, Func func );
 ```
 
 ### fill
+Assigns value to the result of dereferencing every iterator in the range [first, last) (not necessarily in order)
 ``` C++
 template<typename Iterator, typename T> 
 void fill( Iterator first, Iterator last, T const &value );
 ```
 
-### sort, stable_sort
+### sort
+Sorts the elements in the range [first, last) in ascending order. The order of equal elements is not guaranteed to be preserved.  Elements are compared using the given binary comparison function compare.
 ``` C++
 template<typename Iterator, typename Compare> 
 void sort( Iterator first, Iterator last, Compare compare );
+```
 
+### stable_sort
+Sorts the elements in the range [first, last) in ascending order. The order of equal elements is guaranteed to be preserved.  Elements are compared using the given comparison function compare.
+``` C++
 template<typename Iterator, typename Compare> 
 void stable_sort( Iterator first, Iterator last, Compare compare );
 ```
