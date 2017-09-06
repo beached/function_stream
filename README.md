@@ -1,8 +1,6 @@
 # Function Stram
 
-A parallel library
-
-[Benchmarks](./benchmarks/)
+A parallel library with task, pipeline and algorithmic parallelism.  Some examples can be found in the [tests](./tests) folder and some benchmarks are in the [Benchmarks](./benchmarks/) folder.
 
 ## [High Level Algorithms](./include/algorithms.h)
 
