@@ -30,34 +30,34 @@
 #include "task_scheduler.h"
 
 namespace daw {
-	task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
-	    : m_continue{false}
-	    , m_block_on_destruction{block_on_destruction}
-	    , m_num_threads{num_threads}
-	    , m_task_count{0}
-	    , m_other_threads{} {
-
-		for( size_t n = 0; n < m_num_threads; ++n ) {
-			m_tasks.emplace_back( );
-		}
-	}
-
-	task_scheduler_impl::~task_scheduler_impl( ) {
-		stop( m_block_on_destruction );
-	}
-
-	bool task_scheduler_impl::started( ) const {
-		return m_continue;
-	}
-
 	namespace impl {
+		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
+		    : m_continue{false}
+		    , m_block_on_destruction{block_on_destruction}
+		    , m_num_threads{num_threads}
+		    , m_task_count{0}
+		    , m_other_threads{} {
+
+			for( size_t n = 0; n < m_num_threads; ++n ) {
+				m_tasks.emplace_back( );
+			}
+		}
+
+		task_scheduler_impl::~task_scheduler_impl( ) {
+			stop( m_block_on_destruction );
+		}
+
+		bool task_scheduler_impl::started( ) const {
+			return m_continue;
+		}
+
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 		                  boost::optional<daw::shared_semaphore> semaphore ) {
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
 			while( !semaphore || !semaphore->try_wait( ) ) {
-				task_scheduler_impl::task_t task = nullptr;
+				daw::task_t task = nullptr;
 				{
 					auto self = wself.lock( );
 					if( !self || !self->m_continue ) {
@@ -87,63 +87,63 @@ namespace daw {
 				}
 			}
 		}
+
+		void task_scheduler_impl::start( ) {
+			m_continue = true;
+			for( size_t n = 0; n < m_num_threads; ++n ) {
+				m_threads.emplace_back( [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself ); } );
+			}
+		}
+
+		void task_scheduler_impl::stop( bool block ) noexcept {
+			m_continue = false;
+			for( auto &th : m_threads ) {
+				try {
+					if( th.joinable( ) ) {
+						if( block ) {
+							th.join( );
+						} else {
+							th.detach( );
+						}
+					}
+				} catch( std::exception const & ) {}
+			}
+		}
+
+		std::weak_ptr<task_scheduler_impl> task_scheduler_impl::get_weak_this( ) {
+			std::shared_ptr<task_scheduler_impl> sp = this->shared_from_this( );
+			std::weak_ptr<task_scheduler_impl> wp = sp;
+			return wp;
+		}
+
+		void task_scheduler_impl::add_task( daw::task_t task ) noexcept {
+			if( task ) { // Only allow valid tasks
+				auto id = ( m_task_count++ ) % m_num_threads;
+				m_tasks[id].push_back( std::move( task ) );
+			}
+		}
+
+		bool task_scheduler_impl::am_i_in_pool( ) const noexcept {
+			auto const id = std::this_thread::get_id( );
+			for( auto const &th : m_threads ) {
+				if( th.get_id( ) == id ) {
+					return true;
+				}
+			}
+			auto other_threads = m_other_threads.get( );
+			for( auto const &th : *other_threads ) {
+				if( th && th->get_id( ) == id ) {
+					return true;
+				}
+			}
+			return false;
+		}
 	} // namespace impl
 
-	void task_scheduler_impl::start( ) {
-		m_continue = true;
-		for( size_t n = 0; n < m_num_threads; ++n ) {
-			m_threads.emplace_back( [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself ); } );
-		}
-	}
-
-	void task_scheduler_impl::stop( bool block ) noexcept {
-		m_continue = false;
-		for( auto &th : m_threads ) {
-			try {
-				if( th.joinable( ) ) {
-					if( block ) {
-						th.join( );
-					} else {
-						th.detach( );
-					}
-				}
-			} catch( std::exception const & ) {}
-		}
-	}
-
-	std::weak_ptr<task_scheduler_impl> task_scheduler_impl::get_weak_this( ) {
-		std::shared_ptr<task_scheduler_impl> sp = this->shared_from_this( );
-		std::weak_ptr<task_scheduler_impl> wp = sp;
-		return wp;
-	}
-
-	void task_scheduler_impl::add_task( task_scheduler_impl::task_t task ) noexcept {
-		if( task ) { // Only allow valid tasks
-			auto id = ( m_task_count++ ) % m_num_threads;
-			m_tasks[id].push_back( std::move( task ) );
-		}
-	}
-
-	bool task_scheduler_impl::am_i_in_pool( ) const noexcept {
-		auto const id = std::this_thread::get_id( );
-		for( auto const &th : m_threads ) {
-			if( th.get_id( ) == id ) {
-				return true;
-			}
-		}
-		auto other_threads = m_other_threads.get( );
-		for( auto const &th : *other_threads ) {
-			if( th && th->get_id( ) == id ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	task_scheduler::task_scheduler( std::size_t num_threads, bool block_on_destruction )
-	    : m_impl{std::make_shared<task_scheduler_impl>( num_threads, block_on_destruction )} {}
+	    : m_impl{std::make_shared<impl::task_scheduler_impl>( num_threads, block_on_destruction )} {}
 
-	void task_scheduler::add_task( task_scheduler_impl::task_t task ) noexcept {
+	void task_scheduler::add_task( task_t task ) noexcept {
 		m_impl->add_task( std::move( task ) );
 	}
 
@@ -157,6 +157,10 @@ namespace daw {
 
 	bool task_scheduler::started( ) const {
 		return m_impl->started( );
+	}
+
+	size_t task_scheduler::size( ) const {
+		return m_impl->size( );
 	}
 
 	task_scheduler get_task_scheduler( ) {

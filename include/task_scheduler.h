@@ -35,57 +35,13 @@
 #include <daw/daw_semaphore.h>
 #include <daw/daw_utility.h>
 
+#include "task_scheduler_impl.h"
+
 namespace daw {
-	struct task_scheduler_impl;
-
-	namespace impl {
-		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_semaphore> semaphore = boost::none );
-	}
-
-	void blocking( std::function<void( )> task, size_t task_count = 1 );
-
-	struct task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
-		using task_t = std::function<void( )>;
-
-	  private:
-		using task_queue_t = daw::locked_stack_t<task_t>;
-		std::vector<std::thread> m_threads;
-		std::vector<task_queue_t> m_tasks;
-		std::atomic_bool m_continue;
-		std::weak_ptr<task_scheduler_impl> get_weak_this( );
-		bool m_block_on_destruction;
-		size_t m_num_threads;
-		std::atomic_uintmax_t m_task_count;
-		daw::lockable_value_t<std::list<boost::optional<std::thread>>> m_other_threads;
-		friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                               boost::optional<daw::shared_semaphore> semaphore );
-
-		friend void blocking( std::function<void( )> task, size_t task_count );
-
-	  public:
-		task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
-		~task_scheduler_impl( );
-		task_scheduler_impl( task_scheduler_impl && ) = delete;            // TODO: investigate why implicitly deleted
-		task_scheduler_impl &operator=( task_scheduler_impl && ) = delete; // TODO: investigate why implicitly deleted
-
-		task_scheduler_impl( task_scheduler_impl const & ) = delete;
-		task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
-
-		void add_task( task_t task ) noexcept;
-		void start( );
-		void stop( bool block = true ) noexcept;
-		bool started( ) const;
-		size_t size( ) const {
-			return m_tasks.size( );
-		}
-		bool am_i_in_pool( ) const noexcept;
-	}; // task_scheduler_impl
-
 	class task_scheduler {
-		std::shared_ptr<task_scheduler_impl> m_impl;
+		std::shared_ptr<impl::task_scheduler_impl> m_impl;
 
-		friend void blocking( std::function<void( )> task, size_t task_count );
+		friend void daw::blocking( std::function<void( )> task, size_t task_count );
 
 	  public:
 		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ),
@@ -97,13 +53,11 @@ namespace daw {
 		task_scheduler( task_scheduler const & ) = default;
 		task_scheduler &operator=( task_scheduler const & ) = default;
 
-		void add_task( task_scheduler_impl::task_t task ) noexcept;
+		void add_task( task_t task ) noexcept;
 		void start( );
 		void stop( bool block = true ) noexcept;
 		bool started( ) const;
-		size_t size( ) const {
-			return m_impl->size( );
-		}
+		size_t size( ) const;
 
 		template<typename Function>
 		void blocking_section( Function func ) {
@@ -163,7 +117,6 @@ namespace daw {
 			return 0;
 		};
 
-		// auto const dummy = { ( impl::schedule_task( semaphore, ts, tasks ), 0 )... };
 		auto const dummy = {st( tasks )...};
 		Unused( dummy );
 		return semaphore;

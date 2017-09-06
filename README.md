@@ -88,8 +88,88 @@ void scan( Iterator first, Iterator last, BinaryOp binary_op );
 ```
 
 ## [Task Based Parallelism](./include/task_scheduler.h)
+Implementation of a task stealing work queue.  The default is to have 1 thread per core and block on destruction.
 
+### get default task scheduler
+``` C++
+task_scheduler get_task_scheduler( );
+```
 
+### adding a task to queue
+Add a simple task of the form void( ) to the queue.  
+``` C++
+void task_scheduler::add_task( task_t task ) noexcept;
+```
+
+### starting task scheduler
+``` C++
+void task_scheduler::start( );
+```
+
+### stopping task scheduler
+``` C++
+void task_scheduler::stop( bool block = true );
+```
+
+### check if task scheduler is started
+``` C++
+bool task_scheduler::started( ) const;
+```
+
+### check how many task queues are processing jobs
+``` C++
+size_t task_scheduler::size( ) const;
+```
+
+### indicate code sections that will block thread
+Use blocking section to indicate that another thread can start processing the work queues while this one is blocked.  If the current thread is on of the task_scheduler's own, otherwise it will not start a new thread.  Function is of the form of void( ).
+``` C++
+template<typename Function>
+void task_scheduler::blocking_section( Function func );
+
+template<typename Function>
+void blocking_section( task_scheduler & ts, Function func );
+
+template<typename Function>
+void blocking_section( Function func );
+```
+
+### Scheduling tasks
+Add supplied task to task_scheduler ts and notify supplied semaphore when completed
+``` C++
+template<typename Task>
+void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler &ts );
+```
+
+Add supplied task to default task_scheduler and notify supplied semaphore when completed
+``` C++
+template<typename Task>
+void schedule_task( daw::shared_semaphore semaphore, Task task );
+```
+
+Add supplied task to task_scheduler ts and return a semaphore that will block until it completes
+``` C++
+template<typename Task>
+daw::shared_semaphore create_waitable_task( Task task, task_scheduler & ts );
+```
+
+Add supplied tasks to default task_scheduler and return a semaphore that will block until it completes 
+``` C++
+template<typename Task>
+daw::shared_semaphore create_waitable_task( Task task );
+```
+
+Add supplied tasks to the default task_scheduler and return a semaphore that will block until all complete
+``` C++
+template<typename... Tasks>
+daw::shared_semaphore create_task_group( Tasks &&... tasks );
+```
+
+Add supplied tasks to the default task_scheduler and return when they all complete
+``` C++
+template<typename... Tasks>
+void invoke_tasks( Tasks &&... tasks );
+```
 ## [Future's](./include/future_result.h)
 
 ## [Parallel Stream/Pipeline](./include/function_stream.h)
