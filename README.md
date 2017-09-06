@@ -2,7 +2,7 @@
 
 A parallel library
 
-## [Benchmarks](./benchmarks/)
+[Benchmarks](./benchmarks/)
 
 ## [High Level Algorithms](./include/algorithms.h)
 
@@ -173,5 +173,96 @@ template<typename... Tasks>
 void invoke_tasks( Tasks &&... tasks );
 ```
 ## [Future's](./include/future_result.h)
+
+Stores the results of parallel operations or exceptions.  Blocks until value is set.  If an exception is set it will throw when value is retrieved.
+``` C++
+template<typename Result> struct future_result_t;
+```
+
+### Waiting for values to become available
+Wait indefinitely until value is avaiable
+``` C++
+void future_result_t::wait( ) const override;
+```
+
+Wait for a specific time duration.  Returns a future_status that indicates whether the value is available or not.  Takes a std::chrono::duration as argument
+``` C++
+template<typename Rep, typename Period>
+future_status future_result_t::wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const;
+```
+
+Wait until a specific time.  Returns a future_status that indicates whether the value is available or not.  Takes a std::chrono::time_point as argument
+``` C++
+template<typename Rep, typename Period>
+future_status future_result_t::wait_until( std::chrono::time_point<Clock, Duration> const & timeout_time ) const;
+```
+
+Check if waiting would block.
+``` C++
+ bool future_result_t::try_wait( ) const override
+ explicit future_result_t::operator bool( ) const;
+ ```
+
+### Setting value in future
+Sets the value and allows threads waiting to proceed.
+``` C++
+void future_result_t::set_value( Result value ) noexcept;
+```
+
+Do not return a value but a throw exception
+``` C++
+template<typename Exception>
+void set_exception( Exception const &ex );
+```
+
+Return current exception that was just thrown
+``` C++
+void set_exception( );
+```
+
+Set the value from the result of function and optional arguments args
+``` C++
+template<typename Function, typename... Args>
+void from_code( Function func, Args &&... args );
+```
+
+### Retreiving the value from future_result_t
+Check if the future result is an exception
+``` C++
+bool is_exception( ) const;
+```
+
+Get the result, will throw if exception is stored
+``` C++
+Result const &get( ) const;
+```
+
+### Creating future results
+
+These functions will create a task on the specified task_scheduler or use the default (via get_task_scheduler( )).  An optional semaphore can be supplied for situations where one does not want to return until a group of results is available.  Optional arguments args can be provided to function.
+``` C++
+template<typename Function, typename... Args>
+auto make_future_result( task_scheduler ts, Function func, Args &&... args );
+
+template<typename Function, typename... Args>
+auto make_future_result( task_scheduler ts, daw::shared_semaphore semaphore, Function func, Args &&... args );
+
+template<typename Function, typename... Args>
+auto make_future_result( Function func, Args &&... args );
+```
+
+These functions will return a tuple of future_results_t for all functions specified.
+
+Make a future result group callable.  The result can be called with arguments to pass to all functions
+``` C++
+template<typename... Functions>
+auto make_callable_future_result_group( Functions... functions );
+```
+
+Make a default result group with no arguments.
+``` C++
+template<typename... Functions>
+auto make_future_result_group( Functions... functions );
+```
 
 ## [Parallel Stream/Pipeline](./include/function_stream.h)

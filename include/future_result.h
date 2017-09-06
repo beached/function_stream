@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <tuple>
 
@@ -106,31 +107,26 @@ namespace daw {
 			}
 		}
 
-		template<typename... Args>
-		future_status wait_for( Args &&... args ) const {
+		template<typename Rep, typename Period>
+        future_status wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
 			if( future_status::deferred == m_data->m_status || future_status::ready == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore.wait_for( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_for( rel_time ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
 		}
 
-		template<typename... Args>
-		future_status wait_until( Args &&... args ) const {
+		template<typename Clock, typename Duration>
+        future_status wait_until( std::chrono::time_point<Clock, Duration> const & timeout_time ) const {
 			if( future_status::deferred == m_data->m_status || future_status::ready == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore.wait_until( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_until( timeout_time ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
-		}
-
-		Result const &get( ) const {
-			wait( );
-			return m_data->m_result.get( );
 		}
 
 		bool try_wait( ) const override {
@@ -152,14 +148,25 @@ namespace daw {
 			m_data->m_semaphore.notify( );
 		}
 
-		bool is_exception( ) const {
-			wait( );
-			return m_data->m_result.has_exception( );
+		void set_exception( ) {
+			m_data->m_result = result_t{typename result_t::exception_tag{}};
+			m_data->m_status = future_status::ready;
+			m_data->m_semaphore.notify( );
 		}
 
 		template<typename Function, typename... Args>
 		void from_code( Function func, Args &&... args ) {
 			m_data->from_code( std::move( func ), std::forward<Args>( args )... );
+		}
+
+		bool is_exception( ) const {
+			wait( );
+			return m_data->m_result.has_exception( );
+		}
+
+		Result const &get( ) const {
+			wait( );
+			return m_data->m_result.get( );
 		}
 	}; // future_result_t
 
@@ -211,23 +218,23 @@ namespace daw {
 		std::weak_ptr<member_data_t> weak_ptr( );
 		void wait( ) const override;
 
-		template<typename... Args>
-		future_status wait_for( Args &&... args ) const {
+		template<typename Rep, typename Period>
+        future_status wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
 			if( future_status::deferred == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore.wait_for( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_for( rel_time ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
 		}
 
-		template<typename... Args>
-		future_status wait_until( Args &&... args ) const {
+		template<typename Clock, typename Duration>
+        future_status wait_until( std::chrono::time_point<Clock, Duration> const & timeout_time ) const {
 			if( future_status::deferred == m_data->m_status ) {
 				return m_data->m_status;
 			}
-			if( m_data->m_semaphore.wait_until( std::forward<Args>( args )... ) ) {
+			if( m_data->m_semaphore.wait_until( timeout_time ) ) {
 				return m_data->m_status;
 			}
 			return future_status::timeout;
@@ -241,6 +248,12 @@ namespace daw {
 		template<typename Exception>
 		void set_exception( Exception const &ex ) {
 			m_data->m_result = result_t{typename result_t::exception_tag{}, ex};
+			m_data->m_status = future_status::ready;
+			m_data->m_semaphore.notify( );
+		}
+
+		void set_exception( ) {
+			m_data->m_result = result_t{typename result_t::exception_tag{}};
 			m_data->m_status = future_status::ready;
 			m_data->m_semaphore.notify( );
 		}
@@ -274,17 +287,21 @@ namespace daw {
 		return make_future_result( get_task_scheduler( ), func, std::forward<Args>( args )... );
 	}
 
+	template<typename... Functions>
+	auto make_callable_future_result_group( Functions... functions ) {
+		return impl::result_t<Functions...>{ std::move( functions )... };
+	}
+
 	/// Create a group of functions that all return at the same time.  A tuple of results is returned
 	//
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
 	auto make_future_result_group( Functions... functions ) {
-		return impl::result_t<Functions...>{ std::move( functions )... }( );
+		using result_t = decltype( make_callable_future_result_group( std::move( functions )... )( ) );
+		boost::optional<result_t> result;
+		blocking_section( [&]( ) { result = make_callable_future_result_group( std::move( functions )... )( ); } );
+		return *result;
 	}
 
-	template<typename... Functions>
-	auto make_callable_future_result_group( Functions... functions ) {
-		return impl::result_t<Functions...>{ std::move( functions )... };
-	}
 } // namespace daw
 
