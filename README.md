@@ -266,3 +266,28 @@ auto make_future_result_group( Functions... functions );
 ```
 
 ## [Parallel Stream/Pipeline](./include/function_stream.h)
+
+Create a pipelined set of functions where the result is passed to each subsequent function.  A future_result_t is returned at the end.  Each function call creates a task in task scheduler for scheduling.  This allows one to add parallelism to serial lists of functions or blocks of code.
+
+A functon stream is callable with the arguments of the first function
+``` C++
+template<typename... Functions> class function_stream;
+```
+
+Create a function stream from a list of callables.  The result is a future_result_t with the result type of the last function in the list.
+``` C++
+template<typename... Functions>
+constexpr auto make_function_stream( Functions &&... funcs );
+```
+
+Wait for a function_stream result to complete
+``` C++
+template<typename FunctionStream>
+void wait_for_function_streams( FunctionStream & function_stream );
+```
+
+Wait for a group of function stream results to complete
+``` C++
+template<typename... FunctionStreams>
+void wait_for_function_streams( FunctionStreams&... function_streams );
+```
