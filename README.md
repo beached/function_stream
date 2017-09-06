@@ -4,6 +4,8 @@ A parallel library with task, pipeline and algorithmic parallelism.  Some exampl
 
 ## [High Level Algorithms](./include/algorithms.h)
 
+[Examples](./tests/algorithms_test.cpp)
+
 ### for_each, for_each_n
 Applies the given function object func to the result of dereferencing every iterator in the range [first, last) (not necessarily in order)
 ``` C++
@@ -88,6 +90,9 @@ void scan( Iterator first, Iterator last, BinaryOp binary_op );
 ```
 
 ## [Task Based Parallelism](./include/task_scheduler.h)
+
+[Examples](./tests/task_scheduler_test.cpp)
+
 Implementation of a task stealing work queue.  The default is to have 1 thread per core and block on destruction.
 
 ### get default task scheduler
@@ -171,6 +176,8 @@ template<typename... Tasks>
 void invoke_tasks( Tasks &&... tasks );
 ```
 ## [Future's](./include/future_result.h)
+
+[Examples](./tests/function_stream_test.cpp)
 
 Stores the results of parallel operations or exceptions.  Blocks until value is set.  If an exception is set it will throw when value is retrieved.
 ``` C++
