@@ -143,10 +143,6 @@ namespace daw {
 	task_scheduler::task_scheduler( std::size_t num_threads, bool block_on_destruction )
 	    : m_impl{std::make_shared<impl::task_scheduler_impl>( num_threads, block_on_destruction )} {}
 
-	void task_scheduler::add_task( task_t task ) noexcept {
-		m_impl->add_task( std::move( task ) );
-	}
-
 	void task_scheduler::start( ) {
 		m_impl->start( );
 	}

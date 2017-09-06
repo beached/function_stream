@@ -103,7 +103,8 @@ task_scheduler get_task_scheduler( );
 ### adding a task to queue
 Add a simple task of the form void( ) to the queue.  
 ``` C++
-void task_scheduler::add_task( task_t task ) noexcept;
+template<typename Task>
+void task_scheduler::add_task( Task task ) noexcept;
 ```
 
 ### starting task scheduler
@@ -127,16 +128,16 @@ size_t task_scheduler::size( ) const;
 ```
 
 ### indicate code sections that will block thread
-Use blocking section to indicate that another thread can start processing the work queues while this one is blocked.  If the current thread is on of the task_scheduler's own, otherwise it will not start a new thread.  Function is of the form of void( ).
+Use blocking section to indicate that another thread can start processing the work queues while this one is blocked.  If the current thread is on of the task_scheduler's own, otherwise it will not start a new thread.  Task is of the form of void( ).
 ``` C++
-template<typename Function>
-void task_scheduler::blocking_section( Function func );
+template<typename Task>
+void task_scheduler::blocking_section( Task task );
 
-template<typename Function>
-void blocking_section( task_scheduler & ts, Function func );
+template<typename Task>
+void blocking_section( task_scheduler & ts, Task task );
 
-template<typename Function>
-void blocking_section( Function func );
+template<typename Task>
+void blocking_section( Task task );
 ```
 
 ### Scheduling tasks

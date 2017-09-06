@@ -53,14 +53,18 @@ namespace daw {
 		task_scheduler( task_scheduler const & ) = default;
 		task_scheduler &operator=( task_scheduler const & ) = default;
 
-		void add_task( task_t task ) noexcept;
+		template<typename Task>
+		void add_task( Task task ) noexcept {
+			m_impl->add_task( std::move( task ) );
+		}
+
 		void start( );
 		void stop( bool block = true ) noexcept;
 		bool started( ) const;
 		size_t size( ) const;
 
-		template<typename Function>
-		void blocking_section( Function func ) {
+		template<typename Task>
+		void blocking_section( Task func ) {
 			if( m_impl->am_i_in_pool( ) ) {
 				blocking( func, 1 );
 			} else {
@@ -93,7 +97,7 @@ namespace daw {
 	template<typename Task>
 	daw::shared_semaphore create_waitable_task( Task task, task_scheduler & ts ) {
 		daw::shared_semaphore semaphore;
-		schedule_task( semaphore, ts, task );
+		schedule_task( semaphore, ts, std::move( task ) );
 		return semaphore;
 	}
 
@@ -117,7 +121,7 @@ namespace daw {
 			return 0;
 		};
 
-		auto const dummy = {st( tasks )...};
+		auto const dummy = {st( std::move( tasks ) )...};
 		Unused( dummy );
 		return semaphore;
 	}
@@ -130,15 +134,15 @@ namespace daw {
 		blocking_section( [&]( ) { create_task_group( std::forward<Tasks>( tasks )... ).wait( ); } );
 	}
 
-	template<typename Function>
-	void blocking_section( task_scheduler & ts, Function && func ) {
-		ts.blocking_section( std::forward<Function>( func ) );
+	template<typename Task>
+	void blocking_section( task_scheduler & ts, Task task ) {
+		ts.blocking_section( std::move( task ) );
 	}
 
-	template<typename Function>
-	void blocking_section( Function && func ) {
+	template<typename Task>
+	void blocking_section( Task task ) {
 		auto ts = get_task_scheduler( );
-		ts.blocking_section( std::forward<Function>( func ) );
+		ts.blocking_section( std::move( task ) );
 	}
 } // namespace daw
 
