@@ -87,8 +87,18 @@ namespace daw {
 					}
 				};
 
+				template<typename Ranges, typename Func>
+				daw::shared_semaphore partition_range( Ranges & ranges, Func func ) {
+					auto ts = get_task_scheduler( );
+					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
+					for( auto const & rng: ranges ) {
+						schedule_task( semaphore, [func, rng]( ) mutable { func( rng ); }, ts );
+					}
+					return semaphore;
+				}
+
 				template<typename PartitionPolicy, typename Iterator, typename Func>
-				auto partition_range( Iterator first, Iterator const last, Func func ) {
+				daw::shared_semaphore partition_range( Iterator first, Iterator const last, Func func ) {
 					if( std::distance( first, last ) == 0 ) {
 						return daw::shared_semaphore{1};
 					}
@@ -111,6 +121,17 @@ namespace daw {
 							                 }
 						                 } )
 						    .wait( );
+					} );
+				}
+
+				template<typename Ranges, typename Func>
+				void parallel_for_each( Ranges & ranges, Func func ) {
+					blocking_section( [&]( ) {
+						partition_range( ranges, [func]( auto f, auto l ) {
+							for( auto it = f; it != l; ++it ) {
+								func( *it );
+							}
+						} ).wait( );
 					} );
 				}
 
@@ -180,15 +201,15 @@ namespace daw {
 						}
 					}
 					daw::locked_stack_t<T> results;
-					auto t1 =
-					    impl::partition_range<PartitionPolicy>( first, last, [&results, binary_op]( Iterator f, Iterator const l ) {
-						    auto result = binary_op( *f, *std::next( f ) );
-						    std::advance( f, 2 );
-						    for( ; f != l; std::advance( f, 1 ) ) {
-							    result = binary_op( result, *f );
-						    }
-						    results.push_back( std::move( result ) );
-					    } );
+					auto t1 = partition_range<PartitionPolicy>( first, last,
+					                                            [&results, binary_op]( Iterator f, Iterator const l ) {
+						                                            auto result = binary_op( *f, *std::next( f ) );
+						                                            std::advance( f, 2 );
+						                                            for( ; f != l; std::advance( f, 1 ) ) {
+							                                            result = binary_op( result, *f );
+						                                            }
+						                                            results.push_back( std::move( result ) );
+					                                            } );
 					auto result = static_cast<result_t>( init );
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, get_task_scheduler( ).size( ) ).count;
@@ -212,7 +233,7 @@ namespace daw {
 						return last;
 					}
 					daw::locked_stack_t<Iterator> results;
-					auto t1 = impl::partition_range<PartitionPolicy>(
+					auto t1 = partition_range<PartitionPolicy>(
 					    first, last, [&results, cmp]( Iterator const f, Iterator const l ) {
 						    auto const sz = std::distance( f, l ); 
 						    auto result_val = *f;
@@ -257,7 +278,7 @@ namespace daw {
 						return last;
 					}
 					daw::locked_stack_t<Iterator> results;
-					auto t1 = impl::partition_range<PartitionPolicy>(
+					auto t1 = partition_range<PartitionPolicy>(
 					    first, last, [&results, cmp]( Iterator const f, Iterator const l ) {
 						    auto const sz = std::distance( f, l );
 						    auto result_val = *f;
@@ -343,7 +364,8 @@ namespace daw {
 					return result;
 				}
 
-				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename OutputIterator, typename BinaryOp>
+
+				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename OutputIterator, typename BinaryOp>
 				void parallel_scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out,
 				                    BinaryOp binary_op ) {
 					{
@@ -361,39 +383,43 @@ namespace daw {
 					struct result_t {
 						iterator_range_t<Iterator> range;
 						value_t value;
+
+						constexpr bool operator<( result_t const &rhs ) const noexcept {
+							return range.cbegin( ) < rhs.range.cbegin( );
+						}
 					};
 
 					auto ts = get_task_scheduler( );
 					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					daw::locked_stack_t<result_t> locked_results;
-					// Do partial sum on each sub range and return last value
-
-					parallel_for_each<PartitionPolicy>(
-					    ranges.begin( ), ranges.end( ), [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
-							result_t result{rng, rng.pop_front( )};
-							for( auto it = rng.cbegin( ); it != rng.cend( ); ++it ) {
-								result.value = binary_op( result.value, *it );
-							}
-							locked_results.push_back( std::move( result ) );
-					    } );
-					auto results = locked_results.copy( );
-					std::sort( results.begin( ), results.end( ), []( auto const &lhs, auto const &rhs ) {
-						return lhs.range.cbegin( ) < rhs.range.cbegin( );
+					// Sum each sub range
+					ts.blocking_section( [&]( ) {
+						partition_range( ranges,
+						                 [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
+							                 result_t result{rng, rng.pop_front( )};
+							                 for( auto it = rng.cbegin( ); it != rng.cend( ); ++it ) {
+								                 result.value = binary_op( result.value, *it );
+							                 }
+							                 locked_results.push_back( std::move( result ) );
+						                 } )
+						    .wait( );
 					} );
+
+					auto results = locked_results.copy( );
+					std::sort( results.begin( ), results.end( ) );
 					{
 						std::vector<value_t> values;
 						values.resize( results.size( ) );
 						for( size_t n = 1; n < results.size( ); ++n ) {
 							values[n] = results[0].value;
 							for( size_t m = 1; m < n; ++m ) {
-								values[n] += results[m].value;
+								values[n] = binary_op( values[n], results[m].value );
 							}
 						}
 						for( size_t n = 0; n < results.size( ); ++n ) {
 							results[n].value = values[n];
 						}
 					}
-
 					parallel_for_each<PartitionPolicy>(
 					    results.begin( ), results.end( ), [first, first_out, binary_op]( result_t cur_range ) {
 							auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );

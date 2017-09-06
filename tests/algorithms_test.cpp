@@ -30,11 +30,12 @@
 #include <random>
 #include <vector>
 
-#include "task_scheduler.h"
 #include <daw/daw_benchmark.h>
 #include <daw/daw_string_view.h>
+#include <daw/daw_utility.h>
 
 #include "algorithms.h"
+#include "task_scheduler.h"
 
 template<typename T>
 double calc_speedup( T seq_time, T par_time ) {
@@ -241,16 +242,16 @@ void reduce_test( size_t SZ ) {
 	T accum_result1 = 0;
 	T accum_result2 = 0;
 	auto const result_1 =
-	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), 0 ); } );
+	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>(0) ); } );
 	a = b;
-	auto const result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
-	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
+	auto const result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>(0) ); } );
+	daw::exception::daw_throw_on_false( daw::nearly_equal( accum_result1, accum_result2 ), "Wrong return value" );
 	a = b;
 	auto const result_3 =
-	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), 0 ); } );
+	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>(0) ); } );
 	a = b;
-	auto const result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), 0 ); } );
-	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
+	auto const result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>(0) ); } );
+	daw::exception::daw_throw_on_false( daw::nearly_equal( accum_result1, accum_result2 ), "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
 	display_info( seq_min, par_min, SZ, sizeof( T ), "reduce" );

@@ -58,11 +58,15 @@ link_directories( ${Boost_LIBRARY_DIRS} )
 
 set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/algorithms.h
+	${HEADER_FOLDER}/algorithms_impl.h
 	${HEADER_FOLDER}/function_stream.h
+	${HEADER_FOLDER}/function_stream_impl.h
 	${HEADER_FOLDER}/future_result.h
+	${HEADER_FOLDER}/future_result_impl.h
 	${HEADER_FOLDER}/iterator_range.h
 	${HEADER_FOLDER}/package.h
 	${HEADER_FOLDER}/task_scheduler.h
+	${HEADER_FOLDER}/task_scheduler_impl.h
 )
 
 set( FUNCTION_STREAM_SOURCE_FILES
