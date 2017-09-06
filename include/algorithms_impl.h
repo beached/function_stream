@@ -100,12 +100,12 @@ namespace daw {
 				template<typename RandomIterator, typename Func>
 				void parallel_for_each( RandomIterator const first, RandomIterator const last, Func func ) {
 					blocking_section( [&]( ) {
-						impl::partition_range( first, last,
-						                       [func]( RandomIterator f, RandomIterator l ) {
-							                       for( auto it = f; it != l; ++it ) {
-								                       func( *it );
-							                       }
-						                       } )
+						partition_range( first, last,
+						                 [func]( RandomIterator f, RandomIterator l ) {
+							                 for( auto it = f; it != l; ++it ) {
+								                 func( *it );
+							                 }
+						                 } )
 						    .wait( );
 					} );
 				}
@@ -364,8 +364,8 @@ namespace daw {
 					parallel_for_each( ranges.cbegin( ), ranges.cend( ),
 					                   [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
 						                   result_t result{rng, rng.pop_front( )};
-						                   while( !rng.empty( ) ) {
-							                   result.value += rng.pop_front( );
+						                   for( auto it = rng.cbegin( ); it != rng.cend( ); ++it ) {
+							                   result.value = binary_op( result.value, *it );
 						                   }
 						                   locked_results.push_back( std::move( result ) );
 					                   } );
@@ -393,8 +393,8 @@ namespace daw {
 						    auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );
 						    auto sum = binary_op( cur_range.value, cur_range.range.pop_front( ) );
 						    *( out_pos++ ) = sum;
-						    while( !cur_range.range.empty( ) ) {
-							    sum = binary_op( sum, cur_range.range.pop_front( ) );
+							for( auto it = cur_range.range.cbegin( ); it != cur_range.range.cend( ); ++it ) {
+								sum = binary_op( sum, *it );
 							    *( out_pos++ ) = sum;
 						    }
 					    } );

@@ -47,7 +47,7 @@ namespace daw {
 
 			member_data_t( ) : m_semaphore{}, m_result{}, m_status{future_status::deferred} {}
 
-			member_data_t( daw::shared_semaphore semaphore )
+			explicit member_data_t( daw::shared_semaphore semaphore )
 			    : m_semaphore{std::move( semaphore )}, m_result{}, m_status{future_status::deferred} {}
 
 			~member_data_t( ) = default;
@@ -89,7 +89,7 @@ namespace daw {
 
 	  public:
 		future_result_t( ) : m_data{std::make_shared<member_data_t>( )} {}
-		future_result_t( daw::shared_semaphore semaphore ) : m_data{std::move( semaphore )} {}
+		explicit future_result_t( daw::shared_semaphore semaphore ) : m_data{std::move( semaphore )} {}
 
 		~future_result_t( ) override = default;
 		future_result_t( future_result_t const & ) = default;
@@ -179,7 +179,7 @@ namespace daw {
 			future_status m_status;
 
 			member_data_t( );
-			member_data_t( daw::shared_semaphore semaphore );
+			explicit member_data_t( daw::shared_semaphore semaphore );
 
 			~member_data_t( );
 
@@ -207,7 +207,7 @@ namespace daw {
 
 	  public:
 		future_result_t( );
-		future_result_t( daw::shared_semaphore semaphore );
+		explicit future_result_t( daw::shared_semaphore semaphore );
 
 		~future_result_t( ) override;
 		future_result_t( future_result_t const & ) = default;

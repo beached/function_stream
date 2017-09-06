@@ -238,8 +238,8 @@ void reduce_test( size_t SZ ) {
 	a.resize( SZ );
 	std::fill( a.begin( ), a.end( ), 1 );
 	auto b = a;
-	int64_t accum_result1 = 0;
-	int64_t accum_result2 = 0;
+	T accum_result1 = 0;
+	T accum_result2 = 0;
 	auto const result_1 =
 	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), 0 ); } );
 	a = b;
@@ -489,7 +489,7 @@ void scan_test( size_t SZ ) {
 	fill_random( a.begin( ), a.end( ), 0, 10 );
 	auto b = a;
 	auto c = a;
-	auto const reduce_function = []( value_t const &lhs, value_t const &rhs ) {
+	auto const reduce_function = []( auto lhs, auto rhs ) noexcept {
 		volatile int x = 0;
 		for( size_t n=0; n<50; ++n ) {
 			x = x + 1;

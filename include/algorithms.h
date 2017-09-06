@@ -124,8 +124,8 @@ namespace daw {
 			/// @param first Beginning of range
 			/// @param last End of range
 			/// @param init initial value to supply map/reduce
-			/// @param map_function
-			/// @param reduce_function
+			/// @param map_function unary function that maps source value to argument of reduce_function
+			/// @param reduce_function binary function that maps results of map_function to resulting value
 			/// @return Value from reduce function after range is of size 1
 			template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction>
 			auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,

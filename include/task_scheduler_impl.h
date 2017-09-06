@@ -40,7 +40,7 @@ namespace daw {
 	void blocking( std::function<void( )> task, size_t task_count = 1 );
 
 	namespace impl {
-		struct task_scheduler_impl;
+		class task_scheduler_impl;
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 		                  boost::optional<daw::shared_semaphore> semaphore = boost::none );
