@@ -60,8 +60,11 @@ void transform( Iterator first, Iterator last, UnaryOperation unary_op );
 
 ### combined map reduce
 ``` C++
-template<typename Iterator, typename MapFunction, typename ReduceFunction> auto map_reduce( Iterator first, Iterator last, MapFunction map_function, ReduceFunction reduce_function );
-template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction> auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function, ReduceFunction reduce_function );
+template<typename Iterator, typename MapFunction, typename ReduceFunction> 
+auto map_reduce( Iterator first, Iterator last, MapFunction map_function, ReduceFunction reduce_function );
+
+template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction> 
+auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function, ReduceFunction reduce_function );
 ```
 
 ### scan(prefix sum)
