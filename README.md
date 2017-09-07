@@ -4,7 +4,8 @@ A parallel library with task, pipeline and algorithmic parallelism.  Some exampl
 
 ## [High Level Algorithms](./include/algorithms.h)
 
-[Examples](./tests/algorithms_test.cpp)
+[Example 1](./tests/algorithms_test.cpp)
+[Example 2](./tests/map_reduce_test.cpp)
 
 ### for_each, for_each_n
 Applies the given function object func to the result of dereferencing every iterator in the range [first, last) (not necessarily in order)
