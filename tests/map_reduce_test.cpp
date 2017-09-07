@@ -206,7 +206,7 @@ int main( int argc, char**argv ) {
 
 	fd.wait( );
 
-	auto result = daw::algorithm::parallel::map_reduce( fd.value.cbegin( ), fd.value.cend( ), mapper, reducer );
+	auto result = daw::algorithm::parallel::map_reduce( fd.value.cbegin( ), fd.value.cend( ), mapper, reducer, ts );
 
 	std::cout << "Minimum surplus is " << result << '\n';
 	return EXIT_SUCCESS;

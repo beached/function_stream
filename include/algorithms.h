@@ -75,14 +75,14 @@ namespace daw {
 			         typename LessCompare = std::less<typename std::iterator_traits<Iterator>::value_type>>
 			void sort( Iterator first, Iterator last, LessCompare compare = LessCompare{} ) {
 				auto ts = get_task_scheduler( );
-				impl::parallel_sort( first, last, []( Iterator f, Iterator l, Compare cmp ) { std::sort( f, l, cmp ); },
+				impl::parallel_sort( first, last, []( Iterator f, Iterator l, LessCompare cmp ) { std::sort( f, l, cmp ); },
 				                     std::move( compare ), ts );
 			}
 
 			template<typename Iterator,
 			         typename LessCompare = std::less<typename std::iterator_traits<Iterator>::value_type>>
 			void sort( Iterator first, Iterator last, task_scheduler &ts, LessCompare compare = LessCompare{} ) {
-				impl::parallel_sort( first, last, []( Iterator f, Iterator l, Compare cmp ) { std::sort( f, l, cmp ); },
+				impl::parallel_sort( first, last, []( Iterator f, Iterator l, LessCompare cmp ) { std::sort( f, l, cmp ); },
 				                     std::move( compare ), ts );
 			}
 
