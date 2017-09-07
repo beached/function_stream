@@ -64,13 +64,23 @@ namespace daw {
 		size_t size( ) const;
 
 		template<typename Task>
-		void blocking_section( Task func ) {
+		void blocking_section( Task && func ) {
 			if( m_impl->am_i_in_pool( ) ) {
 				blocking( func, 1 );
 			} else {
 				func( );
 			}
 		}
+
+		template<typename Waitable>
+		void blocking_on_waitable( Waitable &&waitable ) {
+			if( m_impl->am_i_in_pool( ) ) {
+				blocking( [&waitable]( ) { waitable.wait( ); }, 1 );
+			} else {
+				waitable.wait( );
+			}
+		}
+
 	}; // task_scheduler
 
 	task_scheduler get_task_scheduler( );

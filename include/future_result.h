@@ -89,7 +89,8 @@ namespace daw {
 
 	  public:
 		future_result_t( ) : m_data{std::make_shared<member_data_t>( )} {}
-		explicit future_result_t( daw::shared_semaphore semaphore ) : m_data{std::move( semaphore )} {}
+		explicit future_result_t( daw::shared_semaphore semaphore )
+		    : m_data{std::make_shared<member_data_t>( std::move( semaphore ) )} {}
 
 		~future_result_t( ) override = default;
 		future_result_t( future_result_t const & ) = default;
