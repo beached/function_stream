@@ -28,8 +28,9 @@
 #include <string>
 #include <vector>
 
-#include <daw/daw_string_view.h>
+#include <daw/daw_memory_mapped_file.h>
 #include <daw/daw_semaphore.h>
+#include <daw/daw_string_view.h>
 
 #include "algorithms.h"
 #include "function_stream.h"
@@ -64,7 +65,7 @@ std::vector<size_t> find_commas( daw::string_view line ) {
 			break;
 		case ',':
 			if( !in_quote ) {
-				results.push_back( static_cast<size_t>(std::distance( line.begin( ), it ) ) );
+				results.push_back( static_cast<size_t>( std::distance( line.begin( ), it ) ) );
 			}
 			break;
 		default:
@@ -75,13 +76,28 @@ std::vector<size_t> find_commas( daw::string_view line ) {
 	return results;
 }
 
+std::vector<daw::string_view> find_newlines( daw::string_view str ) {
+	std::vector<daw::string_view> results;
+	if( str.empty( ) ) {
+		return results;
+	}
+	auto pos = str.find( '\n' );
+	while( pos != str.npos ) {
+		results.push_back( str.substr( 0, pos - 1 ) );
+		str.remove_prefix( pos + 1 );
+		pos = str.find( '\n' );
+	}
+	results.push_back( str );
+	return results;
+}
+
 template<typename Char>
 constexpr bool is_number( Char c ) noexcept {
 	return '0' <= c && c <= '9';
 }
 
 boost::optional<intmax_t> parse_int( daw::string_view str ) {
-	if( str.empty() ) {
+	if( str.empty( ) ) {
 		return boost::none;
 	}
 	auto it = str.begin( );
@@ -97,10 +113,10 @@ boost::optional<intmax_t> parse_int( daw::string_view str ) {
 	if( is_negative ) {
 		++it;
 	}
-	if( it == str.end( ) || !is_number( *it )) {
+	if( it == str.end( ) || !is_number( *it ) ) {
 		return boost::none;
 	}
-	intmax_t result = (*it++) - '0';
+	intmax_t result = ( *it++ ) - '0';
 	for( ; it != str.end( ); ++it ) {
 		if( is_number( *it ) ) {
 			result *= 10;
@@ -118,7 +134,7 @@ std::vector<boost::optional<intmax_t>> parse_line( std::string line ) {
 	daw::string_view view{line};
 	auto comma_pos = find_commas( view );
 	auto last_pos = 0;
-	for( auto const & cur_pos: comma_pos ) {
+	for( auto const &cur_pos : comma_pos ) {
 		result.push_back( parse_int( view.substr( last_pos, cur_pos - last_pos ) ) );
 		last_pos = cur_pos + 1;
 	}
@@ -132,58 +148,57 @@ boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax
 	return boost::none;
 }
 
-size_t count_lines( std::ifstream & ifs ) {
-	auto orig_pos = ifs.tellg( );
-	ifs.clear( );
-	ifs.seekg( 0 );
-	auto result = static_cast<size_t>(
-	    std::count( std::istreambuf_iterator<char>( ifs ), std::istreambuf_iterator<char>( ), '\n' ) );
-	ifs.clear( );
-	ifs.seekg( orig_pos );
-	return result;
-}
-
 auto parse_file( daw::string_view file_name ) {
-	std::ifstream in_file{file_name.data( )};
+	daw::filesystem::memory_mapped_file_t<char> mmf{file_name};
 
-	if( !in_file ) {
+	if( !mmf ) {
 		std::cerr << "Could not open input file '" << file_name << "' for reading\n";
 		exit( EXIT_FAILURE );
 	}
-	std::vector<file_data> result;
+	auto lines = find_newlines( daw::string_view{mmf.data( ), mmf.size( )} );
+	struct surplus_t {
+		intmax_t value;
+		bool has_value;
 
-	for( std::string line; std::getline( in_file, line ); ) {
-		auto fd = parsed_line_to_fd( parse_line( line ) );
-		if( fd ) {
-			result.push_back( *fd );
+		surplus_t( ) : value{0}, has_value{false} {}
+		surplus_t( intmax_t Value ) : value{Value}, has_value{true} {}
+
+		explicit operator bool( ) const noexcept {
+			return has_value;
 		}
-	}
-	return result;
+	};
+	return daw::algorithm::parallel::map_reduce( lines.cbegin( ), lines.cend( ),
+	                                             []( daw::string_view line ) {
+		                                             auto fd = parsed_line_to_fd( parse_line( line ) );
+		                                             if( !fd ) {
+			                                             return surplus_t{};
+		                                             }
+		                                             return surplus_t{fd->surplus};
+	                                             },
+	                                             []( surplus_t lhs, surplus_t rhs ) {
+		                                             if( lhs ) {
+			                                             if( rhs ) {
+				                                             lhs.value = std::min( lhs.value, rhs.value );
+				                                             return lhs;
+			                                             }
+			                                             return lhs;
+		                                             }
+													 return rhs;
+	                                             } );
 }
 
-int main( int argc, char**argv ) {
-	if( argc < 2 ) { 
+int main( int argc, char **argv ) {
+	if( argc < 2 ) {
 		std::cerr << "Must specify input file on commandline\n";
 		exit( EXIT_FAILURE );
 	}
-	auto fd = parse_file( argv[1] );
+	auto result = parse_file( argv[1] );
 
-	struct {
-		constexpr intmax_t operator( )( intmax_t value ) const noexcept {
-			return value;
-		}
-		constexpr intmax_t operator( )( file_data const & value ) const noexcept {
-			return value.surplus;
-		}
-	} mapper;
-
-	auto const reducer = []( intmax_t lhs, intmax_t rhs ) noexcept {
-		return std::min( lhs, rhs );
-	};
-
-	auto result = daw::algorithm::parallel::map_reduce( fd.cbegin( ), fd.cend( ), mapper, reducer );
-
-	std::cout << "Minimum surplus is " << result << '\n';
+	std::cout << "Minimum surplus is ";
+	if( result )
+		std::cout << result.value << '\n';
+	else {
+		std::cout << "unknown\n";
+	}
 	return EXIT_SUCCESS;
 }
-

@@ -4,7 +4,7 @@ project( function_stream_prj )
 
 include( ExternalProject )
 
-find_package( Boost 1.58.0 REQUIRED )
+find_package( Boost 1.58.0 COMPONENTS system iostreams filesystem regex unit_test_framework REQUIRED )
 
 enable_testing( )
 add_definitions( -DBOOST_ALL_NO_LIB ) 
