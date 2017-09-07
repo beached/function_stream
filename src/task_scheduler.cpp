@@ -25,7 +25,6 @@
 #include <thread>
 
 #include <daw/daw_semaphore.h>
-#include <daw/scope_guard.h>
 
 #include "task_scheduler.h"
 
@@ -90,14 +89,16 @@ namespace daw {
 
 		void task_scheduler_impl::start( ) {
 			m_continue = true;
+			auto threads = m_threads.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
-				m_threads.emplace_back( [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself ); } );
+				threads->emplace_back( [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself ); } );
 			}
 		}
 
 		void task_scheduler_impl::stop( bool block ) noexcept {
 			m_continue = false;
-			for( auto &th : m_threads ) {
+			auto threads = m_threads.get( );
+			for( auto &th : *threads ) {
 				try {
 					if( th.joinable( ) ) {
 						if( block ) {
@@ -125,9 +126,12 @@ namespace daw {
 
 		bool task_scheduler_impl::am_i_in_pool( ) const noexcept {
 			auto const id = std::this_thread::get_id( );
-			for( auto const &th : m_threads ) {
-				if( th.get_id( ) == id ) {
-					return true;
+			{
+				auto threads = m_threads.get( );
+				for( auto const & th : *threads ) {
+					if( th.get_id( ) == id ) {
+						return true;
+					}
 				}
 			}
 			auto other_threads = m_other_threads.get( );
@@ -137,6 +141,34 @@ namespace daw {
 				}
 			}
 			return false;
+		}
+
+		daw::shared_semaphore task_scheduler_impl::start_temp_task_runners( size_t task_count ) {
+			daw::shared_semaphore semaphore;
+			for( size_t n = 0; n < task_count; ++n ) {
+				auto const id = [&]( ) {
+					auto const current_epoch = static_cast<size_t>(
+					    ( std::chrono::high_resolution_clock::now( ) ).time_since_epoch( ).count( ) );
+					return current_epoch % size( );
+				}( );
+
+				auto other_threads = m_other_threads.get( );
+				auto it = other_threads->emplace( other_threads->end( ), boost::none );
+				other_threads.release( );
+
+				auto thread_worker = [ it, id, wself = get_weak_this( ), semaphore ]( ) mutable {
+					auto const at_exit = daw::on_scope_exit( [&wself, it]( ) {
+						auto self = wself.lock( );
+						if( self ) {
+							self->m_other_threads.get( )->erase( it );
+						}
+					} );
+					task_runner( id, wself, semaphore );
+				};
+				*it = std::thread{thread_worker};
+				( *it )->detach( );
+			}
+			return semaphore;
 		}
 	} // namespace impl
 
@@ -161,38 +193,11 @@ namespace daw {
 
 	task_scheduler get_task_scheduler( ) {
 		static auto ts = []( ) {
-			task_scheduler result;
+			task_scheduler result{ 1 };
 			result.start( );
 			return result;
 		}( );
 		return ts;
-	}
-
-	void blocking( std::function<void( )> task, size_t task_count ) {
-		daw::shared_semaphore semaphore;
-		auto const at_exit = daw::on_scope_exit( [&semaphore]( ) { semaphore.notify( ); } );
-		auto ts = get_task_scheduler( );
-		// Use current time in seconds as a semi-random way to get a number, modded with size of queue
-		for( size_t n = 0; n < task_count; ++n ) {
-			auto id = static_cast<size_t>( 
-					std::chrono::duration<double>(( std::chrono::high_resolution_clock::now( ) ).time_since_epoch( ) )
-			                                   .count( ) ) % ts.size( );
-
-			auto other_threads = ts.m_impl->m_other_threads.get( );
-			auto it = other_threads->emplace( other_threads->end( ), boost::none );
-			other_threads.release( );
-			*it = std::thread{[it, id = id, wself = ts.m_impl->get_weak_this( ),
-			                   semaphore]( ){
-								   
-					impl::task_runner( id, wself, semaphore );
-					auto self = wself.lock( );
-					if( self ) {
-						self->m_other_threads.get( )->erase( it );
-					}
-			}};
-			(*it)->detach( );
-		}
-		task( );
 	}
 } // namespace daw
 

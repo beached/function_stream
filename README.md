@@ -11,115 +11,83 @@ A parallel library with task, pipeline and algorithmic parallelism.  Some exampl
 Applies the given function object func to the result of dereferencing every iterator in the range [first, last) (not necessarily in order)
 ``` C++
 template<typename RandomIterator, typename Func> 
-void for_each( RandomIterator const first, RandomIterator const last, Func func );			
-template<typename RandomIterator, typename Func> 
-void for_each( RandomIterator const first, RandomIterator const last, Func func, task_scheduler & ts );			
+void for_each( RandomIterator const first, RandomIterator const last, Func func, task_scheduler ts );
 
 template<typename Iterator, typename Func> 
-void for_each_n( Iterator first, size_t N, Func func );
-template<typename Iterator, typename Func> 
-void for_each_n( Iterator first, size_t N, Func func, task_scheduler & ts );
+void for_each_n( Iterator first, size_t N, Func func, task_scheduler ts );
 ```
 
 ### fill
 Assigns value to the result of dereferencing every iterator in the range [first, last) (not necessarily in order)
 ``` C++
 template<typename Iterator, typename T> 
-void fill( Iterator first, Iterator last, T const &value );
-template<typename Iterator, typename T> 
-void fill( Iterator first, Iterator last, T const &value, task_scheduler & ts );
+void fill( Iterator first, Iterator last, T const &value, task_scheduler ts );
 ```
 
 ### sort
 Sorts the elements in the range [first, last) in ascending order. The order of equal elements is not guaranteed to be preserved.  Elements are compared using the given binary comparison function compare.
 ``` C++
 template<typename Iterator, typename LessCompare> 
-void sort( Iterator first, Iterator last, LessCompare compare );
-template<typename Iterator, typename LessCompare> 
-void sort( Iterator first, Iterator last, LessCompare compare, task_scheduler & ts );
+void sort( Iterator first, Iterator last, LessCompare compare, task_scheduler ts );
 ```
 
 ### stable_sort
 Sorts the elements in the range [first, last) in ascending order. The order of equal elements is guaranteed to be preserved.  Elements are compared using the given comparison function compare.
 ``` C++
 template<typename Iterator, typename LessCompare> 
-void stable_sort( Iterator first, Iterator last, LessCompare compare = LessCompare{} );
-template<typename Iterator, typename LessCompare> 
-void stable_sort( Iterator first, Iterator last, task_scheduler & ts, LessCompare compare = LessCompare{} );
+void stable_sort( Iterator first, Iterator last, task_scheduler ts, LessCompare compare = LessCompare{} );
 ```
 ### min/max element
 Finds the smallest(min) or largest(max) element in the range [first, last).  Elements are compared using the given binary comparison function compare.
 ``` C++
 template<typename Iterator, typename LessCompare> 
-auto min_element( Iterator first, Iterator last, LessCompare compare = LessCompare{} );
-template<typename Iterator, typename LessCompare> 
-auto min_element( Iterator first, Iterator last, task_scheduler & ts, LessCompare compare = LessCompare{} );
+auto min_element( Iterator first, Iterator last, task_scheduler ts, LessCompare compare = LessCompare{} );
 
 template<typename Iterator, typename LessCompare> 
-auto max_element( Iterator first, Iterator last, LessCompare compare = LessCompare{} );
-template<typename Iterator, typename LessCompare> 
-auto max_element( Iterator first, Iterator last, task_scheduler & ts, LessCompare compare = LessCompare{} );
+auto max_element( Iterator first, Iterator last, task_scheduler ts, LessCompare compare = LessCompare{} );
 ```
 
 ### reduce      
 Reduces the range [first; last), possibly permuted and aggregated in unspecified manner, along with the initial value init over binary_op.
 ``` C++
 template<typename T, typename Iterator, typename BinaryOp> 
-T reduce( Iterator first, Iterator last, T init, BinaryOp binary_op );
-template<typename T, typename Iterator, typename BinaryOp> 
-T reduce( Iterator first, Iterator last, T init, BinaryOp binary_op, task_scheduler & ts );
+T reduce( Iterator first, Iterator last, T init, BinaryOp binary_op, task_scheduler ts );
 
 template<typename T, typename Iterator> 
-auto reduce( Iterator first, Iterator last, T init );
-template<typename T, typename Iterator> 
-auto reduce( Iterator first, Iterator last, T init, task_scheduler & ts );
+auto reduce( Iterator first, Iterator last, T init, task_scheduler ts );
 
 template<typename Iterator> 
-auto reduce( Iterator first, Iterator last );
-template<typename Iterator> 
-auto reduce( Iterator first, Iterator last, task_scheduler & ts );
+auto reduce( Iterator first, Iterator last, task_scheduler ts );
 ```
 
 ### transform(map)
 Apply the given function unary_op to the result of dereferencing every iterator in the range [first, last) (not necessarily in order).  If supplied the result is stored in range [first2, first2 + std::distance( first, last )), or in place otherwise.
 ``` C++
 template<typename Iterator, typename OutputIterator, typename UnaryOperation> 
-void transform( Iterator first1, Iterator const last1, OutputIterator first2, UnaryOperation unary_op );
-template<typename Iterator, typename OutputIterator, typename UnaryOperation> 
-void transform( Iterator first1, Iterator const last1, OutputIterator first2, UnaryOperation unary_op, task_scheduler & ts );
+void transform( Iterator first1, Iterator const last1, OutputIterator first2, UnaryOperation unary_op, task_scheduler ts );
 
 template<typename Iterator, typename UnaryOperation> 
-void transform( Iterator first, Iterator last, UnaryOperation unary_op );
-template<typename Iterator, typename UnaryOperation> 
-void transform( Iterator first, Iterator last, UnaryOperation unary_op, task_scheduler & ts );
+void transform( Iterator first, Iterator last, UnaryOperation unary_op, task_scheduler ts );
 ```
 
 ### combined map reduce
 Apply the given function map_function to the result of dereferencing every iterator in the range [first, last) (not necessarily in order).  The results are passed to the binary_function reduce_function and returned.
 ``` C++
 template<typename Iterator, typename MapFunction, typename ReduceFunction> 
-auto map_reduce( Iterator first, Iterator last, MapFunction map_function, ReduceFunction reduce_function );
-template<typename Iterator, typename MapFunction, typename ReduceFunction> 
-auto map_reduce( Iterator first, Iterator last, MapFunction map_function, ReduceFunction reduce_function, task_scheduler & ts );
+auto map_reduce( Iterator first, Iterator last, MapFunction map_function, ReduceFunction reduce_function, task_scheduler ts );
 
 template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction> 
-auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function, ReduceFunction reduce_function );
-template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction> 
-auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function, ReduceFunction reduce_function, task_scheduler & ts );
+auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function, ReduceFunction reduce_function, task_scheduler ts );
 ```
 
 ### scan(prefix sum)
 Computes the result of binary_op with the elements in the subranges of the range [first, last) and writes them to the range [first_out, last_out).   
 ``` C++
 template<typename Iterator, typename OutputIterator, typename BinaryOp> 
-void scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out, BinaryOp binary_op );
-template<typename Iterator, typename OutputIterator, typename BinaryOp> 
-void scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out, BinaryOp binary_op, task_scheduler & ts );
+void scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out, BinaryOp binary_op, task_scheduler ts );
 
 template<typename Iterator, typename OutputIterator, typename BinaryOp> 
-void scan( Iterator first, Iterator last, BinaryOp binary_op );
-template<typename Iterator, typename OutputIterator, typename BinaryOp> 
-void scan( Iterator first, Iterator last, BinaryOp binary_op, task_scheduler & ts );
+void scan( Iterator first, Iterator last, BinaryOp binary_op, task_scheduler ts );
 ```
 
 ## [Task Based Parallelism](./include/task_scheduler.h)
@@ -165,23 +133,20 @@ Use blocking section to indicate that another thread can start processing the wo
 block_on_waitable requires the object passed to support the wait( ) method.
 ``` C++
 template<typename Task>
-void task_scheduler::blocking_section( Task && task );
+void task_scheduler::blocking_task( Task task, taskscheduler ts );
+
+template<typename Function>
+auto task_scheduler::blocking_function( Function func, taskscheduler ts );
 
 template<typename Waitable>
-void task_scheduler::blocking_on_waiting( Waitable && waitable );
-
-template<typename Task>
-void blocking_section( task_scheduler & ts, Task task );
-
-template<typename Task>
-void blocking_section( Task task );
+void task_scheduler::blocking_on_waiting( Waitable waitable, task_scheduler ts );
 ```
 
 ### Scheduling tasks
 Add supplied task to task_scheduler ts and notify supplied semaphore when completed
 ``` C++
 template<typename Task>
-void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler &ts );
+void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler ts );
 ```
 
 Add supplied task to default task_scheduler and notify supplied semaphore when completed
@@ -193,7 +158,7 @@ void schedule_task( daw::shared_semaphore semaphore, Task task );
 Add supplied task to task_scheduler ts and return a semaphore that will block until it completes
 ``` C++
 template<typename Task>
-daw::shared_semaphore create_waitable_task( Task task, task_scheduler & ts );
+daw::shared_semaphore create_waitable_task( Task task, task_scheduler ts );
 ```
 
 Add supplied tasks to default task_scheduler and return a semaphore that will block until it completes 

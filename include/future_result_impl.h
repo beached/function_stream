@@ -120,7 +120,7 @@ namespace daw {
 						result_t tp_result;
 						impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
 
-				        ts.blocking_section( [&semaphore]( ) { semaphore.wait( ); } );
+						ts.blocking_on_waitable( semaphore );
 
 				        result.set_value( std::move( tp_result ) );
 					}

@@ -300,7 +300,9 @@ namespace daw {
 	auto make_future_result_group( Functions... functions ) {
 		using result_t = decltype( make_callable_future_result_group( std::move( functions )... )( ) );
 		boost::optional<result_t> result;
-		blocking_section( [&]( ) { result = make_callable_future_result_group( std::move( functions )... )( ); } );
+		blocking_task( [&]( ) {
+			result = make_callable_future_result_group( std::move( functions )... )( );
+		} );
 		return *result;
 	}
 

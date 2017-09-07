@@ -133,7 +133,7 @@ std::vector<boost::optional<intmax_t>> parse_line( std::string line ) {
 	std::vector<boost::optional<intmax_t>> result;
 	daw::string_view view{line};
 	auto comma_pos = find_commas( view );
-	auto last_pos = 0;
+	size_t last_pos = 0;
 	for( auto const &cur_pos : comma_pos ) {
 		result.push_back( parse_int( view.substr( last_pos, cur_pos - last_pos ) ) );
 		last_pos = cur_pos + 1;
@@ -148,14 +148,7 @@ boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax
 	return boost::none;
 }
 
-auto parse_file( daw::string_view file_name ) {
-	daw::filesystem::memory_mapped_file_t<char> mmf{file_name};
-
-	if( !mmf ) {
-		std::cerr << "Could not open input file '" << file_name << "' for reading\n";
-		exit( EXIT_FAILURE );
-	}
-	auto lines = find_newlines( daw::string_view{mmf.data( ), mmf.size( )} );
+auto parse_file( daw::string_view str ) {
 	struct surplus_t {
 		intmax_t value;
 		bool has_value;
@@ -167,32 +160,42 @@ auto parse_file( daw::string_view file_name ) {
 			return has_value;
 		}
 	};
-	auto ts = daw::get_task_scheduler( );
-	auto const mapper = daw::make_function_stream( []( daw::string_view line ) { return parse_line( line ); },
-	                                         []( std::vector<boost::optional<intmax_t>> line_data ) {
-		                                         auto fd = parsed_line_to_fd( line_data );
-		                                         if( !fd ) {
-			                                         return surplus_t{};
-		                                         }
-		                                         return surplus_t{fd->surplus};
-	                                         } );
-
-	return daw::algorithm::parallel::map_reduce( lines.cbegin( ), lines.cend( ),
-	    [&ts, mapper]( daw::string_view line ) -> surplus_t {
-		    auto result = mapper( line );
-		    ts.blocking_on_waitable( result );
-		    return result.get( );
+	
+	auto pipeline = daw::make_function_stream(
+	    []( daw::string_view data ) {
+		    return find_newlines( data );
 	    },
-	    []( surplus_t lhs, surplus_t rhs ) -> surplus_t {
-		    if( lhs ) {
-			    if( rhs ) {
-				    lhs.value = std::min( lhs.value, rhs.value );
+	    []( std::vector<daw::string_view> lines ) {
+		    auto mapper = []( daw::string_view l ) -> surplus_t {
+			    auto const fs = daw::make_function_stream( []( daw::string_view line ) { return parse_line( line ); },
+			                                               []( std::vector<boost::optional<intmax_t>> line_data ) {
+				                                               auto fd = parsed_line_to_fd( line_data );
+				                                               if( !fd ) {
+					                                               return surplus_t{};
+				                                               }
+				                                               return surplus_t{fd->surplus};
+			                                               } );
+			    auto result = fs( l );
+				daw::get_task_scheduler( ).blocking_on_waitable( result );
+			    return result.get( );
+		    };
+		    auto reducer = []( surplus_t lhs, surplus_t rhs ) -> surplus_t {
+			    if( lhs ) {
+				    if( rhs ) {
+					    lhs.value = std::min( lhs.value, rhs.value );
+					    return lhs;
+				    }
 				    return lhs;
 			    }
-			    return lhs;
-		    }
-		    return rhs;
-	    }, ts );
+			    return rhs;
+		    };
+		    auto ts = daw::get_task_scheduler( );
+		    return ts.blocking_function( [&]( ) {
+			    return daw::algorithm::parallel::map_reduce( lines.begin( ), lines.end( ), mapper, reducer, ts );
+		    } );
+	    } );
+
+	return pipeline( str );
 }
 
 int main( int argc, char **argv ) {
@@ -201,7 +204,9 @@ int main( int argc, char **argv ) {
 		exit( EXIT_FAILURE );
 	}
 
-	auto result = parse_file( argv[1] );
+	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
+	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
+	auto result = parse_file( daw::string_view{mmf.data( ), mmf.size( )} ).get( );
 
 	std::cout << "Minimum surplus is ";
 	if( result )
