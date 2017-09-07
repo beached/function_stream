@@ -100,11 +100,11 @@ boost::optional<intmax_t> parse_int( daw::string_view str ) {
 	if( it == str.end( ) || !is_number( *it )) {
 		return boost::none;
 	}
-	intmax_t result = *it++;
+	intmax_t result = (*it++) - '0';
 	for( ; it != str.end( ); ++it ) {
 		if( is_number( *it ) ) {
 			result *= 10;
-			result += *it;
+			result += *it - '0';
 		}
 	}
 	if( is_negative ) {
@@ -132,28 +132,33 @@ boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax
 	return boost::none;
 }
 
-auto parse_file( daw::string_view file_name, daw::task_scheduler &ts ) {
+size_t count_lines( std::ifstream & ifs ) {
+	auto orig_pos = ifs.tellg( );
+	ifs.clear( );
+	ifs.seekg( 0 );
+	auto result = static_cast<size_t>(
+	    std::count( std::istreambuf_iterator<char>( ifs ), std::istreambuf_iterator<char>( ), '\n' ) );
+	ifs.clear( );
+	ifs.seekg( orig_pos );
+	return result;
+}
+
+auto parse_file( daw::string_view file_name ) {
 	std::ifstream in_file{file_name.data( )};
+
 	if( !in_file ) {
 		std::cerr << "Could not open input file '" << file_name << "' for reading\n";
 		exit( EXIT_FAILURE );
 	}
-
-	daw::shared_semaphore semaphore{1, false};
-	auto file_to_fd = daw::make_function_stream( parse_line, parsed_line_to_fd );
-	using result_t = std::vector<std::decay_t<decltype( file_to_fd( std::declval<std::string>( ) ) )>>;
-	result_t result;
+	std::vector<file_data> result;
 
 	for( std::string line; std::getline( in_file, line ); ) {
-		result.push_back( daw::make_future_result( ts, semaphore, [ts, line, file_to_fd]( ) mutable {
-			auto r = file_to_fd( line );
-			ts.blocking_on_waitable( r );
-			return r.get( );
-		} ) );
-		semaphore.add_notifier( );
+		auto fd = parsed_line_to_fd( parse_line( line ) );
+		if( fd ) {
+			result.push_back( *fd );
+		}
 	}
-	semaphore.set_latch( );
-	return daw::make_waitable_value( std::move( semaphore ), std::move( result ) );
+	return result;
 }
 
 int main( int argc, char**argv ) {
@@ -161,52 +166,22 @@ int main( int argc, char**argv ) {
 		std::cerr << "Must specify input file on commandline\n";
 		exit( EXIT_FAILURE );
 	}
-	auto ts = daw::get_task_scheduler( );
-	auto fd = parse_file( argv[1], ts );
+	auto fd = parse_file( argv[1] );
 
 	struct {
-		constexpr intmax_t operator( )( intmax_t lhs, intmax_t rhs ) const noexcept {
-			return std::min( lhs, rhs );
-		}
-		intmax_t operator( )( intmax_t lhs, boost::optional<file_data> const & rhs ) const noexcept {
-			if( rhs ) {
-				return std::min( lhs, rhs->surplus );
-			}
-			return lhs;
-		}
-		intmax_t operator( )( boost::optional<file_data> const & lhs, intmax_t rhs ) const noexcept {
-			if( lhs ) {
-				return std::min( lhs->surplus, rhs );
-			}
-			return rhs;
-		}
-		intmax_t operator( )( boost::optional<file_data> const & lhs, boost::optional<file_data> const & rhs ) const noexcept {
-		    if( lhs ) {
-				if( rhs ) {
-					return std::min( lhs->surplus, rhs->surplus );
-				} else {
-					return lhs->surplus;
-				}
-			} else if( rhs ) {
-				return rhs->surplus;
-			}
-			return std::numeric_limits<decltype(lhs->surplus)>::max( );
-	    }
-	} reducer;
-
-	struct {
-		boost::optional<file_data> operator( )( daw::future_result_t<boost::optional<file_data>> const & value ) const {
-			return value.get( );
-		}
-
-		intmax_t operator( )( intmax_t value ) const {
+		constexpr intmax_t operator( )( intmax_t value ) const noexcept {
 			return value;
+		}
+		constexpr intmax_t operator( )( file_data const & value ) const noexcept {
+			return value.surplus;
 		}
 	} mapper;
 
-	fd.wait( );
+	auto const reducer = []( intmax_t lhs, intmax_t rhs ) noexcept {
+		return std::min( lhs, rhs );
+	};
 
-	auto result = daw::algorithm::parallel::map_reduce( fd.value.cbegin( ), fd.value.cend( ), mapper, reducer, ts );
+	auto result = daw::algorithm::parallel::map_reduce( fd.cbegin( ), fd.cend( ), mapper, reducer );
 
 	std::cout << "Minimum surplus is " << result << '\n';
 	return EXIT_SUCCESS;
