@@ -489,7 +489,7 @@ template<typename value_t>
 void scan_test( size_t SZ ) {
 	std::vector<value_t> a;
 	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), 0, 10 );
+	fill_random( a.begin( ), a.end( ), -10, 10 );
 	auto b = a;
 	auto c = a;
 	auto const reduce_function = []( auto lhs, auto rhs ) noexcept {

@@ -167,24 +167,32 @@ auto parse_file( daw::string_view file_name ) {
 			return has_value;
 		}
 	};
+	auto ts = daw::get_task_scheduler( );
+	auto const mapper = daw::make_function_stream( []( daw::string_view line ) { return parse_line( line ); },
+	                                         []( std::vector<boost::optional<intmax_t>> line_data ) {
+		                                         auto fd = parsed_line_to_fd( line_data );
+		                                         if( !fd ) {
+			                                         return surplus_t{};
+		                                         }
+		                                         return surplus_t{fd->surplus};
+	                                         } );
+
 	return daw::algorithm::parallel::map_reduce( lines.cbegin( ), lines.cend( ),
-	                                             []( daw::string_view line ) {
-		                                             auto fd = parsed_line_to_fd( parse_line( line ) );
-		                                             if( !fd ) {
-			                                             return surplus_t{};
-		                                             }
-		                                             return surplus_t{fd->surplus};
-	                                             },
-	                                             []( surplus_t lhs, surplus_t rhs ) {
-		                                             if( lhs ) {
-			                                             if( rhs ) {
-				                                             lhs.value = std::min( lhs.value, rhs.value );
-				                                             return lhs;
-			                                             }
-			                                             return lhs;
-		                                             }
-													 return rhs;
-	                                             } );
+	    [&ts, mapper]( daw::string_view line ) -> surplus_t {
+		    auto result = mapper( line );
+		    ts.blocking_on_waitable( result );
+		    return result.get( );
+	    },
+	    []( surplus_t lhs, surplus_t rhs ) -> surplus_t {
+		    if( lhs ) {
+			    if( rhs ) {
+				    lhs.value = std::min( lhs.value, rhs.value );
+				    return lhs;
+			    }
+			    return lhs;
+		    }
+		    return rhs;
+	    }, ts );
 }
 
 int main( int argc, char **argv ) {
