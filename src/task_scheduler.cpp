@@ -193,7 +193,7 @@ namespace daw {
 
 	task_scheduler get_task_scheduler( ) {
 		static auto ts = []( ) {
-			task_scheduler result{ 1 };
+			task_scheduler result;
 			result.start( );
 			return result;
 		}( );
