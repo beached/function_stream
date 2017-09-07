@@ -192,6 +192,7 @@ int main( int argc, char **argv ) {
 		std::cerr << "Must specify input file on commandline\n";
 		exit( EXIT_FAILURE );
 	}
+
 	auto result = parse_file( argv[1] );
 
 	std::cout << "Minimum surplus is ";
