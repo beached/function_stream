@@ -169,7 +169,7 @@ namespace daw {
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
 					std::vector<std::pair<Iterator, Iterator>> sort_ranges;
-					ts.blocking_task( [&]( ) {
+					ts.blocking_section( [&]( ) {
 						for( size_t n = 0; n < expected_results; ++n ) {
 							sort_ranges.push_back( sort_ranges_stack.pop_back2( ) );
 						}
@@ -207,7 +207,7 @@ namespace daw {
 					auto result = static_cast<result_t>( init );
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-					ts.blocking_task( [&]( ) {
+					ts.blocking_section( [&]( ) {
 						for( size_t n = 0; n < expected_results; ++n ) {
 							result = binary_op( result, results.pop_back2( ) );
 						}
@@ -357,7 +357,7 @@ namespace daw {
 
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-					return ts.blocking_function( [&]( ) {
+					return ts.blocking_section( [&]( ) {
 						auto result = reduce_function( map_function( init ), results.pop_back2( ) );
 						for( size_t n = 1; n < expected_results; ++n ) {
 							result = reduce_function( result, results.pop_back2( ) );

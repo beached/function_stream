@@ -148,6 +148,8 @@ boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax
 	return boost::none;
 }
 
+
+
 auto parse_file( daw::string_view str ) {
 	struct surplus_t {
 		intmax_t value;
@@ -166,7 +168,7 @@ auto parse_file( daw::string_view str ) {
 		    return find_newlines( data );
 	    },
 	    []( std::vector<daw::string_view> lines ) {
-		    auto mapper = []( daw::string_view l ) -> surplus_t {
+		    auto mapper = []( daw::string_view l ) {
 			    auto const fs = daw::make_function_stream( []( daw::string_view line ) { return parse_line( line ); },
 			                                               []( std::vector<boost::optional<intmax_t>> line_data ) {
 				                                               auto fd = parsed_line_to_fd( line_data );
@@ -179,7 +181,7 @@ auto parse_file( daw::string_view str ) {
 				daw::get_task_scheduler( ).blocking_on_waitable( result );
 			    return result.get( );
 		    };
-		    auto reducer = []( surplus_t lhs, surplus_t rhs ) -> surplus_t {
+		    auto reducer = []( surplus_t lhs, surplus_t rhs ) {
 			    if( lhs ) {
 				    if( rhs ) {
 					    lhs.value = std::min( lhs.value, rhs.value );
@@ -190,7 +192,7 @@ auto parse_file( daw::string_view str ) {
 			    return rhs;
 		    };
 		    auto ts = daw::get_task_scheduler( );
-		    return ts.blocking_function( [&]( ) {
+		    return ts.blocking_section( [&]( ) {
 			    return daw::algorithm::parallel::map_reduce( lines.begin( ), lines.end( ), mapper, reducer, ts );
 		    } );
 	    } );

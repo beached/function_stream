@@ -38,11 +38,6 @@
 namespace daw {
 	using task_t = std::function<void( )>;
 
-	template<typename Function, typename ResultType = std::decay_t<decltype( std::declval<Function>( ) )>>
-	ResultType blocking_function_impl( Function func, size_t task_count = 1 );
-
-	template<typename Task>
-	void blocking_task_impl( Task task, size_t task_count = 1 );
 	namespace impl {
 		class task_scheduler_impl;
 

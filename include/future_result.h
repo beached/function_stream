@@ -298,12 +298,9 @@ namespace daw {
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
 	auto make_future_result_group( Functions... functions ) {
-		using result_t = decltype( make_callable_future_result_group( std::move( functions )... )( ) );
-		boost::optional<result_t> result;
-		blocking_task( [&]( ) {
-			result = make_callable_future_result_group( std::move( functions )... )( );
+		return blocking_section( [&]( ) {
+			return make_callable_future_result_group( std::move( functions )... )( );
 		} );
-		return *result;
 	}
 
 } // namespace daw

@@ -41,12 +41,6 @@
 namespace daw {
 	class task_scheduler {
 		std::shared_ptr<impl::task_scheduler_impl> m_impl;
-
-		template<typename Function, typename ResultType>
-		friend ResultType daw::blocking_function_impl( Function func, size_t task_count );
-
-		template<typename Task>
-		friend void daw::blocking_task_impl( Task task, size_t task_count );
 	  public:
 		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ),
 		                bool block_on_destruction = true );
@@ -67,17 +61,8 @@ namespace daw {
 		bool started( ) const;
 		size_t size( ) const;
 
-		template<typename Waitable>
-		void blocking_on_waitable( Waitable waitable ) {
-			if( m_impl->am_i_in_pool( ) ) {
-				blocking_task( [&waitable]( ) { waitable.wait( ); } );
-			} else {
-				waitable.wait( );
-			}
-		}
-
 		template<typename Function>
-		auto blocking_function( Function func ) {
+		auto blocking_section( Function func ) {
 			if( !m_impl->am_i_in_pool( ) ) {
 				return func( );
 			}
@@ -86,14 +71,9 @@ namespace daw {
 			return func( );
 		}
 
-		template<typename Task>
-		void blocking_task( Task task ) {
-			if( !m_impl->am_i_in_pool( ) ) {
-				task( );
-			}
-			auto semaphore = m_impl->start_temp_task_runners( );
-			auto const at_exit = daw::on_scope_exit( [&semaphore]( ) { semaphore.notify( ); } );
-			task( );
+		template<typename Waitable>
+		void blocking_on_waitable( Waitable waitable ) {
+			blocking_section( [&waitable]( ) { waitable.wait( ); } );
 		}
 	}; // task_scheduler
 
@@ -143,18 +123,12 @@ namespace daw {
 	/// @param tasks callable items of the form void( )
 	template<typename... Tasks>
 	void invoke_tasks( Tasks... tasks ) {
-		auto ts = get_task_scheduler( );
-		ts.blocking_on_waitable( create_task_group( tasks... ) );
+		get_task_scheduler( ).blocking_on_waitable( create_task_group( tasks... ) );
 	}
 
 	template<typename Function>
-	auto blocking_function( Function func, task_scheduler ts = get_task_scheduler( ) ) {
-		return ts.blocking_function( func );
-	}
-
-	template<typename Task>
-	auto blocking_task( Task task, task_scheduler ts = get_task_scheduler( ) ) {
-		return ts.blocking_task( task );
+	auto blocking_section( Function func, task_scheduler ts = get_task_scheduler( ) ) {
+		return ts.blocking_section( func );
 	}
 } // namespace daw
 
