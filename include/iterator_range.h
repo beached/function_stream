@@ -28,7 +28,7 @@ namespace daw {
 		Iterator first;
 		Iterator last;
 
-		explicit operator bool( ) const {
+		constexpr explicit operator bool( ) const noexcept {
 			return first != last;
 		}
 
@@ -40,89 +40,88 @@ namespace daw {
 			return first == last;
 		}
 
-		auto &operator*( ) {
+		constexpr auto &operator*( ) noexcept {
 			return front( );
 		}
 
-		auto const &operator*( ) const {
+		constexpr auto const &operator*( ) const noexcept {
 			return front( );
 		}
 
-		auto operator-> ( ) const {
+		constexpr auto operator-> ( ) const noexcept {
 			return &( *first );
 		}
 
-		Iterator begin( ) {
+		constexpr Iterator begin( ) noexcept {
 			return first;
 		}
 
-		Iterator const begin( ) const {
+		constexpr Iterator const begin( ) const noexcept {
 			return first;
 		}
 
-		Iterator const cbegin( ) const {
+		constexpr Iterator const cbegin( ) const noexcept {
 			return first;
 		}
 
-		Iterator end( ) {
+		constexpr Iterator end( ) noexcept {
 			return last;
 		}
 
-		Iterator const end( ) const {
+		constexpr Iterator const end( ) const noexcept {
 			return last;
 		}
 
-		Iterator const cend( ) const {
+		constexpr Iterator const cend( ) const noexcept {
 			return last;
 		}
 
-		void advance( size_t n = 1 ) {
+		constexpr void advance( size_t n = 1 ) noexcept {
 			std::advance( first, n );
 		}
 
-		void safe_advance( size_t n = 1 ) {
+		constexpr void safe_advance( size_t n = 1 ) noexcept {
 			first = daw::algorithm::safe_next( first, last, n );
 		}
 
-		iterator_range_t &operator++( ) {
+		constexpr iterator_range_t &operator++( ) noexcept {
 			std::advance( first, 1 );
 			return *this;
 		}
 
-		iterator_range_t operator++( int ) {
+		constexpr iterator_range_t operator++(int)noexcept {
 			iterator_range_t result{*this};
 			++( *this );
 			return result;
 		}
 
-		auto &front( ) {
+		constexpr auto &front( ) noexcept {
 			return *first;
 		}
 
-		auto const &front( ) const {
+		constexpr auto const &front( ) const noexcept {
 			return *first;
 		}
 
-		auto &pop_front( ) {
+		constexpr auto &pop_front( ) noexcept {
 			return *( first++ );
 		}
 
-		auto &operator[]( size_t n ) {
+		constexpr auto &operator[]( size_t n ) noexcept {
 			return first[n];
 		}
 
-		auto const &operator[]( size_t n ) const {
+		constexpr auto const &operator[]( size_t n ) const noexcept {
 			return first[n];
 		}
 
-		auto &back( ) {
+		constexpr auto &back( ) noexcept {
 			return first[std::distance( first, last ) - 1];
 		}
 
-		auto const &back( ) const {
+		constexpr auto const &back( ) const noexcept {
 			return first[std::distance( first, last ) - 1];
 		}
 	};
 
 } // namespace daw
-

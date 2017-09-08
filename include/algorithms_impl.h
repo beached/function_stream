@@ -88,16 +88,17 @@ namespace daw {
 				};
 
 				template<typename Ranges, typename Func>
-				daw::shared_semaphore partition_range( Ranges & ranges, Func func, task_scheduler ts ) {
+				daw::shared_semaphore partition_range( Ranges &ranges, Func func, task_scheduler ts ) {
 					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
-					for( auto const & rng: ranges ) {
+					for( auto const &rng : ranges ) {
 						schedule_task( semaphore, [func, rng]( ) mutable { func( rng ); }, ts );
 					}
 					return semaphore;
 				}
 
 				template<typename PartitionPolicy, typename Iterator, typename Func>
-				daw::shared_semaphore partition_range( Iterator first, Iterator const last, Func func, task_scheduler ts ) {
+				daw::shared_semaphore partition_range( Iterator first, Iterator const last, Func func,
+				                                       task_scheduler ts ) {
 					if( std::distance( first, last ) == 0 ) {
 						return daw::shared_semaphore{1};
 					}
@@ -112,24 +113,29 @@ namespace daw {
 				template<typename PartitionPolicy = split_range_t<1>, typename RandomIterator, typename Func>
 				void parallel_for_each( RandomIterator first, RandomIterator last, Func func, task_scheduler ts ) {
 					ts.blocking_on_waitable(
-					    partition_range<PartitionPolicy>( first, last, [func]( RandomIterator f, RandomIterator l ) {
-						    for( auto it = f; it != l; ++it ) {
-							    func( *it );
-						    }
-					    }, ts ) );
+					    partition_range<PartitionPolicy>( first, last,
+					                                      [func]( RandomIterator f, RandomIterator l ) {
+						                                      for( auto it = f; it != l; ++it ) {
+							                                      func( *it );
+						                                      }
+					                                      },
+					                                      ts ) );
 				}
 
 				template<typename Ranges, typename Func>
-				void parallel_for_each( Ranges & ranges, Func func, task_scheduler ts ) {
-					ts.blocking_on_waitable( partition_range( ranges, [func]( auto f, auto l ) {
-						for( auto it = f; it != l; ++it ) {
-							func( *it );
-						}
-					}, ts ) );
+				void parallel_for_each( Ranges &ranges, Func func, task_scheduler ts ) {
+					ts.blocking_on_waitable( partition_range( ranges,
+					                                          [func]( auto f, auto l ) {
+						                                          for( auto it = f; it != l; ++it ) {
+							                                          func( *it );
+						                                          }
+					                                          },
+					                                          ts ) );
 				}
 
 				template<typename Iterator, typename Function>
-				void merge_reduce_range( std::vector<std::pair<Iterator, Iterator>> ranges, Function func, task_scheduler ts ) {
+				void merge_reduce_range( std::vector<std::pair<Iterator, Iterator>> ranges, Function func,
+				                         task_scheduler ts ) {
 					while( ranges.size( ) > 1 ) {
 						std::vector<std::pair<Iterator, Iterator>> next_ranges;
 						auto const count = ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
@@ -153,7 +159,8 @@ namespace daw {
 					}
 				}
 
-				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename Sort, typename Compare>
+				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename Sort,
+				         typename Compare>
 				void parallel_sort( Iterator first, Iterator last, Sort sort, Compare compare, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size > static_cast<size_t>( std::distance( first, last ) ) ) {
 						sort( first, last, compare );
@@ -161,10 +168,11 @@ namespace daw {
 					}
 					daw::locked_stack_t<std::pair<Iterator, Iterator>> sort_ranges_stack;
 					partition_range<PartitionPolicy>( first, last,
-					                               [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
-						                               sort( f, l, compare );
-						                               sort_ranges_stack.push_back( std::make_pair( f, l ) );
-					                               }, ts );
+					                                  [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
+						                                  sort( f, l, compare );
+						                                  sort_ranges_stack.push_back( std::make_pair( f, l ) );
+					                                  },
+					                                  ts );
 
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
@@ -177,9 +185,10 @@ namespace daw {
 					std::sort( sort_ranges.begin( ), sort_ranges.end( ),
 					           []( auto const &lhs, auto const &rhs ) { return lhs.first < rhs.first; } );
 
-					merge_reduce_range( sort_ranges, [compare]( Iterator f, Iterator m, Iterator l ) {
-						std::inplace_merge( f, m, l, compare );
-					}, ts );
+					merge_reduce_range(
+					    sort_ranges,
+					    [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); },
+					    ts );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename T, typename Iterator, typename BinaryOp>
@@ -203,7 +212,8 @@ namespace daw {
 							                                            result = binary_op( result, *f );
 						                                            }
 						                                            results.push_back( std::move( result ) );
-					                                            }, ts );
+					                                            },
+					                                            ts );
 					auto result = static_cast<result_t>( init );
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
@@ -230,10 +240,11 @@ namespace daw {
 					}
 					daw::locked_stack_t<Iterator> results;
 					auto t1 = partition_range<PartitionPolicy>(
-					    first, last, [&results, cmp]( Iterator const f, Iterator const l ) {
-						    auto const sz = std::distance( f, l ); 
+					    first, last,
+					    [&results, cmp]( Iterator const f, Iterator const l ) {
+						    auto const sz = std::distance( f, l );
 						    auto result_val = *f;
-							using diff_t = typename std::iterator_traits<Iterator>::difference_type;
+						    using diff_t = typename std::iterator_traits<Iterator>::difference_type;
 						    diff_t result_pos = 0;
 						    for( diff_t n = 1; n < sz; ++n ) {
 							    auto v = f[n];
@@ -243,7 +254,8 @@ namespace daw {
 							    }
 						    }
 						    results.push_back( std::next( f, result_pos ) );
-					    }, ts );
+					    },
+					    ts );
 
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
@@ -275,10 +287,11 @@ namespace daw {
 					}
 					daw::locked_stack_t<Iterator> results;
 					auto t1 = partition_range<PartitionPolicy>(
-					    first, last, [&results, cmp]( Iterator const f, Iterator const l ) {
+					    first, last,
+					    [&results, cmp]( Iterator const f, Iterator const l ) {
 						    auto const sz = std::distance( f, l );
 						    auto result_val = *f;
-							using diff_t = typename std::iterator_traits<Iterator>::difference_type;
+						    using diff_t = typename std::iterator_traits<Iterator>::difference_type;
 						    diff_t result_pos = 0;
 						    for( diff_t n = 1; n < sz; ++n ) {
 							    auto v = f[n];
@@ -288,7 +301,8 @@ namespace daw {
 							    }
 						    }
 						    results.push_back( std::next( f, result_pos ) );
-					    }, ts );
+					    },
+					    ts );
 
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
@@ -330,7 +344,8 @@ namespace daw {
 					    ts ) );
 				}
 
-				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename T, typename MapFunction, typename ReduceFunction>
+				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename T,
+				         typename MapFunction, typename ReduceFunction>
 				auto parallel_map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,
 				                          ReduceFunction reduce_function, task_scheduler ts ) {
 					static_assert( PartitionPolicy::min_range_size >= 2, "Minimum range size must be >= 2" );
@@ -366,7 +381,8 @@ namespace daw {
 					} );
 				}
 
-				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename OutputIterator, typename BinaryOp>
+				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename OutputIterator,
+				         typename BinaryOp>
 				void parallel_scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out,
 				                    BinaryOp binary_op, task_scheduler ts ) {
 					{
@@ -385,7 +401,7 @@ namespace daw {
 						iterator_range_t<Iterator> range;
 						value_t value;
 
-						constexpr bool operator<( result_t const &rhs ) const noexcept {
+						bool operator<( result_t const &rhs ) const noexcept {
 							return range.cbegin( ) < rhs.range.cbegin( );
 						}
 					};
@@ -420,15 +436,17 @@ namespace daw {
 						}
 					}
 					parallel_for_each<PartitionPolicy>(
-					    results.begin( ), results.end( ), [first, first_out, binary_op]( result_t cur_range ) {
-							auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );
-							auto sum = binary_op( cur_range.value, cur_range.range.pop_front( ) );
-							*( out_pos++ ) = sum;
-							for( auto it = cur_range.range.cbegin( ); it != cur_range.range.cend( ); ++it ) {
-								sum = binary_op( sum, *it );
-								*( out_pos++ ) = sum;
-							}
-					    }, ts );
+					    results.begin( ), results.end( ),
+					    [first, first_out, binary_op]( result_t cur_range ) {
+						    auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );
+						    auto sum = binary_op( cur_range.value, cur_range.range.pop_front( ) );
+						    *( out_pos++ ) = sum;
+						    for( auto it = cur_range.range.cbegin( ); it != cur_range.range.cend( ); ++it ) {
+							    sum = binary_op( sum, *it );
+							    *( out_pos++ ) = sum;
+						    }
+					    },
+					    ts );
 				}
 			} // namespace impl
 		}     // namespace parallel

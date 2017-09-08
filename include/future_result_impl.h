@@ -41,7 +41,6 @@ namespace daw {
 	template<>
 	struct future_result_t<void>;
 
-
 	namespace impl {
 		struct future_result_base_t {
 			future_result_base_t( ) = default;
@@ -78,7 +77,7 @@ namespace daw {
 		struct call_func_t {
 			template<typename Results, typename... Args>
 			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
-			                  std::tuple<Callables...> const &callables, std::tuple<Args...> const & args ) {
+			                  std::tuple<Callables...> const &callables, std::tuple<Args...> const &args ) {
 				schedule_task( semaphore, [&results, &callables, &args ]( ) mutable noexcept {
 					try {
 						std::get<N>( results ) = daw::apply( std::get<N>( callables ), args );
@@ -101,34 +100,36 @@ namespace daw {
 		                 std::tuple<Callables...> const &callables, std::tuple<Args...> args ) {
 			call_func_t<0, sizeof...( Callables ), Callables...>{}( ts, semaphore, result, callables, args );
 		}
-	
+
 		template<typename... Functions>
 		class result_t {
 			std::tuple<Functions...> tp_functions;
-		public:
-			result_t( Functions... fs ): tp_functions{std::make_tuple( std::move( fs )... )} { }
+
+		  public:
+			result_t( Functions... fs ) : tp_functions{std::make_tuple( std::move( fs )... )} {}
 
 			template<typename... Args>
-			auto operator()( Args... args ) {
-				daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
-				using result_t = std::tuple<daw::expected_t<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>>...>;
+			auto operator( )( Args... args ) {
+				using result_tp_t =
+				    std::tuple<daw::expected_t<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>>...>;
+
 				auto tp_args = std::make_tuple( std::move( args )... );
-				future_result_t<result_t> result;
-				auto th = std::thread{
-					[result, semaphore, tp_functions = std::move( tp_functions ), tp_args=std::move(tp_args)]( ) mutable noexcept {
-						auto ts = get_task_scheduler( );
-						result_t tp_result;
-						impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
+				future_result_t<result_tp_t> result;
+				daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
+				auto th =
+				    std::thread{[result, semaphore, tp_functions = std::move( tp_functions ),
+				                 tp_args = std::move( tp_args )]( ) mutable noexcept {auto ts = get_task_scheduler( );
+				result_tp_t tp_result;
+				impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
 
-						ts.blocking_on_waitable( semaphore );
+				ts.blocking_on_waitable( semaphore );
 
-				        result.set_value( std::move( tp_result ) );
-					}
-				};
-				th.detach( );
-				return result;
+				result.set_value( std::move( tp_result ) );
 			}
-		};	// result_t
+		};
+		th.detach( );
+		return result;
 	} // namespace impl
+};    // namespace daw
+} // namespace impl
 } // namespace daw
-
