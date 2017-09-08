@@ -66,7 +66,7 @@ namespace daw {
 
 	template<typename FunctionStream>
 	void wait_for_function_streams( FunctionStream & function_stream ) {
-		blocking_on_waitable( function_stream );
+		function_stream.wait( );
 	}
 
 	template<typename... FunctionStreams>

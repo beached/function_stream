@@ -112,25 +112,26 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<1>, typename RandomIterator, typename Func>
 				void parallel_for_each( RandomIterator first, RandomIterator last, Func func, task_scheduler ts ) {
-					ts.blocking_on_waitable(
-					    partition_range<PartitionPolicy>( first, last,
-					                                      [func]( RandomIterator f, RandomIterator l ) {
-						                                      for( auto it = f; it != l; ++it ) {
-							                                      func( *it );
-						                                      }
-					                                      },
-					                                      ts ) );
+					partition_range<PartitionPolicy>( first, last,
+					                                  [func]( RandomIterator f, RandomIterator l ) {
+						                                  for( auto it = f; it != l; ++it ) {
+							                                  func( *it );
+						                                  }
+					                                  },
+					                                  ts )
+					    .wait( );
 				}
 
 				template<typename Ranges, typename Func>
 				void parallel_for_each( Ranges &ranges, Func func, task_scheduler ts ) {
-					ts.blocking_on_waitable( partition_range( ranges,
-					                                          [func]( auto f, auto l ) {
-						                                          for( auto it = f; it != l; ++it ) {
-							                                          func( *it );
-						                                          }
-					                                          },
-					                                          ts ) );
+					partition_range( ranges,
+					                 [func]( auto f, auto l ) {
+						                 for( auto it = f; it != l; ++it ) {
+							                 func( *it );
+						                 }
+					                 },
+					                 ts )
+					    .wait( );
 				}
 
 				template<typename Iterator, typename Function>
@@ -151,7 +152,7 @@ namespace daw {
 
 							next_ranges.push_back( std::make_pair( ranges[n - 1].first, ranges[n].second ) );
 						}
-						ts.blocking_on_waitable( semaphore );
+						semaphore.wait( );
 						if( count != ranges.size( ) ) {
 							next_ranges.push_back( ranges.back( ) );
 						}
@@ -177,11 +178,9 @@ namespace daw {
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
 					std::vector<std::pair<Iterator, Iterator>> sort_ranges;
-					ts.blocking_section( [&]( ) {
-						for( size_t n = 0; n < expected_results; ++n ) {
-							sort_ranges.push_back( sort_ranges_stack.pop_back2( ) );
-						}
-					} );
+					for( size_t n = 0; n < expected_results; ++n ) {
+						sort_ranges.push_back( sort_ranges_stack.pop_back2( ) );
+					}
 					std::sort( sort_ranges.begin( ), sort_ranges.end( ),
 					           []( auto const &lhs, auto const &rhs ) { return lhs.first < rhs.first; } );
 
@@ -217,11 +216,9 @@ namespace daw {
 					auto result = static_cast<result_t>( init );
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-					ts.blocking_section( [&]( ) {
-						for( size_t n = 0; n < expected_results; ++n ) {
-							result = binary_op( result, results.pop_back2( ) );
-						}
-					} );
+					for( size_t n = 0; n < expected_results; ++n ) {
+						result = binary_op( result, results.pop_back2( ) );
+					}
 					return result;
 				}
 
@@ -332,16 +329,16 @@ namespace daw {
 				void parallel_map( Iterator first1, Iterator const last1, OutputIterator first2,
 				                   UnaryOperation unary_op, task_scheduler ts ) {
 
-					ts.blocking_on_waitable( partition_range<PartitionPolicy>(
-					    first1, last1,
-					    [first1, first2, unary_op]( Iterator f, Iterator const l ) {
-						    auto out_it = std::next( first2, std::distance( first1, f ) );
+					partition_range<PartitionPolicy>( first1, last1,
+					                                  [first1, first2, unary_op]( Iterator f, Iterator const l ) {
+						                                  auto out_it = std::next( first2, std::distance( first1, f ) );
 
-						    for( ; f != l; ++f, ++out_it ) {
-							    *out_it = unary_op( *f );
-						    }
-					    },
-					    ts ) );
+						                                  for( ; f != l; ++f, ++out_it ) {
+							                                  *out_it = unary_op( *f );
+						                                  }
+					                                  },
+					                                  ts )
+					    .wait( );
 				}
 
 				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename T,
@@ -372,13 +369,11 @@ namespace daw {
 
 					size_t const expected_results =
 					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-					return ts.blocking_section( [&]( ) {
-						auto result = reduce_function( map_function( init ), results.pop_back2( ) );
-						for( size_t n = 1; n < expected_results; ++n ) {
-							result = reduce_function( result, results.pop_back2( ) );
-						}
-						return result;
-					} );
+					auto result = reduce_function( map_function( init ), results.pop_back2( ) );
+					for( size_t n = 1; n < expected_results; ++n ) {
+						result = reduce_function( result, results.pop_back2( ) );
+					}
+					return result;
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename OutputIterator,
@@ -409,16 +404,16 @@ namespace daw {
 					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					daw::locked_stack_t<result_t> locked_results;
 					// Sum each sub range
-					ts.blocking_on_waitable(
-					    partition_range( ranges,
-					                     [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
-						                     result_t result{rng, rng.pop_front( )};
-						                     for( auto it = rng.cbegin( ); it != rng.cend( ); ++it ) {
-							                     result.value = binary_op( result.value, *it );
-						                     }
-						                     locked_results.push_back( std::move( result ) );
-					                     },
-					                     ts ) );
+					partition_range( ranges,
+					                 [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
+						                 result_t result{rng, rng.pop_front( )};
+						                 for( auto it = rng.cbegin( ); it != rng.cend( ); ++it ) {
+							                 result.value = binary_op( result.value, *it );
+						                 }
+						                 locked_results.push_back( std::move( result ) );
+					                 },
+					                 ts )
+					    .wait( );
 
 					auto results = locked_results.copy( );
 					std::sort( results.begin( ), results.end( ) );

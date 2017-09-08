@@ -298,9 +298,7 @@ namespace daw {
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
 	auto make_future_result_group( Functions... functions ) {
-		return blocking_section( [&]( ) {
-			return make_callable_future_result_group( std::move( functions )... )( );
-		} );
+		return make_callable_future_result_group( std::move( functions )... )( );
 	}
 
 } // namespace daw

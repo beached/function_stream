@@ -116,20 +116,21 @@ namespace daw {
 				auto tp_args = std::make_tuple( std::move( args )... );
 				future_result_t<result_tp_t> result;
 				daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
-				auto th =
-				    std::thread{[result, semaphore, tp_functions = std::move( tp_functions ),
-				                 tp_args = std::move( tp_args )]( ) mutable noexcept {auto ts = get_task_scheduler( );
-				result_tp_t tp_result;
-				impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
+				auto th_worker = [
+					result, semaphore, tp_functions = std::move( tp_functions ), tp_args = std::move( tp_args )
+				]( ) mutable noexcept {
+					auto ts = get_task_scheduler( );
+					result_tp_t tp_result;
+					impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
 
-				ts.blocking_on_waitable( semaphore );
+					semaphore.wait( );
 
-				result.set_value( std::move( tp_result ) );
+					result.set_value( std::move( tp_result ) );
+				};
+				std::thread th{th_worker};
+				th.detach( );
+				return result;
 			}
-		};
-		th.detach( );
-		return result;
-	} // namespace impl
-};    // namespace daw
-} // namespace impl
+		}; // result_t
+	}      // namespace impl
 } // namespace daw
