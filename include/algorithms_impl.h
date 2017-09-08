@@ -412,10 +412,13 @@ namespace daw {
 						                 }
 						                 locked_results.push_back( std::move( result ) );
 					                 },
-					                 ts )
-					    .wait( );
-
-					auto results = locked_results.copy( );
+					                 ts );
+					
+					std::vector<result_t> results;
+					results.reserve( ranges.size( ) );
+					for( size_t n=0; n<ranges.size( ); ++n ) {
+						results.push_back( locked_results.pop_back2( ) );
+					}
 					std::sort( results.begin( ), results.end( ) );
 					{
 						std::vector<value_t> values;
@@ -436,10 +439,11 @@ namespace daw {
 						    auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );
 						    auto sum = binary_op( cur_range.value, cur_range.range.pop_front( ) );
 						    *( out_pos++ ) = sum;
-						    for( auto it = cur_range.range.cbegin( ); it != cur_range.range.cend( ); ++it ) {
-							    sum = binary_op( sum, *it );
-							    *( out_pos++ ) = sum;
-						    }
+							for( auto const & item: cur_range.range ) {
+								sum = binary_op( sum, item );
+								*out_pos = sum;
+								++out_pos;
+							}
 					    },
 					    ts );
 				}
