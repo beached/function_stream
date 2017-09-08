@@ -76,19 +76,21 @@ std::vector<size_t> find_commas( daw::string_view line ) {
 	return results;
 }
 
-std::vector<daw::string_view> find_newlines( daw::string_view str ) {
-	std::vector<daw::string_view> results;
-	if( str.empty( ) ) {
-		return results;
-	}
+template<typename Emitter>
+size_t find_newlines( daw::string_view str, Emitter emitter ) {
 	auto pos = str.find( '\n' );
+	size_t count = 0;
 	while( pos != str.npos ) {
-		results.push_back( str.substr( 0, pos - 1 ) );
+		++count;
+		emitter( str.substr( 0, pos - 1 ) );
 		str.remove_prefix( pos + 1 );
 		pos = str.find( '\n' );
 	}
-	results.push_back( str );
-	return results;
+	if( !str.empty( ) ) {
+		++count;
+		emitter( str );
+	}
+	return count;
 }
 
 template<typename Char>
@@ -129,13 +131,12 @@ boost::optional<intmax_t> parse_int( daw::string_view str ) {
 	return result;
 }
 
-std::vector<boost::optional<intmax_t>> parse_line( std::string line ) {
+std::vector<boost::optional<intmax_t>> parse_line( daw::string_view line ) {
 	std::vector<boost::optional<intmax_t>> result;
-	daw::string_view view{line};
-	auto comma_pos = find_commas( view );
+	auto comma_pos = find_commas( line );
 	size_t last_pos = 0;
 	for( auto const &cur_pos : comma_pos ) {
-		result.push_back( parse_int( view.substr( last_pos, cur_pos - last_pos ) ) );
+		result.push_back( parse_int( line.substr( last_pos, cur_pos - last_pos ) ) );
 		last_pos = cur_pos + 1;
 	}
 	return result;
@@ -148,9 +149,7 @@ boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax
 	return boost::none;
 }
 
-
-
-auto parse_file( daw::string_view str ) {
+auto parse_file( daw::string_view str, daw::task_scheduler ts ) {
 	struct surplus_t {
 		intmax_t value;
 		bool has_value;
@@ -162,42 +161,31 @@ auto parse_file( daw::string_view str ) {
 			return has_value;
 		}
 	};
-	
-	auto pipeline = daw::make_function_stream(
-	    []( daw::string_view data ) {
-		    return find_newlines( data );
-	    },
-	    []( std::vector<daw::string_view> lines ) {
-		    auto mapper = []( daw::string_view l ) {
-			    auto const fs = daw::make_function_stream( []( daw::string_view line ) { return parse_line( line ); },
-			                                               []( std::vector<boost::optional<intmax_t>> line_data ) {
-				                                               auto fd = parsed_line_to_fd( line_data );
-				                                               if( !fd ) {
-					                                               return surplus_t{};
-				                                               }
-				                                               return surplus_t{fd->surplus};
-			                                               } );
-			    auto result = fs( l );
-				daw::get_task_scheduler( ).blocking_on_waitable( result );
-			    return result.get( );
-		    };
-		    auto reducer = []( surplus_t lhs, surplus_t rhs ) {
-			    if( lhs ) {
-				    if( rhs ) {
-					    lhs.value = std::min( lhs.value, rhs.value );
-					    return lhs;
-				    }
-				    return lhs;
-			    }
-			    return rhs;
-		    };
-		    auto ts = daw::get_task_scheduler( );
-		    return ts.blocking_section( [&]( ) {
-			    return daw::algorithm::parallel::map_reduce( lines.begin( ), lines.end( ), mapper, reducer, ts );
-		    } );
-	    } );
-
-	return pipeline( str );
+	auto ts_ptr = std::make_shared<daw::task_scheduler>( ts );
+	daw::locked_stack_t<surplus_t> results;
+	auto expected_lines = find_newlines( str, [ts_ptr, &results]( daw::string_view line ) mutable {
+		auto fd = parsed_line_to_fd( parse_line( line ) );
+		if( !fd ) {
+			results.emplace_back( );
+		} else {
+			results.emplace_back(fd->surplus);
+		}
+	} );
+	std::vector<surplus_t> filtered_results;
+	for( size_t n=0; n<expected_lines; ++n ) {
+		auto value = results.pop_back2( );
+		if( value ) {
+			filtered_results.push_back( std::move( value ) );
+		}
+	}
+	auto const reducer = []( surplus_t lhs, surplus_t rhs ) noexcept {
+		lhs.value = std::min( lhs.value, rhs.value );
+		return lhs;
+	};
+	auto first = std::next( filtered_results.cbegin( ) );
+	return ts_ptr->blocking_section( [&]( ) {
+		return daw::algorithm::parallel::reduce( first, filtered_results.cend( ), *filtered_results.cbegin( ), reducer, *ts_ptr );
+	} );
 }
 
 int main( int argc, char **argv ) {
@@ -208,7 +196,7 @@ int main( int argc, char **argv ) {
 
 	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
 	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
-	auto result = parse_file( daw::string_view{mmf.data( ), mmf.size( )} ).get( );
+	auto result = parse_file( daw::string_view{mmf.data( ), mmf.size( )}, daw::get_task_scheduler( ) );
 
 	std::cout << "Minimum surplus is ";
 	if( result )
