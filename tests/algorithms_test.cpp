@@ -41,10 +41,8 @@ static auto ts = daw::get_task_scheduler( );
 
 template<typename T>
 double calc_speedup( T seq_time, T par_time ) {
-	static double const max_speedup = daw::get_task_scheduler( ).size( );
-	auto result = seq_time / par_time;
-	result = result / max_speedup;
-	return result * 100.0;
+	static double const N = daw::get_task_scheduler( ).size( );
+	return 100.0*((seq_time/N)/par_time);
 }
 
 void display_info( double seq_time, double par_time, double count, size_t bytes, daw::string_view label ) {
@@ -74,27 +72,34 @@ void display_info( double seq_time, double par_time, double count, size_t bytes,
 	};
 
 	auto const mbs = [count, bytes]( double t ) {
+		using result_t = double;
+		std::stringstream ss;
+		ss << std::setprecision( 1 ) << std::fixed; 
 		auto val = ( count * static_cast<double>( bytes ) ) / t;
 		if( val < 1024 ) {
-			return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "bytes/s";
+			ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "bytes";
+			return ss.str( );
 		}
 		val /= 1024.0;
 		if( val < 1024 ) {
-			return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "KB/s";
+			ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "KB";
+			return ss.str( );
 		}
 		val /= 1024.0;
 		if( val < 1024 ) {
-			return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "MB/s";
+			ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "MB";
+			return ss.str( );
 		}
 		val /= 1024.0;
-		return std::to_string( static_cast<uint64_t>( val * 100.0 ) / 100 ) + "GB/s";
+		ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "GB";
+		return ss.str( );
 	};
 
-	std::cout << label << ": size->" << static_cast<uint64_t>( count ) << " %cpus->"
-	          << calc_speedup( seq_time, par_time ) << " par_total->" << make_seconds( par_time, 1 ) << " par_item->"
-	          << make_seconds( par_time, count ) << " throughput->" << mbs( par_time ) << " seq_total->"
-	          << make_seconds( seq_time, 1 ) << " seq_item->" << make_seconds( seq_time, count ) << " throughput->"
-	          << mbs( seq_time ) << '\n';
+	std::cout << std::setprecision( 1 ) << std::fixed << label << ": size->" << static_cast<uint64_t>( count ) << " "
+	          << mbs( 1 ) << " %max->" << calc_speedup( seq_time, par_time ) << " par_total->"
+	          << make_seconds( par_time, 1 ) << " par_item->" << make_seconds( par_time, count ) << " throughput->"
+	          << mbs( par_time ) << "/s seq_total->" << make_seconds( seq_time, 1 ) << " seq_item->"
+	          << make_seconds( seq_time, count ) << " throughput->" << mbs( seq_time ) << "/s \n";
 }
 
 template<typename T>
