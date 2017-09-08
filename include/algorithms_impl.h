@@ -30,7 +30,6 @@
 #include <daw/daw_algorithm.h>
 #include <daw/daw_semaphore.h>
 
-#include "function_stream.h"
 #include "iterator_range.h"
 #include "task_scheduler.h"
 
@@ -413,10 +412,10 @@ namespace daw {
 						                 locked_results.push_back( std::move( result ) );
 					                 },
 					                 ts );
-					
+
 					std::vector<result_t> results;
 					results.reserve( ranges.size( ) );
-					for( size_t n=0; n<ranges.size( ); ++n ) {
+					for( size_t n = 0; n < ranges.size( ); ++n ) {
 						results.push_back( locked_results.pop_back2( ) );
 					}
 					std::sort( results.begin( ), results.end( ) );
@@ -439,11 +438,11 @@ namespace daw {
 						    auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );
 						    auto sum = binary_op( cur_range.value, cur_range.range.pop_front( ) );
 						    *( out_pos++ ) = sum;
-							for( auto const & item: cur_range.range ) {
-								sum = binary_op( sum, item );
-								*out_pos = sum;
-								++out_pos;
-							}
+						    for( auto const &item : cur_range.range ) {
+							    sum = binary_op( sum, item );
+							    *out_pos = sum;
+							    ++out_pos;
+						    }
 					    },
 					    ts );
 				}

@@ -42,7 +42,7 @@ static auto ts = daw::get_task_scheduler( );
 template<typename T>
 double calc_speedup( T seq_time, T par_time ) {
 	static double const N = daw::get_task_scheduler( ).size( );
-	return 100.0*((seq_time/N)/par_time);
+	return 100.0 * ( ( seq_time / N ) / par_time );
 }
 
 void display_info( double seq_time, double par_time, double count, size_t bytes, daw::string_view label ) {
@@ -74,7 +74,7 @@ void display_info( double seq_time, double par_time, double count, size_t bytes,
 	auto const mbs = [count, bytes]( double t ) {
 		using result_t = double;
 		std::stringstream ss;
-		ss << std::setprecision( 1 ) << std::fixed; 
+		ss << std::setprecision( 1 ) << std::fixed;
 		auto val = ( count * static_cast<double>( bytes ) ) / t;
 		if( val < 1024 ) {
 			ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "bytes";
@@ -112,7 +112,7 @@ void for_each_test( size_t SZ ) {
 	}
 	a[SZ / 2] = 4;
 	auto const find_even = [&]( auto x ) {
-		if( static_cast<intmax_t>(x) % 2 == 0 ) {
+		if( static_cast<intmax_t>( x ) % 2 == 0 ) {
 			found = true;
 		}
 	};
@@ -224,13 +224,15 @@ void stable_sort_test( size_t SZ ) {
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ) );
 	auto b = a;
-	auto const result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
+	auto const result_1 =
+	    daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
 	auto const result_2 = daw::benchmark( [&a]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
-	auto const result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
+	auto const result_3 =
+	    daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
 	auto const result_4 = daw::benchmark( [&a]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
@@ -248,16 +250,18 @@ void reduce_test( size_t SZ ) {
 	auto b = a;
 	T accum_result1 = 0;
 	T accum_result2 = 0;
-	auto const result_1 =
-	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>(0), ts ); } );
+	auto const result_1 = daw::benchmark(
+	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>( 0 ), ts ); } );
 	a = b;
-	auto const result_2 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>(0) ); } );
+	auto const result_2 =
+	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>( 0 ) ); } );
 	daw::exception::daw_throw_on_false( daw::nearly_equal( accum_result1, accum_result2 ), "Wrong return value" );
 	a = b;
-	auto const result_3 =
-	    daw::benchmark( [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>(0), ts ); } );
+	auto const result_3 = daw::benchmark(
+	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>( 0 ), ts ); } );
 	a = b;
-	auto const result_4 = daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>(0) ); } );
+	auto const result_4 =
+	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>( 0 ) ); } );
 	daw::exception::daw_throw_on_false( daw::nearly_equal( accum_result1, accum_result2 ), "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
@@ -273,15 +277,17 @@ void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 	value_t accum_result1 = 0;
 	value_t accum_result2 = 0;
 
-	auto const result_1 = daw::benchmark(
-	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op, ts ); } );
+	auto const result_1 = daw::benchmark( [&]( ) {
+		accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op, ts );
+	} );
 	a = b;
 	auto const result_2 =
 	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
 	daw::exception::daw_throw_on_false( accum_result1 == accum_result2, "Wrong return value" );
 	a = b;
-	auto const result_3 = daw::benchmark(
-	    [&]( ) { accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op, ts ); } );
+	auto const result_3 = daw::benchmark( [&]( ) {
+		accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op, ts );
+	} );
 	a = b;
 	auto const result_4 =
 	    daw::benchmark( [&]( ) { accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op ); } );
@@ -499,7 +505,7 @@ void scan_test( size_t SZ ) {
 	auto c = a;
 	auto const reduce_function = []( auto lhs, auto rhs ) noexcept {
 		volatile int x = 0;
-		for( size_t n=0; n<50; ++n ) {
+		for( size_t n = 0; n < 50; ++n ) {
 			x = x + 1;
 		}
 		return lhs + rhs;
@@ -515,8 +521,9 @@ void scan_test( size_t SZ ) {
 	                                    "Wrong return value" );
 	b = a;
 	c = a;
-	auto const result_3 = daw::benchmark(
-	    [&]( ) { daw::algorithm::parallel::scan( a.cbegin( ), a.cend( ), b.begin( ), b.end( ), reduce_function, ts ); } );
+	auto const result_3 = daw::benchmark( [&]( ) {
+		daw::algorithm::parallel::scan( a.cbegin( ), a.cend( ), b.begin( ), b.end( ), reduce_function, ts );
+	} );
 	auto const result_4 =
 	    daw::benchmark( [&]( ) { std::partial_sum( a.cbegin( ), a.cend( ), c.begin( ), reduce_function ); } );
 	daw::exception::daw_throw_on_false( std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
@@ -531,112 +538,112 @@ int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	size_t const LARGE_TEST_SZ = 200'000'000;
 	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
-	/*
+
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    for_each_test<double>( n );
+		for_each_test<double>( n );
 	}
 	std::cout << "int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    for_each_test<int64_t>( n );
+		for_each_test<int64_t>( n );
 	}
 	std::cout << "int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    for_each_test<int32_t>( n );
+		for_each_test<int32_t>( n );
 	}
 	std::cout << "fill tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    fill_test<double>( n );
+		fill_test<double>( n );
 	}
 	std::cout << "int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    fill_test<int64_t>( n );
+		fill_test<int64_t>( n );
 	}
 	std::cout << "int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    fill_test<int32_t>( n );
+		fill_test<int32_t>( n );
 	}
 	std::cout << "sort tests\n";
 	std::cout << "int64_t\n";
 	sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    sort_test( n );
+		sort_test( n );
 	}
 
 	std::cout << "stable_sort tests\n";
 	std::cout << "int64_t\n";
-	//stable_sort_test( LARGE_TEST_SZ );
+	// stable_sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    stable_sort_test( n );
+		stable_sort_test( n );
 	}
 
 	std::cout << "reduce tests\n";
 	std::cout << "int64_t\n";
 	reduce_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    reduce_test<int64_t>( n );
+		reduce_test<int64_t>( n );
 	}
 
 	std::cout << "double\n";
 	reduce_test<double>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    reduce_test<double>( n );
+		reduce_test<double>( n );
 	}
 
 	std::cout << "reduce2 tests\n";
 	std::cout << "uint64_t\n";
 	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
-	    return lhs*rhs;
+		return lhs * rhs;
 	};
 	reduce_test2<uint64_t>( LARGE_TEST_SZ, 1, bin_op );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    reduce_test2<uint64_t>( n, 1, bin_op );
+		reduce_test2<uint64_t>( n, 1, bin_op );
 	}
 
 	std::cout << "min_element tests\n";
 	std::cout << "int64_t\n";
 	min_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    min_element_test<int64_t>( n );
+		min_element_test<int64_t>( n );
 	}
 
 	std::cout << "max_element tests\n";
 	std::cout << "int64_t\n";
 	max_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    max_element_test<int64_t>( n );
+		max_element_test<int64_t>( n );
 	}
 
 	std::cout << "transform tests\n";
 	std::cout << "int64_t\n";
 	transform_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    transform_test<int64_t>( n );
+		transform_test<int64_t>( n );
 	}
 
 	std::cout << "transform2 tests\n";
 	std::cout << "int64_t\n";
 	transform_test2<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    transform_test2<int64_t>( n );
+		transform_test2<int64_t>( n );
 	}
 
 	std::cout << "map_reduce tests\n";
 	std::cout << "int64_t\n";
 	map_reduce_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-	    map_reduce_test<int64_t>( n );
+		map_reduce_test<int64_t>( n );
 	}
 
 	std::cout << "map_reduce2 tests\n";
 	std::cout << "int64_t\n";
 	for( size_t n = 100'000; n >= 100; n /= 10 ) {
-	    map_reduce_test2<int64_t>( n );
+		map_reduce_test2<int64_t>( n );
 	}
 	map_reduce_test2<int64_t>( 3 );
-	*/
+
 	std::cout << "scan tests\n";
 	std::cout << "int64_t\n";
 	scan_test<int64_t>( LARGE_TEST_SZ );

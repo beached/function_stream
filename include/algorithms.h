@@ -22,24 +22,14 @@
 
 #pragma once
 
-#include <algorithm>
-#include <iterator>
-#include <memory>
-
-#include <daw/cpp_17.h>
-#include <daw/daw_algorithm.h>
-#include <daw/daw_semaphore.h>
-
 #include "algorithms_impl.h"
-#include "function_stream.h"
-#include "iterator_range.h"
-#include "task_scheduler.h"
 
 namespace daw {
 	namespace algorithm {
 		namespace parallel {
 			template<typename RandomIterator, typename Func>
-			void for_each( RandomIterator const first, RandomIterator const last, Func func, task_scheduler ts = get_task_scheduler( ) ) {
+			void for_each( RandomIterator const first, RandomIterator const last, Func func,
+			               task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_for_each( first, last, func, std::move( ts ) );
 			}
 
@@ -55,21 +45,25 @@ namespace daw {
 
 			template<typename Iterator,
 			         typename LessCompare = std::less<typename std::iterator_traits<Iterator>::value_type>>
-			void sort( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ), LessCompare compare = LessCompare{} ) {
-				impl::parallel_sort( first, last, []( Iterator f, Iterator l, LessCompare cmp ) { std::sort( f, l, cmp ); },
+			void sort( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ),
+			           LessCompare compare = LessCompare{} ) {
+				impl::parallel_sort( first, last,
+				                     []( Iterator f, Iterator l, LessCompare cmp ) { std::sort( f, l, cmp ); },
 				                     std::move( compare ), std::move( ts ) );
 			}
 
 			template<typename Iterator,
 			         typename LessCompare = std::less<typename std::iterator_traits<Iterator>::value_type>>
-			void stable_sort( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ), LessCompare compare = LessCompare{}) {
+			void stable_sort( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ),
+			                  LessCompare compare = LessCompare{} ) {
 				impl::parallel_sort( first, last,
 				                     []( Iterator f, Iterator l, LessCompare cmp ) { std::stable_sort( f, l, cmp ); },
 				                     std::move( compare ), std::move( ts ) );
 			}
 
 			template<typename T, typename Iterator, typename BinaryOp>
-			auto reduce( Iterator first, Iterator last, T init, BinaryOp binary_op, task_scheduler ts = get_task_scheduler( ) ) {
+			auto reduce( Iterator first, Iterator last, T init, BinaryOp binary_op,
+			             task_scheduler ts = get_task_scheduler( ) ) {
 				return impl::parallel_reduce( first, last, std::move( init ), binary_op, std::move( ts ) );
 			}
 
@@ -108,7 +102,8 @@ namespace daw {
 			}
 
 			template<typename Iterator, typename UnaryOperation>
-			void transform( Iterator first, Iterator last, UnaryOperation unary_op, task_scheduler ts = get_task_scheduler( ) ) {
+			void transform( Iterator first, Iterator last, UnaryOperation unary_op,
+			                task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_map( first, last, first, unary_op, std::move( ts ) );
 			}
 
@@ -117,7 +112,8 @@ namespace daw {
 			                 task_scheduler ts = get_task_scheduler( ) ) {
 				auto it_init = first;
 				std::advance( first, 1 );
-				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function, std::move( ts ) );
+				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function,
+				                                  std::move( ts ) );
 			}
 
 			/// @brief Perform MapReduce on range and return result
@@ -136,7 +132,8 @@ namespace daw {
 			                 ReduceFunction reduce_function, task_scheduler ts = get_task_scheduler( ) ) {
 				auto it_init = first;
 				std::advance( first, 1 );
-				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function, std::move( ts ) );
+				return impl::parallel_map_reduce( first, last, *it_init, map_function, reduce_function,
+				                                  std::move( ts ) );
 			}
 
 			template<typename Iterator, typename OutputIterator, typename BinaryOp>
