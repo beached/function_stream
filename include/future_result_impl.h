@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <tuple>
+#include <utility>
 
 #include <daw/cpp_17.h>
 #include <daw/daw_expected.h>
@@ -33,7 +34,7 @@
 #include "task_scheduler.h"
 
 namespace daw {
-	enum class future_status { ready, timeout, deferred };
+	enum class future_status { ready, timeout, deferred, continued };
 
 	template<typename Result>
 	struct future_result_t;
@@ -42,6 +43,223 @@ namespace daw {
 	struct future_result_t<void>;
 
 	namespace impl {
+		class member_data_base_t {
+			daw::shared_semaphore m_semaphore;
+			future_status m_status;
+
+		  protected:
+			task_scheduler m_task_scheduler;
+
+			member_data_base_t( task_scheduler ts )
+			    : m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
+
+			member_data_base_t( daw::shared_semaphore semaphore, task_scheduler ts )
+			    : m_semaphore{std::move( semaphore )}
+			    , m_status{future_status::deferred}
+			    , m_task_scheduler{std::move( ts )} {}
+
+		  public:
+			member_data_base_t( ) = delete;
+			member_data_base_t( member_data_base_t const & ) = default;
+			member_data_base_t( member_data_base_t && ) noexcept = default;
+			member_data_base_t &operator=( member_data_base_t const & ) = default;
+			member_data_base_t &operator=( member_data_base_t && ) noexcept = default;
+			virtual ~member_data_base_t( );
+
+			void wait( ) {
+				if( m_status != future_status::ready ) {
+					m_semaphore.wait( );
+				}
+			}
+
+			template<typename Rep, typename Period>
+			future_status wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+				if( future_status::deferred == m_status || future_status::ready == m_status ) {
+					return m_status;
+				}
+				if( m_semaphore.wait_for( rel_time ) ) {
+					return m_status;
+				}
+				return future_status::timeout;
+			}
+
+			template<typename Clock, typename Duration>
+			future_status wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+				if( future_status::deferred == m_status || future_status::ready == m_status ) {
+					return m_status;
+				}
+				if( m_semaphore.wait_until( timeout_time ) ) {
+					return m_status;
+				}
+				return future_status::timeout;
+			}
+
+			bool try_wait( ) {
+				return m_semaphore.try_wait( );
+			}
+
+			void notify( ) {
+				m_semaphore.notify( );
+			}
+
+			future_status &status( ) noexcept {
+				return m_status;
+			}
+
+			virtual void set_exception( ) noexcept = 0;
+			virtual void set_exception( std::exception_ptr ptr ) noexcept = 0;
+		};
+
+		template<typename base_result_t>
+		struct member_data_t : public member_data_base_t {
+			using expected_result_t = daw::expected_t<base_result_t>;
+			using next_function_t = std::function<void( expected_result_t )>;
+			next_function_t m_next;
+			expected_result_t m_result;
+
+			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
+
+			explicit member_data_t( daw::shared_semaphore semaphore, task_scheduler ts )
+			    : member_data_base_t{std::move( semaphore ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+
+			~member_data_t( ) override = default;
+
+		  private:
+			member_data_t( member_data_t const & ) = delete;
+			member_data_t &operator=( member_data_t const & ) = delete;
+			member_data_t( member_data_t &&other ) noexcept = delete;
+			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
+
+			void pass_next( expected_result_t value ) noexcept {
+				daw::exception::daw_throw_on_false( m_next, "Attempt to call next function on empty function" );
+				m_next( std::move( value ) );
+			}
+
+		  public:
+			void set_value( expected_result_t value ) noexcept {
+				m_result = std::move( value );
+				if( m_next ) {
+					pass_next( std::move( m_result ) );
+					return;
+				}
+				status( ) = future_status::ready;
+				notify( );
+			}
+
+			void set_value( base_result_t value ) noexcept {
+				set_value( expected_result_t{ value } );
+			}
+
+			void set_exception( std::exception_ptr ptr ) noexcept override {
+				set_value( expected_result_t{ptr} );
+			}
+
+			void set_exception( ) noexcept override {
+				set_exception( std::current_exception( ) );
+			}
+
+			template<typename Function, typename... Args>
+			void from_code( Function func, Args &&... args ) {
+				try {
+					auto result = expected_from_code<base_result_t>( func, std::forward<Args>( args )... );
+					set_value( std::move( result ) );
+				} catch( ... ) { set_exception( std::current_exception( ) ); }
+			}
+
+			template<typename Function>
+			auto next( Function next_func ) {
+				daw::exception::daw_throw_on_true( m_next, "Can only set next function once" );
+				using next_result_t = std::decay_t<decltype( next_func( std::declval<expected_result_t>( ).get( ) ) )>;
+
+				future_result_t<next_result_t> result{m_task_scheduler};
+				std::function<next_result_t( base_result_t )> func = next_func;
+				auto ts = m_task_scheduler;
+				m_next = [result, func=std::move(func), ts=std::move(ts)]( expected_result_t e_result ) mutable {
+					if( e_result.has_exception( ) ) {
+						result.set_exception( e_result.get_exception_ptr( ) );
+						return;
+					}
+					ts.add_task( convert_function_to_task( result, func, e_result.get( ) ) );
+				};
+
+				if( future_status::ready == status( ) ) {
+					pass_next( std::move( m_result ) );
+				}
+				status( ) = future_status::continued;
+				notify( );
+				return result;
+			}
+		};
+		// member_data_t
+
+		template<>
+		struct member_data_t<void> : public member_data_base_t {
+			using base_result_t = void;
+			using expected_result_t = daw::expected_t<void>;
+			using next_function_t = std::function<void( expected_result_t )>;
+			next_function_t m_next;
+			expected_result_t m_result;
+
+			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
+
+			explicit member_data_t( daw::shared_semaphore semaphore, task_scheduler ts )
+			    : member_data_base_t{std::move( semaphore ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+
+			~member_data_t( ) override;
+
+		  private:
+			member_data_t( member_data_t const & ) = delete;
+			member_data_t &operator=( member_data_t const & ) = delete;
+			member_data_t( member_data_t &&other ) noexcept = delete;
+			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
+
+			void pass_next( expected_result_t value ) noexcept {
+				daw::exception::daw_throw_on_false( m_next, "Attempt to call next function on empty function" );
+				m_next( std::move( value ) );
+			}
+
+		  public:
+			void set_value( expected_result_t result ) noexcept;
+			void set_value( ) noexcept;
+
+			void set_exception( std::exception_ptr ptr ) noexcept override;
+
+			void set_exception( ) noexcept override;
+
+			template<typename Function, typename... Args>
+			void from_code( Function func, Args &&... args ) {
+				try {
+					func( std::forward<Args>( args )... );
+					set_value( );
+				} catch( ... ) { set_exception( std::current_exception( ) ); }
+			}
+
+			template<typename Function>
+			auto next( Function next_func ) {
+				daw::exception::daw_throw_on_true( m_next, "Can only set next function once" );
+				using next_result_t = std::decay_t<decltype( next_func( ) )>;
+				future_result_t<next_result_t> result{m_task_scheduler};
+
+				auto ts = m_task_scheduler;
+				std::function<next_result_t( )> func = next_func;
+				m_next = [result, func=std::move(func), ts=std::move(ts)]( expected_result_t e_result ) mutable {
+					if( e_result.has_exception( ) ) {
+						result.set_exception( e_result.get_exception_ptr( ) );
+						return;
+					}
+					ts.add_task( convert_function_to_task( result, func ) );
+				};
+
+				if( future_status::ready == status( ) ) {
+					pass_next( std::move( m_result ) );
+				}
+				status( ) = future_status::continued;
+				notify( );
+				return result;
+			}
+		};
+		// member_data_t<void, daw::expected_t<void>>
+
 		struct future_result_base_t {
 			future_result_base_t( ) = default;
 			future_result_base_t( future_result_base_t const & ) = default;
@@ -52,25 +270,44 @@ namespace daw {
 			virtual ~future_result_base_t( );
 			virtual void wait( ) const = 0;
 			virtual bool try_wait( ) const = 0;
-			explicit operator bool( ) const;
+			virtual explicit operator bool( ) const;
 		}; // future_result_base_t
 
-		template<typename Result, typename Function, typename... Args>
-		struct f_caller_t {
-			Result &m_result;
+		template<typename... Unknown>
+		struct function_to_task_t;
+
+		template<typename Result, typename Function, typename Arg, typename... Args>
+		struct function_to_task_t<Result, Function, Arg, Args...> {
+			Result m_result;
 			Function m_function;
-			std::tuple<Args...> m_args;
-			f_caller_t( Result &result, Function func, Args &&... args )
-			    : m_result{result}, m_function{std::move( func )}, m_args{std::forward<Args>( args )...} {}
+			std::tuple<Arg, Args...> m_args;
+			function_to_task_t( Result result, Function func, Arg &&arg, Args &&... args )
+			    : m_result{std::move(result)}
+			    , m_function{std::move( func )}
+			    , m_args{std::forward<Arg>( arg ), std::forward<Args>( args )...} {}
 
 			void operator( )( ) {
 				m_result.from_code( [&]( ) { return daw::apply( m_function, m_args ); } );
 			}
-		}; // f_caller_t
+		}; // function_to_task_t
+
+		template<typename Result, typename Function>
+		struct function_to_task_t<Result, Function> {
+			Result m_result;
+			Function m_function;
+			function_to_task_t( Result result, Function func )
+			    : m_result{std::move(result)}
+			    , m_function{std::move( func )} { }
+
+			void operator( )( ) {
+				m_result.from_code( m_function );
+			}
+		}; // function_to_task_t
 
 		template<typename Result, typename Function, typename... Args>
-		auto make_f_caller( Result &result, Function func, Args &&... args ) {
-			return f_caller_t<Result, Function, Args...>{result, std::move( func ), std::forward<Args>( args )...};
+		auto convert_function_to_task( Result &result, Function func, Args &&... args ) {
+			return function_to_task_t<Result, Function, Args...>{result, std::move( func ),
+			                                                     std::forward<Args>( args )...};
 		}
 
 		template<size_t N, size_t SZ, typename... Callables>
@@ -102,11 +339,11 @@ namespace daw {
 		}
 
 		template<typename... Functions>
-		class result_t {
+		class future_group_result_t {
 			std::tuple<Functions...> tp_functions;
 
 		  public:
-			result_t( Functions... fs ) : tp_functions{std::make_tuple( std::move( fs )... )} {}
+			future_group_result_t( Functions... fs ) : tp_functions{std::make_tuple( std::move( fs )... )} {}
 
 			template<typename... Args>
 			auto operator( )( Args... args ) {
@@ -131,6 +368,6 @@ namespace daw {
 				th.detach( );
 				return result;
 			}
-		}; // result_t
+		}; // future_group_result_t
 	}      // namespace impl
 } // namespace daw

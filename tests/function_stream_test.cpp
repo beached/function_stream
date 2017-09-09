@@ -22,6 +22,7 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
+#include <mutex>
 #include <random>
 
 #include "function_stream.h"
@@ -78,42 +79,55 @@ struct D {
 
 int main( int argc, char **argv ) {
 	{
-		daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
-		static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
-		               "function_composer_t is not returning the correct type" );
-		std::cout << fc.apply( 4 ) << std::endl;
+	    daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
+	    static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
+	                   "function_composer_t is not returning the correct type" );
+	    std::cout << fc.apply( 4 ) << std::endl;
 	}
 
 	{
-		auto fs = daw::make_function_stream( &a, &b, &c );
-		std::cout << fs( 1 ).get( ) << std::endl;
+	    auto fs = daw::make_function_stream( &a, &b, &c );
+	    std::cout << fs( 1 ).get( ) << std::endl;
 	}
 
 	{
-		std::random_device rd;
-		std::mt19937 gen( rd( ) );
-		std::uniform_int_distribution<> dis( 5, 7 );
+	    std::random_device rd;
+	    std::mt19937 gen( rd( ) );
+	    std::uniform_int_distribution<> dis( 5, 7 );
 
-		auto fs2 = daw::make_function_stream( &fib, &fib );
-		auto results = daw::create_vector( fs2( 3 ) );
+	    auto fs2 = daw::make_function_stream( &fib, &fib );
+	    auto results = daw::create_vector( fs2( 3 ) );
 
-		for( size_t n = 1; n < 40000; ++n ) {
-			results.push_back( fs2( dis( gen ) ) );
-		};
+	    for( size_t n = 1; n < 40000; ++n ) {
+	        results.push_back( fs2( dis( gen ) ) );
+	    };
 
-		for( auto const &v : results ) {
-			// v.get( );
-			std::cout << "'" << v.get( ) << "'\n";
-		}
-		
-		auto fib2 = []( ) {
-			return fib( 20 );
-		};
+	    for( auto const &v : results ) {
+	        // v.get( );
+	        std::cout << "'" << v.get( ) << "'\n";
+	    }
 
-		auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
-		std::cout << "Function Group\n";
-		std::cout << *std::get<0>( f_grp ) << '\n';
-		std::cout << *std::get<1>( f_grp ) << '\n';
+	    auto fib2 = []( ) {
+	        return fib( 20 );
+	    };
+
+	    auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
+	    std::cout << "Function Group\n";
+	    std::cout << *std::get<0>( f_grp ) << '\n';
+	    std::cout << *std::get<1>( f_grp ) << '\n';
 	}
+	auto ts = daw::get_task_scheduler( );
+	auto t = daw::make_future_result( []( ) {
+		std::cout << "part1\n";
+		std::cout << std::endl;
+		return 2;
+	} ).next( []( int i ) {
+		std::cout << "part" << i << '\n';
+		std::cout << "hahaha\n";
+		std::cout << std::endl;
+	} );
+
+	t.wait( );
 	return EXIT_SUCCESS;
 }
+

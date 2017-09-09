@@ -117,13 +117,6 @@ namespace daw {
 			return wp;
 		}
 
-		void task_scheduler_impl::add_task( daw::task_t task ) noexcept {
-			if( task ) { // Only allow valid tasks
-				auto id = ( m_task_count++ ) % m_num_threads;
-				m_tasks[id].push_back( std::move( task ) );
-			}
-		}
-
 		bool task_scheduler_impl::am_i_in_pool( ) const noexcept {
 			auto const id = std::this_thread::get_id( );
 			{

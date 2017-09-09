@@ -68,7 +68,12 @@ namespace daw {
 			task_scheduler_impl( task_scheduler_impl const & ) = delete;
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
 
-			void add_task( daw::task_t task ) noexcept;
+			template<typename Task>
+			void add_task( Task && task ) noexcept {
+				auto id = ( m_task_count++ ) % m_num_threads;
+				m_tasks[id].emplace_back( std::forward<Task>( task ) );
+			}
+
 			void start( );
 			void stop( bool block = true ) noexcept;
 			bool started( ) const;

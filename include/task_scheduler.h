@@ -52,8 +52,8 @@ namespace daw {
 		task_scheduler &operator=( task_scheduler const & ) = default;
 
 		template<typename Task>
-		void add_task( Task task ) noexcept {
-			m_impl->add_task( std::move( task ) );
+		void add_task( Task && task ) noexcept {
+			m_impl->add_task( std::forward<Task>( task ) );
 		}
 
 		void start( );

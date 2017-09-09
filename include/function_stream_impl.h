@@ -97,7 +97,7 @@ namespace daw {
 			} catch( ... ) {
 				auto result = package->result( ).lock( );
 				if( result ) {
-					result->from_exception( std::current_exception( ) );
+					result->set_exception( std::current_exception( ) );
 				}
 			}
 		}
