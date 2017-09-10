@@ -557,6 +557,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<double>( n );
 	}
+
 	std::cout << "int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int64_t>( n );
@@ -565,6 +566,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int32_t>( n );
 	}
+
 	std::cout << "sort tests\n";
 	std::cout << "int64_t\n";
 	sort_test( LARGE_TEST_SZ );

@@ -137,7 +137,7 @@ namespace daw {
 		}
 
 		daw::shared_semaphore task_scheduler_impl::start_temp_task_runners( size_t task_count ) {
-			daw::shared_semaphore semaphore;
+			daw::shared_semaphore semaphore{ 1 - task_count };
 			for( size_t n = 0; n < task_count; ++n ) {
 				auto const id = [&]( ) {
 					auto const current_epoch = static_cast<size_t>(
@@ -149,7 +149,7 @@ namespace daw {
 				auto it = other_threads->emplace( other_threads->end( ), boost::none );
 				other_threads.release( );
 
-				auto thread_worker = [ it, id, wself = get_weak_this( ), semaphore ]( ) mutable {
+				auto const thread_worker = [ it, id, wself = get_weak_this( ), semaphore ]( ) mutable {
 					auto const at_exit = daw::on_scope_exit( [&wself, it]( ) {
 						auto self = wself.lock( );
 						if( self ) {
@@ -186,7 +186,7 @@ namespace daw {
 
 	task_scheduler get_task_scheduler( ) {
 		static auto ts = []( ) {
-			task_scheduler result;
+			task_scheduler result{16};
 			result.start( );
 			return result;
 		}( );

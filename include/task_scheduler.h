@@ -122,8 +122,13 @@ namespace daw {
 	///
 	/// @param tasks callable items of the form void( )
 	template<typename... Tasks>
+	void invoke_tasks( task_scheduler ts, Tasks... tasks ) {
+		ts.blocking_on_waitable( create_task_group( tasks... ) );
+	}
+
+	template<typename... Tasks>
 	void invoke_tasks( Tasks... tasks ) {
-		get_task_scheduler( ).blocking_on_waitable( create_task_group( tasks... ) );
+		invoke_tasks( get_task_scheduler( ), std::move( tasks )... );
 	}
 
 	template<typename Function>

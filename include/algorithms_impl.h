@@ -141,7 +141,7 @@ namespace daw {
 						auto const count = ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
 						std::vector<iterator_range_t<Iterator>> next_ranges;
 						next_ranges.reserve( count );
-						daw::semaphore semaphore{ 1 - static_cast<size_t>(count)/2 };
+						daw::semaphore semaphore{1 - static_cast<size_t>( count ) / 2};
 						for( size_t n = 1; n < count; n += 2 ) {
 							next_ranges.push_back( {ranges[n - 1].first, ranges[n].last} );
 						}
@@ -150,7 +150,7 @@ namespace daw {
 						}
 						for( size_t n = 1; n < count; n += 2 ) {
 							ts.add_task( [func, &ranges, n, &semaphore]( ) {
-								func( ranges[n-1].first, ranges[n].first, ranges[n].last );
+								func( ranges[n - 1].first, ranges[n].first, ranges[n].last );
 								semaphore.notify( );
 							} );
 						}
@@ -166,12 +166,10 @@ namespace daw {
 						sort( first, last, compare );
 						return;
 					}
-					auto const ranges = PartitionPolicy{ }( first, last, ts.size( ) );
-					partition_range( ranges,
-					                 [sort, compare]( auto const & range ) {
-						                 sort( range.begin( ), range.end( ), compare );
-					                 },
-					                 ts )
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					partition_range(
+					    ranges, [sort, compare]( auto const &range ) { sort( range.begin( ), range.end( ), compare ); },
+					    ts )
 					    .wait( );
 
 					merge_reduce_range(
