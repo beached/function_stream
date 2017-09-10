@@ -205,13 +205,9 @@ namespace daw {
 					auto semaphore =
 					    partition_range_pos( ranges,
 					                         [&results, binary_op]( iterator_range_t<Iterator> range, size_t n ) {
-						                         auto result =
-						                             binary_op( range.front( ), *std::next( range.begin( ) ) );
-						                         range.advance( 2 );
-						                         while( !range.empty( ) ) {
-							                         result = binary_op( result, range.pop_front( ) );
-						                         }
-						                         results[n] = std::make_unique<T>( std::move( result ) );
+						                         results[n] = std::make_unique<T>(
+						                             std::accumulate( std::next( range.cbegin( ) ), range.cend( ),
+						                                              range.front( ), binary_op ) );
 					                         },
 					                         ts );
 					ts.blocking_on_waitable( semaphore );

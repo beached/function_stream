@@ -531,6 +531,7 @@ int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	size_t const LARGE_TEST_SZ = 200'000'000;
 	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
+	std::cout << "Max hardware concurrency " << std::thread::hardware_concurrency( ) << '\n';
 	/*	
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
