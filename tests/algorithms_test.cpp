@@ -41,7 +41,7 @@ static auto ts = daw::get_task_scheduler( );
 
 template<typename T>
 double calc_speedup( T seq_time, T par_time ) {
-	static double const N = daw::get_task_scheduler( ).size( );
+	static double const N = std::thread::hardware_concurrency( );
 	return 100.0 * ( ( seq_time / N ) / par_time );
 }
 

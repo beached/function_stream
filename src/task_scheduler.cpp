@@ -22,6 +22,7 @@
 
 #include <condition_variable>
 #include <functional>
+#include <iostream>
 #include <thread>
 
 #include <daw/daw_semaphore.h>
@@ -30,6 +31,18 @@
 
 namespace daw {
 	namespace impl {
+		namespace {
+			template<typename... Args>
+			auto create_thread( Args &&... args ) noexcept {
+				try {
+					return std::thread{std::forward<Args>( args )...};
+				} catch( std::system_error const &e ) {
+					std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( )
+					          << "\nMessage: " << e.what( ) << std::endl;
+					std::terminate( );
+				}
+			}
+		} // namespace anonymous
 		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
 		    : m_continue{false}
 		    , m_block_on_destruction{block_on_destruction}
@@ -93,8 +106,8 @@ namespace daw {
 			m_continue = true;
 			auto threads = m_threads.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
-				threads->emplace_back( []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n,
-				                       get_weak_this( ) );
+				threads->push_back( create_thread( []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n,
+				                                   get_weak_this( ) ) );
 			}
 		}
 
@@ -161,7 +174,7 @@ namespace daw {
 					} );
 					task_runner( id, wself, semaphore );
 				};
-				*it = std::thread{thread_worker};
+				*it = create_thread(thread_worker);
 				( *it )->detach( );
 			}
 			return semaphore;
@@ -189,7 +202,7 @@ namespace daw {
 
 	task_scheduler get_task_scheduler( ) {
 		static auto ts = []( ) {
-			task_scheduler result{16};
+			task_scheduler result;
 			result.start( );
 			return result;
 		}( );

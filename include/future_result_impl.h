@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 #include <daw/cpp_17.h>
@@ -311,31 +312,31 @@ namespace daw {
 		}
 
 		template<size_t N, size_t SZ, typename... Callables>
-		struct call_func_t {
+		struct apply_many_t {
 			template<typename Results, typename... Args>
 			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
-			                  std::tuple<Callables...> const &callables, std::tuple<Args...> const &args ) {
-				schedule_task( semaphore, [&results, &callables, &args ]( ) mutable noexcept {
+			                  std::tuple<Callables...> const &callables, std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
+				schedule_task( semaphore, [&results, &callables, tp_args ]( ) mutable noexcept {
 					try {
-						std::get<N>( results ) = daw::apply( std::get<N>( callables ), args );
+						std::get<N>( results ) = daw::apply( std::get<N>( callables ), *tp_args );
 					} catch( ... ) { std::get<N>( results ) = std::current_exception; }
 				},
 				               ts );
-				call_func_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables, args );
+				apply_many_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables, tp_args );
 			}
-		}; // call_func_t
+		}; // apply_many_t
 
-		template<size_t SZ, typename... Callables>
-		struct call_func_t<SZ, SZ, Callables...> {
+		template<size_t SZ, typename... Functions>
+		struct apply_many_t<SZ, SZ, Functions...> {
 			template<typename Results, typename... Args>
 			constexpr void operator( )( daw::task_scheduler const &, daw::shared_semaphore const &, Results const &,
-			                            std::tuple<Callables...> const &, std::tuple<Args...> const & ) noexcept {}
-		}; // call_func_t<SZ, SZ, Callables..>
+			                            std::tuple<Functions...> const &, std::shared_ptr<std::tuple<Args...>> const & ) noexcept {}
+		}; // apply_many_t<SZ, SZ, Functions..>
 
-		template<typename Result, typename... Callables, typename... Args>
-		void call_funcs( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Result &result,
-		                 std::tuple<Callables...> const &callables, std::tuple<Args...> args ) {
-			call_func_t<0, sizeof...( Callables ), Callables...>{}( ts, semaphore, result, callables, args );
+		template<typename Result, typename... Functions, typename... Args>
+		void apply_many( daw::task_scheduler & ts, daw::shared_semaphore semaphore, Result & result,
+						 std::tuple<Functions...> const & callables, std::shared_ptr<std::tuple<Args...>> tp_args ) {
+			apply_many_t<0, sizeof...( Functions ), Functions...>{}( ts, semaphore, result, callables, tp_args );
 		}
 
 		template<typename... Functions>
@@ -350,7 +351,11 @@ namespace daw {
 				using result_tp_t =
 				    std::tuple<daw::expected_t<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>>...>;
 
-				auto tp_args = std::make_tuple( std::move( args )... );
+				// Copy arguments to const, non-ref, non-volatile versions in a shared_pointer so that only
+				// one copy is ever created
+				auto tp_args = std::make_shared<std::tuple<std::add_const_t<std::decay_t<Args>>...>>(
+				    std::make_tuple( std::move( args )... ) );
+
 				future_result_t<result_tp_t> result;
 				daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
 				auto th_worker = [
@@ -358,14 +363,19 @@ namespace daw {
 				]( ) mutable noexcept {
 					auto ts = get_task_scheduler( );
 					result_tp_t tp_result;
-					impl::call_funcs( ts, semaphore, tp_result, tp_functions, tp_args );
+					impl::apply_many( ts, semaphore, tp_result, tp_functions, std::move( tp_args ) );
 
 					semaphore.wait( );
 
 					result.set_value( std::move( tp_result ) );
 				};
-				std::thread th{th_worker};
-				th.detach( );
+				try {
+					std::thread{th_worker}.detach( );
+				} catch( std::system_error const &e ) {
+					std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( )
+					          << "\nMessage: " << e.what( ) << std::endl;
+					std::terminate( );
+				}
 				return result;
 			}
 		}; // future_group_result_t
