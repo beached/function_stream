@@ -298,24 +298,25 @@ namespace daw {
 					                                    "Must be at least 2 items in range" );
 					using result_t = std::decay_t<decltype( reduce_function(
 					    map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
-					daw::locked_stack_t<result_t> results;
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					std::vector<std::unique_ptr<result_t>> results;
+					results.resize( ranges.size( ) );
 
-					partition_range( ranges,
-					                 [&results, map_function, reduce_function]( iterator_range_t<Iterator> range ) {
+					auto semaphore = partition_range_pos( ranges,
+					                 [&results, map_function, reduce_function]( iterator_range_t<Iterator> range, size_t n ) {
 						                 result_t result = map_function( range.pop_front( ) );
 						                 while( !range.empty( ) ) {
 							                 result = reduce_function( result, map_function( range.pop_front( ) ) );
 						                 }
-						                 results.push_back( std::move( result ) );
+						                 results[n] = std::make_unique<result_t>( std::move( result ) );
 					                 },
 					                 ts );
 
-					size_t const expected_results = ranges.size( );
-					auto result = reduce_function( map_function( init ), results.pop_back2( ) );
-					for( size_t n = 1; n < expected_results; ++n ) {
-						result = reduce_function( result, results.pop_back2( ) );
+					ts.blocking_on_waitable( semaphore );
+					auto result = reduce_function( map_function( init ), *results[0] );
+					for( size_t n = 1; n < ranges.size( ); ++n ) {
+						result = reduce_function( result, *results[n] );
 					}
 					return result;
 				}
@@ -326,68 +327,51 @@ namespace daw {
 				                    BinaryOp binary_op, task_scheduler ts ) {
 					{
 						auto const sz = static_cast<size_t>( std::distance( first, last ) );
-						daw::exception::daw_throw_on_false( sz != 0, "Range cannot be empty" );
 						daw::exception::daw_throw_on_false(
 						    sz == static_cast<size_t>( std::distance( first_out, last_out ) ),
 						    "Output range must be the same size as input" );
-						if( sz < 2 ) {
+						if( sz == 2 ) {
 							*first_out = *first;
 							return;
 						}
 					}
 					using value_t = std::decay_t<decltype( binary_op( *first, *first ) )>;
-					struct result_t {
-						iterator_range_t<Iterator> range;
-						value_t value;
-
-						bool operator<( result_t const &rhs ) const noexcept {
-							return range.cbegin( ) < rhs.range.cbegin( );
-						}
-					};
 
 					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					daw::locked_stack_t<result_t> locked_results;
+					std::vector<std::unique_ptr<value_t>> p1_results;
+					p1_results.resize( ranges.size( ) );
 					// Sum each sub range
-					partition_range( ranges,
-					                 [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
-						                 result_t result{rng, rng.pop_front( )};
-										 auto const rend = rng.cend( );
-						                 for( auto it = rng.cbegin( ); it != rend; ++it ) {
-							                 result.value = binary_op( result.value, *it );
-						                 }
-						                 locked_results.push_back( std::move( result ) );
-					                 },
-					                 ts );
+					auto semaphore = partition_range_pos( ranges,
+					                     [&p1_results, binary_op]( iterator_range_t<Iterator> rng, size_t n ) {
+											 value_t result = rng.pop_front( );
+						                     auto const rend = rng.cend( );
+						                     for( auto it = rng.cbegin( ); it != rend; ++it ) {
+												 result = binary_op( result, *it );
+						                     }
+						                     p1_results[n] = std::make_unique<value_t>( std::move( result ) );
+					                     },
+					                     ts );
 
-					std::vector<result_t> results;
-					results.reserve( ranges.size( ) );
-					auto const rngsize = ranges.size( );
-					for( size_t n = 0; n < rngsize; ++n ) {
-						results.push_back( locked_results.pop_back2( ) );
-					}
-					std::sort( results.begin( ), results.end( ) );
-					{
-						std::vector<value_t> values;
-						values.resize( results.size( ) );
-						auto const ressize = results.size( );
-						for( size_t n = 1; n < ressize; ++n ) {
-							values[n] = results[0].value;
-							for( size_t m = 1; m < n; ++m ) {
-								values[n] = binary_op( values[n], results[m].value );
-							}
-						}
-						for( size_t n = 0; n < ressize; ++n ) {
-							results[n].value = values[n];
+					ts.blocking_on_waitable( semaphore );
+
+					std::vector<value_t> range_sums;
+					range_sums.resize( p1_results.size( ) );
+					auto const ressize = p1_results.size( );
+					for( size_t n = 1; n < ressize; ++n ) {
+						range_sums[n] = *p1_results[0];
+						for( size_t m = 1; m < n; ++m ) {
+							range_sums[n] = binary_op( range_sums[n], *p1_results[m] );
 						}
 					}
-					parallel_for_each<PartitionPolicy>(
-					    results.begin( ), results.end( ),
-					    [first, first_out, binary_op]( result_t cur_range ) {
-						    auto out_pos = std::next( first_out, std::distance( first, cur_range.range.first ) );
-						    auto sum = binary_op( cur_range.value, cur_range.range.pop_front( ) );
+
+					partition_range_pos( ranges,
+					    [&range_sums, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
+						    auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
+							auto const & cur_value = range_sums[n];
+						    auto sum = binary_op( cur_value, cur_range.pop_front( ) );
 						    *( out_pos++ ) = sum;
-						    for( auto const &item : cur_range.range ) {
-							    sum = binary_op( sum, item );
+							while( !cur_range.empty( ) ) {
+							    sum = binary_op( sum, cur_range.pop_front( ) );
 							    *out_pos = sum;
 							    ++out_pos;
 						    }
