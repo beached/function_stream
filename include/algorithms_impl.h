@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <numeric>
 
 #include <daw/cpp_17.h>
 #include <daw/daw_algorithm.h>
@@ -99,12 +100,11 @@ namespace daw {
 				template<typename Ranges, typename Func>
 				daw::shared_semaphore partition_range_pos( Ranges const &ranges, Func func, task_scheduler ts ) {
 					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
-					for( size_t n=0; n<ranges.size( ); ++n ) {
-						schedule_task( semaphore, [func, rng=ranges[n], n]( ) mutable { func( rng, n ); }, ts );
+					for( size_t n = 0; n < ranges.size( ); ++n ) {
+						schedule_task( semaphore, [ func, rng = ranges[n], n ]( ) mutable { func( rng, n ); }, ts );
 					}
 					return semaphore;
 				}
-
 
 				template<typename PartitionPolicy, typename Iterator, typename Func>
 				daw::shared_semaphore partition_range( Iterator first, Iterator const last, Func func,
@@ -303,15 +303,16 @@ namespace daw {
 					std::vector<std::unique_ptr<result_t>> results;
 					results.resize( ranges.size( ) );
 
-					auto semaphore = partition_range_pos( ranges,
-					                 [&results, map_function, reduce_function]( iterator_range_t<Iterator> range, size_t n ) {
-						                 result_t result = map_function( range.pop_front( ) );
-						                 while( !range.empty( ) ) {
-							                 result = reduce_function( result, map_function( range.pop_front( ) ) );
-						                 }
-						                 results[n] = std::make_unique<result_t>( std::move( result ) );
-					                 },
-					                 ts );
+					auto semaphore = partition_range_pos(
+					    ranges,
+					    [&results, map_function, reduce_function]( iterator_range_t<Iterator> range, size_t n ) {
+						    result_t result = map_function( range.pop_front( ) );
+						    while( !range.empty( ) ) {
+							    result = reduce_function( result, map_function( range.pop_front( ) ) );
+						    }
+						    results[n] = std::make_unique<result_t>( std::move( result ) );
+					    },
+					    ts );
 
 					ts.blocking_on_waitable( semaphore );
 					auto result = reduce_function( map_function( init ), *results[0] );
@@ -341,16 +342,24 @@ namespace daw {
 					std::vector<std::unique_ptr<value_t>> p1_results;
 					p1_results.resize( ranges.size( ) );
 					// Sum each sub range
-					auto semaphore = partition_range_pos( ranges,
-					                     [&p1_results, binary_op]( iterator_range_t<Iterator> rng, size_t n ) {
-											 value_t result = rng.pop_front( );
-						                     auto const rend = rng.cend( );
-						                     for( auto it = rng.cbegin( ); it != rend; ++it ) {
-												 result = binary_op( result, *it );
-						                     }
-						                     p1_results[n] = std::make_unique<value_t>( std::move( result ) );
-					                     },
-					                     ts );
+					auto semaphore = partition_range_pos(
+					    ranges,
+					    [&p1_results, binary_op, first_out]( iterator_range_t<Iterator> rng, size_t n ) {
+						    if( n == 0 ) {
+							    auto const lst =
+							        std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
+							    p1_results[n] = std::make_unique<value_t>(
+							        *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
+							    return;
+						    }
+						    value_t result = rng.pop_front( );
+						    auto const rend = rng.cend( );
+						    for( auto it = rng.cbegin( ); it != rend; ++it ) {
+							    result = binary_op( result, *it );
+						    }
+						    p1_results[n] = std::make_unique<value_t>( std::move( result ) );
+					    },
+					    ts );
 
 					ts.blocking_on_waitable( semaphore );
 
@@ -364,19 +373,24 @@ namespace daw {
 						}
 					}
 
-					partition_range_pos( ranges,
+					semaphore = partition_range_pos(
+					    ranges,
 					    [&range_sums, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
+						    if( n == 0 ) {
+							    return;
+						    }
 						    auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
-							auto const & cur_value = range_sums[n];
+						    auto const &cur_value = range_sums[n];
 						    auto sum = binary_op( cur_value, cur_range.pop_front( ) );
 						    *( out_pos++ ) = sum;
-							while( !cur_range.empty( ) ) {
+						    while( !cur_range.empty( ) ) {
 							    sum = binary_op( sum, cur_range.pop_front( ) );
 							    *out_pos = sum;
 							    ++out_pos;
 						    }
 					    },
 					    ts );
+					ts.blocking_on_waitable( semaphore );
 				}
 			} // namespace impl
 		}     // namespace parallel
