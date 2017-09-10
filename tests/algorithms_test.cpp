@@ -303,19 +303,15 @@ void min_element_test( size_t SZ ) {
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::min( ), std::numeric_limits<value_t>::max( ) );
-	auto b = a;
 	value_t min_result1 = 0;
 	value_t min_result2 = 0;
 
 	auto const result_1 =
 	    daw::benchmark( [&]( ) { min_result1 = *daw::algorithm::parallel::min_element( a.begin( ), a.end( ), ts ); } );
-	a = b;
 	auto const result_2 = daw::benchmark( [&]( ) { min_result2 = *std::min_element( a.begin( ), a.end( ) ); } );
 	daw::exception::daw_throw_on_false( min_result1 == min_result2, "Wrong return value" );
-	a = b;
 	auto const result_3 =
 	    daw::benchmark( [&]( ) { min_result1 = *daw::algorithm::parallel::min_element( a.begin( ), a.end( ), ts ); } );
-	a = b;
 	auto const result_4 = daw::benchmark( [&]( ) { min_result2 = *std::min_element( a.begin( ), a.end( ) ); } );
 	daw::exception::daw_throw_on_false( min_result1 == min_result2, "Wrong return value" );
 	auto const par_min = std::min( result_1, result_3 );
@@ -328,19 +324,15 @@ void max_element_test( size_t SZ ) {
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::max( ), std::numeric_limits<value_t>::max( ) );
-	auto b = a;
 	value_t max_result1 = 0;
 	value_t max_result2 = 0;
 
 	auto const result_1 =
 	    daw::benchmark( [&]( ) { max_result1 = *daw::algorithm::parallel::max_element( a.begin( ), a.end( ), ts ); } );
-	a = b;
 	auto const result_2 = daw::benchmark( [&]( ) { max_result2 = *std::max_element( a.begin( ), a.end( ) ); } );
 	daw::exception::daw_throw_on_false( max_result1 == max_result2, "Wrong return value" );
-	a = b;
 	auto const result_3 =
 	    daw::benchmark( [&]( ) { max_result1 = *daw::algorithm::parallel::max_element( a.begin( ), a.end( ), ts ); } );
-	a = b;
 	auto const result_4 = daw::benchmark( [&]( ) { max_result2 = *std::max_element( a.begin( ), a.end( ) ); } );
 	daw::exception::daw_throw_on_false( max_result1 == max_result2, "Wrong return value" );
 	auto const par_max = std::max( result_1, result_3 );
@@ -539,7 +531,7 @@ int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	size_t const LARGE_TEST_SZ = 200'000'000;
 	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
-
+	/*
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -604,7 +596,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		reduce_test2<uint64_t>( n, 1, bin_op );
 	}
-
+	*/
 	std::cout << "min_element tests\n";
 	std::cout << "int64_t\n";
 	min_element_test<int64_t>( LARGE_TEST_SZ );

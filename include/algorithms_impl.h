@@ -96,6 +96,16 @@ namespace daw {
 					return semaphore;
 				}
 
+				template<typename Ranges, typename Func>
+				daw::shared_semaphore partition_range_pos( Ranges const &ranges, Func func, task_scheduler ts ) {
+					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
+					for( size_t n=0; n<ranges.size( ); ++n ) {
+						schedule_task( semaphore, [func, rng=ranges[n], n]( ) mutable { func( rng, n ); }, ts );
+					}
+					return semaphore;
+				}
+
+
 				template<typename PartitionPolicy, typename Iterator, typename Func>
 				daw::shared_semaphore partition_range( Iterator first, Iterator const last, Func func,
 				                                       task_scheduler ts ) {
@@ -218,98 +228,48 @@ namespace daw {
 					return rhs;
 				}
 
-				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename Compare>
-				auto parallel_min_element( Iterator first, Iterator last, Compare cmp, task_scheduler ts ) {
+				template<typename PartitionPolicy = split_range_t<2>, typename Iterator, typename Compare>
+				Iterator parallel_min_element( Iterator const first, Iterator const last, Compare cmp,
+				                               task_scheduler ts ) {
 					if( first == last ) {
 						return last;
 					}
-					daw::locked_stack_t<Iterator> results;
-					auto t1 = partition_range<PartitionPolicy>(
-					    first, last,
-					    [&results, cmp]( Iterator const f, Iterator const l ) {
-						    auto const sz = std::distance( f, l );
-						    auto result_val = *f;
-						    using diff_t = typename std::iterator_traits<Iterator>::difference_type;
-						    diff_t result_pos = 0;
-						    for( diff_t n = 1; n < sz; ++n ) {
-							    auto v = f[n];
-							    if( cmp( v, result_val ) ) {
-								    result_pos = n;
-								    result_val = std::move( v );
-							    }
-						    }
-						    results.push_back( std::next( f, result_pos ) );
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					std::vector<Iterator> results;
+					results.resize( ranges.size( ) );
+					auto semaphore = partition_range_pos(
+					    ranges,
+					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
+						    results[n] = std::min_element(
+						        range.cbegin( ), range.cend( ),
+						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
 					    },
 					    ts );
-
-					size_t const expected_results =
-					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-
-					auto result = results.pop_back2( );
-					size_t start_pos = 1;
-					while( start_pos < expected_results && result == last ) {
-						++start_pos;
-						result = results.pop_back2( );
-					}
-					for( size_t n = start_pos; n < expected_results; ++n ) {
-						auto value = results.pop_back2( );
-						if( value == last ) {
-							continue;
-						}
-						if( result != last ) {
-							result = cmp( *value, *result ) ? value : result;
-						} else {
-							result = value;
-						}
-					}
-					return result;
+					ts.blocking_on_waitable( semaphore );
+					return *std::min_element( results.cbegin( ), results.cend( ),
+					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
 				}
 
-				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename Compare>
-				auto parallel_max_element( Iterator first, Iterator last, Compare cmp, task_scheduler ts ) {
+				template<typename PartitionPolicy = split_range_t<2>, typename Iterator, typename Compare>
+				Iterator parallel_max_element( Iterator const first, Iterator const last, Compare cmp,
+				                               task_scheduler ts ) {
 					if( first == last ) {
 						return last;
 					}
-					daw::locked_stack_t<Iterator> results;
-					auto t1 = partition_range<PartitionPolicy>(
-					    first, last,
-					    [&results, cmp]( Iterator const f, Iterator const l ) {
-						    auto const sz = std::distance( f, l );
-						    auto result_val = *f;
-						    using diff_t = typename std::iterator_traits<Iterator>::difference_type;
-						    diff_t result_pos = 0;
-						    for( diff_t n = 1; n < sz; ++n ) {
-							    auto v = f[n];
-							    if( cmp( result_val, v ) ) {
-								    result_pos = n;
-								    result_val = std::move( v );
-							    }
-						    }
-						    results.push_back( std::next( f, result_pos ) );
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					std::vector<Iterator> results;
+					results.resize( ranges.size( ) );
+					auto semaphore = partition_range_pos(
+					    ranges,
+					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
+						    results[n] = std::max_element(
+						        range.cbegin( ), range.cend( ),
+						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
 					    },
 					    ts );
-
-					size_t const expected_results =
-					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-
-					auto result = results.pop_back2( );
-					size_t start_pos = 1;
-					while( start_pos < expected_results && result == last ) {
-						++start_pos;
-						result = results.pop_back2( );
-					}
-					for( size_t n = start_pos; n < expected_results; ++n ) {
-						auto value = results.pop_back2( );
-						if( value == last ) {
-							continue;
-						}
-						if( result != last ) {
-							result = cmp( *result, *value ) ? value : result;
-						} else {
-							result = value;
-						}
-					}
-					return result;
+					ts.blocking_on_waitable( semaphore );
+					return *std::max_element( results.cbegin( ), results.cend( ),
+					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
 				}
 
 				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename OutputIterator,
@@ -340,23 +300,19 @@ namespace daw {
 					    map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
 					daw::locked_stack_t<result_t> results;
 
-					partition_range<PartitionPolicy>(
-					    first, last,
-					    [&results, map_function, reduce_function]( Iterator f, Iterator const l ) {
-						    auto left = map_function( *f );
-						    auto right = map_function( *std::next( f ) );
-						    result_t result = reduce_function( left, right );
-						    std::advance( f, 2 );
-						    for( ; f != l; ++f ) {
-							    right = map_function( *f );
-							    result = reduce_function( result, right );
-						    }
-						    results.push_back( std::move( result ) );
-					    },
-					    ts );
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 
-					size_t const expected_results =
-					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
+					partition_range( ranges,
+					                 [&results, map_function, reduce_function]( iterator_range_t<Iterator> range ) {
+						                 result_t result = map_function( range.pop_front( ) );
+						                 while( !range.empty( ) ) {
+							                 result = reduce_function( result, map_function( range.pop_front( ) ) );
+						                 }
+						                 results.push_back( std::move( result ) );
+					                 },
+					                 ts );
+
+					size_t const expected_results = ranges.size( );
 					auto result = reduce_function( map_function( init ), results.pop_back2( ) );
 					for( size_t n = 1; n < expected_results; ++n ) {
 						result = reduce_function( result, results.pop_back2( ) );
