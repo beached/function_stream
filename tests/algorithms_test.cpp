@@ -96,10 +96,11 @@ void display_info( double seq_time, double par_time, double count, size_t bytes,
 	};
 
 	std::cout << std::setprecision( 1 ) << std::fixed << label << ": size->" << static_cast<uint64_t>( count ) << " "
-	          << mbs( 1 ) << " %max->" << calc_speedup( seq_time, par_time ) << " par_total->"
-	          << make_seconds( par_time, 1 ) << " par_item->" << make_seconds( par_time, count ) << " throughput->"
-	          << mbs( par_time ) << "/s seq_total->" << make_seconds( seq_time, 1 ) << " seq_item->"
-	          << make_seconds( seq_time, count ) << " throughput->" << mbs( seq_time ) << "/s \n";
+	          << mbs( 1 ) << " %max->" << calc_speedup( seq_time, par_time ) << "(" << ( seq_time / par_time ) << "/"
+	          << std::thread::hardware_concurrency( ) << "X) par_total->" << make_seconds( par_time, 1 )
+	          << " par_item->" << make_seconds( par_time, count ) << " throughput->" << mbs( par_time )
+	          << "/s seq_total->" << make_seconds( seq_time, 1 ) << " seq_item->" << make_seconds( seq_time, count )
+	          << " throughput->" << mbs( seq_time ) << "/s \n";
 }
 
 template<typename T>

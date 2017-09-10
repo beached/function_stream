@@ -395,7 +395,8 @@ namespace daw {
 					partition_range( ranges,
 					                 [&locked_results, binary_op]( iterator_range_t<Iterator> rng ) {
 						                 result_t result{rng, rng.pop_front( )};
-						                 for( auto it = rng.cbegin( ); it != rng.cend( ); ++it ) {
+										 auto const rend = rng.cend( );
+						                 for( auto it = rng.cbegin( ); it != rend; ++it ) {
 							                 result.value = binary_op( result.value, *it );
 						                 }
 						                 locked_results.push_back( std::move( result ) );
@@ -404,20 +405,22 @@ namespace daw {
 
 					std::vector<result_t> results;
 					results.reserve( ranges.size( ) );
-					for( size_t n = 0; n < ranges.size( ); ++n ) {
+					auto const rngsize = ranges.size( );
+					for( size_t n = 0; n < rngsize; ++n ) {
 						results.push_back( locked_results.pop_back2( ) );
 					}
 					std::sort( results.begin( ), results.end( ) );
 					{
 						std::vector<value_t> values;
 						values.resize( results.size( ) );
-						for( size_t n = 1; n < results.size( ); ++n ) {
+						auto const ressize = results.size( );
+						for( size_t n = 1; n < ressize; ++n ) {
 							values[n] = results[0].value;
 							for( size_t m = 1; m < n; ++m ) {
 								values[n] = binary_op( values[n], results[m].value );
 							}
 						}
-						for( size_t n = 0; n < results.size( ); ++n ) {
+						for( size_t n = 0; n < ressize; ++n ) {
 							results[n].value = values[n];
 						}
 					}
