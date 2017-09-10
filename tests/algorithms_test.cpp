@@ -573,7 +573,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		stable_sort_test( n );
 	}
-
+	*/
 	std::cout << "reduce tests\n";
 	std::cout << "int64_t\n";
 	reduce_test<int64_t>( LARGE_TEST_SZ );
@@ -597,6 +597,7 @@ int main( int, char ** ) {
 		reduce_test2<uint64_t>( n, 1, bin_op );
 	}
 
+	/*
 	std::cout << "min_element tests\n";
 	std::cout << "int64_t\n";
 	min_element_test<int64_t>( LARGE_TEST_SZ );
@@ -639,6 +640,7 @@ int main( int, char ** ) {
 	}
 	map_reduce_test2<int64_t>( 3 );
 	*/
+
 	std::cout << "scan tests\n";
 	std::cout << "int64_t\n";
 	scan_test<int64_t>( LARGE_TEST_SZ );

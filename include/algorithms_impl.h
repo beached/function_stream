@@ -200,22 +200,24 @@ namespace daw {
 							return binary_op( init, *first );
 						}
 					}
-					daw::locked_stack_t<T> results;
-					auto t1 = partition_range<PartitionPolicy>( first, last,
-					                                            [&results, binary_op]( Iterator f, Iterator const l ) {
-						                                            auto result = binary_op( *f, *std::next( f ) );
-						                                            std::advance( f, 2 );
-						                                            for( ; f != l; std::advance( f, 1 ) ) {
-							                                            result = binary_op( result, *f );
-						                                            }
-						                                            results.push_back( std::move( result ) );
-					                                            },
-					                                            ts );
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					std::vector<std::unique_ptr<T>> results{ranges.size( )};
+					auto semaphore =
+					    partition_range_pos( ranges,
+					                         [&results, binary_op]( iterator_range_t<Iterator> range, size_t n ) {
+						                         auto result =
+						                             binary_op( range.front( ), *std::next( range.begin( ) ) );
+						                         range.advance( 2 );
+						                         while( !range.empty( ) ) {
+							                         result = binary_op( result, range.pop_front( ) );
+						                         }
+						                         results[n] = std::make_unique<T>( std::move( result ) );
+					                         },
+					                         ts );
+					ts.blocking_on_waitable( semaphore );
 					auto result = static_cast<result_t>( init );
-					size_t const expected_results =
-					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-					for( size_t n = 0; n < expected_results; ++n ) {
-						result = binary_op( result, results.pop_back2( ) );
+					for( size_t n = 0; n < ranges.size( ); ++n ) {
+						result = binary_op( result, *results[n] );
 					}
 					return result;
 				}
@@ -235,8 +237,7 @@ namespace daw {
 						return last;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<Iterator> results;
-					results.resize( ranges.size( ) );
+					std::vector<Iterator> results{ranges.size( )};
 					auto semaphore = partition_range_pos(
 					    ranges,
 					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
@@ -257,8 +258,7 @@ namespace daw {
 						return last;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<Iterator> results;
-					results.resize( ranges.size( ) );
+					std::vector<Iterator> results{ranges.size( )};
 					auto semaphore = partition_range_pos(
 					    ranges,
 					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
@@ -300,8 +300,7 @@ namespace daw {
 					    map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<std::unique_ptr<result_t>> results;
-					results.resize( ranges.size( ) );
+					std::vector<std::unique_ptr<result_t>> results{ranges.size( )};
 
 					auto semaphore = partition_range_pos(
 					    ranges,
@@ -346,8 +345,7 @@ namespace daw {
 					    ranges,
 					    [&p1_results, binary_op, first_out]( iterator_range_t<Iterator> rng, size_t n ) {
 						    if( n == 0 ) {
-							    auto const lst =
-							        std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
+							    auto const lst = std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
 							    p1_results[n] = std::make_unique<value_t>(
 							        *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
 							    return;
