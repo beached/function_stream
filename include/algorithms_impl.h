@@ -30,6 +30,7 @@
 #include <daw/daw_algorithm.h>
 #include <daw/daw_semaphore.h>
 
+#include "function_stream.h"
 #include "iterator_range.h"
 #include "task_scheduler.h"
 
@@ -87,7 +88,7 @@ namespace daw {
 				};
 
 				template<typename Ranges, typename Func>
-				daw::shared_semaphore partition_range( Ranges &ranges, Func func, task_scheduler ts ) {
+				daw::shared_semaphore partition_range( Ranges const &ranges, Func func, task_scheduler ts ) {
 					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
 					for( auto const &rng : ranges ) {
 						schedule_task( semaphore, [func, rng]( ) mutable { func( rng ); }, ts );
@@ -134,28 +135,27 @@ namespace daw {
 				}
 
 				template<typename Iterator, typename Function>
-				void merge_reduce_range( std::vector<std::pair<Iterator, Iterator>> ranges, Function func,
+				void merge_reduce_range( std::vector<iterator_range_t<Iterator>> ranges, Function func,
 				                         task_scheduler ts ) {
 					while( ranges.size( ) > 1 ) {
-						std::vector<std::pair<Iterator, Iterator>> next_ranges;
 						auto const count = ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
-						daw::shared_semaphore semaphore{1 - ( static_cast<intmax_t>( count ) / 2 )};
+						std::vector<iterator_range_t<Iterator>> next_ranges;
+						next_ranges.reserve( count );
+						daw::semaphore semaphore{ 1 - static_cast<size_t>(count)/2 };
 						for( size_t n = 1; n < count; n += 2 ) {
-							daw::exception::daw_throw_on_false( ranges[n - 1].second == ranges[n].first,
-							                                    "Non continuous range" );
-							schedule_task( semaphore,
-							               [func, &ranges, n]( ) mutable {
-								               func( ranges[n - 1].first, ranges[n].first, ranges[n].second );
-							               },
-							               ts );
-
-							next_ranges.push_back( std::make_pair( ranges[n - 1].first, ranges[n].second ) );
+							next_ranges.push_back( {ranges[n - 1].first, ranges[n].last} );
 						}
-						semaphore.wait( );
 						if( count != ranges.size( ) ) {
 							next_ranges.push_back( ranges.back( ) );
 						}
-						ranges = next_ranges;
+						for( size_t n = 1; n < count; n += 2 ) {
+							ts.add_task( [func, &ranges, n, &semaphore]( ) {
+								func( ranges[n-1].first, ranges[n].first, ranges[n].last );
+								semaphore.notify( );
+							} );
+						}
+						semaphore.wait( );
+						std::swap( ranges, next_ranges );
 					}
 				}
 
@@ -166,25 +166,16 @@ namespace daw {
 						sort( first, last, compare );
 						return;
 					}
-					daw::locked_stack_t<std::pair<Iterator, Iterator>> sort_ranges_stack;
-					partition_range<PartitionPolicy>( first, last,
-					                                  [&sort_ranges_stack, sort, compare]( Iterator f, Iterator l ) {
-						                                  sort( f, l, compare );
-						                                  sort_ranges_stack.push_back( std::make_pair( f, l ) );
-					                                  },
-					                                  ts );
-
-					size_t const expected_results =
-					    get_part_info<PartitionPolicy::min_range_size>( first, last, ts.size( ) ).count;
-					std::vector<std::pair<Iterator, Iterator>> sort_ranges;
-					for( size_t n = 0; n < expected_results; ++n ) {
-						sort_ranges.push_back( sort_ranges_stack.pop_back2( ) );
-					}
-					std::sort( sort_ranges.begin( ), sort_ranges.end( ),
-					           []( auto const &lhs, auto const &rhs ) { return lhs.first < rhs.first; } );
+					auto const ranges = PartitionPolicy{ }( first, last, ts.size( ) );
+					partition_range( ranges,
+					                 [sort, compare]( auto const & range ) {
+						                 sort( range.begin( ), range.end( ), compare );
+					                 },
+					                 ts )
+					    .wait( );
 
 					merge_reduce_range(
-					    sort_ranges,
+					    ranges,
 					    [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); },
 					    ts );
 				}
