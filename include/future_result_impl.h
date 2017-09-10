@@ -60,10 +60,10 @@ namespace daw {
 
 		  public:
 			member_data_base_t( ) = delete;
-			member_data_base_t( member_data_base_t const & ) = default;
-			member_data_base_t( member_data_base_t && ) noexcept = default;
-			member_data_base_t &operator=( member_data_base_t const & ) = default;
-			member_data_base_t &operator=( member_data_base_t && ) noexcept = default;
+			member_data_base_t( member_data_base_t const & ) = delete;
+			member_data_base_t( member_data_base_t && ) noexcept = delete;
+			member_data_base_t &operator=( member_data_base_t const & ) = delete;
+			member_data_base_t &operator=( member_data_base_t && ) noexcept = delete;
 			virtual ~member_data_base_t( );
 
 			void wait( ) {

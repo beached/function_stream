@@ -37,9 +37,7 @@ namespace daw {
 		    , m_task_count{0}
 		    , m_other_threads{} {
 
-			for( size_t n = 0; n < m_num_threads; ++n ) {
-				m_tasks.emplace_back( );
-			}
+			m_tasks.resize( m_num_threads );
 		}
 
 		task_scheduler_impl::~task_scheduler_impl( ) {
@@ -87,11 +85,16 @@ namespace daw {
 			}
 		}
 
+		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself ) {
+			task_runner( id, wself, boost::none );
+		}
+
 		void task_scheduler_impl::start( ) {
 			m_continue = true;
 			auto threads = m_threads.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
-				threads->emplace_back( [ id = n, wself = get_weak_this( ) ]( ) { impl::task_runner( id, wself ); } );
+				threads->emplace_back( []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n,
+				                       get_weak_this( ) );
 			}
 		}
 

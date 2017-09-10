@@ -42,18 +42,21 @@ namespace daw {
 		class task_scheduler_impl;
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_semaphore> semaphore = boost::none );
+		                  boost::optional<daw::shared_semaphore> semaphore );
+
+		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
 		class task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
 			using task_queue_t = daw::locked_stack_t<daw::task_t>;
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;
 			std::vector<task_queue_t> m_tasks;
 			std::atomic_bool m_continue;
-			std::weak_ptr<task_scheduler_impl> get_weak_this( );
 			bool m_block_on_destruction;
-			std::atomic<size_t> m_num_threads;
-			std::atomic_uintmax_t m_task_count;
+			size_t const m_num_threads;
+			std::atomic<size_t> m_task_count;
 			daw::lockable_value_t<std::list<boost::optional<std::thread>>> m_other_threads;
+
+			std::weak_ptr<task_scheduler_impl> get_weak_this( );
 
 			friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 			                               boost::optional<daw::shared_semaphore> semaphore );

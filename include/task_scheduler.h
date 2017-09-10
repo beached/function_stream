@@ -87,8 +87,8 @@ namespace daw {
 	template<typename Task>
 	void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler ts = get_task_scheduler( ) ) {
 		ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
+			auto const at_exit = daw::on_scope_exit( [&semaphore]( ) { semaphore.notify( ); } );
 			task( );
-			semaphore.notify( );
 		} );
 	}
 
