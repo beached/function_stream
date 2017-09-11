@@ -150,41 +150,22 @@ boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax
 }
 
 auto parse_file( daw::string_view str, daw::task_scheduler ts ) {
-	struct surplus_t {
-		intmax_t value;
-		bool has_value;
-
-		surplus_t( ) : value{0}, has_value{false} {}
-		surplus_t( intmax_t Value ) : value{Value}, has_value{true} {}
-
-		explicit operator bool( ) const noexcept {
-			return has_value;
-		}
-	};
 	auto ts_ptr = std::make_shared<daw::task_scheduler>( ts );
-	daw::locked_stack_t<surplus_t> results;
-	auto expected_lines = find_newlines( str, [ts_ptr, &results]( daw::string_view line ) mutable {
+	daw::locked_stack_t<intmax_t> results;
+	find_newlines( str, [ts_ptr, &results]( daw::string_view line ) {
 		auto fd = parsed_line_to_fd( parse_line( line ) );
-		if( !fd ) {
-			results.emplace_back( );
-		} else {
+		if( fd ) {
 			results.emplace_back(fd->surplus);
 		}
 	} );
-	std::vector<surplus_t> filtered_results;
-	for( size_t n=0; n<expected_lines; ++n ) {
-		auto value = results.pop_back2( );
-		if( value ) {
-			filtered_results.push_back( std::move( value ) );
-		}
-	}
-	auto const reducer = []( surplus_t lhs, surplus_t rhs ) noexcept {
-		lhs.value = std::min( lhs.value, rhs.value );
-		return lhs;
+	auto filtered_results = results.copy( );
+
+	auto const reducer = []( intmax_t lhs, intmax_t const & rhs ) noexcept {
+		return std::min( lhs, rhs );
 	};
-	auto first = std::next( filtered_results.cbegin( ) );
+	auto const first = std::next( filtered_results.cbegin( ) );
 	return ts_ptr->blocking_section( [&]( ) {
-		return daw::algorithm::parallel::reduce( first, filtered_results.cend( ), *filtered_results.cbegin( ), reducer, *ts_ptr );
+		return daw::algorithm::parallel::reduce( first, filtered_results.cend( ), filtered_results.front( ), reducer, *ts_ptr );
 	} );
 }
 
@@ -199,10 +180,6 @@ int main( int argc, char **argv ) {
 	auto result = parse_file( daw::string_view{mmf.data( ), mmf.size( )}, daw::get_task_scheduler( ) );
 
 	std::cout << "Minimum surplus is ";
-	if( result )
-		std::cout << result.value << '\n';
-	else {
-		std::cout << "unknown\n";
-	}
+	std::cout << result << '\n';
 	return EXIT_SUCCESS;
 }
