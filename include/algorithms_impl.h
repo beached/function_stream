@@ -202,14 +202,13 @@ namespace daw {
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<std::unique_ptr<T>> results{ranges.size( )};
-					auto semaphore =
-					    partition_range_pos( ranges,
-					                         [&results, binary_op]( iterator_range_t<Iterator> range, size_t n ) {
-						                         results[n] = std::make_unique<T>(
-						                             std::accumulate( std::next( range.cbegin( ) ), range.cend( ),
-						                                              range.front( ), binary_op ) );
-					                         },
-					                         ts );
+					auto semaphore = partition_range_pos(
+					    ranges,
+					    [&results, binary_op]( iterator_range_t<Iterator> range, size_t n ) {
+						    results[n] = std::make_unique<T>( std::accumulate(
+						        std::next( range.cbegin( ) ), range.cend( ), range.front( ), binary_op ) );
+					    },
+					    ts );
 					ts.blocking_on_waitable( semaphore );
 					auto result = static_cast<result_t>( init );
 					for( size_t n = 0; n < ranges.size( ); ++n ) {
@@ -333,11 +332,12 @@ namespace daw {
 					}
 					using value_t = std::decay_t<decltype( binary_op( *first, *first ) )>;
 
-					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<std::unique_ptr<value_t>> p1_results;
 					p1_results.resize( ranges.size( ) );
-					// Sum each sub range
-					auto semaphore = partition_range_pos(
+					// Sum each sub range, but complete the first output as it does
+					// not have to be scanned twice
+					ts.blocking_on_waitable( partition_range_pos(
 					    ranges,
 					    [&p1_results, binary_op, first_out]( iterator_range_t<Iterator> rng, size_t n ) {
 						    if( n == 0 ) {
@@ -353,9 +353,7 @@ namespace daw {
 						    }
 						    p1_results[n] = std::make_unique<value_t>( std::move( result ) );
 					    },
-					    ts );
-
-					ts.blocking_on_waitable( semaphore );
+					    ts ) );
 
 					std::vector<value_t> range_sums;
 					range_sums.resize( p1_results.size( ) );
@@ -367,7 +365,7 @@ namespace daw {
 						}
 					}
 
-					semaphore = partition_range_pos(
+					ts.blocking_on_waitable( partition_range_pos(
 					    ranges,
 					    [&range_sums, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
 						    if( n == 0 ) {
@@ -383,8 +381,50 @@ namespace daw {
 							    ++out_pos;
 						    }
 					    },
-					    ts );
-					ts.blocking_on_waitable( semaphore );
+					    ts ) );
+				}
+
+				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename UnaryPredicate>
+				Iterator parallel_find_if( Iterator first, Iterator last, UnaryPredicate pred, task_scheduler ts ) {
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					std::vector<std::unique_ptr<Iterator>> results{ranges.size( )};
+					auto const has_found = [&results]( size_t last_pos ) {
+						for( size_t n = 0; n < last_pos; ++n ) {
+							if( results[n] ) {
+								return true;
+							}
+						}
+						return false;
+					};
+					ts.blocking_on_waitable( partition_range_pos(
+					    ranges,
+					    [&results, pred, has_found]( iterator_range_t<Iterator> range, size_t pos ) {
+
+						    static size_t const stride = std::thread::hardware_concurrency( ) * 100;
+						    for( size_t n = 0; n < range.size( ); n += stride ) {
+								auto const last_val = (n + stride < range.size( )) ? n + stride : range.size( );
+							    for( size_t m = n; m < last_val; ++m ) {
+								    if( pred( range[m] ) ) {
+									    results[pos] = std::make_unique<Iterator>( std::next(
+									        range.begin( ),
+									        static_cast<typename std::iterator_traits<Iterator>::difference_type>(
+									            m ) ) );
+									    return;
+								    }
+							    }
+							    if( has_found( pos ) ) {
+								    return;
+							    }
+						    }
+					    },
+					    ts ) );
+
+					for( auto const &it : results ) {
+						if( it ) {
+							return *it;
+						}
+					}
+					return last;
 				}
 			} // namespace impl
 		}     // namespace parallel

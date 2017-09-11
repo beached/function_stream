@@ -146,6 +146,11 @@ namespace daw {
 			void scan( Iterator first, Iterator last, BinaryOp binary_op, task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_scan( first, last, first, last, binary_op, std::move( ts ) );
 			}
+
+			template<typename Iterator, typename UnaryPredicate>
+			Iterator parallel_find_if( Iterator first, Iterator last, UnaryPredicate pred, task_scheduler ts = get_task_scheduler( ) ) {
+				return impl::parallel_find_if( first, last, pred, std::move( ts ) );
+			}
 		} // namespace parallel
 	}     // namespace algorithm
 } // namespace daw

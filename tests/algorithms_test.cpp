@@ -149,6 +149,15 @@ void fill_test( size_t SZ ) {
 	display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
 }
 
+template<typename T>
+T get_random( T minimum, T maximum ) {
+	std::random_device rnd_device;
+	std::mt19937 rng{rnd_device( )};
+	std::uniform_int_distribution<T> dist( minimum, maximum );
+
+	return dist( rng );
+}
+
 template<typename Iterator>
 void fill_random( Iterator first, Iterator last ) {
 	std::random_device rnd_device;
@@ -526,6 +535,40 @@ void scan_test( size_t SZ ) {
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "scan" );
 }
+template<typename value_t>
+void find_if_test( size_t SZ ) {
+	std::vector<value_t> a;
+	a.resize( SZ );
+	fill_random( a.begin( ), a.end( ), -50, 50 );
+
+	auto const pos = a.size( )-1;// get_random( static_cast<size_t>( 0 ), a.size( ) );
+	a[pos] = 100;
+	auto const pred = []( auto const & value ) noexcept { return value == 100; };
+
+	auto it1 = a.cend( );
+	auto it2 = a.cend( );
+	auto const result_1 = daw::benchmark( [&]( ) {
+		it1 = daw::algorithm::parallel::parallel_find_if( a.cbegin( ), a.cend( ), pred, ts );
+	} );
+	auto const result_2 = daw::benchmark( [&]( ) {
+		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
+	} );
+	daw::exception::daw_throw_on_false( it1 == it2, "Wrong return value" );
+
+	it1 = a.cend( );
+	it2 = a.cend( );
+	auto const result_3 = daw::benchmark( [&]( ) {
+		it1 = daw::algorithm::parallel::parallel_find_if( a.cbegin( ), a.cend( ), pred, ts );
+	} );
+	auto const result_4 = daw::benchmark( [&]( ) {
+		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
+	} );
+	daw::exception::daw_throw_on_false( it1 == it2, "Wrong return value" );
+
+	auto const par_max = std::max( result_1, result_3 );
+	auto const seq_max = std::max( result_2, result_4 );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "find_if" );
+}
 
 int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
@@ -574,7 +617,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		stable_sort_test( n );
 	}
-	*/
+
 	std::cout << "reduce tests\n";
 	std::cout << "int64_t\n";
 	reduce_test<int64_t>( LARGE_TEST_SZ );
@@ -598,7 +641,6 @@ int main( int, char ** ) {
 		reduce_test2<uint64_t>( n, 1, bin_op );
 	}
 
-	/*
 	std::cout << "min_element tests\n";
 	std::cout << "int64_t\n";
 	min_element_test<int64_t>( LARGE_TEST_SZ );
@@ -640,7 +682,6 @@ int main( int, char ** ) {
 		map_reduce_test2<int64_t>( n );
 	}
 	map_reduce_test2<int64_t>( 3 );
-	*/
 
 	std::cout << "scan tests\n";
 	std::cout << "int64_t\n";
@@ -648,6 +689,15 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		scan_test<int64_t>( n );
 	}
+	*/
+
+	std::cout << "find_if tests\n";
+	std::cout << "int64_t\n";
+	find_if_test<int64_t>( LARGE_TEST_SZ );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		find_if_test<int64_t>( n );
+	}
+
 
 	return EXIT_SUCCESS;
 }

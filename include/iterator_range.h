@@ -108,11 +108,11 @@ namespace daw {
 		}
 
 		constexpr auto &operator[]( size_t n ) noexcept {
-			return first[n];
+			return *std::next( first, static_cast<typename std::iterator_traits<Iterator>::difference_type>( n ) );
 		}
 
 		constexpr auto const &operator[]( size_t n ) const noexcept {
-			return first[n];
+			return *std::next( first, static_cast<typename std::iterator_traits<Iterator>::difference_type>( n ) );
 		}
 
 		constexpr auto &back( ) noexcept {
