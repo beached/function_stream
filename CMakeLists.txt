@@ -65,6 +65,7 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/future_result_impl.h
 	${HEADER_FOLDER}/iterator_range.h
 	${HEADER_FOLDER}/package.h
+	${HEADER_FOLDER}/message_queue.h
 	${HEADER_FOLDER}/task_scheduler.h
 	${HEADER_FOLDER}/task_scheduler_impl.h
 )

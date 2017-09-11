@@ -388,31 +388,31 @@ namespace daw {
 				Iterator parallel_find_if( Iterator first, Iterator last, UnaryPredicate pred, task_scheduler ts ) {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<std::unique_ptr<Iterator>> results{ranges.size( )};
-					auto const has_found = [&results]( size_t last_pos ) {
-						for( size_t n = 0; n < last_pos; ++n ) {
-							if( results[n] ) {
-								return true;
-							}
-						}
-						return false;
-					};
+
+					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
+					std::mutex mut_found;
 					ts.blocking_on_waitable( partition_range_pos(
 					    ranges,
-					    [&results, pred, has_found]( iterator_range_t<Iterator> range, size_t pos ) {
+					    [&results, pred, &has_found,&mut_found]( iterator_range_t<Iterator> range, size_t pos ) {
 
 						    static size_t const stride = std::thread::hardware_concurrency( ) * 100;
+							size_t m =0;
 						    for( size_t n = 0; n < range.size( ); n += stride ) {
 								auto const last_val = (n + stride < range.size( )) ? n + stride : range.size( );
-							    for( size_t m = n; m < last_val; ++m ) {
+							    for( m = n; m < last_val; ++m ) {
 								    if( pred( range[m] ) ) {
 									    results[pos] = std::make_unique<Iterator>( std::next(
 									        range.begin( ),
 									        static_cast<typename std::iterator_traits<Iterator>::difference_type>(
 									            m ) ) );
+									    std::lock_guard<std::mutex> has_found_lck{mut_found};
+									    if( has_found.load( ) > pos ) {
+											has_found.store( pos );
+										}
 									    return;
 								    }
 							    }
-							    if( has_found( pos ) ) {
+							    if( has_found.load( ) < pos ) {
 								    return;
 							    }
 						    }
