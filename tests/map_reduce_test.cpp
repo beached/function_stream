@@ -153,10 +153,11 @@ boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax
 }
 
 daw::future_result_t<intmax_t> parse_file( daw::string_view str, daw::task_scheduler ts ) {
-	daw::parallel::spsc_msg_queue_t<daw::string_view> str_lines_result{1024};
+	daw::parallel::spsc_msg_queue_t<daw::string_view> str_lines_result{daw::parallel::use_autosize{}};
 
 	ts.add_task( [str, str_lines_result]( ) mutable {
-		auto const at_exit = daw::on_scope_exit( [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
+		auto const at_exit =
+		    daw::on_scope_exit( [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
 
 		find_newlines( str, [str_lines_result = std::move( str_lines_result )]( daw::string_view line ) mutable {
 			while( !str_lines_result.send( line ) ) {
@@ -166,7 +167,7 @@ daw::future_result_t<intmax_t> parse_file( daw::string_view str, daw::task_sched
 		} );
 	} );
 
-	daw::parallel::spsc_msg_queue_t<intmax_t> parsed_lines_result{128};
+	daw::parallel::spsc_msg_queue_t<intmax_t> parsed_lines_result{daw::parallel::use_autosize{}};
 
 	ts.add_task( [str_lines_result, parsed_lines_result]( ) mutable {
 		auto const at_exit =
@@ -201,23 +202,23 @@ daw::future_result_t<intmax_t> parse_file( daw::string_view str, daw::task_sched
 	} );
 
 	return result;
-}
+		}
 
-int main( int argc, char **argv ) {
-	if( argc < 2 ) {
-		std::cerr << "Must specify input file on commandline\n";
-		exit( EXIT_FAILURE );
-	}
+		int main( int argc, char **argv ) {
+			if( argc < 2 ) {
+				std::cerr << "Must specify input file on commandline\n";
+				exit( EXIT_FAILURE );
+			}
 
-	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
-	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
-	auto result = parse_file( daw::string_view{mmf.data( ), mmf.size( )}, daw::get_task_scheduler( ) );
+			daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
+			daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
+			auto result = parse_file( daw::string_view{mmf.data( ), mmf.size( )}, daw::get_task_scheduler( ) );
 
-	auto time = daw::benchmark( [&result]( ) { result.wait( ); } );
-	std::cout << "Processed " << daw::utility::to_bytes_per_second( mmf.size( ) ) << " bytes in "
-	          << daw::utility::format_seconds( time, 3 ) << " seconds\n";
-	std::cout << "Speed " << daw::utility::to_bytes_per_second( mmf.size( ), time ) << "/s\n";
-	std::cout << "Minimum surplus is ";
-	std::cout << result.get( ) << '\n';
-	return EXIT_SUCCESS;
-}
+			auto time = daw::benchmark( [&result]( ) { result.wait( ); } );
+			std::cout << "Processed " << daw::utility::to_bytes_per_second( mmf.size( ) ) << " bytes in "
+			          << daw::utility::format_seconds( time, 3 ) << " seconds\n";
+			std::cout << "Speed " << daw::utility::to_bytes_per_second( mmf.size( ), time ) << "/s\n";
+			std::cout << "Minimum surplus is ";
+			std::cout << result.get( ) << '\n';
+			return EXIT_SUCCESS;
+		}

@@ -27,6 +27,14 @@
 
 namespace daw {
 	namespace parallel {
+		template<typename T>
+		constexpr unsigned long size_msg_queue_to_cache_size( ) {
+			auto const sz = 4096; 
+			return sz / sizeof( T );
+		}
+
+		struct use_autosize{ };
+
 		template<typename T, typename base_queue_t>
 		class basic_msg_queue_t {
 			struct members_t {
@@ -34,8 +42,8 @@ namespace daw {
 				base_queue_t m_queue;
 
 				members_t( ) : m_completed{false}, m_queue{} {}
-
 				members_t( unsigned long max_size ) : m_completed{false}, m_queue{max_size} {}
+				members_t( use_autosize ) : members_t{size_msg_queue_to_cache_size<T>( )} {}
 			};
 			std::shared_ptr<members_t> members;
 
@@ -49,8 +57,8 @@ namespace daw {
 
 		  public:
 			basic_msg_queue_t( ) : members{std::make_shared<members_t>( )} {}
-
 			basic_msg_queue_t( unsigned long max_size ) : members{std::make_shared<members_t>( max_size )} {}
+			basic_msg_queue_t( use_autosize ) : members{std::make_shared<members_t>( use_autosize{} )} {}
 
 			void notify_completed( ) {
 				members->m_completed.store( true );
