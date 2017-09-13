@@ -33,6 +33,7 @@
 
 #include "function_stream.h"
 #include "iterator_range.h"
+#include "spin_lock.h"
 #include "task_scheduler.h"
 
 namespace daw {
@@ -98,9 +99,9 @@ namespace daw {
 				}
 
 				template<typename Ranges, typename Func>
-				daw::shared_semaphore partition_range_pos( Ranges const &ranges, Func func, task_scheduler ts ) {
-					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
-					for( size_t n = 0; n < ranges.size( ); ++n ) {
+				daw::shared_semaphore partition_range_pos( Ranges const &ranges, Func func, task_scheduler ts, size_t const start_pos = 0 ) {
+					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) - start_pos )};
+					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
 						schedule_task( semaphore, [ func, rng = ranges[n], n ]( ) mutable { func( rng, n ); }, ts );
 					}
 					return semaphore;
@@ -187,7 +188,32 @@ namespace daw {
 					    [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); },
 					    ts );
 				}
+				/*
+				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename Sort,
+				         typename Compare>
+				void parallel_sort( Iterator first, Iterator last, Sort sort, Compare compare, task_scheduler ts ) {
+					if( PartitionPolicy::min_range_size > static_cast<size_t>( std::distance( first, last ) ) ) {
+						sort( first, last, compare );
+						return;
+					}
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 
+					std::vector<std::atomic<bool>> is_done{ranges.size( ), std::atomic<bool>{false}};
+					std::mutex mut_is_done;
+					partition_range_pos( ranges,
+					                     [sort, compare, &is_done, &ranges]( iterator_range_t<Iterator> range, size_t pos ) {
+						                     sort( range.begin( ), range.end( ), compare );
+
+					                     },
+					                     ts )
+					    .wait( );
+
+					merge_reduce_range(
+					    ranges,
+					    [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); },
+					    ts );
+				}
+				*/
 				template<typename PartitionPolicy = split_range_t<1>, typename T, typename Iterator, typename BinaryOp>
 				auto parallel_reduce( Iterator first, Iterator last, T init, BinaryOp binary_op, task_scheduler ts ) {
 					using result_t = std::decay_t<decltype( binary_op( init, *first ) )>;
@@ -316,7 +342,7 @@ namespace daw {
 					return result;
 				}
 
-				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename OutputIterator,
+				template<typename PartitionPolicy = split_range_t<1024>, typename Iterator, typename OutputIterator,
 				         typename BinaryOp>
 				void parallel_scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out,
 				                    BinaryOp binary_op, task_scheduler ts ) {
@@ -333,17 +359,26 @@ namespace daw {
 					using value_t = std::decay_t<decltype( binary_op( *first, *first ) )>;
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<std::unique_ptr<value_t>> p1_results;
-					p1_results.resize( ranges.size( ) );
+					std::vector<std::unique_ptr<value_t>> p1_results{ ranges.size( ) };
+					std::vector<daw::spin_lock> mut_p1_results{ ranges.size( ) };
+					auto const add_result = [&]( size_t pos, value_t const & value ) {
+						for( size_t n=pos+1; n<p1_results.size( ); ++n ) {
+							std::lock_guard<daw::spin_lock>{mut_p1_results[n]};
+							if( p1_results[n] ) {
+								*p1_results[n] = binary_op( *p1_results[n], value );
+							} else {
+								p1_results[n] = std::make_unique<value_t>( value );
+							}
+						}
+					};
 					// Sum each sub range, but complete the first output as it does
 					// not have to be scanned twice
 					ts.blocking_on_waitable( partition_range_pos(
 					    ranges,
-					    [&p1_results, binary_op, first_out]( iterator_range_t<Iterator> rng, size_t n ) {
+					    [binary_op, first_out, add_result]( iterator_range_t<Iterator> rng, size_t n ) {
 						    if( n == 0 ) {
 							    auto const lst = std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
-							    p1_results[n] = std::make_unique<value_t>(
-							        *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
+								add_result( n, *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
 							    return;
 						    }
 						    value_t result = rng.pop_front( );
@@ -351,28 +386,16 @@ namespace daw {
 						    for( auto it = rng.cbegin( ); it != rend; ++it ) {
 							    result = binary_op( result, *it );
 						    }
-						    p1_results[n] = std::make_unique<value_t>( std::move( result ) );
+							add_result( n, result );
 					    },
 					    ts ) );
 
-					std::vector<value_t> range_sums;
-					range_sums.resize( p1_results.size( ) );
-					auto const ressize = p1_results.size( );
-					for( size_t n = 1; n < ressize; ++n ) {
-						range_sums[n] = *p1_results[0];
-						for( size_t m = 1; m < n; ++m ) {
-							range_sums[n] = binary_op( range_sums[n], *p1_results[m] );
-						}
-					}
-
 					ts.blocking_on_waitable( partition_range_pos(
 					    ranges,
-					    [&range_sums, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
-						    if( n == 0 ) {
-							    return;
-						    }
+					    [&p1_results, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
+
 						    auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
-						    auto const &cur_value = range_sums[n];
+							auto const &cur_value = *p1_results[n];
 						    auto sum = binary_op( cur_value, cur_range.pop_front( ) );
 						    *( out_pos++ ) = sum;
 						    while( !cur_range.empty( ) ) {
@@ -381,7 +404,7 @@ namespace daw {
 							    ++out_pos;
 						    }
 					    },
-					    ts ) );
+					    ts, 1 ) );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename UnaryPredicate>
@@ -390,7 +413,7 @@ namespace daw {
 					std::vector<std::unique_ptr<Iterator>> results{ranges.size( )};
 
 					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
-					std::mutex mut_found;
+					daw::spin_lock mut_found;
 					ts.blocking_on_waitable( partition_range_pos(
 					    ranges,
 					    [&results, pred, &has_found,&mut_found]( iterator_range_t<Iterator> range, size_t pos ) {
@@ -405,14 +428,14 @@ namespace daw {
 									        range.begin( ),
 									        static_cast<typename std::iterator_traits<Iterator>::difference_type>(
 									            m ) ) );
-									    std::lock_guard<std::mutex> has_found_lck{mut_found};
-									    if( has_found.load( ) > pos ) {
+									    std::lock_guard<daw::spin_lock> has_found_lck{mut_found};
+									    if( pos < has_found.load( ) ) {
 											has_found.store( pos );
 										}
 									    return;
 								    }
 							    }
-							    if( has_found.load( ) < pos ) {
+							    if( pos > has_found.load( ) ) {
 								    return;
 							    }
 						    }

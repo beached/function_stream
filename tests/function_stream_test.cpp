@@ -22,7 +22,6 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
-#include <mutex>
 #include <random>
 
 #include "function_stream.h"

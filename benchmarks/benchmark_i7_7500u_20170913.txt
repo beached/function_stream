@@ -1,0 +1,178 @@
+Max concurrent tasks 4
+Max hardware concurrency 4
+for_each tests
+double
+for_each: size->100000000 762.9MB %max->40.4(1.6/4X) par_total->33ms par_item->336ps throughput->22.2GB/s seq_total->54ms seq_item->543ps throughput->13.7GB/s 
+for_each: size->10000000 76.3MB %max->36.2(1.4/4X) par_total->3ms par_item->344ps throughput->21.6GB/s seq_total->4ms seq_item->499ps throughput->14.9GB/s 
+for_each: size->1000000 7.6MB %max->38.5(1.5/4X) par_total->319µs par_item->319ps throughput->23.3GB/s seq_total->491µs seq_item->491ps throughput->15.2GB/s 
+for_each: size->100000 781.2KB %max->19.8(0.8/4X) par_total->45µs par_item->453ps throughput->16.4GB/s seq_total->35µs seq_item->359ps throughput->20.7GB/s 
+for_each: size->10000 78.1KB %max->1.9(0.1/4X) par_total->47µs par_item->4ns throughput->1.6GB/s seq_total->3µs seq_item->359ps throughput->20.7GB/s 
+for_each: size->1000 7.8KB %max->0.3(0.0/4X) par_total->47µs par_item->47ns throughput->161.2MB/s seq_total->503ns seq_item->503ps throughput->14.8GB/s 
+for_each: size->100 800.0bytes %max->0.1(0.0/4X) par_total->47µs par_item->470ns throughput->16.2MB/s seq_total->148ns seq_item->1ns throughput->5.0GB/s 
+int64_t
+for_each: size->100000000 762.9MB %max->40.1(1.6/4X) par_total->27ms par_item->274ps throughput->27.1GB/s seq_total->44ms seq_item->440ps throughput->16.9GB/s 
+for_each: size->10000000 76.3MB %max->35.1(1.4/4X) par_total->3ms par_item->308ps throughput->24.2GB/s seq_total->4ms seq_item->432ps throughput->17.2GB/s 
+for_each: size->1000000 7.6MB %max->45.3(1.8/4X) par_total->262µs par_item->262ps throughput->28.4GB/s seq_total->476µs seq_item->476ps throughput->15.6GB/s 
+for_each: size->100000 781.2KB %max->15.0(0.6/4X) par_total->52µs par_item->520ps throughput->14.3GB/s seq_total->31µs seq_item->312ps throughput->23.9GB/s 
+for_each: size->10000 78.1KB %max->1.7(0.1/4X) par_total->49µs par_item->4ns throughput->1.5GB/s seq_total->3µs seq_item->331ps throughput->22.5GB/s 
+for_each: size->1000 7.8KB %max->0.2(0.0/4X) par_total->51µs par_item->51ns throughput->149.0MB/s seq_total->433ns seq_item->433ps throughput->17.2GB/s 
+for_each: size->100 800.0bytes %max->0.3(0.0/4X) par_total->11µs par_item->111ns throughput->68.2MB/s seq_total->113ns seq_item->1ns throughput->6.6GB/s 
+int32_t
+for_each: size->100000000 381.5MB %max->50.1(2.0/4X) par_total->15ms par_item->150ps throughput->24.8GB/s seq_total->30ms seq_item->300ps throughput->12.4GB/s 
+for_each: size->10000000 38.1MB %max->28.3(1.1/4X) par_total->2ms par_item->272ps throughput->13.7GB/s seq_total->3ms seq_item->308ps throughput->12.1GB/s 
+for_each: size->1000000 3.8MB %max->43.0(1.7/4X) par_total->164µs par_item->164ps throughput->22.6GB/s seq_total->283µs seq_item->283ps throughput->13.1GB/s 
+for_each: size->100000 390.6KB %max->16.0(0.6/4X) par_total->37µs par_item->373ps throughput->10.0GB/s seq_total->23µs seq_item->239ps throughput->15.5GB/s 
+for_each: size->10000 39.1KB %max->2.6(0.1/4X) par_total->26µs par_item->2ns throughput->1.4GB/s seq_total->2µs seq_item->278ps throughput->13.4GB/s 
+for_each: size->1000 3.9KB %max->0.2(0.0/4X) par_total->49µs par_item->49ns throughput->76.3MB/s seq_total->378ns seq_item->378ps throughput->9.9GB/s 
+for_each: size->100 400.0bytes %max->0.1(0.0/4X) par_total->23µs par_item->239ns throughput->16.0MB/s seq_total->88ns seq_item->880ps throughput->4.2GB/s 
+fill tests
+double
+fill: size->100000000 762.9MB %max->26.7(1.1/4X) par_total->56ms par_item->569ps throughput->13.1GB/s seq_total->60ms seq_item->608ps throughput->12.2GB/s 
+fill: size->10000000 76.3MB %max->20.5(0.8/4X) par_total->7ms par_item->747ps throughput->10.0GB/s seq_total->6ms seq_item->614ps throughput->12.1GB/s 
+fill: size->1000000 7.6MB %max->27.5(1.1/4X) par_total->439µs par_item->439ps throughput->17.0GB/s seq_total->483µs seq_item->483ps throughput->15.4GB/s 
+fill: size->100000 781.2KB %max->13.2(0.5/4X) par_total->50µs par_item->503ps throughput->14.8GB/s seq_total->26µs seq_item->265ps throughput->28.0GB/s 
+fill: size->10000 78.1KB %max->2.4(0.1/4X) par_total->36µs par_item->3ns throughput->2.0GB/s seq_total->3µs seq_item->350ps throughput->21.3GB/s 
+fill: size->1000 7.8KB %max->0.2(0.0/4X) par_total->48µs par_item->48ns throughput->156.0MB/s seq_total->485ns seq_item->485ps throughput->15.4GB/s 
+fill: size->100 800.0bytes %max->0.1(0.0/4X) par_total->50µs par_item->506ns throughput->15.1MB/s seq_total->134ns seq_item->1ns throughput->5.5GB/s 
+int64_t
+fill: size->100000000 762.9MB %max->27.4(1.1/4X) par_total->57ms par_item->570ps throughput->13.1GB/s seq_total->62ms seq_item->624ps throughput->11.9GB/s 
+fill: size->10000000 76.3MB %max->20.6(0.8/4X) par_total->7ms par_item->747ps throughput->10.0GB/s seq_total->6ms seq_item->615ps throughput->12.1GB/s 
+fill: size->1000000 7.6MB %max->26.6(1.1/4X) par_total->508µs par_item->508ps throughput->14.6GB/s seq_total->541µs seq_item->541ps throughput->13.8GB/s 
+fill: size->100000 781.2KB %max->12.9(0.5/4X) par_total->55µs par_item->558ps throughput->13.3GB/s seq_total->28µs seq_item->289ps throughput->25.8GB/s 
+fill: size->10000 78.1KB %max->3.4(0.1/4X) par_total->28µs par_item->2ns throughput->2.6GB/s seq_total->3µs seq_item->390ps throughput->19.1GB/s 
+fill: size->1000 7.8KB %max->0.4(0.0/4X) par_total->45µs par_item->45ns throughput->167.2MB/s seq_total->666ns seq_item->666ps throughput->11.2GB/s 
+fill: size->100 800.0bytes %max->0.1(0.0/4X) par_total->50µs par_item->509ns throughput->15.0MB/s seq_total->147ns seq_item->1ns throughput->5.1GB/s 
+int32_t
+fill: size->100000000 381.5MB %max->26.5(1.1/4X) par_total->28ms par_item->286ps throughput->13.0GB/s seq_total->30ms seq_item->304ps throughput->12.2GB/s 
+fill: size->10000000 38.1MB %max->19.6(0.8/4X) par_total->3ms par_item->383ps throughput->9.7GB/s seq_total->3ms seq_item->301ps throughput->12.4GB/s 
+fill: size->1000000 3.8MB %max->18.1(0.7/4X) par_total->216µs par_item->216ps throughput->17.2GB/s seq_total->156µs seq_item->156ps throughput->23.7GB/s 
+fill: size->100000 390.6KB %max->6.9(0.3/4X) par_total->51µs par_item->517ps throughput->7.2GB/s seq_total->14µs seq_item->142ps throughput->26.1GB/s 
+fill: size->10000 39.1KB %max->2.7(0.1/4X) par_total->17µs par_item->1ns throughput->2.1GB/s seq_total->1µs seq_item->186ps throughput->19.9GB/s 
+fill: size->1000 3.9KB %max->0.4(0.0/4X) par_total->23µs par_item->23ns throughput->163.0MB/s seq_total->329ns seq_item->329ps throughput->11.3GB/s 
+fill: size->100 400.0bytes %max->0.1(0.0/4X) par_total->21µs par_item->217ns throughput->17.6MB/s seq_total->120ns seq_item->1ns throughput->3.1GB/s 
+sort tests
+int64_t
+sort: size->200000000 1.5GB %max->63.1(2.5/4X) par_total->7s par_item->36ns throughput->207.6MB/s seq_total->18s seq_item->92ns throughput->82.3MB/s 
+sort: size->100000000 762.9MB %max->64.5(2.6/4X) par_total->3s par_item->34ns throughput->222.3MB/s seq_total->8s seq_item->88ns throughput->86.1MB/s 
+sort: size->10000000 76.3MB %max->63.5(2.5/4X) par_total->307ms par_item->30ns throughput->247.9MB/s seq_total->781ms seq_item->78ns throughput->97.6MB/s 
+sort: size->1000000 7.6MB %max->57.8(2.3/4X) par_total->29ms par_item->29ns throughput->260.7MB/s seq_total->67ms seq_item->67ns throughput->112.9MB/s 
+sort: size->100000 781.2KB %max->42.7(1.7/4X) par_total->3ms par_item->33ns throughput->231.1MB/s seq_total->5ms seq_item->56ns throughput->135.3MB/s 
+sort: size->10000 78.1KB %max->35.2(1.4/4X) par_total->336µs par_item->33ns throughput->226.5MB/s seq_total->473µs seq_item->47ns throughput->161.0MB/s 
+sort: size->1000 7.8KB %max->15.1(0.6/4X) par_total->58µs par_item->58ns throughput->130.8MB/s seq_total->35µs seq_item->35ns throughput->217.1MB/s 
+sort: size->100 800.0bytes %max->24.9(1.0/4X) par_total->1µs par_item->15ns throughput->481.3MB/s seq_total->1µs seq_item->15ns throughput->483.2MB/s 
+stable_sort tests
+int64_t
+stable_sort: size->100000000 762.9MB %max->68.4(2.7/4X) par_total->3s par_item->39ns throughput->194.7MB/s seq_total->10s seq_item->107ns throughput->71.1MB/s 
+stable_sort: size->10000000 76.3MB %max->67.6(2.7/4X) par_total->344ms par_item->34ns throughput->221.3MB/s seq_total->932ms seq_item->93ns throughput->81.8MB/s 
+stable_sort: size->1000000 7.6MB %max->62.4(2.5/4X) par_total->32ms par_item->32ns throughput->237.8MB/s seq_total->80ms seq_item->80ns throughput->95.2MB/s 
+stable_sort: size->100000 781.2KB %max->47.1(1.9/4X) par_total->3ms par_item->35ns throughput->216.8MB/s seq_total->6ms seq_item->66ns throughput->115.2MB/s 
+stable_sort: size->10000 78.1KB %max->34.5(1.4/4X) par_total->384µs par_item->38ns throughput->198.2MB/s seq_total->530µs seq_item->53ns throughput->143.8MB/s 
+stable_sort: size->1000 7.8KB %max->15.2(0.6/4X) par_total->64µs par_item->64ns throughput->118.9MB/s seq_total->38µs seq_item->38ns throughput->195.8MB/s 
+stable_sort: size->100 800.0bytes %max->23.0(0.9/4X) par_total->2µs par_item->20ns throughput->370.2MB/s seq_total->1µs seq_item->18ns throughput->401.8MB/s 
+reduce tests
+int64_t
+reduce: size->200000000 1.5GB %max->35.4(1.4/4X) par_total->53ms par_item->269ps throughput->27.6GB/s seq_total->76ms seq_item->382ps throughput->19.5GB/s 
+reduce: size->100000000 762.9MB %max->34.8(1.4/4X) par_total->26ms par_item->269ps throughput->27.7GB/s seq_total->37ms seq_item->375ps throughput->19.9GB/s 
+reduce: size->10000000 76.3MB %max->32.5(1.3/4X) par_total->2ms par_item->273ps throughput->27.2GB/s seq_total->3ms seq_item->356ps throughput->20.9GB/s 
+reduce: size->1000000 7.6MB %max->39.3(1.6/4X) par_total->243µs par_item->243ps throughput->30.7GB/s seq_total->381µs seq_item->381ps throughput->19.5GB/s 
+reduce: size->100000 781.2KB %max->12.7(0.5/4X) par_total->31µs par_item->311ps throughput->23.9GB/s seq_total->15µs seq_item->158ps throughput->47.1GB/s 
+reduce: size->10000 78.1KB %max->1.0(0.0/4X) par_total->31µs par_item->3ns throughput->2.4GB/s seq_total->1µs seq_item->121ps throughput->61.5GB/s 
+reduce: size->1000 7.8KB %max->0.7(0.0/4X) par_total->7µs par_item->7ns throughput->997.4MB/s seq_total->215ns seq_item->215ps throughput->34.7GB/s 
+reduce: size->100 800.0bytes %max->0.2(0.0/4X) par_total->11µs par_item->116ns throughput->65.7MB/s seq_total->87ns seq_item->870ps throughput->8.6GB/s 
+double
+reduce: size->200000000 1.5GB %max->95.5(3.8/4X) par_total->62ms par_item->312ps throughput->23.8GB/s seq_total->238ms seq_item->1ns throughput->6.2GB/s 
+reduce: size->100000000 762.9MB %max->95.6(3.8/4X) par_total->31ms par_item->312ps throughput->23.8GB/s seq_total->119ms seq_item->1ns throughput->6.2GB/s 
+reduce: size->10000000 76.3MB %max->74.4(3.0/4X) par_total->4ms par_item->401ps throughput->18.5GB/s seq_total->11ms seq_item->1ns throughput->6.2GB/s 
+reduce: size->1000000 7.6MB %max->83.2(3.3/4X) par_total->357µs par_item->357ps throughput->20.8GB/s seq_total->1ms seq_item->1ns throughput->6.3GB/s 
+reduce: size->100000 781.2KB %max->39.4(1.6/4X) par_total->72µs par_item->729ps throughput->10.2GB/s seq_total->114µs seq_item->1ns throughput->6.5GB/s 
+reduce: size->10000 78.1KB %max->9.8(0.4/4X) par_total->29µs par_item->2ns throughput->2.5GB/s seq_total->11µs seq_item->1ns throughput->6.5GB/s 
+reduce: size->1000 7.8KB %max->1.1(0.0/4X) par_total->26µs par_item->26ns throughput->289.7MB/s seq_total->1µs seq_item->1ns throughput->6.4GB/s 
+reduce: size->100 800.0bytes %max->0.1(0.0/4X) par_total->45µs par_item->457ns throughput->16.7MB/s seq_total->161ns seq_item->1ns throughput->4.6GB/s 
+reduce2 tests
+uint64_t
+reduce2: size->200000000 1.5GB %max->39.1(1.6/4X) par_total->54ms par_item->270ps throughput->27.6GB/s seq_total->84ms seq_item->423ps throughput->17.6GB/s 
+reduce2: size->100000000 762.9MB %max->39.3(1.6/4X) par_total->27ms par_item->270ps throughput->27.6GB/s seq_total->42ms seq_item->424ps throughput->17.5GB/s 
+reduce2: size->10000000 76.3MB %max->38.7(1.5/4X) par_total->2ms par_item->275ps throughput->27.0GB/s seq_total->4ms seq_item->426ps throughput->17.5GB/s 
+reduce2: size->1000000 7.6MB %max->39.1(1.6/4X) par_total->292µs par_item->292ps throughput->25.5GB/s seq_total->457µs seq_item->457ps throughput->16.3GB/s 
+reduce2: size->100000 781.2KB %max->30.9(1.2/4X) par_total->20µs par_item->209ps throughput->35.6GB/s seq_total->25µs seq_item->259ps throughput->28.8GB/s 
+reduce2: size->10000 78.1KB %max->1.9(0.1/4X) par_total->36µs par_item->3ns throughput->2.1GB/s seq_total->2µs seq_item->270ps throughput->27.6GB/s 
+reduce2: size->1000 7.8KB %max->0.3(0.0/4X) par_total->25µs par_item->25ns throughput->294.3MB/s seq_total->339ns seq_item->339ps throughput->22.0GB/s 
+reduce2: size->100 800.0bytes %max->0.5(0.0/4X) par_total->8µs par_item->81ns throughput->93.5MB/s seq_total->150ns seq_item->1ns throughput->5.0GB/s 
+min_element tests
+int64_t
+min_element: size->200000000 1.5GB %max->51.8(2.1/4X) par_total->54ms par_item->272ps throughput->27.3GB/s seq_total->112ms seq_item->564ps throughput->13.2GB/s 
+min_element: size->100000000 762.9MB %max->51.5(2.1/4X) par_total->27ms par_item->277ps throughput->26.9GB/s seq_total->57ms seq_item->570ps throughput->13.1GB/s 
+min_element: size->10000000 76.3MB %max->42.2(1.7/4X) par_total->3ms par_item->337ps throughput->22.1GB/s seq_total->5ms seq_item->570ps throughput->13.1GB/s 
+min_element: size->1000000 7.6MB %max->47.4(1.9/4X) par_total->304µs par_item->304ps throughput->24.5GB/s seq_total->577µs seq_item->577ps throughput->12.9GB/s 
+min_element: size->100000 781.2KB %max->27.5(1.1/4X) par_total->34µs par_item->347ps throughput->21.5GB/s seq_total->38µs seq_item->382ps throughput->19.5GB/s 
+min_element: size->10000 78.1KB %max->3.8(0.2/4X) par_total->26µs par_item->2ns throughput->2.8GB/s seq_total->4µs seq_item->406ps throughput->18.3GB/s 
+min_element: size->1000 7.8KB %max->0.5(0.0/4X) par_total->35µs par_item->35ns throughput->213.8MB/s seq_total->664ns seq_item->664ps throughput->11.2GB/s 
+min_element: size->100 800.0bytes %max->0.1(0.0/4X) par_total->42µs par_item->420ns throughput->18.1MB/s seq_total->132ns seq_item->1ns throughput->5.6GB/s 
+max_element tests
+int64_t
+max_element: size->200000000 1.5GB %max->58.7(2.3/4X) par_total->56ms par_item->282ps throughput->26.4GB/s seq_total->132ms seq_item->664ps throughput->11.2GB/s 
+max_element: size->100000000 762.9MB %max->56.5(2.3/4X) par_total->29ms par_item->293ps throughput->25.4GB/s seq_total->66ms seq_item->663ps throughput->11.2GB/s 
+max_element: size->10000000 76.3MB %max->35.1(1.4/4X) par_total->5ms par_item->504ps throughput->14.8GB/s seq_total->7ms seq_item->708ps throughput->10.5GB/s 
+max_element: size->1000000 7.6MB %max->23.4(0.9/4X) par_total->812µs par_item->812ps throughput->9.2GB/s seq_total->759µs seq_item->759ps throughput->9.8GB/s 
+max_element: size->100000 781.2KB %max->16.1(0.6/4X) par_total->80µs par_item->807ps throughput->9.2GB/s seq_total->52µs seq_item->520ps throughput->14.3GB/s 
+max_element: size->10000 78.1KB %max->2.6(0.1/4X) par_total->48µs par_item->4ns throughput->1.5GB/s seq_total->5µs seq_item->513ps throughput->14.5GB/s 
+max_element: size->1000 7.8KB %max->0.6(0.0/4X) par_total->25µs par_item->25ns throughput->294.0MB/s seq_total->598ns seq_item->598ps throughput->12.5GB/s 
+max_element: size->100 800.0bytes %max->0.2(0.0/4X) par_total->18µs par_item->188ns throughput->40.5MB/s seq_total->125ns seq_item->1ns throughput->6.0GB/s 
+transform tests
+int64_t
+transform: size->200000000 1.5GB %max->26.3(1.1/4X) par_total->173ms par_item->867ps throughput->8.6GB/s seq_total->182ms seq_item->911ps throughput->8.2GB/s 
+transform: size->100000000 762.9MB %max->25.9(1.0/4X) par_total->86ms par_item->862ps throughput->8.6GB/s seq_total->89ms seq_item->893ps throughput->8.3GB/s 
+transform: size->10000000 76.3MB %max->25.6(1.0/4X) par_total->8ms par_item->863ps throughput->8.6GB/s seq_total->8ms seq_item->882ps throughput->8.4GB/s 
+transform: size->1000000 7.6MB %max->13.4(0.5/4X) par_total->1ms par_item->1ns throughput->4.3GB/s seq_total->924µs seq_item->924ps throughput->8.1GB/s 
+transform: size->100000 781.2KB %max->15.5(0.6/4X) par_total->58µs par_item->584ps throughput->12.8GB/s seq_total->36µs seq_item->361ps throughput->20.6GB/s 
+transform: size->10000 78.1KB %max->4.1(0.2/4X) par_total->19µs par_item->1ns throughput->3.8GB/s seq_total->3µs seq_item->321ps throughput->23.2GB/s 
+transform: size->1000 7.8KB %max->0.6(0.0/4X) par_total->17µs par_item->17ns throughput->425.7MB/s seq_total->420ns seq_item->420ps throughput->17.7GB/s 
+transform: size->100 800.0bytes %max->0.2(0.0/4X) par_total->40µs par_item->405ns throughput->18.8MB/s seq_total->389ns seq_item->3ns throughput->1.9GB/s 
+transform2 tests
+int64_t
+transform: size->200000000 1.5GB %max->39.0(1.6/4X) par_total->114ms par_item->571ps throughput->13.0GB/s seq_total->178ms seq_item->891ps throughput->8.4GB/s 
+transform: size->100000000 762.9MB %max->38.9(1.6/4X) par_total->57ms par_item->572ps throughput->13.0GB/s seq_total->89ms seq_item->890ps throughput->8.4GB/s 
+transform: size->10000000 76.3MB %max->37.9(1.5/4X) par_total->5ms par_item->577ps throughput->12.9GB/s seq_total->8ms seq_item->875ps throughput->8.5GB/s 
+transform: size->1000000 7.6MB %max->31.3(1.3/4X) par_total->989µs par_item->989ps throughput->7.5GB/s seq_total->1ms seq_item->1ns throughput->6.0GB/s 
+transform: size->100000 781.2KB %max->14.3(0.6/4X) par_total->62µs par_item->629ps throughput->11.8GB/s seq_total->36µs seq_item->361ps throughput->20.6GB/s 
+transform: size->10000 78.1KB %max->2.6(0.1/4X) par_total->42µs par_item->4ns throughput->1.8GB/s seq_total->4µs seq_item->437ps throughput->17.0GB/s 
+transform: size->1000 7.8KB %max->0.9(0.0/4X) par_total->27µs par_item->27ns throughput->277.6MB/s seq_total->962ns seq_item->962ps throughput->7.7GB/s 
+transform: size->100 800.0bytes %max->0.1(0.0/4X) par_total->50µs par_item->504ns throughput->15.1MB/s seq_total->243ns seq_item->2ns throughput->3.1GB/s 
+map_reduce tests
+int64_t
+map_reduce: size->200000000 1.5GB %max->94.1(3.8/4X) par_total->54ms par_item->271ps throughput->27.5GB/s seq_total->204ms seq_item->1ns throughput->7.3GB/s 
+map_reduce: size->100000000 762.9MB %max->85.7(3.4/4X) par_total->29ms par_item->290ps throughput->25.6GB/s seq_total->99ms seq_item->996ps throughput->7.5GB/s 
+map_reduce: size->10000000 76.3MB %max->81.3(3.3/4X) par_total->2ms par_item->299ps throughput->24.9GB/s seq_total->9ms seq_item->974ps throughput->7.6GB/s 
+map_reduce: size->1000000 7.6MB %max->82.2(3.3/4X) par_total->306µs par_item->306ps throughput->24.3GB/s seq_total->1ms seq_item->1ns throughput->7.4GB/s 
+map_reduce: size->100000 781.2KB %max->21.1(0.8/4X) par_total->59µs par_item->592ps throughput->12.6GB/s seq_total->49µs seq_item->498ps throughput->14.9GB/s 
+map_reduce: size->10000 78.1KB %max->3.3(0.1/4X) par_total->50µs par_item->5ns throughput->1.5GB/s seq_total->6µs seq_item->654ps throughput->11.4GB/s 
+map_reduce: size->1000 7.8KB %max->0.3(0.0/4X) par_total->38µs par_item->38ns throughput->200.2MB/s seq_total->473ns seq_item->473ps throughput->15.8GB/s 
+map_reduce: size->100 800.0bytes %max->0.1(0.0/4X) par_total->49µs par_item->491ns throughput->15.5MB/s seq_total->211ns seq_item->2ns throughput->3.5GB/s 
+map_reduce2 tests
+int64_t
+map_reduce2: size->100000 781.2KB %max->88.5(3.5/4X) par_total->3s par_item->33µs throughput->229.8KB/s seq_total->12s seq_item->120µs throughput->64.9KB/s 
+map_reduce2: size->10000 78.1KB %max->88.3(3.5/4X) par_total->341ms par_item->34µs throughput->229.0KB/s seq_total->1s seq_item->120µs throughput->64.9KB/s 
+map_reduce2: size->1000 7.8KB %max->43.5(1.7/4X) par_total->69ms par_item->69µs throughput->112.8KB/s seq_total->120ms seq_item->120µs throughput->64.8KB/s 
+map_reduce2: size->100 800.0bytes %max->25.0(1.0/4X) par_total->12ms par_item->121µs throughput->64.1KB/s seq_total->12ms seq_item->121µs throughput->64.2KB/s 
+map_reduce2: size->3 24.0bytes %max->21.5(0.9/4X) par_total->419µs par_item->139µs throughput->55.8KB/s seq_total->361µs seq_item->120µs throughput->64.8KB/s 
+scan tests
+int64_t
+scan: size->200000000 1.5GB %max->31.8(1.3/4X) par_total->8s par_item->40ns throughput->188.6MB/s seq_total->10s seq_item->51ns throughput->148.0MB/s 
+scan: size->100000000 762.9MB %max->31.7(1.3/4X) par_total->4s par_item->40ns throughput->187.3MB/s seq_total->5s seq_item->51ns throughput->147.8MB/s 
+scan: size->10000000 76.3MB %max->32.3(1.3/4X) par_total->401ms par_item->40ns throughput->190.0MB/s seq_total->518ms seq_item->51ns throughput->147.1MB/s 
+scan: size->1000000 7.6MB %max->29.0(1.2/4X) par_total->44ms par_item->44ns throughput->170.8MB/s seq_total->51ms seq_item->51ns throughput->147.4MB/s 
+scan: size->100000 781.2KB %max->26.0(1.0/4X) par_total->5ms par_item->50ns throughput->150.2MB/s seq_total->5ms seq_item->52ns throughput->144.6MB/s 
+scan: size->10000 78.1KB %max->24.2(1.0/4X) par_total->538µs par_item->53ns throughput->141.7MB/s seq_total->521µs seq_item->52ns throughput->146.3MB/s 
+scan: size->1000 7.8KB %max->12.5(0.5/4X) par_total->104µs par_item->104ns throughput->72.7MB/s seq_total->52µs seq_item->52ns throughput->145.1MB/s 
+scan: size->100 800.0bytes %max->2.9(0.1/4X) par_total->45µs par_item->451ns throughput->16.9MB/s seq_total->5µs seq_item->51ns throughput->147.5MB/s 
+find_if tests
+int64_t
+find_if: size->400000000 3.0GB %max->40.5(1.6/4X) par_total->111ms par_item->279ps throughput->26.6GB/s seq_total->181ms seq_item->452ps throughput->16.4GB/s 
+find_if: size->200000000 1.5GB %max->38.2(1.5/4X) par_total->57ms par_item->285ps throughput->26.1GB/s seq_total->87ms seq_item->435ps throughput->17.1GB/s 
+find_if: size->100000000 762.9MB %max->39.6(1.6/4X) par_total->29ms par_item->290ps throughput->25.6GB/s seq_total->46ms seq_item->460ps throughput->16.2GB/s 
+find_if: size->10000000 76.3MB %max->29.3(1.2/4X) par_total->3ms par_item->369ps throughput->20.2GB/s seq_total->4ms seq_item->432ps throughput->17.2GB/s 
+find_if: size->1000000 7.6MB %max->39.1(1.6/4X) par_total->517µs par_item->517ps throughput->14.4GB/s seq_total->808µs seq_item->808ps throughput->9.2GB/s 
+find_if: size->100000 781.2KB %max->13.3(0.5/4X) par_total->60µs par_item->604ps throughput->12.3GB/s seq_total->32µs seq_item->321ps throughput->23.2GB/s 
+find_if: size->10000 78.1KB %max->1.4(0.1/4X) par_total->56µs par_item->5ns throughput->1.3GB/s seq_total->3µs seq_item->305ps throughput->24.4GB/s 
+find_if: size->1000 7.8KB %max->0.3(0.0/4X) par_total->51µs par_item->51ns throughput->147.3MB/s seq_total->553ns seq_item->553ps throughput->13.5GB/s 
+find_if: size->100 800.0bytes %max->0.0(0.0/4X) par_total->53µs par_item->537ns throughput->14.2MB/s seq_total->94ns seq_item->939ps throughput->7.9GB/s 

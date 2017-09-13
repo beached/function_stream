@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include <daw/daw_array_view.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_memory_mapped_file.h>
 #include <daw/daw_semaphore.h>
@@ -38,121 +39,98 @@
 #include "function_stream.h"
 #include "message_queue.h"
 
-constexpr daw::string_view trim_quotes( daw::string_view sv ) noexcept {
-	if( sv.empty( ) ) {
-		return sv;
-	}
-	if( sv.front( ) == '"' ) {
-		sv.remove_prefix( );
-	}
-	if( sv.back( ) == '"' ) {
-		sv.remove_suffix( );
-	}
-	return sv;
-}
-
-struct file_data {
-	intmax_t year;
-	intmax_t receipts;
-	intmax_t outlays;
-	intmax_t surplus;
-};
-
-template<size_t max_find = std::numeric_limits<size_t>::max( )>
-std::vector<size_t> find_commas( daw::string_view line ) {
+template<size_t max_find, typename Function>
+constexpr void find_commas( daw::string_view line, Function on_commas ) {
+	std::array<size_t, max_find> result;
 	bool in_quote = false;
-	std::vector<size_t> results;
-	for( auto it = line.begin( ); it != line.end( ) && results.size( ) <= max_find; ++it ) {
+	size_t count = 0;
+	for( auto it = line.cbegin( ); it != line.cend( ) && count <= max_find; ++it ) {
 		switch( *it ) {
 		case '"':
 			in_quote = !in_quote;
 			break;
 		case ',':
 			if( !in_quote ) {
-				results.push_back( static_cast<size_t>( std::distance( line.begin( ), it ) ) );
+				result[count++] = static_cast<size_t>( std::distance( line.cbegin( ), it ) );
 			}
 			break;
 		default:
 			break;
 		}
 	}
-	results.push_back( line.npos );
-	return results;
+	if( count > max_find ) {
+		on_commas( std::move( result ) );
+	}
 }
 
-template<typename Emitter>
-void find_newlines( daw::string_view str, Emitter emitter ) {
-	auto pos = str.find( '\n' );
-	while( pos != str.npos ) {
-		emitter( str.substr( 0, pos - 1 ) );
-		str.remove_prefix( pos + 1 );
-		pos = str.find( '\n' );
+template<typename T, typename Emitter>
+constexpr void find_newlines( daw::array_view<T> str, Emitter emitter ) {
+	auto const last = str.cend( );
+	auto last_pos = str.cbegin( );
+	str.remove_prefix();
+	while( !str.empty( ) ) {
+		if( str.front( ) == '\n' ) {
+			emitter( daw::make_string_view_it( last_pos, str.cbegin( ) ) );
+			str.remove_prefix( );
+			last_pos = str.data( );
+			continue;
+		}
+		str.remove_prefix( );
 	}
-	if( !str.empty( ) ) {
-		emitter( str );
+	if( last_pos < last ) {
+		emitter( daw::make_string_view_it( last_pos, last ) );
 	}
 }
 
 template<typename Char>
 constexpr bool is_number( Char c ) noexcept {
-	return '0' <= c && c <= '9';
+	return (static_cast<uint32_t>(c) - '0') < 10;
 }
 
-boost::optional<intmax_t> parse_int( daw::string_view str ) {
+template<typename CharT>
+constexpr intmax_t to_number( CharT val ) noexcept {
+	return val - '0';
+}
+
+template<typename Function>
+constexpr void parse_int( daw::string_view str, Function on_number ) {
+	while( !str.empty( ) && !(is_number( str.front( ) ) || str.front( ) == '-') ) {
+		str.remove_prefix();
+	}
 	if( str.empty( ) ) {
-		return boost::none;
+		return;
 	}
-	auto it = str.begin( );
-	for( ; it != str.end( ); ++it ) {
-		if( is_number( *it ) || *it == '-' ) {
-			break;
-		}
-	}
-	if( it == str.end( ) ) {
-		return boost::none;
-	}
-	bool is_negative = *it == '-';
+	bool is_negative = str.front( ) == '-';
 	if( is_negative ) {
-		++it;
+		str.remove_prefix( );
 	}
-	if( it == str.end( ) || !is_number( *it ) ) {
-		return boost::none;
+	if( str.empty( ) || !is_number( str.front( ) ) ) {
+		return;
 	}
-	intmax_t result = ( *it++ ) - '0';
-	for( ; it != str.end( ); ++it ) {
-		if( is_number( *it ) ) {
-			result *= 10;
-			result += *it - '0';
+	intmax_t result = to_number( str.pop_front( ) );
+	while( !str.empty() && is_number( str.front( ) ) ) {
+		result *= 10;
+		result += to_number( str.pop_front( ) );
+		if( !str.empty( ) && str.front( ) == ',' ) {
+			str.remove_prefix( );
 		}
 	}
 	if( is_negative ) {
 		result *= -1;
 	}
-	return result;
+	on_number( std::move( result ) );
 }
 
 template<typename Function>
-void parse_line( daw::string_view line, Function value_cb ) {
-	std::vector<boost::optional<intmax_t>> result;
-	auto comma_pos = find_commas<4>( line );
-
-	if( comma_pos.size( ) >= 4 ) {
-		auto const p1 = comma_pos[2] + 1;
-		auto const p2 = comma_pos[3];
-		auto const sz = p2 - p1;
-		value_cb( parse_int( line.substr( comma_pos[2] + 1, sz ) ) );
-	}
+inline void parse_line( daw::string_view line, Function value_cb ) {
+	find_commas<4>( line, [value_cb, line]( std::array<size_t, 4> comma_pos ) {
+		auto const first = comma_pos[2] + 1;
+		parse_int( line.substr( first, comma_pos[3] - first ), value_cb );
+	} );
 }
 
-boost::optional<file_data> parsed_line_to_fd( std::vector<boost::optional<intmax_t>> parsed_line ) {
-	if( parsed_line.size( ) >= 4 && parsed_line[0] && parsed_line[1] && parsed_line[2] && parsed_line[3] ) {
-		auto result = file_data{*parsed_line[0], *parsed_line[1], *parsed_line[2], *parsed_line[3]};
-		return result;
-	}
-	return boost::none;
-}
-
-daw::future_result_t<intmax_t> parse_file( daw::string_view str, daw::task_scheduler ts ) {
+template<typename Range>
+daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 	daw::parallel::spsc_msg_queue_t<daw::string_view> str_lines_result{daw::parallel::use_autosize{}};
 
 	ts.add_task( [str, str_lines_result]( ) mutable {
@@ -160,7 +138,7 @@ daw::future_result_t<intmax_t> parse_file( daw::string_view str, daw::task_sched
 		    daw::on_scope_exit( [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
 
 		find_newlines( str, [str_lines_result = std::move( str_lines_result )]( daw::string_view line ) mutable {
-			while( !str_lines_result.send( line ) ) {
+			while( !str_lines_result.send( std::move( line ) ) ) {
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for( 1ns );
 			}
@@ -173,15 +151,13 @@ daw::future_result_t<intmax_t> parse_file( daw::string_view str, daw::task_sched
 		auto const at_exit =
 		    daw::on_scope_exit( [parsed_lines_result]( ) mutable { parsed_lines_result.notify_completed( ); } );
 		while( str_lines_result.has_more( ) ) {
-			daw::string_view cur_line{};
+			daw::string_view cur_line;
 			while( !str_lines_result.receive( cur_line ) ) {
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for( 1ns );
 			}
-			parse_line( cur_line, [&]( auto const &v ) {
-				if( v ) {
-					parsed_lines_result.send( *v );
-				}
+			parse_line( cur_line, [&parsed_lines_result]( intmax_t v ) {
+				parsed_lines_result.send( std::move( v ) );
 			} );
 		}
 	} );
@@ -194,31 +170,30 @@ daw::future_result_t<intmax_t> parse_file( daw::string_view str, daw::task_sched
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for( 1ns );
 			}
-			if( cur_value < cur_min ) {
-				cur_min = cur_value;
-			}
+			cur_min = std::min( cur_min, cur_value );
 		}
 		return cur_min;
 	} );
 
 	return result;
-		}
+}
 
-		int main( int argc, char **argv ) {
-			if( argc < 2 ) {
-				std::cerr << "Must specify input file on commandline\n";
-				exit( EXIT_FAILURE );
-			}
+int main( int argc, char **argv ) {
+	if( argc < 2 ) {
+		std::cerr << "Must specify input file on commandline\n";
+		exit( EXIT_FAILURE );
+	}
 
-			daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
-			daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
-			auto result = parse_file( daw::string_view{mmf.data( ), mmf.size( )}, daw::get_task_scheduler( ) );
+	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
+	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
+	auto view = daw::make_array_view( mmf.data( ), mmf.size( ) );
+	auto result = parse_file( view, daw::get_task_scheduler( ) );
 
-			auto time = daw::benchmark( [&result]( ) { result.wait( ); } );
-			std::cout << "Processed " << daw::utility::to_bytes_per_second( mmf.size( ) ) << " bytes in "
-			          << daw::utility::format_seconds( time, 3 ) << " seconds\n";
-			std::cout << "Speed " << daw::utility::to_bytes_per_second( mmf.size( ), time ) << "/s\n";
-			std::cout << "Minimum surplus is ";
-			std::cout << result.get( ) << '\n';
-			return EXIT_SUCCESS;
-		}
+	auto time = daw::benchmark( [&result]( ) { result.wait( ); } );
+	std::cout << "Processed " << daw::utility::to_bytes_per_second( mmf.size( ) ) << " bytes in "
+	          << daw::utility::format_seconds( time, 3 ) << " seconds\n";
+	std::cout << "Speed " << daw::utility::to_bytes_per_second( mmf.size( ), time ) << "/s\n";
+	std::cout << "Minimum surplus is ";
+	std::cout << result.get( ) << '\n';
+	return EXIT_SUCCESS;
+}

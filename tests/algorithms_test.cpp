@@ -575,7 +575,7 @@ int main( int, char ** ) {
 	size_t const LARGE_TEST_SZ = 200'000'000;
 	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
 	std::cout << "Max hardware concurrency " << std::thread::hardware_concurrency( ) << '\n';
-	/*
+
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -689,7 +689,7 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		scan_test<int64_t>( n );
 	}
-	*/
+
 	std::cout << "find_if tests\n";
 	std::cout << "int64_t\n";
 	find_if_test<int64_t>( 2*LARGE_TEST_SZ );

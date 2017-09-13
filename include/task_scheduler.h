@@ -72,7 +72,7 @@ namespace daw {
 		}
 
 		template<typename Waitable>
-		void blocking_on_waitable( Waitable waitable ) {
+		void blocking_on_waitable( Waitable && waitable ) {
 			blocking_section( [&waitable]( ) { waitable.wait( ); } );
 		}
 	}; // task_scheduler

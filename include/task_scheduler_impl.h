@@ -35,9 +35,57 @@
 #include <daw/daw_semaphore.h>
 #include <daw/daw_utility.h>
 
+#include "message_queue.h"
+
 namespace daw {
 	using task_t = std::function<void( )>;
 
+	struct task_impl_t {
+		mutable task_t * m_ptr;
+
+		template<typename... Args>
+		task_impl_t( Args &&... args ) : m_ptr{ new task_t{ std::forward<Args>( args )... }} {}
+
+		~task_impl_t( ) {
+			auto tmp = std::exchange( m_ptr, nullptr );
+			if( tmp ) {
+				delete tmp;
+			}
+		}
+		// task_impl_t only exists in the task queue and is only
+		// used as a self-cleaning pointer(auto_ptr).
+		task_impl_t( task_impl_t const & other ) noexcept: m_ptr{ std::exchange( other.m_ptr, nullptr ) } {}
+
+		task_impl_t & operator=( task_impl_t const & rhs ) noexcept {
+			if( this != &rhs ) {
+				m_ptr = std::exchange( rhs.m_ptr, nullptr );
+			}
+			return *this;
+		}
+
+		task_impl_t( task_impl_t && ) noexcept = default;
+		task_impl_t & operator=( task_impl_t && ) noexcept = default;
+
+		task_t & operator*( ) {
+			return *m_ptr;
+		}
+
+		task_t const & operator*( ) const {
+			return *m_ptr;
+		}
+
+		task_t * operator->( ) {
+			return m_ptr;
+		}
+
+		task_t const * operator->( ) const {
+			return m_ptr;
+		}
+
+		task_t move_out( ) {
+			return std::move( *m_ptr );
+		}
+	};
 	namespace impl {
 		class task_scheduler_impl;
 
@@ -47,12 +95,14 @@ namespace daw {
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
 		class task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
-			using task_queue_t = daw::locked_stack_t<daw::task_t>;
+			//using task_queue_t = daw::locked_stack_t<daw::task_t>;
+			using task_queue_t = daw::parallel::mpmc_msg_queue_t<daw::task_impl_t>;
+			
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;
-			std::vector<task_queue_t> m_tasks;
 			std::atomic_bool m_continue;
 			bool m_block_on_destruction;
 			size_t const m_num_threads;
+			std::vector<task_queue_t> m_tasks;
 			std::atomic<size_t> m_task_count;
 			daw::lockable_value_t<std::list<boost::optional<std::thread>>> m_other_threads;
 
@@ -74,7 +124,12 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task && task ) noexcept {
 				auto id = ( m_task_count++ ) % m_num_threads;
-				m_tasks[id].emplace_back( std::forward<Task>( task ) );
+				//m_tasks[id].emplace_back( std::forward<Task>( task ) );
+				task_impl_t tmp{ std::forward<Task>(task ) };
+				while( !m_tasks[id].send( tmp ) ) {
+					using namespace std::chrono_literals;
+					std::this_thread::sleep_for( 1ns );
+				}
 			}
 
 			void start( );

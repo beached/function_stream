@@ -47,10 +47,14 @@ namespace daw {
 		    : m_continue{false}
 		    , m_block_on_destruction{block_on_destruction}
 		    , m_num_threads{num_threads}
+			, m_tasks{ }
 		    , m_task_count{0}
 		    , m_other_threads{} {
 
-			m_tasks.resize( m_num_threads );
+			for( size_t n=0; n<m_num_threads; ++n ) {
+				m_tasks.emplace_back( 1024 );
+			}
+//			m_tasks.resize( m_num_threads );
 		}
 
 		task_scheduler_impl::~task_scheduler_impl( ) {
@@ -76,6 +80,20 @@ namespace daw {
 					}
 					// Get task.  First try own queue, if not try the others and finally
 					// wait for own queue to fill
+					task_impl_t tsk;
+					auto is_popped = self->m_tasks[id].receive( tsk );
+					for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id;
+					     m = ( m + 1 ) % self->m_num_threads ) {
+						is_popped = self->m_tasks[m].receive( tsk );
+					}
+					if( !is_popped ) {
+						while( !self->m_tasks[id].receive( tsk ) ) {
+							using namespace std::chrono_literals;
+							std::this_thread::sleep_for( 1ns );
+						}
+					}
+					task = *tsk;
+					/*
 					auto tsk = self->m_tasks[id].try_pop_back( );
 					for( auto m = ( id + 1 ) % self->m_num_threads; !tsk && m != id;
 					     m = ( m + 1 ) % self->m_num_threads ) {
@@ -86,6 +104,7 @@ namespace daw {
 					} else {
 						task = self->m_tasks[id].pop_back( );
 					}
+					*/
 				}
 				if( task ) { // Just in case we get an empty function
 					try {
