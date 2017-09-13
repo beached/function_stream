@@ -39,54 +39,30 @@
 
 namespace daw {
 	using task_t = std::function<void( )>;
-
-	struct task_impl_t {
-		mutable task_t * m_ptr;
-
-		template<typename... Args>
-		task_impl_t( Args &&... args ) : m_ptr{ new task_t{ std::forward<Args>( args )... }} {}
-
-		~task_impl_t( ) {
-			auto tmp = std::exchange( m_ptr, nullptr );
-			if( tmp ) {
-				delete tmp;
-			}
-		}
-		// task_impl_t only exists in the task queue and is only
-		// used as a self-cleaning pointer(auto_ptr).
-		task_impl_t( task_impl_t const & other ) noexcept: m_ptr{ std::exchange( other.m_ptr, nullptr ) } {}
-
-		task_impl_t & operator=( task_impl_t const & rhs ) noexcept {
-			if( this != &rhs ) {
-				m_ptr = std::exchange( rhs.m_ptr, nullptr );
-			}
-			return *this;
-		}
-
-		task_impl_t( task_impl_t && ) noexcept = default;
-		task_impl_t & operator=( task_impl_t && ) noexcept = default;
-
-		task_t & operator*( ) {
-			return *m_ptr;
-		}
-
-		task_t const & operator*( ) const {
-			return *m_ptr;
-		}
-
-		task_t * operator->( ) {
-			return m_ptr;
-		}
-
-		task_t const * operator->( ) const {
-			return m_ptr;
-		}
-
-		task_t move_out( ) {
-			return std::move( *m_ptr );
-		}
-	};
 	namespace impl {
+		/// task_ptr_t only exists in the task queue and is only
+		/// used as a self-cleaning pointer(auto_ptr).
+		struct task_ptr_t {
+			mutable task_t *m_ptr;
+
+			template<typename... Args>
+			task_ptr_t( Args &&... args ) : m_ptr{new task_t{std::forward<Args>( args )...}} {}
+
+			~task_ptr_t( );
+		
+			task_ptr_t( task_ptr_t const &other ) noexcept;
+			task_ptr_t &operator=( task_ptr_t const &rhs ) noexcept;
+
+			task_ptr_t( task_ptr_t && ) noexcept = default;
+			task_ptr_t &operator=( task_ptr_t && ) noexcept = default;
+
+			task_t &operator*( );
+			task_t const &operator*( ) const;
+			task_t *operator->( );
+			task_t const *operator->( ) const;
+			task_t move_out( );
+		};
+
 		class task_scheduler_impl;
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
@@ -95,9 +71,9 @@ namespace daw {
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
 		class task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
-			//using task_queue_t = daw::locked_stack_t<daw::task_t>;
-			using task_queue_t = daw::parallel::mpmc_msg_queue_t<daw::task_impl_t>;
-			
+			// using task_queue_t = daw::locked_stack_t<daw::task_t>;
+			using task_queue_t = daw::parallel::mpmc_msg_queue_t<daw::impl::task_ptr_t>;
+
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;
 			std::atomic_bool m_continue;
 			bool m_block_on_destruction;
@@ -122,10 +98,10 @@ namespace daw {
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
 
 			template<typename Task>
-			void add_task( Task && task ) noexcept {
+			void add_task( Task &&task ) noexcept {
 				auto id = ( m_task_count++ ) % m_num_threads;
-				//m_tasks[id].emplace_back( std::forward<Task>( task ) );
-				task_impl_t tmp{ std::forward<Task>(task ) };
+				// m_tasks[id].emplace_back( std::forward<Task>( task ) );
+				task_ptr_t tmp{std::forward<Task>( task )};
 				while( !m_tasks[id].send( tmp ) ) {
 					using namespace std::chrono_literals;
 					std::this_thread::sleep_for( 1ns );

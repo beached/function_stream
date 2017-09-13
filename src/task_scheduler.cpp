@@ -31,6 +31,42 @@
 
 namespace daw {
 	namespace impl {
+		task_ptr_t::~task_ptr_t( ) {
+			auto tmp = std::exchange( m_ptr, nullptr );
+			if( tmp ) {
+				delete tmp;
+			}
+		}
+
+		task_ptr_t::task_ptr_t( task_ptr_t const &other ) noexcept : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
+
+		task_ptr_t &task_ptr_t::operator=( task_ptr_t const &rhs ) noexcept {
+			if( this != &rhs ) {
+				m_ptr = std::exchange( rhs.m_ptr, nullptr );
+			}
+			return *this;
+		}
+
+		task_t &task_ptr_t::operator*( ) {
+			return *m_ptr;
+		}
+
+		task_t const &task_ptr_t::operator*( ) const {
+			return *m_ptr;
+		}
+
+		task_t *task_ptr_t::operator->( ) {
+			return m_ptr;
+		}
+
+		task_t const *task_ptr_t::operator->( ) const {
+			return m_ptr;
+		}
+
+		task_t task_ptr_t::move_out( ) {
+			return std::move( *m_ptr );
+		}
+
 		namespace {
 			template<typename... Args>
 			auto create_thread( Args &&... args ) noexcept {
@@ -42,19 +78,19 @@ namespace daw {
 					std::terminate( );
 				}
 			}
-		} // namespace anonymous
+		} // namespace
 		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
 		    : m_continue{false}
 		    , m_block_on_destruction{block_on_destruction}
 		    , m_num_threads{num_threads}
-			, m_tasks{ }
+		    , m_tasks{}
 		    , m_task_count{0}
 		    , m_other_threads{} {
 
-			for( size_t n=0; n<m_num_threads; ++n ) {
+			for( size_t n = 0; n < m_num_threads; ++n ) {
 				m_tasks.emplace_back( 1024 );
 			}
-//			m_tasks.resize( m_num_threads );
+			//			m_tasks.resize( m_num_threads );
 		}
 
 		task_scheduler_impl::~task_scheduler_impl( ) {
@@ -71,48 +107,32 @@ namespace daw {
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
 			while( !semaphore || !semaphore->try_wait( ) ) {
-				daw::task_t task = nullptr;
-				{
-					auto self = wself.lock( );
-					if( !self || !self->m_continue ) {
-						// Either we have destructed already or stop has been called
-						break;
-					}
-					// Get task.  First try own queue, if not try the others and finally
-					// wait for own queue to fill
-					task_impl_t tsk;
-					auto is_popped = self->m_tasks[id].receive( tsk );
-					for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id;
-					     m = ( m + 1 ) % self->m_num_threads ) {
-						is_popped = self->m_tasks[m].receive( tsk );
-					}
-					if( !is_popped ) {
-						while( !self->m_tasks[id].receive( tsk ) ) {
-							using namespace std::chrono_literals;
-							std::this_thread::sleep_for( 1ns );
-						}
-					}
-					task = *tsk;
-					/*
-					auto tsk = self->m_tasks[id].try_pop_back( );
-					for( auto m = ( id + 1 ) % self->m_num_threads; !tsk && m != id;
-					     m = ( m + 1 ) % self->m_num_threads ) {
-						tsk = self->m_tasks[m].try_pop_back( );
-					}
-					if( tsk ) {
-						task = *tsk;
-					} else {
-						task = self->m_tasks[id].pop_back( );
-					}
-					*/
+				auto self = wself.lock( );
+				if( !self || !self->m_continue ) {
+					// Either we have destructed already or stop has been called
+					break;
 				}
-				if( task ) { // Just in case we get an empty function
-					try {
-						task( );
-					} catch( ... ) {
-						// Don't let a task take down thread
-						// TODO: figure out what else we can do
+				// Get task.  First try own queue, if not try the others and finally
+				// wait for own queue to fill
+				daw::impl::task_ptr_t tsk;
+				auto is_popped = self->m_tasks[id].receive( tsk );
+				for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id;
+				     m = ( m + 1 ) % self->m_num_threads ) {
+					is_popped = self->m_tasks[m].receive( tsk );
+				}
+				if( !is_popped ) {
+					while( !self->m_tasks[id].receive( tsk ) ) {
+						using namespace std::chrono_literals;
+						std::this_thread::sleep_for( 1ns );
 					}
+				}
+				task_t task{tsk.move_out( )};
+				try {
+					task( );
+				} catch( ... ) {
+					// Don't let a task take down thread
+					// TODO: add callback to task_scheduler for handling
+					// task exceptions
 				}
 			}
 		}
@@ -156,7 +176,7 @@ namespace daw {
 			auto const id = std::this_thread::get_id( );
 			{
 				auto threads = m_threads.get( );
-				for( auto const & th : *threads ) {
+				for( auto const &th : *threads ) {
 					if( th.get_id( ) == id ) {
 						return true;
 					}
@@ -172,7 +192,7 @@ namespace daw {
 		}
 
 		daw::shared_semaphore task_scheduler_impl::start_temp_task_runners( size_t task_count ) {
-			daw::shared_semaphore semaphore{ 1 - task_count };
+			daw::shared_semaphore semaphore{1 - task_count};
 			for( size_t n = 0; n < task_count; ++n ) {
 				auto const id = [&]( ) {
 					auto const current_epoch = static_cast<size_t>(
@@ -193,7 +213,7 @@ namespace daw {
 					} );
 					task_runner( id, wself, semaphore );
 				};
-				*it = create_thread(thread_worker);
+				*it = create_thread( thread_worker );
 				( *it )->detach( );
 			}
 			return semaphore;
