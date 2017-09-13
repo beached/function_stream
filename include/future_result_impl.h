@@ -148,7 +148,7 @@ namespace daw {
 			}
 
 			void set_value( base_result_t value ) noexcept {
-				set_value( expected_result_t{ value } );
+				set_value( expected_result_t{value} );
 			}
 
 			void set_exception( std::exception_ptr ptr ) noexcept override {
@@ -175,7 +175,8 @@ namespace daw {
 				future_result_t<next_result_t> result{m_task_scheduler};
 				std::function<next_result_t( base_result_t )> func = next_func;
 				auto ts = m_task_scheduler;
-				m_next = [result, func=std::move(func), ts=std::move(ts)]( expected_result_t e_result ) mutable {
+				m_next =
+				    [ result, func = std::move( func ), ts = std::move( ts ) ]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -243,7 +244,8 @@ namespace daw {
 
 				auto ts = m_task_scheduler;
 				std::function<next_result_t( )> func = next_func;
-				m_next = [result, func=std::move(func), ts=std::move(ts)]( expected_result_t e_result ) mutable {
+				m_next =
+				    [ result, func = std::move( func ), ts = std::move( ts ) ]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -271,7 +273,6 @@ namespace daw {
 			virtual ~future_result_base_t( );
 			virtual void wait( ) const = 0;
 			virtual bool try_wait( ) const = 0;
-			virtual explicit operator bool( ) const;
 		}; // future_result_base_t
 
 		template<typename... Unknown>
@@ -283,7 +284,7 @@ namespace daw {
 			Function m_function;
 			std::tuple<Arg, Args...> m_args;
 			function_to_task_t( Result result, Function func, Arg &&arg, Args &&... args )
-			    : m_result{std::move(result)}
+			    : m_result{std::move( result )}
 			    , m_function{std::move( func )}
 			    , m_args{std::forward<Arg>( arg ), std::forward<Args>( args )...} {}
 
@@ -297,8 +298,7 @@ namespace daw {
 			Result m_result;
 			Function m_function;
 			function_to_task_t( Result result, Function func )
-			    : m_result{std::move(result)}
-			    , m_function{std::move( func )} { }
+			    : m_result{std::move( result )}, m_function{std::move( func )} {}
 
 			void operator( )( ) {
 				m_result.from_code( m_function );
@@ -315,7 +315,8 @@ namespace daw {
 		struct apply_many_t {
 			template<typename Results, typename... Args>
 			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
-			                  std::tuple<Callables...> const &callables, std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
+			                  std::tuple<Callables...> const &callables,
+			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 				schedule_task( semaphore, [&results, &callables, tp_args ]( ) mutable noexcept {
 					try {
 						std::get<N>( results ) = daw::apply( std::get<N>( callables ), *tp_args );
@@ -330,12 +331,13 @@ namespace daw {
 		struct apply_many_t<SZ, SZ, Functions...> {
 			template<typename Results, typename... Args>
 			constexpr void operator( )( daw::task_scheduler const &, daw::shared_semaphore const &, Results const &,
-			                            std::tuple<Functions...> const &, std::shared_ptr<std::tuple<Args...>> const & ) noexcept {}
+			                            std::tuple<Functions...> const &,
+			                            std::shared_ptr<std::tuple<Args...>> const & ) noexcept {}
 		}; // apply_many_t<SZ, SZ, Functions..>
 
 		template<typename Result, typename... Functions, typename... Args>
-		void apply_many( daw::task_scheduler & ts, daw::shared_semaphore semaphore, Result & result,
-						 std::tuple<Functions...> const & callables, std::shared_ptr<std::tuple<Args...>> tp_args ) {
+		void apply_many( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Result &result,
+		                 std::tuple<Functions...> const &callables, std::shared_ptr<std::tuple<Args...>> tp_args ) {
 			apply_many_t<0, sizeof...( Functions ), Functions...>{}( ts, semaphore, result, callables, tp_args );
 		}
 

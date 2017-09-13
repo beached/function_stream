@@ -78,7 +78,7 @@ namespace daw {
 			return m_data->try_wait( );
 		}
 
-		explicit operator bool( ) const override {
+		explicit operator bool( ) const {
 			return m_data->try_wait( );
 		}
 
@@ -103,14 +103,16 @@ namespace daw {
 		bool is_exception( ) const {
 			m_data->wait( );
 			// TODO: look into not throwing and allowing values to be retrieved
-			daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued, "Attempt to use a future that has been continued" );
+			daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued,
+			                                   "Attempt to use a future that has been continued" );
 			return m_data->m_result.has_exception( );
 		}
 
 		auto const &get( ) const {
 			m_data->wait( );
 			// TODO: look into not throwing and allowing values to be retrieved
-			daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued, "Attempt to use a future that has been continued" );
+			daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued,
+			                                   "Attempt to use a future that has been continued" );
 			return m_data->m_result.get( );
 		}
 
@@ -153,7 +155,7 @@ namespace daw {
 
 		void get( ) const;
 		bool try_wait( ) const override;
-		explicit operator bool( ) const override;
+		explicit operator bool( ) const;
 		bool is_exception( ) const;
 
 		void set_value( ) noexcept;

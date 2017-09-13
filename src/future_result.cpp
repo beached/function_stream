@@ -28,15 +28,11 @@ namespace daw {
 
 		future_result_base_t::~future_result_base_t( ) = default;
 
-		future_result_base_t::operator bool( ) const {
-			return this->try_wait( );
-		}
-
 		member_data_base_t::~member_data_base_t( ) = default;
 
 		void member_data_t<void>::set_value( member_data_t<void>::expected_result_t result ) noexcept {
 			m_result = result;
-		//	std::move( result );
+			//	std::move( result );
 			if( m_next ) {
 				pass_next( std::move( m_result ) );
 				return;
