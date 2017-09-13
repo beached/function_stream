@@ -186,14 +186,40 @@ int main( int argc, char **argv ) {
 
 	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
 	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
-	auto view = daw::make_array_view( mmf.data( ), mmf.size( ) );
-	auto result = parse_file( view, daw::get_task_scheduler( ) );
 
-	auto time = daw::benchmark( [&result]( ) { result.wait( ); } );
-	std::cout << "Processed " << daw::utility::to_bytes_per_second( mmf.size( ) ) << " bytes in "
-	          << daw::utility::format_seconds( time, 3 ) << " seconds\n";
-	std::cout << "Speed " << daw::utility::to_bytes_per_second( mmf.size( ), time ) << "/s\n";
-	std::cout << "Minimum surplus is ";
-	std::cout << result.get( ) << '\n';
+	auto time1 = std::numeric_limits<double>::max( );
+	auto time2 = std::numeric_limits<double>::max( );
+	auto const sz = mmf.size( );
+	{
+		auto view = daw::make_array_view( mmf.data( ), sz );
+		auto result = parse_file( view, daw::get_task_scheduler( ) );
+		time1 = daw::benchmark( [&result]( ) { result.wait( ); } );
+
+		std::cout << "File test\n";
+		std::cout << "Processed " << daw::utility::to_bytes_per_second( sz ) << " bytes in "
+		          << daw::utility::format_seconds( time1, 3 ) << " seconds\n";
+		std::cout << "Speed " << daw::utility::to_bytes_per_second( sz, time1 ) << "/s\n";
+		std::cout << "Minimum surplus is ";
+		std::cout << result.get( ) << '\n';
+	}
+
+	{
+		std::vector<char> mem_data;
+		mem_data.reserve( sz );
+		std::copy( mmf.cbegin( ), mmf.cend( ), std::back_inserter( mem_data ) );
+		mmf.close( );
+		auto view = daw::make_array_view( mem_data.data( ), mem_data.size( ) );
+		auto result = parse_file( view, daw::get_task_scheduler( ) );
+		time2 = daw::benchmark( [&result]( ) { result.wait( ); } );
+
+		std::cout << "Memory test\n";
+		std::cout << "Processed " << daw::utility::to_bytes_per_second( sz ) << " bytes in "
+		          << daw::utility::format_seconds( time2, 3 ) << " seconds\n";
+		std::cout << "Speed " << daw::utility::to_bytes_per_second( sz, time2 ) << "/s\n";
+		std::cout << "Minimum surplus is ";
+		std::cout << result.get( ) << '\n';
+
+	}
+
 	return EXIT_SUCCESS;
 }

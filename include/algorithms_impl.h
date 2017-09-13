@@ -188,32 +188,7 @@ namespace daw {
 					    [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); },
 					    ts );
 				}
-				/*
-				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename Sort,
-				         typename Compare>
-				void parallel_sort( Iterator first, Iterator last, Sort sort, Compare compare, task_scheduler ts ) {
-					if( PartitionPolicy::min_range_size > static_cast<size_t>( std::distance( first, last ) ) ) {
-						sort( first, last, compare );
-						return;
-					}
-					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 
-					std::vector<std::atomic<bool>> is_done{ranges.size( ), std::atomic<bool>{false}};
-					std::mutex mut_is_done;
-					partition_range_pos( ranges,
-					                     [sort, compare, &is_done, &ranges]( iterator_range_t<Iterator> range, size_t pos ) {
-						                     sort( range.begin( ), range.end( ), compare );
-
-					                     },
-					                     ts )
-					    .wait( );
-
-					merge_reduce_range(
-					    ranges,
-					    [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); },
-					    ts );
-				}
-				*/
 				template<typename PartitionPolicy = split_range_t<1>, typename T, typename Iterator, typename BinaryOp>
 				auto parallel_reduce( Iterator first, Iterator last, T init, BinaryOp binary_op, task_scheduler ts ) {
 					using result_t = std::decay_t<decltype( binary_op( init, *first ) )>;
@@ -295,15 +270,15 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename OutputIterator,
 				         typename UnaryOperation>
-				void parallel_map( Iterator first1, Iterator const last1, OutputIterator first2,
+				void parallel_map( Iterator first_in, Iterator const last_in, OutputIterator first_out,
 				                   UnaryOperation unary_op, task_scheduler ts ) {
 
-					partition_range<PartitionPolicy>( first1, last1,
-					                                  [first1, first2, unary_op]( Iterator f, Iterator const l ) {
-						                                  auto out_it = std::next( first2, std::distance( first1, f ) );
+					partition_range<PartitionPolicy>( first_in, last_in,
+					                                  [first_in, first_out, unary_op]( Iterator first, Iterator const last ) {
+						                                  auto out_it = std::next( first_out, std::distance( first_in, first ) );
 
-						                                  for( ; f != l; ++f, ++out_it ) {
-							                                  *out_it = unary_op( *f );
+						                                  for( ; first != last; ++first, ++out_it ) {
+							                                  *out_it = unary_op( *first );
 						                                  }
 					                                  },
 					                                  ts )
