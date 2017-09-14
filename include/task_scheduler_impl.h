@@ -40,28 +40,7 @@
 namespace daw {
 	using task_t = std::function<void( )>;
 	namespace impl {
-		/// task_ptr_t only exists in the task queue and is only
-		/// used as a self-cleaning pointer(auto_ptr).
-		struct task_ptr_t {
-			mutable task_t *m_ptr;
-
-			template<typename... Args>
-			task_ptr_t( Args &&... args ) : m_ptr{new task_t{std::forward<Args>( args )...}} {}
-
-			~task_ptr_t( );
-		
-			task_ptr_t( task_ptr_t const &other ) noexcept;
-			task_ptr_t &operator=( task_ptr_t const &rhs ) noexcept;
-
-			task_ptr_t( task_ptr_t && ) noexcept = default;
-			task_ptr_t &operator=( task_ptr_t && ) noexcept = default;
-
-			task_t &operator*( );
-			task_t const &operator*( ) const;
-			task_t *operator->( );
-			task_t const *operator->( ) const;
-			task_t move_out( );
-		};
+		using task_ptr_t = daw::parallel::msg_ptr_t<task_t>;
 
 		class task_scheduler_impl;
 

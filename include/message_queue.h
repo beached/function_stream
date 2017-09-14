@@ -29,11 +29,11 @@ namespace daw {
 	namespace parallel {
 		template<typename T>
 		constexpr unsigned long size_msg_queue_to_cache_size( ) {
-			auto const sz = 4096; 
+			auto const sz = 4096;
 			return sz / sizeof( T );
 		}
 
-		struct use_autosize{ };
+		struct use_autosize {};
 
 		template<typename T, typename base_queue_t>
 		class basic_msg_queue_t {
@@ -65,25 +65,87 @@ namespace daw {
 			}
 
 			template<typename U>
-			bool send( U const & value ) {
+			bool send( U const &value ) {
 				return queue( ).push( value );
 			}
 
 			template<typename U>
-			bool receive( U & value ) {
+			bool receive( U &value ) {
 				return queue( ).pop( value );
 			}
 
 			bool has_more( ) const {
 				return !members->m_completed.load( ) || !members->m_queue.empty( );
 			}
-		};	// basic_msg_queue_t
+		}; // basic_msg_queue_t
 
 		template<typename T>
 		using spsc_msg_queue_t = basic_msg_queue_t<T, boost::lockfree::spsc_queue<T>>;
 
 		template<typename T>
 		using mpmc_msg_queue_t = basic_msg_queue_t<T, boost::lockfree::stack<T>>;
+
+		/// msg_ptr_t only ever has one owner and will, like auto_ptr,
+		/// do a move when copied.  It is intended to allow anything through
+		/// the message queue and then moved_out to a real value afterwards.
+		/// It will clean-up when it goes out of scope if it still owns a value
+		template<typename T>
+		struct msg_ptr_t {
+			using value_t = std::remove_reference_t<T>;
+			using pointer = value_t *;
+			using const_pointer = value_t const *;
+			using reference = value_t &;
+			using const_reference = value_t const &;
+
+			template<typename... Args>
+			msg_ptr_t( Args &&... args ) : m_ptr{new value_t{std::forward<Args>( args )...}} {}
+
+			msg_ptr_t( msg_ptr_t const &other ) noexcept : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
+			msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept {
+				if( this != &rhs ) {
+					m_ptr = std::exchange( rhs.m_ptr, nullptr );
+				}
+				return *this;
+			}
+
+			msg_ptr_t( msg_ptr_t && ) noexcept = default;
+			msg_ptr_t &operator=( msg_ptr_t && ) noexcept = default;
+
+			~msg_ptr_t( ) {
+				auto tmp = std::exchange( m_ptr, nullptr );
+				if( tmp ) {
+					delete tmp;
+				}
+			}
+
+			reference operator*( ) noexcept {
+				return *m_ptr;
+			}
+
+			const_reference operator*( ) const noexcept {
+				return *m_ptr;
+			}
+
+			pointer operator->( ) noexcept {
+				return m_ptr;
+			}
+
+			const_pointer operator->( ) const noexcept {
+				return m_ptr;
+			}
+
+			explicit operator bool( ) const {
+				return static_cast<bool>( m_ptr );
+			}
+
+			value_t move_out( ) noexcept {
+				auto tmp = std::exchange( m_ptr, nullptr );
+				return std::move( *tmp );
+			}
+
+		  private:
+			mutable pointer m_ptr;
+		};
 	} // namespace parallel
 } // namespace daw
 

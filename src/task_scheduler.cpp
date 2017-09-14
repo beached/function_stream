@@ -31,42 +31,6 @@
 
 namespace daw {
 	namespace impl {
-		task_ptr_t::~task_ptr_t( ) {
-			auto tmp = std::exchange( m_ptr, nullptr );
-			if( tmp ) {
-				delete tmp;
-			}
-		}
-
-		task_ptr_t::task_ptr_t( task_ptr_t const &other ) noexcept : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
-
-		task_ptr_t &task_ptr_t::operator=( task_ptr_t const &rhs ) noexcept {
-			if( this != &rhs ) {
-				m_ptr = std::exchange( rhs.m_ptr, nullptr );
-			}
-			return *this;
-		}
-
-		task_t &task_ptr_t::operator*( ) {
-			return *m_ptr;
-		}
-
-		task_t const &task_ptr_t::operator*( ) const {
-			return *m_ptr;
-		}
-
-		task_t *task_ptr_t::operator->( ) {
-			return m_ptr;
-		}
-
-		task_t const *task_ptr_t::operator->( ) const {
-			return m_ptr;
-		}
-
-		task_t task_ptr_t::move_out( ) {
-			return std::move( *m_ptr );
-		}
-
 		namespace {
 			template<typename... Args>
 			auto create_thread( Args &&... args ) noexcept {
