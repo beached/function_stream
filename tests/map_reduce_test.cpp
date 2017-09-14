@@ -41,7 +41,7 @@
 
 template<size_t max_find, typename Function>
 constexpr void find_commas( daw::string_view line, Function on_commas ) {
-	std::array<size_t, max_find> result;
+	std::array<size_t, max_find> result{};
 	bool in_quote = false;
 	size_t count = 0;
 	for( auto it = line.cbegin( ); it != line.cend( ) && count <= max_find; ++it ) {
