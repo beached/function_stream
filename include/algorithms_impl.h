@@ -91,20 +91,20 @@ namespace daw {
 
 				template<typename Ranges, typename Func>
 				daw::shared_semaphore partition_range( Ranges const &ranges, Func func, task_scheduler ts ) {
-					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
+					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
 					for( auto const &rng : ranges ) {
-						schedule_task( semaphore, [func, rng]( ) mutable { func( rng ); }, ts );
+						schedule_task( sem, [func, rng]( ) mutable { func( rng ); }, ts );
 					}
-					return semaphore;
+					return sem;
 				}
 
 				template<typename Ranges, typename Func>
 				daw::shared_semaphore partition_range_pos( Ranges const &ranges, Func func, task_scheduler ts, size_t const start_pos = 0 ) {
-					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) - start_pos )};
+					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) - start_pos )};
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
-						schedule_task( semaphore, [ func, rng = ranges[n], n ]( ) mutable { func( rng, n ); }, ts );
+						schedule_task( sem, [ func, rng = ranges[n], n ]( ) mutable { func( rng, n ); }, ts );
 					}
-					return semaphore;
+					return sem;
 				}
 
 				template<typename PartitionPolicy, typename Iterator, typename Func>
@@ -114,11 +114,11 @@ namespace daw {
 						return daw::shared_semaphore{1};
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( ranges.size( ) )};
+					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
 					for( auto const &rng : ranges ) {
-						schedule_task( semaphore, [func, rng]( ) { func( rng.first, rng.last ); }, ts );
+						schedule_task( sem, [func, rng]( ) { func( rng.first, rng.last ); }, ts );
 					}
-					return semaphore;
+					return sem;
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename RandomIterator, typename Func>
@@ -152,7 +152,7 @@ namespace daw {
 						auto const count = ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
 						std::vector<iterator_range_t<Iterator>> next_ranges;
 						next_ranges.reserve( count );
-						daw::semaphore semaphore{1 - static_cast<size_t>( count ) / 2};
+						daw::semaphore sem{1 - static_cast<size_t>( count ) / 2};
 						for( size_t n = 1; n < count; n += 2 ) {
 							next_ranges.push_back( {ranges[n - 1].first, ranges[n].last} );
 						}
@@ -160,12 +160,12 @@ namespace daw {
 							next_ranges.push_back( ranges.back( ) );
 						}
 						for( size_t n = 1; n < count; n += 2 ) {
-							ts.add_task( [func, &ranges, n, &semaphore]( ) {
+							ts.add_task( [func, &ranges, n, &sem]( ) {
 								func( ranges[n - 1].first, ranges[n].first, ranges[n].last );
-								semaphore.notify( );
+								sem.notify( );
 							} );
 						}
-						semaphore.wait( );
+						sem.wait( );
 						std::swap( ranges, next_ranges );
 					}
 				}
@@ -203,14 +203,14 @@ namespace daw {
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<std::unique_ptr<T>> results{ranges.size( )};
-					auto semaphore = partition_range_pos(
+					auto sem = partition_range_pos(
 					    ranges,
 					    [&results, binary_op]( iterator_range_t<Iterator> range, size_t n ) {
 						    results[n] = std::make_unique<T>( std::accumulate(
 						        std::next( range.cbegin( ) ), range.cend( ), range.front( ), binary_op ) );
 					    },
 					    ts );
-					ts.blocking_on_waitable( semaphore );
+					ts.blocking_on_waitable( sem );
 					auto result = static_cast<result_t>( init );
 					for( size_t n = 0; n < ranges.size( ); ++n ) {
 						result = binary_op( result, *results[n] );
@@ -234,7 +234,7 @@ namespace daw {
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<Iterator> results{ranges.size( )};
-					auto semaphore = partition_range_pos(
+					auto sem = partition_range_pos(
 					    ranges,
 					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
 						    results[n] = std::min_element(
@@ -242,7 +242,7 @@ namespace daw {
 						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
 					    },
 					    ts );
-					ts.blocking_on_waitable( semaphore );
+					ts.blocking_on_waitable( sem );
 					return *std::min_element( results.cbegin( ), results.cend( ),
 					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
 				}
@@ -255,7 +255,7 @@ namespace daw {
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<Iterator> results{ranges.size( )};
-					auto semaphore = partition_range_pos(
+					auto sem = partition_range_pos(
 					    ranges,
 					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
 						    results[n] = std::max_element(
@@ -263,7 +263,7 @@ namespace daw {
 						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
 					    },
 					    ts );
-					ts.blocking_on_waitable( semaphore );
+					ts.blocking_on_waitable( sem );
 					return *std::max_element( results.cbegin( ), results.cend( ),
 					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
 				}
@@ -298,7 +298,7 @@ namespace daw {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<std::unique_ptr<result_t>> results{ranges.size( )};
 
-					auto semaphore = partition_range_pos(
+					auto sem = partition_range_pos(
 					    ranges,
 					    [&results, map_function, reduce_function]( iterator_range_t<Iterator> range, size_t n ) {
 						    result_t result = map_function( range.pop_front( ) );
@@ -309,7 +309,7 @@ namespace daw {
 					    },
 					    ts );
 
-					ts.blocking_on_waitable( semaphore );
+					ts.blocking_on_waitable( sem );
 					auto result = reduce_function( map_function( init ), *results[0] );
 					for( size_t n = 1; n < ranges.size( ); ++n ) {
 						result = reduce_function( result, *results[n] );

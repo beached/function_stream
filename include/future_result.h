@@ -47,8 +47,8 @@ namespace daw {
 		future_result_t( task_scheduler ts = get_task_scheduler( ) )
 		    : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
 
-		explicit future_result_t( daw::shared_semaphore semaphore, task_scheduler ts = get_task_scheduler( ) )
-		    : m_data{std::make_shared<m_data_t>( std::move( semaphore ), std::move( ts ) )} {}
+		explicit future_result_t( daw::shared_semaphore sem, task_scheduler ts = get_task_scheduler( ) )
+		    : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
 
 		~future_result_t( ) override = default;
 		future_result_t( future_result_t const & ) = default;
@@ -132,7 +132,7 @@ namespace daw {
 
 	  public:
 		future_result_t( task_scheduler ts = get_task_scheduler( ) );
-		explicit future_result_t( daw::shared_semaphore semaphore, task_scheduler ts = get_task_scheduler( ) );
+		explicit future_result_t( daw::shared_semaphore sem, task_scheduler ts = get_task_scheduler( ) );
 
 		~future_result_t( ) override;
 		future_result_t( future_result_t const & ) = default;
@@ -186,9 +186,9 @@ namespace daw {
 	}
 
 	template<typename Function, typename... Args>
-	auto make_future_result( task_scheduler ts, daw::shared_semaphore semaphore, Function func, Args &&... args ) {
+	auto make_future_result( task_scheduler ts, daw::shared_semaphore sem, Function func, Args &&... args ) {
 		using result_t = std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
-		future_result_t<result_t> result{std::move( semaphore )};
+		future_result_t<result_t> result{std::move( sem )};
 		ts.add_task( impl::convert_function_to_task( result, func, std::forward<Args>( args )... ) );
 		return result;
 	}

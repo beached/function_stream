@@ -66,11 +66,11 @@ namespace daw {
 		}
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_semaphore> semaphore ) {
+		                  boost::optional<daw::shared_semaphore> sem ) {
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
-			while( !semaphore || !semaphore->try_wait( ) ) {
+			while( !sem || !sem->try_wait( ) ) {
 				auto self = wself.lock( );
 				if( !self || !self->m_continue ) {
 					// Either we have destructed already or stop has been called
@@ -156,7 +156,7 @@ namespace daw {
 		}
 
 		daw::shared_semaphore task_scheduler_impl::start_temp_task_runners( size_t task_count ) {
-			daw::shared_semaphore semaphore{1 - task_count};
+			daw::shared_semaphore sem{1 - task_count};
 			for( size_t n = 0; n < task_count; ++n ) {
 				auto const id = [&]( ) {
 					auto const current_epoch = static_cast<size_t>(
@@ -168,19 +168,19 @@ namespace daw {
 				auto it = other_threads->emplace( other_threads->end( ), boost::none );
 				other_threads.release( );
 
-				auto const thread_worker = [ it, id, wself = get_weak_this( ), semaphore ]( ) mutable {
+				auto const thread_worker = [ it, id, wself = get_weak_this( ), sem ]( ) mutable {
 					auto const at_exit = daw::on_scope_exit( [&wself, it]( ) {
 						auto self = wself.lock( );
 						if( self ) {
 							self->m_other_threads.get( )->erase( it );
 						}
 					} );
-					task_runner( id, wself, semaphore );
+					task_runner( id, wself, sem );
 				};
 				*it = create_thread( thread_worker );
 				( *it )->detach( );
 			}
-			return semaphore;
+			return sem;
 		}
 	} // namespace impl
 

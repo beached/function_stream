@@ -66,8 +66,8 @@ namespace daw {
 			if( !m_impl->am_i_in_pool( ) ) {
 				return func( );
 			}
-			auto semaphore = m_impl->start_temp_task_runners( );
-			auto const at_exit = daw::on_scope_exit( [&semaphore]( ) { semaphore.notify( ); } );
+			auto sem = m_impl->start_temp_task_runners( );
+			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
 			return func( );
 		}
 
@@ -81,22 +81,22 @@ namespace daw {
 
 	/// Add a single task to the supplied task scheduler and notify supplied semaphore when complete
 	///
-	/// @param semaphore Semaphore to notify when task is completed
+	/// @param sem Semaphore to notify when task is completed
 	/// @param task Task of form void( ) to run
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	void schedule_task( daw::shared_semaphore semaphore, Task task, task_scheduler ts = get_task_scheduler( ) ) {
-		ts.add_task( [ task = std::move( task ), semaphore = std::move( semaphore ) ]( ) mutable {
-			auto const at_exit = daw::on_scope_exit( [&semaphore]( ) { semaphore.notify( ); } );
+	void schedule_task( daw::shared_semaphore sem, Task task, task_scheduler ts = get_task_scheduler( ) ) {
+		ts.add_task( [ task = std::move( task ), sem = std::move( sem ) ]( ) mutable {
+			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
 			task( );
 		} );
 	}
 
 	template<typename Task>
 	daw::shared_semaphore create_waitable_task( Task task, task_scheduler ts = get_task_scheduler( ) ) {
-		daw::shared_semaphore semaphore;
-		schedule_task( semaphore, ts, std::move( task ) );
-		return semaphore;
+		daw::shared_semaphore sem;
+		schedule_task( sem, ts, std::move( task ) );
+		return sem;
 	}
 
 	/// Run concurrent tasks and return when completed
@@ -106,16 +106,16 @@ namespace daw {
 	template<typename... Tasks>
 	daw::shared_semaphore create_task_group( Tasks &&... tasks ) {
 		auto ts = get_task_scheduler( );
-		daw::shared_semaphore semaphore{ 1 - sizeof...( tasks ) };
+		daw::shared_semaphore sem{ 1 - sizeof...( tasks ) };
 
 		auto const st = [&]( auto task ) {
-			schedule_task( semaphore, std::move( task ), ts );
+			schedule_task( sem, std::move( task ), ts );
 			return 0;
 		};
 
 		auto const dummy = {st( std::move( tasks ) )...};
 		Unused( dummy );
-		return semaphore;
+		return sem;
 	}
 
 	/// Run concurrent tasks and return when completed

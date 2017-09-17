@@ -54,8 +54,8 @@ namespace daw {
 			member_data_base_t( task_scheduler ts )
 			    : m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
 
-			member_data_base_t( daw::shared_semaphore semaphore, task_scheduler ts )
-			    : m_semaphore{std::move( semaphore )}
+			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
+			    : m_semaphore{std::move( sem )}
 			    , m_status{future_status::deferred}
 			    , m_task_scheduler{std::move( ts )} {}
 
@@ -120,8 +120,8 @@ namespace daw {
 
 			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
 
-			explicit member_data_t( daw::shared_semaphore semaphore, task_scheduler ts )
-			    : member_data_base_t{std::move( semaphore ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
+			    : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
 
 			~member_data_t( ) override = default;
 
@@ -204,8 +204,8 @@ namespace daw {
 
 			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
 
-			explicit member_data_t( daw::shared_semaphore semaphore, task_scheduler ts )
-			    : member_data_base_t{std::move( semaphore ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
+			    : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
 
 			~member_data_t( ) override;
 
@@ -314,16 +314,16 @@ namespace daw {
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
 			template<typename Results, typename... Args>
-			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Results &results,
+			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore sem, Results &results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
-				schedule_task( semaphore, [&results, &callables, tp_args ]( ) mutable noexcept {
+				schedule_task( sem, [&results, &callables, tp_args ]( ) mutable noexcept {
 					try {
 						std::get<N>( results ) = daw::apply( std::get<N>( callables ), *tp_args );
 					} catch( ... ) { std::get<N>( results ) = std::current_exception; }
 				},
 				               ts );
-				apply_many_t<N + 1, SZ, Callables...>{}( ts, semaphore, results, callables, tp_args );
+				apply_many_t<N + 1, SZ, Callables...>{}( ts, sem, results, callables, tp_args );
 			}
 		}; // apply_many_t
 
@@ -336,9 +336,9 @@ namespace daw {
 		}; // apply_many_t<SZ, SZ, Functions..>
 
 		template<typename Result, typename... Functions, typename... Args>
-		void apply_many( daw::task_scheduler &ts, daw::shared_semaphore semaphore, Result &result,
+		void apply_many( daw::task_scheduler &ts, daw::shared_semaphore sem, Result &result,
 		                 std::tuple<Functions...> const &callables, std::shared_ptr<std::tuple<Args...>> tp_args ) {
-			apply_many_t<0, sizeof...( Functions ), Functions...>{}( ts, semaphore, result, callables, tp_args );
+			apply_many_t<0, sizeof...( Functions ), Functions...>{}( ts, sem, result, callables, tp_args );
 		}
 
 		template<typename... Functions>
@@ -359,15 +359,15 @@ namespace daw {
 				    std::make_tuple( std::move( args )... ) );
 
 				future_result_t<result_tp_t> result;
-				daw::shared_semaphore semaphore{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
+				daw::shared_semaphore sem{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
 				auto th_worker = [
-					result, semaphore, tp_functions = std::move( tp_functions ), tp_args = std::move( tp_args )
+					result, sem, tp_functions = std::move( tp_functions ), tp_args = std::move( tp_args )
 				]( ) mutable noexcept {
 					auto ts = get_task_scheduler( );
 					result_tp_t tp_result;
-					impl::apply_many( ts, semaphore, tp_result, tp_functions, std::move( tp_args ) );
+					impl::apply_many( ts, sem, tp_result, tp_functions, std::move( tp_args ) );
 
-					semaphore.wait( );
+					sem.wait( );
 
 					result.set_value( std::move( tp_result ) );
 				};
