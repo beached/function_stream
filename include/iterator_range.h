@@ -124,4 +124,13 @@ namespace daw {
 		}
 	};
 
+	template<typename Iterator>
+	constexpr iterator_range_t<Iterator> make_iterator_range( Iterator first, size_t sz ) noexcept {
+		return iterator_range_t<Iterator>{first, std::next( first, static_cast<intmax_t>( sz ) )};
+	}
+
+	template<typename Iterator>
+	constexpr iterator_range_t<Iterator> make_iterator_range( Iterator first, Iterator last ) noexcept {
+		return iterator_range_t<Iterator>{first, last};
+	}
 } // namespace daw

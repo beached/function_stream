@@ -535,6 +535,7 @@ void scan_test( size_t SZ ) {
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "scan" );
 }
+
 template<typename value_t>
 void find_if_test( size_t SZ ) {
 	std::vector<value_t> a;
@@ -570,12 +571,58 @@ void find_if_test( size_t SZ ) {
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "find_if" );
 }
 
+template<typename value_t>
+void equal_test( size_t SZ ) {
+	std::vector<value_t> a;
+	a.resize( SZ );
+//	fill_random( a.begin( ), a.end( ), -50, 50 );
+	for( size_t n=0; n<a.size( ); ++n ) {
+		a[n] = static_cast<value_t>(n ) ;
+	}
+	auto b = a;
+
+	auto const pred = []( auto const & lhs, auto const & rhs ) noexcept {
+		auto const result = lhs == rhs;
+		if( result ) {
+			return true;
+		}
+		return false;
+
+	};
+
+	bool b1 = false;
+	bool b2 = false;
+	auto const result_1 = daw::benchmark( [&]( ) {
+		b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred, ts );
+	} );
+	auto const result_2 = daw::benchmark( [&]( ) {
+		b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
+	} );
+	daw::exception::daw_throw_on_false( b1 == b2, "Wrong return value" );
+
+	a.back( ) = 0;
+	b1 = false;
+	b2 = false;
+	auto const result_3 = daw::benchmark( [&]( ) {
+		b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred, ts );
+	} );
+	auto const result_4 = daw::benchmark( [&]( ) {
+		b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
+	} );
+	daw::exception::daw_throw_on_false( b1 == b2, "Wrong return value" );
+
+	auto const par_max = std::max( result_1, result_3 );
+	auto const seq_max = std::max( result_2, result_4 );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "equal" );
+}
+
+
 int main( int, char ** ) {
 	size_t const MAX_ITEMS = 100'000'000;
 	size_t const LARGE_TEST_SZ = 200'000'000;
 	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
 	std::cout << "Max hardware concurrency " << std::thread::hardware_concurrency( ) << '\n';
-
+	/*
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -696,6 +743,14 @@ int main( int, char ** ) {
 	find_if_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		find_if_test<int64_t>( n );
+	}
+	*/
+	std::cout << "equal tests\n";
+	std::cout << "int64_t\n";
+	equal_test<int64_t>( 2*LARGE_TEST_SZ );
+	equal_test<int64_t>( LARGE_TEST_SZ );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		equal_test<int64_t>( n );
 	}
 	return EXIT_SUCCESS;
 }

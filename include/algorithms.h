@@ -148,9 +148,18 @@ namespace daw {
 			}
 
 			template<typename Iterator, typename UnaryPredicate>
-			Iterator parallel_find_if( Iterator first, Iterator last, UnaryPredicate pred, task_scheduler ts = get_task_scheduler( ) ) {
+			Iterator parallel_find_if( Iterator first, Iterator last, UnaryPredicate pred,
+			                           task_scheduler ts = get_task_scheduler( ) ) {
 				return impl::parallel_find_if( first, last, pred, std::move( ts ) );
+			}
+
+			template<typename Iterator1, typename Iterator2, typename BinaryPredicate>
+			bool equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, BinaryPredicate pred,
+			            task_scheduler ts = get_task_scheduler( ) ) {
+
+				return impl::parallel_equal( first1, last1, first2, last2, pred, std::move( ts ) );
 			}
 		} // namespace parallel
 	}     // namespace algorithm
 } // namespace daw
+
