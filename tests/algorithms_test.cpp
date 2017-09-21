@@ -643,7 +643,7 @@ void equal_test_str( size_t SZ ) {
 	} );
 	daw::exception::daw_throw_on_false( b1 == b2, "Wrong return value" );
 
-	a.back( ) = std::string( "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" );
+	a[a.size( )/2] = std::string( "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" );
 	b1 = false;
 	b2 = false;
 	auto const result_3 = daw::benchmark( [&]( ) {
@@ -665,7 +665,7 @@ int main( int, char ** ) {
 	size_t const LARGE_TEST_SZ = 200'000'000;
 	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
 	std::cout << "Max hardware concurrency " << std::thread::hardware_concurrency( ) << '\n';
-	/*
+
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -794,12 +794,9 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		equal_test<int64_t>( n );
 	}
-	*/
 
 	std::cout << "equal tests\n";
 	std::cout << "std::string\n";
-	equal_test_str( 2*LARGE_TEST_SZ );
-	equal_test_str( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		equal_test_str( n );
 	}
