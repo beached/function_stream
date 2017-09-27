@@ -52,9 +52,9 @@ namespace daw {
 		    , m_other_threads{} {
 
 			for( size_t n = 0; n < m_num_threads; ++n ) {
+				// TODO: right size the task queue
 				m_tasks.emplace_back( 1024 );
 			}
-			//			m_tasks.resize( m_num_threads );
 		}
 
 		task_scheduler_impl::~task_scheduler_impl( ) {

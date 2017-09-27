@@ -38,6 +38,11 @@ namespace daw {
 				impl::parallel_for_each( first, first + N, func, std::move( ts ) );
 			}
 
+			template<typename Iterator, typename Func>
+			void for_each_index( Iterator first, Iterator last, Func func, task_scheduler ts = get_task_scheduler( ) ) {
+				impl::parallel_for_each( first, last, func, std::move( ts ) );
+			}
+
 			template<typename Iterator, typename T>
 			void fill( Iterator first, Iterator last, T const &value, task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_for_each( first, last, [&value]( auto &item ) { item = value; }, std::move( ts ) );

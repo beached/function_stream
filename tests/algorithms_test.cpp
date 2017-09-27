@@ -619,7 +619,7 @@ void equal_test( size_t SZ ) {
 void equal_test_str( size_t SZ ) {
 	std::vector<std::string> a;
 	a.reserve( SZ );
-	std::string const blah = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+	std::string const blah = "AAAAAAAA";
 	std::fill_n( std::back_inserter( a ), SZ, blah ); 
 	std::vector<std::string> b;
 	b.reserve( SZ );
@@ -643,7 +643,7 @@ void equal_test_str( size_t SZ ) {
 	} );
 	daw::exception::daw_throw_on_false( b1 == b2, "Wrong return value" );
 
-	a[a.size( )/2] = std::string( "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" );
+	a[3*(a.size( ) / 4)+1] = std::string{"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"};
 	b1 = false;
 	b2 = false;
 	auto const result_3 = daw::benchmark( [&]( ) {
@@ -656,16 +656,16 @@ void equal_test_str( size_t SZ ) {
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
-	display_info( seq_max, par_max, SZ, a.size( )*blah.size( ), "equal" );
+	display_info( seq_max, par_max, SZ, blah.size( ), "equal" );
 }
 
 
 int main( int, char ** ) {
-	size_t const MAX_ITEMS = 100'000'000;
-	size_t const LARGE_TEST_SZ = 200'000'000;
+	size_t const MAX_ITEMS = 134'217'728; 
+	size_t const LARGE_TEST_SZ = 268'435'456;
 	std::cout << "Max concurrent tasks " << ts.size( ) << '\n';
 	std::cout << "Max hardware concurrency " << std::thread::hardware_concurrency( ) << '\n';
-
+/*
 	std::cout << "for_each tests\n";
 	std::cout << "double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -787,6 +787,8 @@ int main( int, char ** ) {
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		find_if_test<int64_t>( n );
 	}
+*/
+
 	std::cout << "equal tests\n";
 	std::cout << "int64_t\n";
 	equal_test<int64_t>( 2*LARGE_TEST_SZ );
@@ -797,6 +799,7 @@ int main( int, char ** ) {
 
 	std::cout << "equal tests\n";
 	std::cout << "std::string\n";
+	equal_test_str( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		equal_test_str( n );
 	}

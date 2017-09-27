@@ -79,7 +79,6 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task &&task ) noexcept {
 				auto id = ( m_task_count++ ) % m_num_threads;
-				// m_tasks[id].emplace_back( std::forward<Task>( task ) );
 				task_ptr_t tmp{std::forward<Task>( task )};
 				while( !m_tasks[id].send( tmp ) ) {
 					using namespace std::chrono_literals;

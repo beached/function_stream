@@ -146,6 +146,24 @@ namespace daw {
 					    .wait( );
 				}
 
+				template<typename PartitionPolicy = split_range_t<1>, typename RandomIterator, typename Func>
+				void parallel_for_each_index( RandomIterator first, RandomIterator last, Func func,
+				                              task_scheduler ts ) {
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
+					partition_range( ranges,
+					                 [func, first]( auto f, auto l ) {
+						                 size_t start_pos = static_cast<size_t>( first, f );
+						                 size_t end_pos = static_cast<size_t>( first, l );
+						                 for( size_t n = start_pos; n < end_pos; ++n ) {
+							                 func( n );
+						                 }
+
+					                 },
+					                 ts )
+					    .wait( );
+				}
+
 				template<typename Iterator, typename Function>
 				void merge_reduce_range( std::vector<iterator_range_t<Iterator>> ranges, Function func,
 				                         task_scheduler ts ) {
@@ -406,13 +424,14 @@ namespace daw {
 									        static_cast<typename std::iterator_traits<Iterator>::difference_type>(
 									            m ) ) );
 									    std::lock_guard<daw::spin_lock> has_found_lck{mut_found};
-									    if( pos < has_found.load( ) ) {
-										    has_found.store( pos );
+									    // TODO: why is this atomic?
+									    if( pos < has_found.load( std::memory_order_relaxed ) ) {
+										    has_found.store( pos, std::memory_order_relaxed );
 									    }
 									    return;
 								    }
 							    }
-							    if( pos > has_found.load( ) ) {
+							    if( pos > has_found.load( std::memory_order_relaxed ) ) {
 								    return;
 							    }
 						    }
@@ -436,8 +455,7 @@ namespace daw {
 					}
 					auto const ranges1 = PartitionPolicy{}( first1, last1, ts.size( ) );
 					auto const ranges2 = PartitionPolicy{}( first2, last2, ts.size( ) );
-					std::atomic<bool> is_equal{true};
-
+					std::atomic_bool is_equal{true};
 					ts.blocking_on_waitable( partition_range_pos(
 					    ranges1,
 					    [pred, &is_equal, &ranges2]( iterator_range_t<Iterator1> range1, size_t pos ) {
@@ -447,25 +465,25 @@ namespace daw {
 						        std::max( static_cast<size_t>( std::thread::hardware_concurrency( ) * 100 ),
 						                  static_cast<size_t>( PartitionPolicy::min_range_size ) );
 						    size_t m = 0;
-						    for( size_t n = 0; n < range1.size( ) && is_equal.load( ); n += stride ) {
-								auto const last_val = [&]( ) {
-									auto const lv_res = n + stride;
-									if( lv_res > range1.size( ) ) {
-										return range1.size( );
-									}
-									return lv_res;
-								}( );
+						    for( size_t n = 0; n < range1.size( ) && is_equal.load( std::memory_order_relaxed );
+						         n += stride ) {
+							    auto const last_val = [&]( ) {
+								    auto const lv_res = n + stride;
+								    if( lv_res > range1.size( ) ) {
+									    return range1.size( );
+								    }
+								    return lv_res;
+							    }( );
 							    for( m = n; m < last_val; ++m ) {
 								    if( !pred( range1[m], range2[m] ) ) {
-									    is_equal.store( false );
+									    is_equal.store( false, std::memory_order_relaxed );
 									    return;
 								    }
 							    }
 						    }
 					    },
 					    ts ) );
-
-					return is_equal.load( );
+					return is_equal.load( std::memory_order_relaxed );
 				}
 
 			} // namespace impl
