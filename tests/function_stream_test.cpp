@@ -23,6 +23,7 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
 #include <random>
+#include <string>
 
 #include "function_stream.h"
 
@@ -76,6 +77,11 @@ struct D {
 	}
 };
 
+
+std::string blah( int i ) {
+	return std::to_string( i );
+}
+
 int main( int argc, char **argv ) {
 	{
 	    daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
@@ -127,6 +133,26 @@ int main( int argc, char **argv ) {
 	} );
 
 	t.wait( );
+
+	std::cout << "operator>>\n";
+
+	auto u = daw::make_future_result( []( ) {
+		std::cout << "part1\n";
+		std::cout << std::endl;
+		return 2;
+	} );
+
+	auto result = u >> []( int i ) {
+		std::cout << "part" << i << '\n';
+		std::cout << "hahaha\n";
+		std::cout << std::endl;
+		return i+1;
+	} >> blah 
+	  >> []( std::string s ) {
+		std::cout << s << "\nfin\n";
+	};
+
+	result.wait( );
 	return EXIT_SUCCESS;
 }
 

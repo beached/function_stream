@@ -177,6 +177,11 @@ namespace daw {
 		}
 	}; // future_result_t<void>
 
+	template<typename result_t, typename NextFunction>
+	auto operator>>( future_result_t<result_t> lhs, NextFunction next_func ) {
+		return lhs.next( std::move( next_func ) );
+	}
+
 	template<typename Function, typename... Args>
 	auto make_future_result( task_scheduler ts, Function func, Args &&... args ) {
 		using result_t = std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
