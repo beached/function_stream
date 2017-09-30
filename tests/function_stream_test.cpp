@@ -204,31 +204,32 @@ int main( int argc, char **argv ) {
 			return r;
 		};
 
-		auto fsp2 = daw::make_future_generator( make_values ) >> sort_values >> odd_values >> sum_values;
+		auto show_value = []( auto value ) {
+			std::cout << value << '\n';
+			return std::move( value );
+		};
 
-		auto t1 = daw::benchmark( [fsp2]( ) {
-			auto result3a = fsp2( 250_MB );
-			auto result3b = fsp2( 250_MB );
-			auto result3c = fsp2( 250_MB );
-			auto result3d = fsp2( 250_MB );
-			result3a.wait( );
-			result3b.wait( );
-			result3c.wait( );
-			result3d.wait( );
-		} );
+		auto const values = make_values( 75_MB );
 
-		auto t2 = daw::benchmark( [&]( ) {
-			for( size_t n = 0; n < 4; ++n ) {
-				auto v = make_values( 250_MB );
-				v = sort_values( std::move( v ) );
-				v = odd_values( std::move( v ) );
-				auto r = sum_values( std::move( v ) );
-			}
-		} );
+		auto fsp2 = daw::make_future_generator( sort_values ) >> odd_values >> sum_values >> show_value;
+		daw::get_task_scheduler( ).start( );
+
+		auto t1 = daw::benchmark(
+		    [&]( ) { wait_for_function_streams( fsp2( values ), fsp2( values ), fsp2( values ), fsp2( values ) ); } );
 
 		std::cout << "Parallel stream time " << daw::utility::format_seconds( t1, 2 ) << '\n';
+
+		auto t2 = daw::benchmark( [&]( ) {
+			auto composed = [&]( auto s ) { return show_value( sum_values( odd_values( sort_values( s ) ) ) ); };
+			composed( values );
+			composed( values );
+			composed( values );
+			composed( values );
+		} );
+
 		std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 ) << '\n';
-	}
+		std::cout << "Diff " << (t2/t1) << '\n';
+	}	
 	return EXIT_SUCCESS;
 }
 

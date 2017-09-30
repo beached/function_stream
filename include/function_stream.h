@@ -73,7 +73,7 @@ namespace daw {
 	}
 
 	template<typename... FunctionStreams>
-	void wait_for_function_streams( FunctionStreams &... function_streams ) {
+	void wait_for_function_streams( FunctionStreams &&... function_streams ) {
 		[]( ... ) {}( ( wait_for_function_streams( function_streams ), 0 )... );
 	}
 

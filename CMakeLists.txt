@@ -83,6 +83,8 @@ set( TASK_SCHEDULER_SOURCE_FILES
 	${SOURCE_FOLDER}/task_scheduler.cpp
 )
 
+add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK ) 
+
 add_library( task_scheduler_lib ${TASK_SCHEDULER_HEADER_FILES} ${TASK_SCHEDULER_SOURCE_FILES} )
 target_link_libraries( task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( task_scheduler_lib header_libraries_prj )
@@ -101,6 +103,7 @@ target_link_libraries( function_stream_test_bin task_scheduler_lib function_stre
 add_executable( algorithms_test_bin ${TEST_FOLDER}/algorithms_test.cpp )
 target_link_libraries( algorithms_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( algorithms_test_bin date_prj header_libraries_prj )
+add_test( algorithms_test algorithms_test_bin )
 
 add_executable( map_reduce_test_bin ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
 target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )

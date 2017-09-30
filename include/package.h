@@ -111,9 +111,9 @@ namespace daw {
 		}
 
 		template<typename... NewArgs>
-		auto next_package( NewArgs... nargs ) {
+		auto next_package( NewArgs&&... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ), std::move( members->m_result ),
-			                            std::move( members->m_function_list ), std::move( nargs )... );
+			                            std::move( members->m_function_list ), std::forward<NewArgs>( nargs )... );
 		}
 
 		bool destination_expired( ) const {
