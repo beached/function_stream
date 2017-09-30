@@ -152,7 +152,24 @@ int main( int argc, char **argv ) {
 		std::cout << s << "\nfin\n";
 	};
 
-	result.wait( );
+	auto v = daw::make_future_generator( []( ) {
+		std::cout << "part1\n";
+		std::cout << std::endl;
+		return 2;
+	} );
+
+	auto result2 = v >> []( int i ) {
+		std::cout << "part" << i << '\n';
+		std::cout << "hahaha\n";
+		std::cout << std::endl;
+		return i+1;
+	} >> blah 
+	  >> []( std::string s ) {
+		std::cout << s << "\nfin\n";
+	};
+
+
+	result2( ).wait( );
 	return EXIT_SUCCESS;
 }
 

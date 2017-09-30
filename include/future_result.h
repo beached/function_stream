@@ -216,3 +216,4 @@ namespace daw {
 		return make_callable_future_result_group( std::move( functions )... )( );
 	}
 } // namespace daw
+
