@@ -39,7 +39,9 @@
 #include "algorithms.h"
 #include "task_scheduler.h"
 
-static auto ts = daw::get_task_scheduler( );
+BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
+	daw::get_task_scheduler( ); // Prime task scheduler so we don't pay to start it up in first test
+}
 
 template<typename T>
 double calc_speedup( T seq_time, T par_time ) {
@@ -107,6 +109,7 @@ void display_info( double seq_time, double par_time, double count, size_t bytes,
 
 template<typename T>
 void for_each_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	bool found = false;
 	std::vector<T> a;
 	a.reserve( SZ );
@@ -140,6 +143,7 @@ void for_each_test( size_t SZ ) {
 
 template<typename T>
 void fill_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<T> a;
 	a.resize( SZ );
 	auto const result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::fill( a.begin( ), a.end( ), 1, ts ); } );
@@ -211,20 +215,21 @@ void test_sort( Iterator const first, Iterator const last, daw::string_view labe
 }
 
 void sort_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<int64_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ) );
 	auto b = a;
-	auto const result_1 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts ); } );
+	auto const result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
-	auto const result_2 = daw::benchmark( [&a]( ) { std::sort( a.begin( ), a.end( ) ); } );
+	auto const result_2 = daw::benchmark( [&]( ) { std::sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
-	auto const result_3 = daw::benchmark( [&a]( ) { daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts ); } );
+	auto const result_3 = daw::benchmark( [&]( ) { daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
-	auto const result_4 = daw::benchmark( [&a]( ) { std::sort( a.begin( ), a.end( ) ); } );
+	auto const result_4 = daw::benchmark( [&]( ) { std::sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
@@ -232,22 +237,23 @@ void sort_test( size_t SZ ) {
 }
 
 void stable_sort_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<int64_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ) );
 	auto b = a;
 	auto const result_1 =
-	    daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
+	    daw::benchmark( [&]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
-	auto const result_2 = daw::benchmark( [&a]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
+	auto const result_2 = daw::benchmark( [&]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
 	auto const result_3 =
-	    daw::benchmark( [&a]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
+	    daw::benchmark( [&]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
-	auto const result_4 = daw::benchmark( [&a]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
+	auto const result_4 = daw::benchmark( [&]( ) { std::stable_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
@@ -256,6 +262,7 @@ void stable_sort_test( size_t SZ ) {
 
 template<typename T>
 void reduce_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<T> a;
 	a.resize( SZ );
 	std::fill( a.begin( ), a.end( ), 1 );
@@ -286,6 +293,7 @@ void reduce_test( size_t SZ ) {
 
 template<typename value_t, typename BinaryOp>
 void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), 1, 4 );
@@ -315,6 +323,7 @@ void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 
 template<typename value_t>
 void min_element_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::min( ), std::numeric_limits<value_t>::max( ) );
@@ -336,6 +345,7 @@ void min_element_test( size_t SZ ) {
 
 template<typename value_t>
 void max_element_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::max( ), std::numeric_limits<value_t>::max( ) );
@@ -357,6 +367,7 @@ void max_element_test( size_t SZ ) {
 
 template<typename value_t>
 void transform_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), -10, 10 );
@@ -384,6 +395,7 @@ void transform_test( size_t SZ ) {
 
 template<typename value_t>
 void transform_test2( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), -10, 10 );
@@ -411,6 +423,7 @@ void transform_test2( size_t SZ ) {
 
 template<typename value_t>
 void map_reduce_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	// fill_random( a.begin( ), a.end( ), -1, 1 );
@@ -454,6 +467,7 @@ void map_reduce_test( size_t SZ ) {
 
 template<typename value_t>
 void map_reduce_test2( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), 1, 10000 );
@@ -506,6 +520,7 @@ void map_reduce_test2( size_t SZ ) {
 
 template<typename value_t>
 void scan_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), -10, 10 );
@@ -544,6 +559,7 @@ void scan_test( size_t SZ ) {
 
 template<typename value_t>
 void find_if_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	fill_random( a.begin( ), a.end( ), -50, 50 );
@@ -579,6 +595,7 @@ void find_if_test( size_t SZ ) {
 
 template<typename value_t>
 void equal_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
 //	fill_random( a.begin( ), a.end( ), -50, 50 );
@@ -623,6 +640,7 @@ void equal_test( size_t SZ ) {
 }
 
 void equal_test_str( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
 	std::vector<std::string> a;
 	a.reserve( SZ );
 	std::string const blah = "AAAAAAAA";
