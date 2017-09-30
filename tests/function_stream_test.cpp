@@ -25,7 +25,11 @@
 #include <random>
 #include <string>
 
+#include <daw/daw_size_literals.h>
+
 #include "function_stream.h"
+
+using namespace daw::size_literals;
 
 // using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<12500>>;
 using real_t = long double;
@@ -77,132 +81,145 @@ struct D {
 	}
 };
 
-
 std::string blah( int i ) {
 	return std::to_string( i );
 }
 
 int main( int argc, char **argv ) {
 	{
-	    daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
-	    static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
-	                   "function_composer_t is not returning the correct type" );
-	    std::cout << fc.apply( 4 ) << std::endl;
+		daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
+		static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
+		               "function_composer_t is not returning the correct type" );
+		std::cout << fc.apply( 4 ) << std::endl;
 	}
 
 	{
-	    auto fs = daw::make_function_stream( &a, &b, &c );
-	    std::cout << fs( 1 ).get( ) << std::endl;
+		auto fs = daw::make_function_stream( &a, &b, &c );
+		std::cout << fs( 1 ).get( ) << std::endl;
 	}
 
 	{
-	    std::random_device rd;
-	    std::mt19937 gen( rd( ) );
-	    std::uniform_int_distribution<> dis( 5, 7 );
+		std::random_device rd;
+		std::mt19937 gen( rd( ) );
+		std::uniform_int_distribution<> dis( 5, 7 );
 
-	    auto fs2 = daw::make_function_stream( &fib, &fib );
-	    auto results = daw::create_vector( fs2( 3 ) );
+		auto fs2 = daw::make_function_stream( &fib, &fib );
+		auto results = daw::create_vector( fs2( 3 ) );
 
-	    for( size_t n = 1; n < 40000; ++n ) {
-	        results.push_back( fs2( dis( gen ) ) );
-	    };
+		for( size_t n = 1; n < 40000; ++n ) {
+			results.push_back( fs2( dis( gen ) ) );
+		};
 
-	    for( auto const &v : results ) {
-	        // v.get( );
-	        std::cout << "'" << v.get( ) << "'\n";
-	    }
-
-	    auto fib2 = []( ) {
-	        return fib( 20 );
-	    };
-
-	    auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
-	    std::cout << "Function Group\n";
-	    std::cout << *std::get<0>( f_grp ) << '\n';
-	    std::cout << *std::get<1>( f_grp ) << '\n';
-	}
-	auto ts = daw::get_task_scheduler( );
-	auto t = daw::make_future_result( []( ) {
-		std::cout << "part1\n";
-		std::cout << std::endl;
-		return 2;
-	} ).next( []( int i ) {
-		std::cout << "part" << i << '\n';
-		std::cout << "hahaha\n";
-		std::cout << std::endl;
-	} );
-
-	t.wait( );
-
-	std::cout << "operator>>\n";
-
-	auto u = daw::make_future_result( []( ) {
-		std::cout << "part1\n";
-		std::cout << std::endl;
-		return 2;
-	} );
-
-	auto result = u >> []( int i ) {
-		std::cout << "part" << i << '\n';
-		std::cout << "hahaha\n";
-		std::cout << std::endl;
-		return i+1;
-	} >> blah 
-	  >> []( std::string s ) {
-		std::cout << s << "\nfin\n";
-	};
-
-	auto v = daw::make_future_generator( []( ) {
-		std::cout << "part1\n";
-		std::cout << std::endl;
-		return 2;
-	} );
-
-	auto result2 = v >> []( int i ) {
-		std::cout << "part" << i << '\n';
-		std::cout << "hahaha\n";
-		std::cout << std::endl;
-		return i+1;
-	} >> blah 
-	  >> []( std::string s ) {
-		std::cout << s << "\nfin\n";
-	};
-
-
-	result2( ).wait( );
-
-
-	auto make_values = []( size_t howmany ) {
-		std::vector<int> vs( howmany );
-		std::generate( vs.begin( ), vs.end( ), std::rand );
-		return vs;
-	};
-
-	auto sort_values = []( auto values ) {
-		std::sort( values.begin( ), values.end( ) );
-		return std::move( values );
-	};
-
-	auto show_values = []( auto values ) {
-		std::cout << '\n';
-		for( auto const & value: values ) {
-			std::cout << " " << value;
+		for( auto const &v : results ) {
+			// v.get( );
+			std::cout << "'" << v.get( ) << "'\n";
 		}
-		std::cout << '\n';
-		return std::move( values );
-	};
 
-	auto odd_values = []( auto values ) {
-		values.erase( std::remove_if( values.begin( ), values.end( ), []( auto const & i ) { return i%2 == 0; } ), values.end( ) );
-		return std::move( values );
-	};
+		auto fib2 = []( ) { return fib( 20 ); };
 
-	auto fsp = daw::make_future_generator( make_values )
-	           >> show_values >> sort_values >> show_values >> odd_values >> show_values;
+		auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
+		std::cout << "Function Group\n";
+		std::cout << *std::get<0>( f_grp ) << '\n';
+		std::cout << *std::get<1>( f_grp ) << '\n';
+	}
+	{
+		auto ts = daw::get_task_scheduler( );
+		auto t = daw::make_future_result( []( ) {
+			         std::cout << "part1\n";
+			         std::cout << std::endl;
+			         return 2;
+		         } )
+		             .next( []( int i ) {
+			             std::cout << "part" << i << '\n';
+			             std::cout << "hahaha\n";
+			             std::cout << std::endl;
+		             } );
 
+		t.wait( );
 
-	fsp( 5 ).wait( );
+		std::cout << "operator>>\n";
 
+		auto u = daw::make_future_result( []( ) {
+			std::cout << "part1\n";
+			std::cout << std::endl;
+			return 2;
+		} );
+
+		auto result = u >> []( int i ) {
+			std::cout << "part" << i << '\n';
+			std::cout << "hahaha\n";
+			std::cout << std::endl;
+			return i + 1;
+		} >> blah >> []( std::string s ) { std::cout << s << "\nfin\n"; };
+
+		auto v = daw::make_future_generator( []( ) {
+			std::cout << "part1\n";
+			std::cout << std::endl;
+			return 2;
+		} );
+
+		auto result2 = v >> []( int i ) {
+			std::cout << "part" << i << '\n';
+			std::cout << "hahaha\n";
+			std::cout << std::endl;
+			return i + 1;
+		} >> blah >> []( std::string s ) { std::cout << s << "\nfin\n"; };
+
+		result2( ).wait( );
+	}
+
+	{
+		auto make_values = []( size_t howmany ) {
+			std::vector<int> vs( howmany );
+			std::generate( vs.begin( ), vs.end( ), std::rand );
+			return vs;
+		};
+
+		auto sort_values = []( auto values ) {
+			std::sort( values.begin( ), values.end( ) );
+			return std::move( values );
+		};
+
+		auto show_values = []( auto values ) {
+			std::cout << '\n';
+			for( auto const &value : values ) {
+				std::cout << " " << value;
+			}
+			std::cout << '\n';
+			return std::move( values );
+		};
+
+		auto odd_values = []( auto values ) {
+			values.erase( std::remove_if( values.begin( ), values.end( ), []( auto const &i ) { return i % 2 == 0; } ),
+			              values.end( ) );
+			return std::move( values );
+		};
+
+		auto sum_values = []( auto values ) {
+			intmax_t r = 0;
+			for( auto const &v : values ) {
+				r += v;
+			}
+			return r;
+		};
+
+		auto fsp = daw::make_future_generator( make_values ) >> show_values >> sort_values >> show_values >>
+		           odd_values >> show_values;
+
+		fsp( 5 ).wait( );
+
+		auto fsp2 = daw::make_future_generator( make_values ) >> sort_values >> odd_values >> sum_values >>
+		            []( auto v ) { std::cout << v << '\n'; };
+
+		std::vector<std::decay_t<decltype( fsp2( 1 ) )>> results3;
+		for( size_t n = 0; n < 5; ++n ) {
+			results3.push_back( fsp2( 1_GB ) );
+		}
+
+		for( auto &f : results3 ) {
+			f.wait( );
+		}
+	}
 	return EXIT_SUCCESS;
 }
 
