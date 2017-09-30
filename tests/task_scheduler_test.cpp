@@ -25,6 +25,8 @@
 #include <random>
 #include <thread>
 
+#define BOOST_TEST_MODULE task_scheduler
+#include <daw/boost_test.h>
 #include <daw/daw_locked_stack.h>
 
 #include "task_scheduler.h"
@@ -45,13 +47,8 @@ real_t fib( uintmax_t n ) noexcept {
 	return result;
 }
 
-int main( int argc, char **argv ) {
-	auto const ITEMS = [argc, argv]( ) -> size_t {
-		if( argc < 2 ) {
-			return 100;
-		}
-		return strtoull( argv[1], nullptr, 10 );
-	}( );
+BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
+	constexpr size_t const ITEMS = 1000u;
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 	std::random_device rd;
@@ -75,5 +72,5 @@ int main( int argc, char **argv ) {
 	for( size_t n = 0; n < ITEMS; ++n ) {
 		std::cout << n << ": " << results.pop_back( ) << '\n';
 	}
-	return EXIT_SUCCESS;
 }
+

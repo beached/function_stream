@@ -33,7 +33,8 @@
 #include <daw/daw_benchmark.h>
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
-#define BOOST_TEST_MODULE header_libraries
+
+#define BOOST_TEST_MODULE parallel_algorithms
 #include <daw/boost_test.h>
 
 #include "algorithms.h"

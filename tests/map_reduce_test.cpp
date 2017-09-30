@@ -187,6 +187,7 @@ int main( int argc, char **argv ) {
 	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
 	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
 
+
 	auto time1 = std::numeric_limits<double>::max( );
 	auto time2 = std::numeric_limits<double>::max( );
 	auto const sz = mmf.size( );
