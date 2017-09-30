@@ -25,6 +25,7 @@
 #include <random>
 #include <string>
 
+#include <daw/daw_benchmark.h>
 #include <daw/daw_size_literals.h>
 
 #include "function_stream.h"
@@ -86,19 +87,19 @@ std::string blah( int i ) {
 }
 
 int main( int argc, char **argv ) {
-	{
+	if( false ) {
 		daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
 		static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
 		               "function_composer_t is not returning the correct type" );
 		std::cout << fc.apply( 4 ) << std::endl;
 	}
 
-	{
+	if( false ) {
 		auto fs = daw::make_function_stream( &a, &b, &c );
 		std::cout << fs( 1 ).get( ) << std::endl;
 	}
 
-	{
+	if( false ) {
 		std::random_device rd;
 		std::mt19937 gen( rd( ) );
 		std::uniform_int_distribution<> dis( 5, 7 );
@@ -122,7 +123,7 @@ int main( int argc, char **argv ) {
 		std::cout << *std::get<0>( f_grp ) << '\n';
 		std::cout << *std::get<1>( f_grp ) << '\n';
 	}
-	{
+	if( false ) {
 		auto ts = daw::get_task_scheduler( );
 		auto t = daw::make_future_result( []( ) {
 			         std::cout << "part1\n";
@@ -203,22 +204,30 @@ int main( int argc, char **argv ) {
 			return r;
 		};
 
-		auto fsp = daw::make_future_generator( make_values ) >> show_values >> sort_values >> show_values >>
-		           odd_values >> show_values;
+		auto fsp2 = daw::make_future_generator( make_values ) >> sort_values >> odd_values >> sum_values;
 
-		fsp( 5 ).wait( );
+		auto t1 = daw::benchmark( [fsp2]( ) {
+			auto result3a = fsp2( 250_MB );
+			auto result3b = fsp2( 250_MB );
+			auto result3c = fsp2( 250_MB );
+			auto result3d = fsp2( 250_MB );
+			result3a.wait( );
+			result3b.wait( );
+			result3c.wait( );
+			result3d.wait( );
+		} );
 
-		auto fsp2 = daw::make_future_generator( make_values ) >> sort_values >> odd_values >> sum_values >>
-		            []( auto v ) { std::cout << v << '\n'; };
+		auto t2 = daw::benchmark( [&]( ) {
+			for( size_t n = 0; n < 4; ++n ) {
+				auto v = make_values( 250_MB );
+				v = sort_values( std::move( v ) );
+				v = odd_values( std::move( v ) );
+				auto r = sum_values( std::move( v ) );
+			}
+		} );
 
-		std::vector<std::decay_t<decltype( fsp2( 1 ) )>> results3;
-		for( size_t n = 0; n < 5; ++n ) {
-			results3.push_back( fsp2( 1_GB ) );
-		}
-
-		for( auto &f : results3 ) {
-			f.wait( );
-		}
+		std::cout << "Parallel stream time " << daw::utility::format_seconds( t1, 2 ) << '\n';
+		std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 ) << '\n';
 	}
 	return EXIT_SUCCESS;
 }
