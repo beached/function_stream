@@ -170,6 +170,39 @@ int main( int argc, char **argv ) {
 
 
 	result2( ).wait( );
+
+
+	auto make_values = []( size_t howmany ) {
+		std::vector<int> vs( howmany );
+		std::generate( vs.begin( ), vs.end( ), std::rand );
+		return vs;
+	};
+
+	auto sort_values = []( auto values ) {
+		std::sort( values.begin( ), values.end( ) );
+		return std::move( values );
+	};
+
+	auto show_values = []( auto values ) {
+		std::cout << '\n';
+		for( auto const & value: values ) {
+			std::cout << " " << value;
+		}
+		std::cout << '\n';
+		return std::move( values );
+	};
+
+	auto odd_values = []( auto values ) {
+		values.erase( std::remove_if( values.begin( ), values.end( ), []( auto const & i ) { return i%2 == 0; } ), values.end( ) );
+		return std::move( values );
+	};
+
+	auto fsp = daw::make_future_generator( make_values )
+	           >> show_values >> sort_values >> show_values >> odd_values >> show_values;
+
+
+	fsp( 5 ).wait( );
+
 	return EXIT_SUCCESS;
 }
 
