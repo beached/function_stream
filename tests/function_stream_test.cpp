@@ -20,7 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
 #include <random>
 #include <string>
@@ -111,7 +110,7 @@ namespace part1 {
 			std::cout << "'" << v.get( ) << "'\n";
 		}
 
-		auto fib2 = []( ) { return fib( 20 ); };
+		auto const fib2 = []( ) { return fib( 20 ); };
 
 		auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
 		std::cout << "Function Group\n";
@@ -126,7 +125,7 @@ std::string blah( int i ) {
 
 BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 	auto ts = daw::get_task_scheduler( );
-	auto t = daw::make_future_result( []( ) {
+	auto const t = daw::make_future_result( []( ) {
 		         std::cout << "part1\n";
 		         std::cout << std::endl;
 		         return 2;
@@ -141,26 +140,26 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 
 	std::cout << "operator>>\n";
 
-	auto u = daw::make_future_result( []( ) {
+	auto const u = daw::make_future_result( []( ) {
 		std::cout << "part1\n";
 		std::cout << std::endl;
 		return 2;
 	} );
 
-	auto result = u >> []( int i ) {
+	auto const result = u >> []( int i ) {
 		std::cout << "part" << i << '\n';
 		std::cout << "hahaha\n";
 		std::cout << std::endl;
 		return i + 1;
 	} >> blah >> []( std::string s ) { std::cout << s << "\nfin\n"; };
 
-	auto v = daw::make_future_generator( []( ) {
+	auto const v = daw::make_future_generator( []( ) {
 		std::cout << "part1\n";
 		std::cout << std::endl;
 		return 2;
 	} );
 
-	auto result2 = v >> []( int i ) {
+	auto const result2 = v >> []( int i ) {
 		std::cout << "part" << i << '\n';
 		std::cout << "hahaha\n";
 		std::cout << std::endl;
@@ -168,68 +167,5 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 	} >> blah >> []( std::string s ) { std::cout << s << "\nfin\n"; };
 
 	result2( ).wait( );
-}
-
-BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
-	auto make_values = []( size_t howmany ) {
-		std::vector<int> vs( howmany );
-		std::generate( vs.begin( ), vs.end( ), std::rand );
-		return vs;
-	};
-
-	auto sort_values = []( auto values ) {
-		std::sort( values.begin( ), values.end( ) );
-		return std::move( values );
-	};
-
-	/*
-	auto show_values = []( auto values ) {
-		std::cout << '\n';
-		for( auto const &value : values ) {
-			std::cout << " " << value;
-		}
-		std::cout << '\n';
-		return std::move( values );
-	};*/
-
-	auto odd_values = []( auto values ) {
-		values.erase( std::remove_if( values.begin( ), values.end( ), []( auto const &i ) { return i % 2 == 0; } ),
-		              values.end( ) );
-		return std::move( values );
-	};
-
-	auto sum_values = []( auto values ) {
-		intmax_t r = 0;
-		for( auto const &v : values ) {
-			r += v;
-		}
-		return r;
-	};
-
-	auto show_value = []( auto value ) {
-		std::cout << value << '\n';
-		return std::move( value );
-	};
-
-	auto const values = make_values( 75_MB );
-
-	auto fsp2 = daw::make_future_generator( sort_values ) >> odd_values >> sum_values >> show_value;
-	daw::get_task_scheduler( ).start( );
-
-	auto t1 = daw::benchmark(
-	    [&]( ) { wait_for_function_streams( fsp2( values ), fsp2( values ), fsp2( values ), fsp2( values ) ); } );
-
-	std::cout << "Parallel stream time " << daw::utility::format_seconds( t1, 2 ) << '\n';
-
-	auto t2 = daw::benchmark( [&]( ) {
-		auto composed = [&]( auto s ) { return show_value( sum_values( odd_values( sort_values( s ) ) ) ); };
-		composed( values );
-		composed( values );
-		composed( values );
-		composed( values );
-	} );
-
-	std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 ) << '\n';
-	std::cout << "Diff " << ( t2 / t1 ) << '\n';
 }
 

@@ -120,5 +120,10 @@ namespace daw {
 	auto operator>>( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
+
+	template<typename... Functions>
+	constexpr auto compose_functions( Functions... functions ) {
+		return impl::function_composer_t<Functions...>{std::move( functions )...};
+	}
 } // namespace daw
 

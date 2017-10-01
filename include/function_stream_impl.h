@@ -128,12 +128,34 @@ namespace daw {
 			tfunction_t funcs;
 
 			constexpr function_composer_t( Functions &&... fs ) : funcs{std::make_tuple( fs... )} {}
+			constexpr function_composer_t( tfunction_t functions ) : funcs{std::move( functions )} {}
+		private:
+			template<typename... Fs>
+			static constexpr auto make_function_composer_t( std::tuple<Fs...> tpfuncs ) {
+				return function_composer_t<Fs...>{std::move( tpfuncs )};
+			}
 
+		  public:
 			template<typename... Args>
-			auto apply( Args &&... args ) {
+			auto apply( Args &&... args ) const {
 				return function_composer_impl<0>( funcs, typename which_type_t<0, tfunction_t>::category{},
 				                                  std::forward<Args>( args )... );
 			}
+
+			template<typename... Args>
+			auto operator( )( Args &&... args ) const {
+				return apply( std::forward<Args>( args )... );
+			}
+
+			template<typename... NextFunctions>
+			constexpr auto next( NextFunctions&&... next_functions ) const {
+				return make_function_composer_t( std::tuple_cat( funcs, std::make_tuple( std::forward<NextFunctions>( next_functions )... ) ) );		
+			}
 		};
+
+		template<typename NextFunction, typename... Functions>
+		auto operator>>( function_composer_t<Functions...> const &lhs, NextFunction next_func ) {
+			return lhs.next( std::move( next_func ) );
+		}
 	} // namespace impl
 } // namespace daw
