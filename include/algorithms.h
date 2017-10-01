@@ -40,7 +40,7 @@ namespace daw {
 
 			template<typename Iterator, typename Func>
 			void for_each_index( Iterator first, Iterator last, Func func, task_scheduler ts = get_task_scheduler( ) ) {
-				impl::parallel_for_each( first, last, func, std::move( ts ) );
+				impl::parallel_for_each_index( first, last, func, std::move( ts ) );
 			}
 
 			template<typename Iterator, typename T>
