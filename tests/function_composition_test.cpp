@@ -87,7 +87,10 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 	std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 ) << '\n';
 	std::cout << "Diff " << ( t2 / t1 ) << '\n';
 
-	auto result = (daw::compose_future( ) >> sort_values >> odd_values >> sum_values >> show_value)( values );
+	constexpr auto const do_nothing = daw::compose( );
+	do_nothing( );
+	auto const func = daw::compose_future( ) >> sort_values >> odd_values >> sum_values >> show_value;
+	auto result = func( values );
 	result.wait( );
 }
 
