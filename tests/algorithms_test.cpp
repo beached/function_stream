@@ -118,20 +118,20 @@ void for_each_test( size_t SZ ) {
 		a.emplace_back( 1 );
 	}
 	a[SZ / 2] = 4;
-	auto const find_even = [&]( auto x ) {
+	auto const find_even = [&]( T const & x ) {
 		if( static_cast<intmax_t>( x ) % 2 == 0 ) {
 			found = true;
 		}
 	};
 	auto const result_1 =
-	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even, ts ); } );
+	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts ); } );
 	auto const result_2 = daw::benchmark( [&]( ) {
 		for( auto const &item : a ) {
 			find_even( item );
 		}
 	} );
 	auto const result_3 =
-	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.begin( ), a.end( ), find_even, ts ); } );
+	    daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts ); } );
 	auto const result_4 = daw::benchmark( [&]( ) {
 		for( auto const &item : a ) {
 			find_even( item );

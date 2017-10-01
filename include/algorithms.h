@@ -22,98 +22,137 @@
 
 #pragma once
 
+#include <daw/cpp_17.h>
+
 #include "algorithms_impl.h"
 
 namespace daw {
 	namespace algorithm {
 		namespace parallel {
+			namespace details {
+				template<typename Iterator, typename T>
+				using iter_value_arg_test = decltype(
+				    std::declval<T &>( )( std::declval<typename std::iterator_traits<Iterator>::value_type>( ) ) );
+
+				template<typename Iterator, typename T>
+				using binary_iter_value_arg_test = decltype(
+				    std::declval<T &>( )( std::declval<typename std::iterator_traits<Iterator>::value_type>( ),
+				                          std::declval<typename std::iterator_traits<Iterator>::value_type>( ) ) );
+
+				template<typename T>
+				using size_t_arg_test = decltype( std::declval<T &>( )( std::declval<size_t>( ) ) );
+			} // namespace details
+
 			template<typename RandomIterator, typename Func>
-			void for_each( RandomIterator const first, RandomIterator const last, Func func,
+			void for_each( RandomIterator first, RandomIterator last, Func func,
 			               task_scheduler ts = get_task_scheduler( ) ) {
+
+				static_assert( daw::is_detected_v<details::iter_value_arg_test, RandomIterator, Func>,
+				               "Func passed to for_each must accept the value referenced by first. e.g func( *first ) "
+				               "must be valid" );
 				impl::parallel_for_each( first, last, func, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename Func>
-			void for_each_n( Iterator first, size_t N, Func func, task_scheduler ts = get_task_scheduler( ) ) {
+			template<typename RandomIterator, typename Func>
+			void for_each_n( RandomIterator first, size_t N, Func func, task_scheduler ts = get_task_scheduler( ) ) {
+				static_assert(
+				    daw::is_detected_v<details::iter_value_arg_test, RandomIterator, Func>,
+				    "Func passed to for_each_n must accept the value referenced by first. e.g func( *first ) "
+				    "must be valid" );
+
 				impl::parallel_for_each( first, first + N, func, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename Func>
-			void for_each_index( Iterator first, Iterator last, Func func, task_scheduler ts = get_task_scheduler( ) ) {
+			template<typename RandomIterator, typename Func>
+			void for_each_index( RandomIterator first, RandomIterator last, Func func, task_scheduler ts = get_task_scheduler( ) ) {
+				static_assert(
+				    daw::is_detected_v<details::size_t_arg_test, Func>,
+				    "Func passed to for_each_inex must accept a size_t as argument. e.g. func( 5 ) must be valid" );
+
 				impl::parallel_for_each_index( first, last, func, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename T>
-			void fill( Iterator first, Iterator last, T const &value, task_scheduler ts = get_task_scheduler( ) ) {
+			template<typename RandomIterator, typename T>
+			void fill( RandomIterator first, RandomIterator last, T const &value, task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_for_each( first, last, [&value]( auto &item ) { item = value; }, std::move( ts ) );
 			}
 
-			template<typename Iterator,
-			         typename LessCompare = std::less<typename std::iterator_traits<Iterator>::value_type>>
-			void sort( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ),
+			template<typename RandomIterator,
+			         typename LessCompare = std::less<typename std::iterator_traits<RandomIterator>::value_type>>
+			void sort( RandomIterator first, RandomIterator last, task_scheduler ts = get_task_scheduler( ),
 			           LessCompare compare = LessCompare{} ) {
+				static_assert( daw::is_detected_v<details::binary_iter_value_arg_test, RandomIterator, LessCompare>,
+				               "Compare passed to sort must two values referenced by first. e.g compare( "
+				               "*first, *(first+1) ) "
+				               "must be valid" );
+
 				impl::parallel_sort( first, last,
-				                     []( Iterator f, Iterator l, LessCompare cmp ) { std::sort( f, l, cmp ); },
+				                     []( RandomIterator f, RandomIterator l, LessCompare cmp ) { std::sort( f, l, cmp ); },
 				                     std::move( compare ), std::move( ts ) );
 			}
 
-			template<typename Iterator,
-			         typename LessCompare = std::less<typename std::iterator_traits<Iterator>::value_type>>
-			void stable_sort( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ),
+			template<typename RandomIterator,
+			         typename LessCompare = std::less<typename std::iterator_traits<RandomIterator>::value_type>>
+			void stable_sort( RandomIterator first, RandomIterator last, task_scheduler ts = get_task_scheduler( ),
 			                  LessCompare compare = LessCompare{} ) {
+				static_assert( daw::is_detected_v<details::binary_iter_value_arg_test, RandomIterator, LessCompare>,
+				               "Compare passed to stable_sort must two values referenced by first. e.g compare( "
+				               "*first, *(first+1) ) "
+				               "must be valid" );
+
 				impl::parallel_sort( first, last,
-				                     []( Iterator f, Iterator l, LessCompare cmp ) { std::stable_sort( f, l, cmp ); },
+				                     []( RandomIterator f, RandomIterator l, LessCompare cmp ) { std::stable_sort( f, l, cmp ); },
 				                     std::move( compare ), std::move( ts ) );
 			}
 
-			template<typename T, typename Iterator, typename BinaryOp>
-			auto reduce( Iterator first, Iterator last, T init, BinaryOp binary_op,
+			template<typename T, typename RandomIterator, typename BinaryOp>
+			auto reduce( RandomIterator first, RandomIterator last, T init, BinaryOp binary_op,
 			             task_scheduler ts = get_task_scheduler( ) ) {
 				return impl::parallel_reduce( first, last, std::move( init ), binary_op, std::move( ts ) );
 			}
 
-			template<typename T, typename Iterator>
-			auto reduce( Iterator first, Iterator last, T init, task_scheduler ts = get_task_scheduler( ) ) {
-				using value_type = typename std::iterator_traits<Iterator>::value_type;
+			template<typename T, typename RandomIterator>
+			auto reduce( RandomIterator first, RandomIterator last, T init, task_scheduler ts = get_task_scheduler( ) ) {
+				using value_type = typename std::iterator_traits<RandomIterator>::value_type;
 				return ::daw::algorithm::parallel::reduce(
 				    first, last, std::move( init ),
 				    []( auto const &lhs, auto const &rhs ) -> value_type { return lhs + rhs; }, std::move( ts ) );
 			}
 
-			template<typename Iterator>
-			auto reduce( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ) ) {
-				using value_type = typename std::iterator_traits<Iterator>::value_type;
+			template<typename RandomIterator>
+			auto reduce( RandomIterator first, RandomIterator last, task_scheduler ts = get_task_scheduler( ) ) {
+				using value_type = typename std::iterator_traits<RandomIterator>::value_type;
 				return ::daw::algorithm::parallel::reduce( first, last, value_type{}, std::move( ts ) );
 			}
 
-			template<typename Iterator,
-			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<Iterator>( ) )>>>
-			auto min_element( Iterator first, Iterator last, task_scheduler ts = get_task_scheduler( ),
+			template<typename RandomIterator,
+			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<RandomIterator>( ) )>>>
+			auto min_element( RandomIterator first, RandomIterator last, task_scheduler ts = get_task_scheduler( ),
 			                  LessCompare compare = LessCompare{} ) {
 				return impl::parallel_min_element( first, last, compare, std::move( ts ) );
 			}
 
-			template<typename Iterator,
-			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<Iterator>( ) )>>>
-			auto max_element( Iterator first, Iterator const last, task_scheduler ts = get_task_scheduler( ),
+			template<typename RandomIterator,
+			         typename LessCompare = std::less<std::decay_t<decltype( *std::declval<RandomIterator>( ) )>>>
+			auto max_element( RandomIterator first, RandomIterator const last, task_scheduler ts = get_task_scheduler( ),
 			                  LessCompare compare = LessCompare{} ) {
 				return impl::parallel_max_element( first, last, compare, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename OutputIterator, typename UnaryOperation>
-			void transform( Iterator first1, Iterator const last1, OutputIterator first2, UnaryOperation unary_op,
+			template<typename RandomIterator, typename RandomOutputIterator, typename UnaryOperation>
+			void transform( RandomIterator first1, RandomIterator const last1, RandomOutputIterator first2, UnaryOperation unary_op,
 			                task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_map( first1, last1, first2, unary_op, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename UnaryOperation>
-			void transform( Iterator first, Iterator last, UnaryOperation unary_op,
+			template<typename RandomIterator, typename UnaryOperation>
+			void transform( RandomIterator first, RandomIterator last, UnaryOperation unary_op,
 			                task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_map( first, last, first, unary_op, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename MapFunction, typename ReduceFunction>
-			auto map_reduce( Iterator first, Iterator last, MapFunction map_function, ReduceFunction reduce_function,
+			template<typename RandomIterator, typename MapFunction, typename ReduceFunction>
+			auto map_reduce( RandomIterator first, RandomIterator last, MapFunction map_function, ReduceFunction reduce_function,
 			                 task_scheduler ts = get_task_scheduler( ) ) {
 				auto it_init = first;
 				std::advance( first, 1 );
@@ -122,7 +161,7 @@ namespace daw {
 			}
 
 			/// @brief Perform MapReduce on range and return result
-			/// @tparam Iterator Type of Range Iterators
+			/// @tparam RandomIterator Type of Range RandomIterators
 			/// @tparam T Type of initial value
 			/// @tparam MapFunction Function that maps a->a'
 			/// @tparam ReduceFunction Function that takes to items in range and returns 1
@@ -132,8 +171,8 @@ namespace daw {
 			/// @param map_function unary function that maps source value to argument of reduce_function
 			/// @param reduce_function binary function that maps results of map_function to resulting value
 			/// @return Value from reduce function after range is of size 1
-			template<typename Iterator, typename T, typename MapFunction, typename ReduceFunction>
-			auto map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,
+			template<typename RandomIterator, typename T, typename MapFunction, typename ReduceFunction>
+			auto map_reduce( RandomIterator first, RandomIterator last, T const &init, MapFunction map_function,
 			                 ReduceFunction reduce_function, task_scheduler ts = get_task_scheduler( ) ) {
 				auto it_init = first;
 				std::advance( first, 1 );
@@ -141,37 +180,35 @@ namespace daw {
 				                                  std::move( ts ) );
 			}
 
-			template<typename Iterator, typename OutputIterator, typename BinaryOp>
-			void scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterator last_out,
+			template<typename RandomIterator, typename RandomOutputIterator, typename BinaryOp>
+			void scan( RandomIterator first, RandomIterator last, RandomOutputIterator first_out, RandomOutputIterator last_out,
 			           BinaryOp binary_op, task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_scan( first, last, first_out, last_out, binary_op, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename OutputIterator, typename BinaryOp>
-			void scan( Iterator first, Iterator last, BinaryOp binary_op, task_scheduler ts = get_task_scheduler( ) ) {
+			template<typename RandomIterator, typename RandomOutputIterator, typename BinaryOp>
+			void scan( RandomIterator first, RandomIterator last, BinaryOp binary_op, task_scheduler ts = get_task_scheduler( ) ) {
 				impl::parallel_scan( first, last, first, last, binary_op, std::move( ts ) );
 			}
 
-			template<typename Iterator, typename UnaryPredicate>
-			Iterator find_if( Iterator first, Iterator last, UnaryPredicate pred,
-			                           task_scheduler ts = get_task_scheduler( ) ) {
+			template<typename RandomIterator, typename UnaryPredicate>
+			RandomIterator find_if( RandomIterator first, RandomIterator last, UnaryPredicate pred,
+			                  task_scheduler ts = get_task_scheduler( ) ) {
 				return impl::parallel_find_if( first, last, pred, std::move( ts ) );
 			}
 
-			template<typename Iterator1, typename Iterator2, typename BinaryPredicate>
-			bool equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, BinaryPredicate pred,
+			template<typename RandomIterator1, typename RandomIterator2, typename BinaryPredicate>
+			bool equal( RandomIterator1 first1, RandomIterator1 last1, RandomIterator2 first2, RandomIterator2 last2, BinaryPredicate pred,
 			            task_scheduler ts = get_task_scheduler( ) ) {
 
 				return impl::parallel_equal( first1, last1, first2, last2, pred, std::move( ts ) );
 			}
 
-			template<typename Iterator1, typename Iterator2, typename BinaryPredicate>
-			bool equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2,
+			template<typename RandomIterator1, typename RandomIterator2, typename BinaryPredicate>
+			bool equal( RandomIterator1 first1, RandomIterator1 last1, RandomIterator2 first2, RandomIterator2 last2,
 			            task_scheduler ts = get_task_scheduler( ) ) {
 
-				auto const pred = []( auto const & lhs, auto const & rhs ) {
-					return lhs == rhs;
-				};
+				auto const pred = []( auto const &lhs, auto const &rhs ) { return lhs == rhs; };
 				return impl::parallel_equal( first1, last1, first2, last2, pred, std::move( ts ) );
 			}
 
