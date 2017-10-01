@@ -125,5 +125,13 @@ namespace daw {
 	constexpr auto compose_functions( Functions... functions ) {
 		return impl::function_composer_t<Functions...>{std::move( functions )...};
 	}
+
+	constexpr impl::function_composer_t<> compose( ) noexcept {
+		return impl::function_composer_t<>{};
+	}
+
+	future_generator_t<> compose_future( ) {
+		return future_generator_t<>{};
+	}
 } // namespace daw
 

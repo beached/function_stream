@@ -116,6 +116,7 @@ add_test( algorithms_test algorithms_test_bin )
 add_executable( map_reduce_test_bin ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
 target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( map_reduce_test_bin date_prj header_libraries_prj )
+add_test( map_reduce_test map_reduce_test_bin )
 
 install( TARGETS function_stream_lib task_scheduler_lib DESTINATION lib )
 install( DIRECTORY ${HEADER_FOLDER}/ DESTINATION include/daw/fs )
