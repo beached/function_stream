@@ -85,6 +85,9 @@ set( TASK_SCHEDULER_SOURCE_FILES
 
 add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK ) 
 
+#set( CMAKE_CTEST_COMMAND ctest -V )
+add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} )
+
 add_library( task_scheduler_lib ${TASK_SCHEDULER_HEADER_FILES} ${TASK_SCHEDULER_SOURCE_FILES} )
 target_link_libraries( task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( task_scheduler_lib header_libraries_prj )
@@ -93,30 +96,35 @@ add_library( function_stream_lib ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULE
 target_link_libraries( function_stream_lib task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( function_stream_lib header_libraries_prj )
 
-add_executable( task_scheduler_test_bin ${TEST_FOLDER}/task_scheduler_test.cpp )
+add_executable( task_scheduler_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/task_scheduler_test.cpp )
 target_link_libraries( task_scheduler_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( task_scheduler_test_bin header_libraries_prj )
 add_test( task_scheduler_test task_scheduler_test_bin )
+add_dependencies( check task_scheduler_test_bin )
 
-add_executable( function_stream_test_bin ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
+add_executable( function_stream_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILE} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
 target_link_libraries( function_stream_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( function_stream_test_bin header_libraries_prj )
 add_test( function_stream_test function_stream_test_bin )
+add_dependencies( check function_stream_test_bin )
 
-add_executable( function_composition_test_bin ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_composition_test.cpp )
+add_executable( function_composition_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_composition_test.cpp )
 target_link_libraries( function_composition_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( function_composition_test_bin header_libraries_prj )
 add_test( function_composition_test function_composition_test_bin )
+add_dependencies( check function_composition_test_bin )
 
-add_executable( algorithms_test_bin ${TEST_FOLDER}/algorithms_test.cpp )
+add_executable( algorithms_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_test.cpp )
 target_link_libraries( algorithms_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( algorithms_test_bin date_prj header_libraries_prj )
 add_test( algorithms_test algorithms_test_bin )
+add_dependencies( check algorithms_test_bin )
 
-add_executable( map_reduce_test_bin ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
+add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
 target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( map_reduce_test_bin date_prj header_libraries_prj )
 add_test( map_reduce_test map_reduce_test_bin )
+add_dependencies( check map_reduce_test_bin )
 
 install( TARGETS function_stream_lib task_scheduler_lib DESTINATION lib )
 install( DIRECTORY ${HEADER_FOLDER}/ DESTINATION include/daw/fs )
