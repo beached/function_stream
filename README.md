@@ -2,7 +2,7 @@
 
 A parallel library with task, pipeline and algorithmic parallelism.  Some examples can be found in the [tests](./tests) folder and some benchmarks are in the [Benchmarks](./benchmarks/) folder.  From the benchmarks you can see the average time per item processed.  In many cases it can be quicker to use the sequential versions as the task is memory bound in the easy case where the supplied function is too quick.  This happens for cases where N is small.  If the work is greater than the per item time in sequential, the parallel should be faster.
 
-## [High Level Algorithms](./include/algorithms.h)
+## [High Level Parallel Algorithms](./include/algorithms.h)
 
 [Example 1](./tests/algorithms_test.cpp)
 [Example 2](./tests/map_reduce_test.cpp)
@@ -88,6 +88,23 @@ void scan( Iterator first, Iterator last, OutputIterator first_out, OutputIterat
 
 template<typename Iterator, typename OutputIterator, typename BinaryOp> 
 void scan( Iterator first, Iterator last, BinaryOp binary_op, task_scheduler ts );
+```
+
+### find_if 
+Return an Iterator to the first position where the UnaryPredicate pred returns true.
+``` C++
+template<typename Iterator, typename UnaryPredicate>
+Iterator find_if( Iterator first, Iterator last, UnaryPredicate pred, task_scheduler ts );
+```
+
+### equal
+Determine if two ranges are equal.
+``` C++
+template<typename Iterator1, typename Iterator2, typename BinaryPredicate>
+bool equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, BinaryPredicate pred, task_scheduler ts );
+
+template<typename Iterator1, typename Iterator2, typename BinaryPredicate>
+bool equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, task_scheduler ts );
 ```
 
 ## [Task Based Parallelism](./include/task_scheduler.h)
@@ -299,3 +316,22 @@ Wait for a group of function stream results to complete
 template<typename... FunctionStreams>
 void wait_for_function_streams( FunctionStreams&... function_streams );
 ```
+
+## Parallel/Sequential Function Composition
+
+Compose a stream of functions that may be run as parallel tasks or a sequential flow.
+
+Compose a function that returns a future.  The result of each subsequent function must be the argument of the test.  The future will have a value of the type of the final function.
+``` C++
+var func = daw::compose_future( ) >> callable1 >> callable2 >> callable3;
+var fut = func( args... );
+fut.wait( );
+var result = fut.get( );
+```
+
+Compose a sequential function and return the value of the final sub-function.
+``` C++
+var func = daw::compose( ) >> callable1 >> callable2 >> callable3;
+var result = func( args... );
+```
+

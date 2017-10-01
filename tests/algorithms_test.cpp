@@ -572,7 +572,7 @@ void find_if_test( size_t SZ ) {
 	auto it1 = a.cend( );
 	auto it2 = a.cend( );
 	auto const result_1 = daw::benchmark( [&]( ) {
-		it1 = daw::algorithm::parallel::parallel_find_if( a.cbegin( ), a.cend( ), pred, ts );
+		it1 = daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
 	} );
 	auto const result_2 = daw::benchmark( [&]( ) {
 		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
@@ -582,7 +582,7 @@ void find_if_test( size_t SZ ) {
 	it1 = a.cend( );
 	it2 = a.cend( );
 	auto const result_3 = daw::benchmark( [&]( ) {
-		it1 = daw::algorithm::parallel::parallel_find_if( a.cbegin( ), a.cend( ), pred, ts );
+		it1 = daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
 	} );
 	auto const result_4 = daw::benchmark( [&]( ) {
 		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
