@@ -317,7 +317,7 @@ template<typename... FunctionStreams>
 void wait_for_function_streams( FunctionStreams&... function_streams );
 ```
 
-## Parallel/Sequential Function Composition
+### Parallel/Sequential Function Composition
 
 Compose a stream of functions that may be run as parallel tasks or a sequential flow.
 
