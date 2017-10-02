@@ -28,6 +28,7 @@
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <string>
 #include <vector>
 
 #include <daw/daw_benchmark.h>
@@ -527,6 +528,7 @@ void scan_test( size_t SZ ) {
 	fill_random( a.begin( ), a.end( ), -10, 10 );
 	auto b = a;
 	auto c = a;
+
 	auto const reduce_function = []( auto lhs, auto rhs ) noexcept {
 		volatile int x = 0;
 		for( size_t n = 0; n < 50; ++n ) {
