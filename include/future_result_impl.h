@@ -55,9 +55,7 @@ namespace daw {
 			    : m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
 
 			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
-			    : m_semaphore{std::move( sem )}
-			    , m_status{future_status::deferred}
-			    , m_task_scheduler{std::move( ts )} {}
+			    : m_semaphore{std::move( sem )}, m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
 
 		  public:
 			member_data_base_t( ) = delete;
@@ -129,8 +127,8 @@ namespace daw {
 			member_data_t &operator=( member_data_t const & ) = delete;
 			member_data_t( member_data_t &&other ) noexcept = delete;
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
-		private:
 
+		  private:
 			void pass_next( expected_result_t value ) noexcept {
 				daw::exception::daw_throw_on_false( m_next, "Attempt to call next function on empty function" );
 				m_next( std::move( value ) );
@@ -209,12 +207,12 @@ namespace daw {
 
 			~member_data_t( ) override;
 
-		  private:
 			member_data_t( member_data_t const & ) = delete;
 			member_data_t &operator=( member_data_t const & ) = delete;
 			member_data_t( member_data_t &&other ) noexcept = delete;
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
 
+		  private:
 			void pass_next( expected_result_t value ) noexcept {
 				daw::exception::daw_throw_on_false( m_next, "Attempt to call next function on empty function" );
 				m_next( std::move( value ) );
