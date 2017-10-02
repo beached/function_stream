@@ -147,6 +147,7 @@ namespace daw {
 
 				using binary_pred_result_t = daw::is_detected<details::binary_op_arg_test, RandomIterator, LessCompare>;
 				static_assert(
+				    binary_pred_result_t::value,
 				    "LessCompare passed to min_element must take two values referenced by first. e.g compare( "
 				    "*first, *(first+1) ) "
 				    "must be valid" );
@@ -163,6 +164,7 @@ namespace daw {
 
 				using binary_pred_result_t = daw::is_detected<details::binary_op_arg_test, RandomIterator, LessCompare>;
 				static_assert(
+				    binary_pred_result_t::value,
 				    "LessCompare passed to max_element must take two values referenced by first. e.g compare( "
 				    "*first, *(first+1) ) "
 				    "must be valid" );

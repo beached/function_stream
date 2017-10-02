@@ -153,8 +153,8 @@ namespace daw {
 					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
 					partition_range( ranges,
 					                 [func, first]( auto f, auto l ) {
-						                 size_t start_pos = static_cast<size_t>( first, f );
-						                 size_t end_pos = static_cast<size_t>( first, l );
+						                 auto const start_pos = static_cast<size_t>( first, f );
+						                 auto const end_pos = static_cast<size_t>( first, l );
 						                 for( size_t n = start_pos; n < end_pos; ++n ) {
 							                 func( n );
 						                 }
@@ -358,7 +358,7 @@ namespace daw {
 					std::vector<daw::spin_lock> mut_p1_results{ranges.size( )};
 					auto const add_result = [&]( size_t pos, value_t const &value ) {
 						for( size_t n = pos + 1; n < p1_results.size( ); ++n ) {
-							std::lock_guard<daw::spin_lock>{mut_p1_results[n]};
+							std::lock_guard<daw::spin_lock> lck{mut_p1_results[n]};
 							if( p1_results[n] ) {
 								*p1_results[n] = binary_op( *p1_results[n], value );
 							} else {

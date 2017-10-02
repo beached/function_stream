@@ -125,11 +125,11 @@ namespace daw {
 
 			~member_data_t( ) override = default;
 
-		  private:
 			member_data_t( member_data_t const & ) = delete;
 			member_data_t &operator=( member_data_t const & ) = delete;
 			member_data_t( member_data_t &&other ) noexcept = delete;
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
+		private:
 
 			void pass_next( expected_result_t value ) noexcept {
 				daw::exception::daw_throw_on_false( m_next, "Attempt to call next function on empty function" );

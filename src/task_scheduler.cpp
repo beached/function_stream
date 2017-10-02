@@ -102,7 +102,7 @@ namespace daw {
 		}
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself ) {
-			task_runner( id, wself, boost::none );
+			task_runner( id, std::move( wself ), boost::none );
 		}
 
 		void task_scheduler_impl::start( ) {
