@@ -601,7 +601,6 @@ void equal_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
 	std::vector<value_t> a;
 	a.resize( SZ );
-//	fill_random( a.begin( ), a.end( ), -50, 50 );
 	for( size_t n=0; n<a.size( ); ++n ) {
 		a[n] = static_cast<value_t>(n ) ;
 	}
