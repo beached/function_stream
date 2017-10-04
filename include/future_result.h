@@ -97,6 +97,10 @@ namespace daw {
 
 		template<typename Function, typename... Args>
 		void from_code( Function func, Args &&... args ) {
+			using func_result_t = decltype( func( std::forward<Args>( args )... ) );
+			static_assert( std::is_convertible<func_result_t, Result>::value,
+			               "Function func with Args does not return a value that is convertible to Result. e.g Result "
+			               "r = func( args... ) must be valid" );
 			m_data->from_code( std::move( func ), std::forward<Args>( args )... );
 		}
 

@@ -77,11 +77,6 @@ namespace daw {
 		[]( ... ) {}( ( wait_for_function_streams( function_streams ), 0 )... );
 	}
 
-	template<typename T, typename... Ts>
-	std::vector<T> create_vector( T &&value, Ts &&... values ) {
-		return std::vector<T>{std::initializer_list<T>{std::forward<T>( value ), std::forward<Ts>( values )...}};
-	}
-
 	template<typename... Funcs>
 	class future_generator_t {
 		std::tuple<Funcs...> m_funcs;

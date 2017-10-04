@@ -123,7 +123,7 @@ namespace daw {
 			               "function_tag should only be retuned for all but last item in tuple" );
 			auto func = std::get<pos>( funcs );
 			auto const next_pos = pos + 1;
-
+			
 			// If this crashes here, the next function probably does not take as arugment the result of the previous
 			// function
 			return function_composer_impl<next_pos>( funcs, typename which_type_t<next_pos, TFunctions>::category{},

@@ -93,13 +93,18 @@ namespace part1 {
 		std::cout << fs( 1 ).get( ) << std::endl;
 	}
 
+	template<typename T, typename... Ts>
+	std::vector<T> create_vector( T &&value, Ts &&... values ) {
+		return std::vector<T>{std::initializer_list<T>{std::forward<T>( value ), std::forward<Ts>( values )...}};
+	}
+
 	BOOST_AUTO_TEST_CASE( function_stream_test_002 ) {
 		std::random_device rd;
 		std::mt19937 gen( rd( ) );
 		std::uniform_int_distribution<> dis( 5, 7 );
 
 		auto fs2 = daw::make_function_stream( &fib, &fib );
-		auto results = daw::create_vector( fs2( 3 ) );
+		auto results = create_vector( fs2( 3 ) );
 
 		for( size_t n = 1; n < 40000; ++n ) {
 			results.push_back( fs2( dis( gen ) ) );
