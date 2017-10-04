@@ -45,14 +45,17 @@ namespace daw {
 		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ),
 		                bool block_on_destruction = true );
 		~task_scheduler( ) = default;
+
 		task_scheduler( task_scheduler && ) = default;
 		task_scheduler &operator=( task_scheduler && ) = default;
-
 		task_scheduler( task_scheduler const & ) = default;
 		task_scheduler &operator=( task_scheduler const & ) = default;
 
 		template<typename Task>
 		void add_task( Task && task ) noexcept {
+			static_assert( daw::is_detected_v<impl::is_task_test_t, Task>,
+			               "Task task passed to add_task must be callable without an arugment. e.g. task( )" );
+
 			m_impl->add_task( std::forward<Task>( task ) );
 		}
 
@@ -63,6 +66,9 @@ namespace daw {
 
 		template<typename Function>
 		auto blocking_section( Function func ) {
+			static_assert( daw::is_detected_v<impl::is_task_test_t, Function>,
+			               "Function passed to blocking_section must be callable without an arugment. e.g. func( )" );
+
 			if( !m_impl->am_i_in_pool( ) ) {
 				return func( );
 			}
@@ -73,6 +79,8 @@ namespace daw {
 
 		template<typename Waitable>
 		void blocking_on_waitable( Waitable && waitable ) {
+			static_assert( daw::is_detected_v<impl::is_waitable_test_t, Waitable>,
+			               "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 			blocking_section( [&waitable]( ) { waitable.wait( ); } );
 		}
 	}; // task_scheduler

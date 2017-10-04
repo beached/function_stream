@@ -30,6 +30,7 @@
 #include <thread>
 #include <vector>
 
+#include <daw/cpp_17.h>
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_locked_value.h>
 #include <daw/daw_semaphore.h>
@@ -40,6 +41,12 @@
 namespace daw {
 	using task_t = std::function<void( )>;
 	namespace impl {
+		template<typename Func>
+		using is_task_test_t = decltype( std::declval<Func &>( )( ) );
+
+		template<typename Waitable>
+		using is_waitable_test_t = decltype( std::declval<Waitable &>( ).wait( ) );
+
 		using task_ptr_t = daw::parallel::msg_ptr_t<task_t>;
 
 		class task_scheduler_impl;
@@ -50,7 +57,6 @@ namespace daw {
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
 		class task_scheduler_impl : public std::enable_shared_from_this<task_scheduler_impl> {
-			// using task_queue_t = daw::locked_stack_t<daw::task_t>;
 			using task_queue_t = daw::parallel::mpmc_msg_queue_t<daw::impl::task_ptr_t>;
 
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;

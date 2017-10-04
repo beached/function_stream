@@ -606,7 +606,7 @@ void equal_test( size_t SZ ) {
 	}
 	auto b = a;
 
-	auto const pred = []( auto const & lhs, auto const & rhs ) noexcept {
+	auto const pred = []( value_t const & lhs, value_t const & rhs ) noexcept {
 		auto const result = lhs == rhs;
 		if( result ) {
 			return true;
