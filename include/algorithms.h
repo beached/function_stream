@@ -49,27 +49,6 @@ namespace daw {
 
 				template<typename Operator, typename... Iterators>
 				using is_callable_t = daw::is_callable_t<Operator, typename std::iterator_traits<Iterators>::value_type...>;
-
-				/*
-				template<typename Iterator, typename Op>
-				using unary_op_arg_test = decltype(
-				    std::declval<Op &>( )( std::declval<typename std::iterator_traits<Iterator>::value_type>( ) ) );
-
-				template<typename Iterator, typename Op>
-				using binary_op_arg_test = decltype(
-				    std::declval<Op &>( )( std::declval<typename std::iterator_traits<Iterator>::value_type>( ),
-				                           std::declval<typename std::iterator_traits<Iterator>::value_type>( ) ) );
-
-				template<typename Op>
-				using size_t_arg_test = decltype( std::declval<Op &>( )( std::declval<size_t>( ) ) );
-
-				template<typename Op, typename Value, typename Value2 = Value>
-				using reduce_arg_test =
-				    decltype( std::declval<Op &>( )( std::declval<Value>( ), std::declval<Value2>( ) ) );
-
-				template<typename LHS, typename RHS>
-				using is_assignable_test = decltype( std::declval<LHS &>( ) = std::declval<RHS &>( ) );
-				*/
 			} // namespace details
 
 			template<typename RandomIterator, typename UnaryOperation>
