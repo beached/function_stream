@@ -53,7 +53,7 @@ namespace daw {
 
 		template<typename Task>
 		void add_task( Task && task ) noexcept {
-			static_assert( daw::is_detected_v<impl::is_task_test_t, Task>,
+			static_assert( impl::is_task_v<Task>,
 			               "Task task passed to add_task must be callable without an arugment. e.g. task( )" );
 
 			m_impl->add_task( std::forward<Task>( task ) );
@@ -66,7 +66,7 @@ namespace daw {
 
 		template<typename Function>
 		auto blocking_section( Function func ) {
-			static_assert( daw::is_detected_v<impl::is_task_test_t, Function>,
+			static_assert( impl::is_task_v<Function>,
 			               "Function passed to blocking_section must be callable without an arugment. e.g. func( )" );
 
 			if( !m_impl->am_i_in_pool( ) ) {
@@ -79,7 +79,7 @@ namespace daw {
 
 		template<typename Waitable>
 		void blocking_on_waitable( Waitable && waitable ) {
-			static_assert( daw::is_detected_v<impl::is_waitable_test_t, Waitable>,
+			static_assert( impl::is_waitable_v<Waitable>,
 			               "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 			blocking_section( [&waitable]( ) { waitable.wait( ); } );
 		}
@@ -94,6 +94,8 @@ namespace daw {
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
 	void schedule_task( daw::shared_semaphore sem, Task task, task_scheduler ts = get_task_scheduler( ) ) {
+		static_assert( impl::is_task_v<Task>,
+		               "Task task passed to schedule_task must be callable without an arugment. e.g. task( )" );
 		ts.add_task( [ task = std::move( task ), sem = std::move( sem ) ]( ) mutable {
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
 			task( );
@@ -102,6 +104,8 @@ namespace daw {
 
 	template<typename Task>
 	daw::shared_semaphore create_waitable_task( Task task, task_scheduler ts = get_task_scheduler( ) ) {
+		static_assert( impl::is_task_v<Task>,
+		               "Task task passed to create_waitable_task must be callable without an arugment. e.g. task( )" );
 		daw::shared_semaphore sem;
 		schedule_task( sem, ts, std::move( task ) );
 		return sem;
@@ -113,6 +117,8 @@ namespace daw {
 	/// @returns a semaphore that will stop waiting when all tasks complete
 	template<typename... Tasks>
 	daw::shared_semaphore create_task_group( Tasks &&... tasks ) {
+		static_assert( impl::are_tasks_v<Tasks...>,
+		               "Tasks passed to create_task_group must be callable without an arugment. e.g. task( )" );
 		auto ts = get_task_scheduler( );
 		daw::shared_semaphore sem{ 1 - sizeof...( tasks ) };
 
@@ -136,11 +142,15 @@ namespace daw {
 
 	template<typename... Tasks>
 	void invoke_tasks( Tasks... tasks ) {
+		static_assert( impl::are_tasks_v<Tasks...>,
+		               "Tasks passed to invoke_tasks must be callable without an arugment. e.g. task( )" );
 		invoke_tasks( get_task_scheduler( ), std::move( tasks )... );
 	}
 
 	template<typename Function>
 	auto blocking_section( Function func, task_scheduler ts = get_task_scheduler( ) ) {
+		static_assert( impl::is_task_v<Function>,
+		               "Function passed to blocking_section must be callable without an arugment. e.g. func( )" );
 		return ts.blocking_section( func );
 	}
 } // namespace daw

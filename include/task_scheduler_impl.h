@@ -41,11 +41,20 @@
 namespace daw {
 	using task_t = std::function<void( )>;
 	namespace impl {
-		template<typename Func>
-		using is_task_test_t = decltype( std::declval<Func &>( )( ) );
+		template<typename Task>
+		using is_task_detector = decltype( std::declval<Task &>( )( ) );
+
+		template<typename Task>
+		constexpr bool is_task_v = daw::is_detected_v<is_task_detector, Task>;
+
+		template<typename... Tasks>
+		constexpr bool are_tasks_v = daw::all_true_v<daw::is_detected_v<is_task_detector, Tasks>...>;
 
 		template<typename Waitable>
-		using is_waitable_test_t = decltype( std::declval<Waitable &>( ).wait( ) );
+		using is_waitable_detector = decltype( std::declval<Waitable &>( ).wait( ) );
+
+		template<typename Waitable>
+		constexpr bool is_waitable_v = daw::is_detected_v<is_waitable_detector, Waitable>;
 
 		using task_ptr_t = daw::parallel::msg_ptr_t<task_t>;
 
