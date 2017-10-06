@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <parallel/algorithm>
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -29,6 +31,7 @@
 #include <numeric>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <daw/daw_benchmark.h>
@@ -39,6 +42,7 @@
 #include <daw/boost_test.h>
 
 #include "algorithms.h"
+#include "bitonic_sort.h"
 #include "task_scheduler.h"
 
 BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
@@ -237,6 +241,29 @@ void sort_test( size_t SZ ) {
 	auto const seq_min = std::min( result_2, result_4 );
 	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
 }
+
+void bitonic_sort_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
+	std::vector<int64_t> a;
+	a.resize( SZ );
+	fill_random( a.begin( ), a.end( ) );
+	auto b = a;
+	auto const result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::bitonic_sort( a.begin( ), a.end( ) ); } );
+	test_sort( a.begin( ), a.end( ), "p_result_1" );
+	a = b;
+	auto const result_2 = daw::benchmark( [&]( ) { daw::algorithm::parallel::seq_bitonic_sort( a.begin( ), a.end( ) ); } );
+	test_sort( a.begin( ), a.end( ), "s_result_1" );
+	a = b;
+	auto const result_3 = daw::benchmark( [&]( ) { daw::algorithm::parallel::bitonic_sort( a.begin( ), a.end( ) ); } );
+	test_sort( a.begin( ), a.end( ), "p_result2" );
+	a = b;
+	auto const result_4 = daw::benchmark( [&]( ) { daw::algorithm::parallel::seq_bitonic_sort( a.begin( ), a.end( ) ); } );
+	test_sort( a.begin( ), a.end( ), "s_result2" );
+	auto const par_min = std::min( result_1, result_3 );
+	auto const seq_min = std::min( result_2, result_4 );
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "bitonic_sort" );
+}
+
 
 void stable_sort_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
@@ -685,7 +712,7 @@ void equal_test_str( size_t SZ ) {
 	display_info( seq_max, par_max, SZ, blah.size( ), "equal" );
 }
 
-static size_t const MAX_ITEMS = 134'217'728; 
+static size_t const MAX_ITEMS = 134'217'728;
 static size_t const LARGE_TEST_SZ = 268'435'456;
 
 BOOST_AUTO_TEST_CASE( test_for_each_double ) {
@@ -730,125 +757,132 @@ BOOST_AUTO_TEST_CASE( test_fill_int32_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
-	std::cout << "sort tests - int64_t\n";
-	sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		sort_test( n );
+BOOST_AUTO_TEST_CASE( test_bitonic_sort_int64_t ) {
+	std::cout << "bitonic_sort tests - int64_t\n";
+	//bitonic_sort_test( 134217728 );
+	for( size_t n = 16777216; n >= 100; n /= 4 ) {
+		bitonic_sort_test( n );
 	}
+}
+
+ BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
+    std::cout << "sort tests - int64_t\n";
+    sort_test( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        sort_test( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_stable_sort_int64_t ) {
-	std::cout << "stable_sort tests - int64_t\n";
-	stable_sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		stable_sort_test( n );
-	}
+    std::cout << "stable_sort tests - int64_t\n";
+    stable_sort_test( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        stable_sort_test( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_reduce_double ) {
-	std::cout << "reduce tests - double\n";
-	reduce_test<double>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		reduce_test<double>( n );
-	}
+    std::cout << "reduce tests - double\n";
+    reduce_test<double>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        reduce_test<double>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_reduce_int64_t ) {
-	std::cout << "reduce tests - int64_t\n";
-	reduce_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		reduce_test<int64_t>( n );
-	}
+    std::cout << "reduce tests - int64_t\n";
+    reduce_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        reduce_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_reduce2_int64_t ) {
-	std::cout << "reduce2 tests - uint64_t\n";
-	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
-		return lhs * rhs;
-	};
-	reduce_test2<uint64_t>( LARGE_TEST_SZ, 1, bin_op );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		reduce_test2<uint64_t>( n, 1, bin_op );
-	}
+    std::cout << "reduce2 tests - uint64_t\n";
+    auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
+        return lhs * rhs;
+    };
+    reduce_test2<uint64_t>( LARGE_TEST_SZ, 1, bin_op );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        reduce_test2<uint64_t>( n, 1, bin_op );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_min_element_int64_t ) {
-	std::cout << "min_element tests - int64_t\n";
-	min_element_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		min_element_test<int64_t>( n );
-	}
+    std::cout << "min_element tests - int64_t\n";
+    min_element_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        min_element_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_max_element_int64_t ) {
-	std::cout << "max_element tests - int64_t\n";
-	max_element_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		max_element_test<int64_t>( n );
-	}
+    std::cout << "max_element tests - int64_t\n";
+    max_element_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        max_element_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_transform_int64_t ) {
-	std::cout << "transform tests - int64_t\n";
-	transform_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		transform_test<int64_t>( n );
-	}
+    std::cout << "transform tests - int64_t\n";
+    transform_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        transform_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_transform2_int64_t ) {
-	std::cout << "transform2 tests - int64_t\n";
-	transform_test2<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		transform_test2<int64_t>( n );
-	}
+    std::cout << "transform2 tests - int64_t\n";
+    transform_test2<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        transform_test2<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_map_reduce_int64_t ) {
-	std::cout << "map_reduce tests - int64_t\n";
-	map_reduce_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		map_reduce_test<int64_t>( n );
-	}
+    std::cout << "map_reduce tests - int64_t\n";
+    map_reduce_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        map_reduce_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_map_reduce2_int64_t ) {
-	std::cout << "map_reduce2 tests - int64_t\n";
-	for( size_t n = 100'000; n >= 100; n /= 10 ) {
-		map_reduce_test2<int64_t>( n );
-	}
+    std::cout << "map_reduce2 tests - int64_t\n";
+    for( size_t n = 100'000; n >= 100; n /= 10 ) {
+        map_reduce_test2<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_scan_int64_t ) {
-	std::cout << "scan tests - int64_t\n";
-	scan_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		scan_test<int64_t>( n );
-	}
+    std::cout << "scan tests - int64_t\n";
+    scan_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        scan_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_find_if_int64_t ) {
-	std::cout << "find_if tests - int64_t\n";
-	find_if_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		find_if_test<int64_t>( n );
-	}
+    std::cout << "find_if tests - int64_t\n";
+    find_if_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        find_if_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_equal_int64_t ) {
-	std::cout << "equal tests - int64_t\n";
-	equal_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		equal_test<int64_t>( n );
-	}
+    std::cout << "equal tests - int64_t\n";
+    equal_test<int64_t>( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        equal_test<int64_t>( n );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( test_equal_string ) {
-	std::cout << "equal tests - std::string\n";
-	equal_test_str( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		equal_test_str( n );
-	}
+    std::cout << "equal tests - std::string\n";
+    equal_test_str( LARGE_TEST_SZ );
+    for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+        equal_test_str( n );
+    }
 }
-

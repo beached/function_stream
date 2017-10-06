@@ -65,23 +65,23 @@ namespace daw {
 		size_t size( ) const;
 
 		template<typename Function>
-		auto blocking_section( Function func ) {
+		auto wait_for_scope( Function func ) {
 			static_assert( impl::is_task_v<Function>,
-			               "Function passed to blocking_section must be callable without an arugment. e.g. func( )" );
+			               "Function passed to wait_for_scope must be callable without an arugment. e.g. func( )" );
 
-			if( !m_impl->am_i_in_pool( ) ) {
+			/*if( !m_impl->am_i_in_pool( ) ) {
 				return func( );
-			}
+			}*/
 			auto sem = m_impl->start_temp_task_runners( );
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
 			return func( );
 		}
 
 		template<typename Waitable>
-		void blocking_on_waitable( Waitable && waitable ) {
+		void wait_for( Waitable && waitable ) {
 			static_assert( impl::is_waitable_v<Waitable>,
 			               "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
-			blocking_section( [&waitable]( ) { waitable.wait( ); } );
+			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
 		}
 	}; // task_scheduler
 
@@ -137,7 +137,7 @@ namespace daw {
 	/// @param tasks callable items of the form void( )
 	template<typename... Tasks>
 	void invoke_tasks( task_scheduler ts, Tasks... tasks ) {
-		ts.blocking_on_waitable( create_task_group( tasks... ) );
+		ts.wait_for( create_task_group( tasks... ) );
 	}
 
 	template<typename... Tasks>
@@ -148,10 +148,10 @@ namespace daw {
 	}
 
 	template<typename Function>
-	auto blocking_section( Function func, task_scheduler ts = get_task_scheduler( ) ) {
+	auto wait_for_scope( Function func, task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Function>,
-		               "Function passed to blocking_section must be callable without an arugment. e.g. func( )" );
-		return ts.blocking_section( func );
+		               "Function passed to wait_for_scope must be callable without an arugment. e.g. func( )" );
+		return ts.wait_for_scope( func );
 	}
 } // namespace daw
 

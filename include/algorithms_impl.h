@@ -229,7 +229,7 @@ namespace daw {
 						        std::next( range.cbegin( ) ), range.cend( ), range.front( ), binary_op ) );
 					    },
 					    ts );
-					ts.blocking_on_waitable( sem );
+					ts.wait_for( sem );
 					auto result = static_cast<result_t>( init );
 					for( size_t n = 0; n < ranges.size( ); ++n ) {
 						result = binary_op( result, *results[n] );
@@ -261,7 +261,7 @@ namespace daw {
 						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
 					    },
 					    ts );
-					ts.blocking_on_waitable( sem );
+					ts.wait_for( sem );
 					return *std::min_element( results.cbegin( ), results.cend( ),
 					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
 				}
@@ -282,7 +282,7 @@ namespace daw {
 						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
 					    },
 					    ts );
-					ts.blocking_on_waitable( sem );
+					ts.wait_for( sem );
 					return *std::max_element( results.cbegin( ), results.cend( ),
 					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
 				}
@@ -329,7 +329,7 @@ namespace daw {
 					    },
 					    ts );
 
-					ts.blocking_on_waitable( sem );
+					ts.wait_for( sem );
 					auto result = reduce_function( map_function( init ), *results[0] );
 					for( size_t n = 1; n < ranges.size( ); ++n ) {
 						result = reduce_function( result, *results[n] );
@@ -368,38 +368,38 @@ namespace daw {
 					};
 					// Sum each sub range, but complete the first output as it does
 					// not have to be scanned twice
-					ts.blocking_on_waitable( partition_range_pos(
-					    ranges,
-					    [binary_op, first_out, add_result]( iterator_range_t<Iterator> rng, size_t n ) {
-						    if( n == 0 ) {
-							    auto const lst = std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
-							    add_result( n, *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
-							    return;
-						    }
-						    value_t result = rng.pop_front( );
-						    auto const rend = rng.cend( );
-						    for( auto it = rng.cbegin( ); it != rend; ++it ) {
-							    result = binary_op( result, *it );
-						    }
-						    add_result( n, result );
-					    },
-					    ts ) );
+					ts.wait_for( partition_range_pos(
+							ranges,
+							[binary_op, first_out, add_result]( iterator_range_t<Iterator> rng, size_t n ) {
+								if( n == 0 ) {
+									auto const lst = std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
+									add_result( n, *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
+									return;
+								}
+								value_t result = rng.pop_front( );
+								auto const rend = rng.cend( );
+								for( auto it = rng.cbegin( ); it != rend; ++it ) {
+									result = binary_op( result, *it );
+								}
+								add_result( n, result );
+							},
+							ts ) );
 
-					ts.blocking_on_waitable( partition_range_pos(
-					    ranges,
-					    [&p1_results, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
+					ts.wait_for( partition_range_pos(
+							ranges,
+							[&p1_results, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
 
-						    auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
-						    auto const &cur_value = *p1_results[n];
-						    auto sum = binary_op( cur_value, cur_range.pop_front( ) );
-						    *( out_pos++ ) = sum;
-						    while( !cur_range.empty( ) ) {
-							    sum = binary_op( sum, cur_range.pop_front( ) );
-							    *out_pos = sum;
-							    ++out_pos;
-						    }
-					    },
-					    ts, 1 ) );
+								auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
+								auto const & cur_value = *p1_results[n];
+								auto sum = binary_op( cur_value, cur_range.pop_front( ) );
+								*(out_pos++) = sum;
+								while( !cur_range.empty( ) ) {
+									sum = binary_op( sum, cur_range.pop_front( ) );
+									*out_pos = sum;
+									++out_pos;
+								}
+							},
+							ts, 1 ) );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename UnaryPredicate>
@@ -409,34 +409,34 @@ namespace daw {
 
 					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
 					daw::spin_lock mut_found;
-					ts.blocking_on_waitable( partition_range_pos(
-					    ranges,
-					    [&results, pred, &has_found, &mut_found]( iterator_range_t<Iterator> range, size_t pos ) {
+					ts.wait_for( partition_range_pos(
+							ranges,
+							[&results, pred, &has_found, &mut_found]( iterator_range_t<Iterator> range, size_t pos ) {
 
-						    size_t const stride = std::thread::hardware_concurrency( ) * 100;
-						    size_t m = 0;
-						    for( size_t n = 0; n < range.size( ); n += stride ) {
-							    auto const last_val = ( n + stride < range.size( ) ) ? n + stride : range.size( );
-							    for( m = n; m < last_val; ++m ) {
-								    if( pred( range[m] ) ) {
-									    results[pos] = std::make_unique<Iterator>( std::next(
-									        range.begin( ),
-									        static_cast<typename std::iterator_traits<Iterator>::difference_type>(
-									            m ) ) );
-									    std::lock_guard<daw::spin_lock> has_found_lck{mut_found};
-									    // TODO: why is this atomic?
-									    if( pos < has_found.load( std::memory_order_relaxed ) ) {
-										    has_found.store( pos, std::memory_order_relaxed );
-									    }
-									    return;
-								    }
-							    }
-							    if( pos > has_found.load( std::memory_order_relaxed ) ) {
-								    return;
-							    }
-						    }
-					    },
-					    ts ) );
+								size_t const stride = std::thread::hardware_concurrency( ) * 100;
+								size_t m = 0;
+								for( size_t n = 0; n < range.size( ); n += stride ) {
+									auto const last_val = (n + stride < range.size( )) ? n + stride : range.size( );
+									for( m = n; m < last_val; ++m ) {
+										if( pred( range[m] ) ) {
+											results[pos] = std::make_unique<Iterator>( std::next(
+													range.begin( ),
+													static_cast<typename std::iterator_traits<Iterator>::difference_type>(
+															m ) ) );
+											std::lock_guard<daw::spin_lock> has_found_lck{ mut_found };
+											// TODO: why is this atomic?
+											if( pos < has_found.load( std::memory_order_relaxed ) ) {
+												has_found.store( pos, std::memory_order_relaxed );
+											}
+											return;
+										}
+									}
+									if( pos > has_found.load( std::memory_order_relaxed ) ) {
+										return;
+									}
+								}
+							},
+							ts ) );
 
 					for( auto const &it : results ) {
 						if( it ) {
@@ -456,33 +456,33 @@ namespace daw {
 					auto const ranges1 = PartitionPolicy{}( first1, last1, ts.size( ) );
 					auto const ranges2 = PartitionPolicy{}( first2, last2, ts.size( ) );
 					std::atomic_bool is_equal{true};
-					ts.blocking_on_waitable( partition_range_pos(
-					    ranges1,
-					    [pred, &is_equal, &ranges2]( iterator_range_t<Iterator1> range1, size_t pos ) {
-						    auto range2 = ranges2[pos];
+					ts.wait_for( partition_range_pos(
+							ranges1,
+							[pred, &is_equal, &ranges2]( iterator_range_t<Iterator1> range1, size_t pos ) {
+								auto range2 = ranges2[pos];
 
-						    size_t const stride =
-						        std::max( static_cast<size_t>( std::thread::hardware_concurrency( ) * 100 ),
-						                  static_cast<size_t>( PartitionPolicy::min_range_size ) );
-						    size_t m = 0;
-						    for( size_t n = 0; n < range1.size( ) && is_equal.load( std::memory_order_relaxed );
-						         n += stride ) {
-							    auto const last_val = [&]( ) {
-								    auto const lv_res = n + stride;
-								    if( lv_res > range1.size( ) ) {
-									    return range1.size( );
-								    }
-								    return lv_res;
-							    }( );
-							    for( m = n; m < last_val; ++m ) {
-								    if( !pred( range1[m], range2[m] ) ) {
-									    is_equal.store( false, std::memory_order_relaxed );
-									    return;
-								    }
-							    }
-						    }
-					    },
-					    ts ) );
+								size_t const stride =
+										std::max( static_cast<size_t>( std::thread::hardware_concurrency( ) * 100 ),
+												  static_cast<size_t>( PartitionPolicy::min_range_size ) );
+								size_t m = 0;
+								for( size_t n = 0; n < range1.size( ) && is_equal.load( std::memory_order_relaxed );
+									 n += stride ) {
+									auto const last_val = [&]( ) {
+										auto const lv_res = n + stride;
+										if( lv_res > range1.size( ) ) {
+											return range1.size( );
+										}
+										return lv_res;
+									}( );
+									for( m = n; m < last_val; ++m ) {
+										if( !pred( range1[m], range2[m] ) ) {
+											is_equal.store( false, std::memory_order_relaxed );
+											return;
+										}
+									}
+								}
+							},
+							ts ) );
 					return is_equal.load( std::memory_order_relaxed );
 				}
 
