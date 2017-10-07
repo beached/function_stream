@@ -43,21 +43,21 @@ namespace daw {
 
 		function_t m_funcs;
 
-	  public:
+	public:
 		bool continue_on_result_destruction;
 
 		constexpr function_stream( Functions... funcs )
-		    : m_funcs{std::make_tuple( std::move( funcs )... )}, continue_on_result_destruction{true} {}
+		  : m_funcs{std::make_tuple( std::move( funcs )... )}, continue_on_result_destruction{true} {}
 
 		constexpr function_stream( std::tuple<Functions...> tpfuncs )
-		    : m_funcs{std::move( tpfuncs )}, continue_on_result_destruction{true} {}
+		  : m_funcs{std::move( tpfuncs )}, continue_on_result_destruction{true} {}
 
 		template<typename... Args>
 		auto operator( )( Args... args ) const {
 			using func_result_t = decltype( std::declval<func_comp_t>( ).apply( args... ) );
 			future_result_t<func_result_t> result;
-			impl::call<0>( make_shared_package( continue_on_result_destruction, result.weak_ptr( ), m_funcs,
-			                                    std::move( args )... ) );
+			impl::call<0>(
+			  make_shared_package( continue_on_result_destruction, result.weak_ptr( ), m_funcs, std::move( args )... ) );
 			return result;
 		}
 	}; // function_stream
@@ -86,7 +86,7 @@ namespace daw {
 			return future_generator_t<Functions...>{std::move( tp_funcs )};
 		}
 
-	  public:
+	public:
 		future_generator_t( Funcs... funcs ) noexcept : m_funcs{std::move( funcs )...} {}
 		future_generator_t( std::tuple<Funcs...> tp_funcs ) : m_funcs{std::move( tp_funcs )} {}
 
@@ -129,4 +129,3 @@ namespace daw {
 		return future_generator_t<>{};
 	}
 } // namespace daw
-

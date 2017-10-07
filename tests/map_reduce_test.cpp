@@ -67,7 +67,7 @@ template<typename T, typename Emitter>
 constexpr void find_newlines( daw::array_view<T> str, Emitter emitter ) {
 	auto const last = str.cend( );
 	auto last_pos = str.cbegin( );
-	str.remove_prefix();
+	str.remove_prefix( );
 	while( !str.empty( ) ) {
 		if( str.front( ) == '\n' ) {
 			emitter( daw::make_string_view_it( last_pos, str.cbegin( ) ) );
@@ -84,7 +84,7 @@ constexpr void find_newlines( daw::array_view<T> str, Emitter emitter ) {
 
 template<typename Char>
 constexpr bool is_number( Char c ) noexcept {
-	return (static_cast<uint32_t>(c) - '0') < 10;
+	return ( static_cast<uint32_t>( c ) - '0' ) < 10;
 }
 
 template<typename CharT>
@@ -94,8 +94,8 @@ constexpr intmax_t to_number( CharT val ) noexcept {
 
 template<typename Function>
 constexpr void parse_int( daw::string_view str, Function on_number ) {
-	while( !str.empty( ) && !(is_number( str.front( ) ) || str.front( ) == '-') ) {
-		str.remove_prefix();
+	while( !str.empty( ) && !( is_number( str.front( ) ) || str.front( ) == '-' ) ) {
+		str.remove_prefix( );
 	}
 	if( str.empty( ) ) {
 		return;
@@ -108,7 +108,7 @@ constexpr void parse_int( daw::string_view str, Function on_number ) {
 		return;
 	}
 	intmax_t result = to_number( str.pop_front( ) );
-	while( !str.empty() && is_number( str.front( ) ) ) {
+	while( !str.empty( ) && is_number( str.front( ) ) ) {
 		result *= 10;
 		result += to_number( str.pop_front( ) );
 		if( !str.empty( ) && str.front( ) == ',' ) {
@@ -134,8 +134,7 @@ daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 	daw::parallel::spsc_msg_queue_t<daw::string_view> str_lines_result{daw::parallel::use_autosize{}};
 
 	ts.add_task( [str, str_lines_result]( ) mutable {
-		auto const at_exit =
-		    daw::on_scope_exit( [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
+		auto const at_exit = daw::on_scope_exit( [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
 
 		find_newlines( str, [str_lines_result = std::move( str_lines_result )]( daw::string_view line ) mutable {
 			while( !str_lines_result.send( std::move( line ) ) ) {
@@ -149,16 +148,14 @@ daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 
 	ts.add_task( [str_lines_result, parsed_lines_result]( ) mutable {
 		auto const at_exit =
-		    daw::on_scope_exit( [parsed_lines_result]( ) mutable { parsed_lines_result.notify_completed( ); } );
+		  daw::on_scope_exit( [parsed_lines_result]( ) mutable { parsed_lines_result.notify_completed( ); } );
 		while( str_lines_result.has_more( ) ) {
 			daw::string_view cur_line;
 			while( !str_lines_result.receive( cur_line ) ) {
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for( 1ns );
 			}
-			parse_line( cur_line, [&parsed_lines_result]( intmax_t v ) {
-				parsed_lines_result.send( std::move( v ) );
-			} );
+			parse_line( cur_line, [&parsed_lines_result]( intmax_t v ) { parsed_lines_result.send( std::move( v ) ); } );
 		}
 	} );
 
@@ -186,7 +183,6 @@ int main( int argc, char **argv ) {
 
 	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
 	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
-
 
 	auto time1 = std::numeric_limits<double>::max( );
 	auto time2 = std::numeric_limits<double>::max( );
@@ -219,7 +215,6 @@ int main( int argc, char **argv ) {
 		std::cout << "Speed " << daw::utility::to_bytes_per_second( sz, time2 ) << "/s\n";
 		std::cout << "Minimum surplus is ";
 		std::cout << result.get( ) << '\n';
-
 	}
 
 	return EXIT_SUCCESS;

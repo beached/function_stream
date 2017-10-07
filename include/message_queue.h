@@ -55,7 +55,7 @@ namespace daw {
 				return members->m_queue;
 			}
 
-		  public:
+		public:
 			basic_msg_queue_t( ) : members{std::make_shared<members_t>( )} {}
 			basic_msg_queue_t( unsigned long max_size ) : members{std::make_shared<members_t>( max_size )} {}
 			basic_msg_queue_t( use_autosize ) : members{std::make_shared<members_t>( use_autosize{} )} {}
@@ -143,9 +143,8 @@ namespace daw {
 				return std::move( *tmp );
 			}
 
-		  private:
+		private:
 			mutable pointer m_ptr;
 		};
 	} // namespace parallel
 } // namespace daw
-

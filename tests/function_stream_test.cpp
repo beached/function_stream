@@ -122,7 +122,7 @@ namespace part1 {
 		std::cout << *std::get<0>( f_grp ) << '\n';
 		std::cout << *std::get<1>( f_grp ) << '\n';
 	}
-} // namespace fc_test
+} // namespace part1
 
 std::string blah( int i ) {
 	return std::to_string( i );
@@ -131,15 +131,15 @@ std::string blah( int i ) {
 BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 	auto ts = daw::get_task_scheduler( );
 	auto const t = daw::make_future_result( []( ) {
-		         std::cout << "part1\n";
-		         std::cout << std::endl;
-		         return 2;
-	         } )
-	             .next( []( int i ) {
-		             std::cout << "part" << i << '\n';
-		             std::cout << "hahaha\n";
-		             std::cout << std::endl;
-	             } );
+		               std::cout << "part1\n";
+		               std::cout << std::endl;
+		               return 2;
+	               } )
+	                 .next( []( int i ) {
+		                 std::cout << "part" << i << '\n';
+		                 std::cout << "hahaha\n";
+		                 std::cout << std::endl;
+	                 } );
 
 	t.wait( );
 
@@ -173,4 +173,3 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 
 	result2( ).wait( );
 }
-

@@ -56,11 +56,10 @@ namespace daw {
 		}
 	} // namespace impl
 
-	future_result_t<void>::future_result_t( task_scheduler ts )
-	    : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
+	future_result_t<void>::future_result_t( task_scheduler ts ) : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
 
 	future_result_t<void>::future_result_t( daw::shared_semaphore sem, task_scheduler ts )
-	    : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
+	  : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
 
 	future_result_t<void>::~future_result_t( ) = default;
 

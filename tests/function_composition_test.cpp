@@ -83,7 +83,6 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 		seq_comp( values );
 	} );
 
-
 	std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 ) << '\n';
 	std::cout << "Diff " << ( t2 / t1 ) << '\n';
 
@@ -93,4 +92,3 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 	auto result = func( values );
 	result.wait( );
 }
-

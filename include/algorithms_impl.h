@@ -76,8 +76,7 @@ namespace daw {
 					                                                     size_t const max_parts ) const {
 						std::vector<iterator_range_t<Iterator>> results;
 						auto const part_info = get_part_info<min_range_size>( first, last, max_parts );
-						auto last_pos =
-						    std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
+						auto last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
 						while( first != last ) {
 							results.push_back( {last_pos, first} );
 							last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
@@ -109,8 +108,7 @@ namespace daw {
 				}
 
 				template<typename PartitionPolicy, typename Iterator, typename Func>
-				daw::shared_semaphore partition_range( Iterator first, Iterator const last, Func func,
-				                                       task_scheduler ts ) {
+				daw::shared_semaphore partition_range( Iterator first, Iterator const last, Func func, task_scheduler ts ) {
 					if( std::distance( first, last ) == 0 ) {
 						return daw::shared_semaphore{1};
 					}
@@ -131,7 +129,7 @@ namespace daw {
 						                                  }
 					                                  },
 					                                  ts )
-					    .wait( );
+					  .wait( );
 				}
 
 				template<typename Ranges, typename Func>
@@ -143,12 +141,11 @@ namespace daw {
 						                 }
 					                 },
 					                 ts )
-					    .wait( );
+					  .wait( );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename RandomIterator, typename Func>
-				void parallel_for_each_index( RandomIterator first, RandomIterator last, Func func,
-				                              task_scheduler ts ) {
+				void parallel_for_each_index( RandomIterator first, RandomIterator last, Func func, task_scheduler ts ) {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
 					partition_range( ranges,
@@ -161,12 +158,11 @@ namespace daw {
 
 					                 },
 					                 ts )
-					    .wait( );
+					  .wait( );
 				}
 
 				template<typename Iterator, typename Function>
-				void merge_reduce_range( std::vector<iterator_range_t<Iterator>> ranges, Function func,
-				                         task_scheduler ts ) {
+				void merge_reduce_range( std::vector<iterator_range_t<Iterator>> ranges, Function func, task_scheduler ts ) {
 					while( ranges.size( ) > 1 ) {
 						auto const count = ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
 						std::vector<iterator_range_t<Iterator>> next_ranges;
@@ -189,23 +185,19 @@ namespace daw {
 					}
 				}
 
-				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename Sort,
-				         typename Compare>
+				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename Sort, typename Compare>
 				void parallel_sort( Iterator first, Iterator last, Sort sort, Compare compare, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size > static_cast<size_t>( std::distance( first, last ) ) ) {
 						sort( first, last, compare );
 						return;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					partition_range(
-					    ranges, [sort, compare]( auto const &range ) { sort( range.begin( ), range.end( ), compare ); },
-					    ts )
-					    .wait( );
+					partition_range( ranges,
+					                 [sort, compare]( auto const &range ) { sort( range.begin( ), range.end( ), compare ); }, ts )
+					  .wait( );
 
 					merge_reduce_range(
-					    ranges,
-					    [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); },
-					    ts );
+					  ranges, [compare]( Iterator f, Iterator m, Iterator l ) { std::inplace_merge( f, m, l, compare ); }, ts );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename T, typename Iterator, typename BinaryOp>
@@ -222,13 +214,13 @@ namespace daw {
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<std::unique_ptr<T>> results{ranges.size( )};
-					auto sem = partition_range_pos(
-					    ranges,
-					    [&results, binary_op]( iterator_range_t<Iterator> range, size_t n ) {
-						    results[n] = std::make_unique<T>( std::accumulate(
-						        std::next( range.cbegin( ) ), range.cend( ), range.front( ), binary_op ) );
-					    },
-					    ts );
+					auto sem =
+					  partition_range_pos( ranges,
+					                       [&results, binary_op]( iterator_range_t<Iterator> range, size_t n ) {
+						                       results[n] = std::make_unique<T>( std::accumulate(
+						                         std::next( range.cbegin( ) ), range.cend( ), range.front( ), binary_op ) );
+					                       },
+					                       ts );
 					ts.wait_for( sem );
 					auto result = static_cast<result_t>( init );
 					for( size_t n = 0; n < ranges.size( ); ++n ) {
@@ -246,42 +238,38 @@ namespace daw {
 				}
 
 				template<typename PartitionPolicy = split_range_t<2>, typename Iterator, typename Compare>
-				Iterator parallel_min_element( Iterator const first, Iterator const last, Compare cmp,
-				                               task_scheduler ts ) {
+				Iterator parallel_min_element( Iterator const first, Iterator const last, Compare cmp, task_scheduler ts ) {
 					if( first == last ) {
 						return last;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<Iterator> results{ranges.size( )};
-					auto sem = partition_range_pos(
-					    ranges,
-					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
-						    results[n] = std::min_element(
-						        range.cbegin( ), range.cend( ),
-						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
-					    },
-					    ts );
+					auto sem = partition_range_pos( ranges,
+					                                [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
+						                                results[n] = std::min_element(
+						                                  range.cbegin( ), range.cend( ),
+						                                  [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
+					                                },
+					                                ts );
 					ts.wait_for( sem );
 					return *std::min_element( results.cbegin( ), results.cend( ),
 					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
 				}
 
 				template<typename PartitionPolicy = split_range_t<2>, typename Iterator, typename Compare>
-				Iterator parallel_max_element( Iterator const first, Iterator const last, Compare cmp,
-				                               task_scheduler ts ) {
+				Iterator parallel_max_element( Iterator const first, Iterator const last, Compare cmp, task_scheduler ts ) {
 					if( first == last ) {
 						return last;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<Iterator> results{ranges.size( )};
-					auto sem = partition_range_pos(
-					    ranges,
-					    [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
-						    results[n] = std::max_element(
-						        range.cbegin( ), range.cend( ),
-						        [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
-					    },
-					    ts );
+					auto sem = partition_range_pos( ranges,
+					                                [&results, cmp]( iterator_range_t<Iterator> range, size_t n ) {
+						                                results[n] = std::max_element(
+						                                  range.cbegin( ), range.cend( ),
+						                                  [cmp]( auto const &lhs, auto const &rhs ) { return cmp( lhs, rhs ); } );
+					                                },
+					                                ts );
 					ts.wait_for( sem );
 					return *std::max_element( results.cbegin( ), results.cend( ),
 					                          [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );
@@ -289,45 +277,43 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename OutputIterator,
 				         typename UnaryOperation>
-				void parallel_map( Iterator first_in, Iterator const last_in, OutputIterator first_out,
-				                   UnaryOperation unary_op, task_scheduler ts ) {
+				void parallel_map( Iterator first_in, Iterator const last_in, OutputIterator first_out, UnaryOperation unary_op,
+				                   task_scheduler ts ) {
 
-					partition_range<PartitionPolicy>(
-					    first_in, last_in,
-					    [first_in, first_out, unary_op]( Iterator first, Iterator const last ) {
-						    auto out_it = std::next( first_out, std::distance( first_in, first ) );
+					partition_range<PartitionPolicy>( first_in, last_in,
+					                                  [first_in, first_out, unary_op]( Iterator first, Iterator const last ) {
+						                                  auto out_it = std::next( first_out, std::distance( first_in, first ) );
 
-						    for( ; first != last; ++first, ++out_it ) {
-							    *out_it = unary_op( *first );
-						    }
-					    },
-					    ts )
-					    .wait( );
+						                                  for( ; first != last; ++first, ++out_it ) {
+							                                  *out_it = unary_op( *first );
+						                                  }
+					                                  },
+					                                  ts )
+					  .wait( );
 				}
 
-				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename T,
-				         typename MapFunction, typename ReduceFunction>
+				template<typename PartitionPolicy = split_range_t<512>, typename Iterator, typename T, typename MapFunction,
+				         typename ReduceFunction>
 				auto parallel_map_reduce( Iterator first, Iterator last, T const &init, MapFunction map_function,
 				                          ReduceFunction reduce_function, task_scheduler ts ) {
 					static_assert( PartitionPolicy::min_range_size >= 2, "Minimum range size must be >= 2" );
-					daw::exception::daw_throw_on_false( std::distance( first, last ) >= 2,
-					                                    "Must be at least 2 items in range" );
-					using result_t = std::decay_t<decltype( reduce_function(
-					    map_function( *std::declval<Iterator>( ) ), map_function( *std::declval<Iterator>( ) ) ) )>;
+					daw::exception::daw_throw_on_false( std::distance( first, last ) >= 2, "Must be at least 2 items in range" );
+					using result_t = std::decay_t<decltype( reduce_function( map_function( *std::declval<Iterator>( ) ),
+					                                                         map_function( *std::declval<Iterator>( ) ) ) )>;
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					std::vector<std::unique_ptr<result_t>> results{ranges.size( )};
 
 					auto sem = partition_range_pos(
-					    ranges,
-					    [&results, map_function, reduce_function]( iterator_range_t<Iterator> range, size_t n ) {
-						    result_t result = map_function( range.pop_front( ) );
-						    while( !range.empty( ) ) {
-							    result = reduce_function( result, map_function( range.pop_front( ) ) );
-						    }
-						    results[n] = std::make_unique<result_t>( std::move( result ) );
-					    },
-					    ts );
+					  ranges,
+					  [&results, map_function, reduce_function]( iterator_range_t<Iterator> range, size_t n ) {
+						  result_t result = map_function( range.pop_front( ) );
+						  while( !range.empty( ) ) {
+							  result = reduce_function( result, map_function( range.pop_front( ) ) );
+						  }
+						  results[n] = std::make_unique<result_t>( std::move( result ) );
+					  },
+					  ts );
 
 					ts.wait_for( sem );
 					auto result = reduce_function( map_function( init ), *results[0] );
@@ -343,9 +329,8 @@ namespace daw {
 				                    BinaryOp binary_op, task_scheduler ts ) {
 					{
 						auto const sz = static_cast<size_t>( std::distance( first, last ) );
-						daw::exception::daw_throw_on_false(
-						    sz == static_cast<size_t>( std::distance( first_out, last_out ) ),
-						    "Output range must be the same size as input" );
+						daw::exception::daw_throw_on_false( sz == static_cast<size_t>( std::distance( first_out, last_out ) ),
+						                                    "Output range must be the same size as input" );
 						if( sz == 2 ) {
 							*first_out = *first;
 							return;
@@ -369,37 +354,37 @@ namespace daw {
 					// Sum each sub range, but complete the first output as it does
 					// not have to be scanned twice
 					ts.wait_for( partition_range_pos(
-							ranges,
-							[binary_op, first_out, add_result]( iterator_range_t<Iterator> rng, size_t n ) {
-								if( n == 0 ) {
-									auto const lst = std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
-									add_result( n, *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
-									return;
-								}
-								value_t result = rng.pop_front( );
-								auto const rend = rng.cend( );
-								for( auto it = rng.cbegin( ); it != rend; ++it ) {
-									result = binary_op( result, *it );
-								}
-								add_result( n, result );
-							},
-							ts ) );
+					  ranges,
+					  [binary_op, first_out, add_result]( iterator_range_t<Iterator> rng, size_t n ) {
+						  if( n == 0 ) {
+							  auto const lst = std::partial_sum( rng.cbegin( ), rng.cend( ), first_out, binary_op );
+							  add_result( n, *std::next( first_out, std::distance( first_out, lst ) - 1 ) );
+							  return;
+						  }
+						  value_t result = rng.pop_front( );
+						  auto const rend = rng.cend( );
+						  for( auto it = rng.cbegin( ); it != rend; ++it ) {
+							  result = binary_op( result, *it );
+						  }
+						  add_result( n, result );
+					  },
+					  ts ) );
 
 					ts.wait_for( partition_range_pos(
-							ranges,
-							[&p1_results, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
+					  ranges,
+					  [&p1_results, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
 
-								auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
-								auto const & cur_value = *p1_results[n];
-								auto sum = binary_op( cur_value, cur_range.pop_front( ) );
-								*(out_pos++) = sum;
-								while( !cur_range.empty( ) ) {
-									sum = binary_op( sum, cur_range.pop_front( ) );
-									*out_pos = sum;
-									++out_pos;
-								}
-							},
-							ts, 1 ) );
+						  auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
+						  auto const &cur_value = *p1_results[n];
+						  auto sum = binary_op( cur_value, cur_range.pop_front( ) );
+						  *( out_pos++ ) = sum;
+						  while( !cur_range.empty( ) ) {
+							  sum = binary_op( sum, cur_range.pop_front( ) );
+							  *out_pos = sum;
+							  ++out_pos;
+						  }
+					  },
+					  ts, 1 ) );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename Iterator, typename UnaryPredicate>
@@ -410,33 +395,31 @@ namespace daw {
 					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
 					daw::spin_lock mut_found;
 					ts.wait_for( partition_range_pos(
-							ranges,
-							[&results, pred, &has_found, &mut_found]( iterator_range_t<Iterator> range, size_t pos ) {
+					  ranges,
+					  [&results, pred, &has_found, &mut_found]( iterator_range_t<Iterator> range, size_t pos ) {
 
-								size_t const stride = std::thread::hardware_concurrency( ) * 100;
-								size_t m = 0;
-								for( size_t n = 0; n < range.size( ); n += stride ) {
-									auto const last_val = (n + stride < range.size( )) ? n + stride : range.size( );
-									for( m = n; m < last_val; ++m ) {
-										if( pred( range[m] ) ) {
-											results[pos] = std::make_unique<Iterator>( std::next(
-													range.begin( ),
-													static_cast<typename std::iterator_traits<Iterator>::difference_type>(
-															m ) ) );
-											std::lock_guard<daw::spin_lock> has_found_lck{ mut_found };
-											// TODO: why is this atomic?
-											if( pos < has_found.load( std::memory_order_relaxed ) ) {
-												has_found.store( pos, std::memory_order_relaxed );
-											}
-											return;
-										}
-									}
-									if( pos > has_found.load( std::memory_order_relaxed ) ) {
-										return;
-									}
-								}
-							},
-							ts ) );
+						  size_t const stride = std::thread::hardware_concurrency( ) * 100;
+						  size_t m = 0;
+						  for( size_t n = 0; n < range.size( ); n += stride ) {
+							  auto const last_val = ( n + stride < range.size( ) ) ? n + stride : range.size( );
+							  for( m = n; m < last_val; ++m ) {
+								  if( pred( range[m] ) ) {
+									  results[pos] = std::make_unique<Iterator>( std::next(
+									    range.begin( ), static_cast<typename std::iterator_traits<Iterator>::difference_type>( m ) ) );
+									  std::lock_guard<daw::spin_lock> has_found_lck{mut_found};
+									  // TODO: why is this atomic?
+									  if( pos < has_found.load( std::memory_order_relaxed ) ) {
+										  has_found.store( pos, std::memory_order_relaxed );
+									  }
+									  return;
+								  }
+							  }
+							  if( pos > has_found.load( std::memory_order_relaxed ) ) {
+								  return;
+							  }
+						  }
+					  },
+					  ts ) );
 
 					for( auto const &it : results ) {
 						if( it ) {
@@ -448,8 +431,8 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<1>, typename Iterator1, typename Iterator2,
 				         typename BinaryPredicate>
-				bool parallel_equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2,
-				                     BinaryPredicate pred, task_scheduler ts ) {
+				bool parallel_equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, BinaryPredicate pred,
+				                     task_scheduler ts ) {
 					if( std::distance( first1, last1 ) != std::distance( first2, last2 ) ) {
 						return false;
 					}
@@ -457,36 +440,34 @@ namespace daw {
 					auto const ranges2 = PartitionPolicy{}( first2, last2, ts.size( ) );
 					std::atomic_bool is_equal{true};
 					ts.wait_for( partition_range_pos(
-							ranges1,
-							[pred, &is_equal, &ranges2]( iterator_range_t<Iterator1> range1, size_t pos ) {
-								auto range2 = ranges2[pos];
+					  ranges1,
+					  [pred, &is_equal, &ranges2]( iterator_range_t<Iterator1> range1, size_t pos ) {
+						  auto range2 = ranges2[pos];
 
-								size_t const stride =
-										std::max( static_cast<size_t>( std::thread::hardware_concurrency( ) * 100 ),
-												  static_cast<size_t>( PartitionPolicy::min_range_size ) );
-								size_t m = 0;
-								for( size_t n = 0; n < range1.size( ) && is_equal.load( std::memory_order_relaxed );
-									 n += stride ) {
-									auto const last_val = [&]( ) {
-										auto const lv_res = n + stride;
-										if( lv_res > range1.size( ) ) {
-											return range1.size( );
-										}
-										return lv_res;
-									}( );
-									for( m = n; m < last_val; ++m ) {
-										if( !pred( range1[m], range2[m] ) ) {
-											is_equal.store( false, std::memory_order_relaxed );
-											return;
-										}
-									}
-								}
-							},
-							ts ) );
+						  size_t const stride = std::max( static_cast<size_t>( std::thread::hardware_concurrency( ) * 100 ),
+						                                  static_cast<size_t>( PartitionPolicy::min_range_size ) );
+						  size_t m = 0;
+						  for( size_t n = 0; n < range1.size( ) && is_equal.load( std::memory_order_relaxed ); n += stride ) {
+							  auto const last_val = [&]( ) {
+								  auto const lv_res = n + stride;
+								  if( lv_res > range1.size( ) ) {
+									  return range1.size( );
+								  }
+								  return lv_res;
+							  }( );
+							  for( m = n; m < last_val; ++m ) {
+								  if( !pred( range1[m], range2[m] ) ) {
+									  is_equal.store( false, std::memory_order_relaxed );
+									  return;
+								  }
+							  }
+						  }
+					  },
+					  ts ) );
 					return is_equal.load( std::memory_order_relaxed );
 				}
 
 			} // namespace impl
-		}     // namespace parallel
-	}         // namespace algorithm
+		}   // namespace parallel
+	}     // namespace algorithm
 } // namespace daw

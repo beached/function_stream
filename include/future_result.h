@@ -43,12 +43,12 @@ namespace daw {
 		using m_data_t = impl::member_data_t<result_type_t>;
 		std::shared_ptr<m_data_t> m_data;
 
-	  public:
+	public:
 		future_result_t( task_scheduler ts = get_task_scheduler( ) )
-		    : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
+		  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
 
 		explicit future_result_t( daw::shared_semaphore sem, task_scheduler ts = get_task_scheduler( ) )
-		    : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
+		  : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
 
 		~future_result_t( ) override = default;
 		future_result_t( future_result_t const & ) = default;
@@ -134,7 +134,7 @@ namespace daw {
 		using m_data_t = impl::member_data_t<result_type_t>;
 		std::shared_ptr<m_data_t> m_data;
 
-	  public:
+	public:
 		future_result_t( task_scheduler ts = get_task_scheduler( ) );
 		explicit future_result_t( daw::shared_semaphore sem, task_scheduler ts = get_task_scheduler( ) );
 
@@ -220,4 +220,3 @@ namespace daw {
 		return make_callable_future_result_group( std::move( functions )... )( );
 	}
 } // namespace daw
-

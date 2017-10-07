@@ -30,21 +30,21 @@ namespace daw {
 	namespace concept_checks {
 		template<typename BinaryPredicate, typename Iterator1, typename Iterator2>
 		constexpr bool is_binary_predicate_v =
-		    daw::is_binary_predicate_v<BinaryPredicate, typename std::iterator_traits<Iterator1>::value_type,
-		                               typename std::iterator_traits<Iterator2>::value_type>;
+		  daw::is_binary_predicate_v<BinaryPredicate, typename std::iterator_traits<Iterator1>::value_type,
+		                             typename std::iterator_traits<Iterator2>::value_type>;
 
 		template<typename UnaryPredicate, typename Iterator1>
 		constexpr bool is_unary_predicate_v =
-		    daw::is_unary_predicate_v<UnaryPredicate, typename std::iterator_traits<Iterator1>::value_type>;
+		  daw::is_unary_predicate_v<UnaryPredicate, typename std::iterator_traits<Iterator1>::value_type>;
 
 		template<typename Iterator1, typename Iterator2>
 		constexpr bool is_equality_comparable_v =
-		    daw::is_equality_comparable_v<typename std::iterator_traits<Iterator1>::value_type,
-		                                  typename std::iterator_traits<Iterator2>::value_type>;
+		  daw::is_equality_comparable_v<typename std::iterator_traits<Iterator1>::value_type,
+		                                typename std::iterator_traits<Iterator2>::value_type>;
 
 		template<typename Operator, typename... Iterators>
 		constexpr bool is_callable_v =
-		    daw::is_callable_v<Operator, typename std::iterator_traits<Iterators>::value_type...>;
+		  daw::is_callable_v<Operator, typename std::iterator_traits<Iterators>::value_type...>;
 
 		template<typename Operator, typename... Iterators>
 		using is_callable_t = daw::is_callable_t<Operator, typename std::iterator_traits<Iterators>::value_type...>;

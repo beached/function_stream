@@ -73,4 +73,3 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 		std::cout << n << ": " << results.pop_back( ) << '\n';
 	}
 }
-

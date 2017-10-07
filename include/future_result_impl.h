@@ -48,16 +48,15 @@ namespace daw {
 			daw::shared_semaphore m_semaphore;
 			future_status m_status;
 
-		  protected:
+		protected:
 			task_scheduler m_task_scheduler;
 
-			member_data_base_t( task_scheduler ts )
-			    : m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
+			member_data_base_t( task_scheduler ts ) : m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
 
 			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
-			    : m_semaphore{std::move( sem )}, m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
+			  : m_semaphore{std::move( sem )}, m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
 
-		  public:
+		public:
 			member_data_base_t( ) = delete;
 			member_data_base_t( member_data_base_t const & ) = delete;
 			member_data_base_t( member_data_base_t && ) noexcept = delete;
@@ -119,7 +118,7 @@ namespace daw {
 			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
 
 			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
-			    : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+			  : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
 
 			~member_data_t( ) override = default;
 
@@ -128,13 +127,13 @@ namespace daw {
 			member_data_t( member_data_t &&other ) noexcept = delete;
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
 
-		  private:
+		private:
 			void pass_next( expected_result_t value ) noexcept {
 				daw::exception::daw_throw_on_false( m_next, "Attempt to call next function on empty function" );
 				m_next( std::move( value ) );
 			}
 
-		  public:
+		public:
 			void set_value( expected_result_t value ) noexcept {
 				m_result = std::move( value );
 				if( m_next ) {
@@ -173,8 +172,7 @@ namespace daw {
 				future_result_t<next_result_t> result{m_task_scheduler};
 				std::function<next_result_t( base_result_t )> func = next_func;
 				auto ts = m_task_scheduler;
-				m_next =
-				    [ result, func = std::move( func ), ts = std::move( ts ) ]( expected_result_t e_result ) mutable {
+				m_next = [ result, func = std::move( func ), ts = std::move( ts ) ]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -203,7 +201,7 @@ namespace daw {
 			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
 
 			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
-			    : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+			  : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
 
 			~member_data_t( ) override;
 
@@ -212,13 +210,13 @@ namespace daw {
 			member_data_t( member_data_t &&other ) noexcept = delete;
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
 
-		  private:
+		private:
 			void pass_next( expected_result_t value ) noexcept {
 				daw::exception::daw_throw_on_false( m_next, "Attempt to call next function on empty function" );
 				m_next( std::move( value ) );
 			}
 
-		  public:
+		public:
 			void set_value( expected_result_t result ) noexcept;
 			void set_value( ) noexcept;
 
@@ -242,8 +240,7 @@ namespace daw {
 
 				auto ts = m_task_scheduler;
 				std::function<next_result_t( )> func = next_func;
-				m_next =
-				    [ result, func = std::move( func ), ts = std::move( ts ) ]( expected_result_t e_result ) mutable {
+				m_next = [ result, func = std::move( func ), ts = std::move( ts ) ]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -282,9 +279,9 @@ namespace daw {
 			Function m_function;
 			std::tuple<Arg, Args...> m_args;
 			function_to_task_t( Result result, Function func, Arg &&arg, Args &&... args )
-			    : m_result{std::move( result )}
-			    , m_function{std::move( func )}
-			    , m_args{std::forward<Arg>( arg ), std::forward<Args>( args )...} {}
+			  : m_result{std::move( result )}
+			  , m_function{std::move( func )}
+			  , m_args{std::forward<Arg>( arg ), std::forward<Args>( args )...} {}
 
 			void operator( )( ) {
 				m_result.from_code( [&]( ) { return daw::apply( m_function, m_args ); } );
@@ -296,7 +293,7 @@ namespace daw {
 			Result m_result;
 			Function m_function;
 			function_to_task_t( Result result, Function func )
-			    : m_result{std::move( result )}, m_function{std::move( func )} {}
+			  : m_result{std::move( result )}, m_function{std::move( func )} {}
 
 			void operator( )( ) {
 				m_result.from_code( m_function );
@@ -305,8 +302,7 @@ namespace daw {
 
 		template<typename Result, typename Function, typename... Args>
 		auto convert_function_to_task( Result &result, Function func, Args &&... args ) {
-			return function_to_task_t<Result, Function, Args...>{result, std::move( func ),
-			                                                     std::forward<Args>( args )...};
+			return function_to_task_t<Result, Function, Args...>{result, std::move( func ), std::forward<Args>( args )...};
 		}
 
 		template<size_t N, size_t SZ, typename... Callables>
@@ -343,18 +339,18 @@ namespace daw {
 		class future_group_result_t {
 			std::tuple<Functions...> tp_functions;
 
-		  public:
+		public:
 			future_group_result_t( Functions... fs ) : tp_functions{std::make_tuple( std::move( fs )... )} {}
 
 			template<typename... Args>
 			auto operator( )( Args... args ) {
 				using result_tp_t =
-				    std::tuple<daw::expected_t<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>>...>;
+				  std::tuple<daw::expected_t<std::decay_t<decltype( std::declval<Functions>( )( args... ) )>>...>;
 
 				// Copy arguments to const, non-ref, non-volatile versions in a shared_pointer so that only
 				// one copy is ever created
 				auto tp_args = std::make_shared<std::tuple<std::add_const_t<std::decay_t<Args>>...>>(
-				    std::make_tuple( std::move( args )... ) );
+				  std::make_tuple( std::move( args )... ) );
 
 				future_result_t<result_tp_t> result;
 				daw::shared_semaphore sem{1 - static_cast<intmax_t>( sizeof...( Functions ) )};
@@ -372,12 +368,12 @@ namespace daw {
 				try {
 					std::thread{th_worker}.detach( );
 				} catch( std::system_error const &e ) {
-					std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( )
-					          << "\nMessage: " << e.what( ) << std::endl;
+					std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( ) << "\nMessage: " << e.what( )
+					          << std::endl;
 					std::terminate( );
 				}
 				return result;
 			}
 		}; // future_group_result_t
-	}      // namespace impl
+	}    // namespace impl
 } // namespace daw

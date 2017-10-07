@@ -37,19 +37,19 @@ namespace daw {
 				try {
 					return std::thread{std::forward<Args>( args )...};
 				} catch( std::system_error const &e ) {
-					std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( )
-					          << "\nMessage: " << e.what( ) << std::endl;
+					std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( ) << "\nMessage: " << e.what( )
+					          << std::endl;
 					std::terminate( );
 				}
 			}
 		} // namespace
 		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
-		    : m_continue{false}
-		    , m_block_on_destruction{block_on_destruction}
-		    , m_num_threads{num_threads}
-		    , m_tasks{}
-		    , m_task_count{0}
-		    , m_other_threads{} {
+		  : m_continue{false}
+		  , m_block_on_destruction{block_on_destruction}
+		  , m_num_threads{num_threads}
+		  , m_tasks{}
+		  , m_task_count{0}
+		  , m_other_threads{} {
 
 			for( size_t n = 0; n < m_num_threads; ++n ) {
 				// TODO: right size the task queue
@@ -80,8 +80,7 @@ namespace daw {
 				// wait for own queue to fill
 				daw::impl::task_ptr_t tsk;
 				auto is_popped = self->m_tasks[id].receive( tsk );
-				for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id;
-				     m = ( m + 1 ) % self->m_num_threads ) {
+				for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id; m = ( m + 1 ) % self->m_num_threads ) {
 					is_popped = self->m_tasks[m].receive( tsk );
 				}
 				if( !is_popped ) {
@@ -109,8 +108,8 @@ namespace daw {
 			m_continue = true;
 			auto threads = m_threads.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
-				threads->push_back( create_thread( []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n,
-				                                   get_weak_this( ) ) );
+				threads->push_back(
+				  create_thread( []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n, get_weak_this( ) ) );
 			}
 		}
 
@@ -159,8 +158,8 @@ namespace daw {
 			daw::shared_semaphore sem{1 - task_count};
 			for( size_t n = 0; n < task_count; ++n ) {
 				auto const id = [&]( ) {
-					auto const current_epoch = static_cast<size_t>(
-					    ( std::chrono::high_resolution_clock::now( ) ).time_since_epoch( ).count( ) );
+					auto const current_epoch =
+					  static_cast<size_t>( ( std::chrono::high_resolution_clock::now( ) ).time_since_epoch( ).count( ) );
 					return current_epoch % size( );
 				}( );
 
@@ -185,7 +184,7 @@ namespace daw {
 	} // namespace impl
 
 	task_scheduler::task_scheduler( std::size_t num_threads, bool block_on_destruction )
-	    : m_impl{std::make_shared<impl::task_scheduler_impl>( num_threads, block_on_destruction )} {}
+	  : m_impl{std::make_shared<impl::task_scheduler_impl>( num_threads, block_on_destruction )} {}
 
 	void task_scheduler::start( ) {
 		m_impl->start( );
@@ -212,4 +211,3 @@ namespace daw {
 		return ts;
 	}
 } // namespace daw
-

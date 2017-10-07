@@ -69,8 +69,7 @@ namespace daw {
 		template<size_t pos, typename Package>
 		void call( Package package ) {
 			get_task_scheduler( ).add_task( [p = std::move( package )]( ) mutable {
-				call_task<pos>( std::move( p ),
-				                typename impl::which_type_t<pos, decltype( p->function_list( ) )>::category{} );
+				call_task<pos>( std::move( p ), typename impl::which_type_t<pos, decltype( p->function_list( ) )>::category{} );
 			} );
 		}
 
@@ -117,18 +116,19 @@ namespace daw {
 		         typename = std::enable_if_t<std::tuple_size<TFunctions>::value == 0>>
 		constexpr void function_composer_impl( TFunctions, function_tag, Args &&... ) noexcept {}
 
-		template<size_t pos, typename TFunctions, typename... Args, typename = std::enable_if_t<std::tuple_size<TFunctions>::value != 0>>
+		template<size_t pos, typename TFunctions, typename... Args,
+		         typename = std::enable_if_t<std::tuple_size<TFunctions>::value != 0>>
 		constexpr auto function_composer_impl( TFunctions funcs, function_tag, Args &&... args ) {
 			static_assert( pos < std::tuple_size<TFunctions>::value - 1,
 			               "function_tag should only be retuned for all but last item in tuple" );
 			auto func = std::get<pos>( funcs );
 			auto const next_pos = pos + 1;
-			
+
 			// If this crashes here, the next function probably does not take as arugment the result of the previous
 			// function
 			return function_composer_impl<next_pos>( funcs, typename which_type_t<next_pos, TFunctions>::category{},
 			                                         func( std::forward<Args>( args )... ) );
-	    }
+		}
 
 		template<typename... Functions>
 		struct function_composer_t {
@@ -138,13 +138,13 @@ namespace daw {
 			constexpr function_composer_t( Functions &&... fs ) noexcept : funcs{std::make_tuple( fs... )} {}
 			constexpr function_composer_t( tfunction_t functions ) noexcept : funcs{std::move( functions )} {}
 
-		  private:
+		private:
 			template<typename... Fs>
 			static constexpr auto make_function_composer_t( std::tuple<Fs...> tpfuncs ) noexcept {
 				return function_composer_t<Fs...>{std::move( tpfuncs )};
 			}
 
-		  public:
+		public:
 			template<typename... Args>
 			auto apply( Args &&... args ) const {
 				return function_composer_impl<0>( funcs, typename which_type_t<0, tfunction_t>::category{},
@@ -159,7 +159,7 @@ namespace daw {
 			template<typename... NextFunctions>
 			constexpr auto next( NextFunctions &&... next_functions ) const noexcept {
 				return make_function_composer_t(
-				    std::tuple_cat( funcs, std::make_tuple( std::forward<NextFunctions>( next_functions )... ) ) );
+				  std::tuple_cat( funcs, std::make_tuple( std::forward<NextFunctions>( next_functions )... ) ) );
 			}
 		};
 

@@ -60,8 +60,7 @@ namespace daw {
 
 		class task_scheduler_impl;
 
-		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_semaphore> sem );
+		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself, boost::optional<daw::shared_semaphore> sem );
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
@@ -81,12 +80,11 @@ namespace daw {
 			friend void impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 			                               boost::optional<daw::shared_semaphore> sem );
 
-		  public:
+		public:
 			task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
 			~task_scheduler_impl( );
-			task_scheduler_impl( task_scheduler_impl && ) = delete; // TODO: investigate why implicitly deleted
-			task_scheduler_impl &
-			operator=( task_scheduler_impl && ) = delete; // TODO: investigate why implicitly deleted
+			task_scheduler_impl( task_scheduler_impl && ) = delete;            // TODO: investigate why implicitly deleted
+			task_scheduler_impl &operator=( task_scheduler_impl && ) = delete; // TODO: investigate why implicitly deleted
 
 			task_scheduler_impl( task_scheduler_impl const & ) = delete;
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
@@ -115,4 +113,3 @@ namespace daw {
 	} // namespace impl
 
 } // namespace daw
-

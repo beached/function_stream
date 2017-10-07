@@ -32,18 +32,18 @@
 
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_locked_value.h>
-#include <daw/scope_guard.h>
 #include <daw/daw_semaphore.h>
 #include <daw/daw_utility.h>
+#include <daw/scope_guard.h>
 
 #include "task_scheduler_impl.h"
 
 namespace daw {
 	class task_scheduler {
 		std::shared_ptr<impl::task_scheduler_impl> m_impl;
-	  public:
-		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ),
-		                bool block_on_destruction = true );
+
+	public:
+		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ), bool block_on_destruction = true );
 		~task_scheduler( ) = default;
 
 		task_scheduler( task_scheduler && ) = default;
@@ -52,7 +52,7 @@ namespace daw {
 		task_scheduler &operator=( task_scheduler const & ) = default;
 
 		template<typename Task>
-		void add_task( Task && task ) noexcept {
+		void add_task( Task &&task ) noexcept {
 			static_assert( impl::is_task_v<Task>,
 			               "Task task passed to add_task must be callable without an arugment. e.g. task( )" );
 
@@ -70,7 +70,7 @@ namespace daw {
 			               "Function passed to wait_for_scope must be callable without an arugment. e.g. func( )" );
 
 			/*if( !m_impl->am_i_in_pool( ) ) {
-				return func( );
+			  return func( );
 			}*/
 			auto sem = m_impl->start_temp_task_runners( );
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
@@ -78,9 +78,8 @@ namespace daw {
 		}
 
 		template<typename Waitable>
-		void wait_for( Waitable && waitable ) {
-			static_assert( impl::is_waitable_v<Waitable>,
-			               "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
+		void wait_for( Waitable &&waitable ) {
+			static_assert( impl::is_waitable_v<Waitable>, "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
 		}
 	}; // task_scheduler
@@ -120,7 +119,7 @@ namespace daw {
 		static_assert( impl::are_tasks_v<Tasks...>,
 		               "Tasks passed to create_task_group must be callable without an arugment. e.g. task( )" );
 		auto ts = get_task_scheduler( );
-		daw::shared_semaphore sem{ 1 - sizeof...( tasks ) };
+		daw::shared_semaphore sem{1 - sizeof...( tasks )};
 
 		auto const st = [&]( auto task ) {
 			schedule_task( sem, std::move( task ), ts );
@@ -154,4 +153,3 @@ namespace daw {
 		return ts.wait_for_scope( func );
 	}
 } // namespace daw
-

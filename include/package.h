@@ -63,7 +63,7 @@ namespace daw {
 		package_t( package_t && ) noexcept = default;
 		package_t &operator=( package_t && ) noexcept = default;
 
-	  private:
+	private:
 		struct members_t {
 			functions_t m_function_list;
 			arguments_t m_targs;
@@ -78,17 +78,17 @@ namespace daw {
 			members_t &operator=( members_t && ) = delete;
 
 			members_t( bool continueonclientdestruction, result_t result, functions_t functions, Args... args )
-			    : m_function_list{std::move( functions )}
-			    , m_targs{std::make_tuple( std::move( args )... )}
-			    , m_result{result}
-			    , m_continue_on_result_destruction{continueonclientdestruction} {}
+			  : m_function_list{std::move( functions )}
+			  , m_targs{std::make_tuple( std::move( args )... )}
+			  , m_result{result}
+			  , m_continue_on_result_destruction{continueonclientdestruction} {}
 		}; // members_t
 		std::unique_ptr<members_t> members;
 
-	  public:
+	public:
 		package_t( bool continueonclientdestruction, result_t result, functions_t functions, Args &&... args )
-		    : members{std::make_unique<members_t>( continueonclientdestruction, std::move( result ),
-		                                           std::move( functions ), std::forward<Args>( args )... )} {}
+		  : members{std::make_unique<members_t>( continueonclientdestruction, std::move( result ), std::move( functions ),
+		                                         std::forward<Args>( args )... )} {}
 
 		auto const &function_list( ) const noexcept {
 			return members->m_function_list;
@@ -111,7 +111,7 @@ namespace daw {
 		}
 
 		template<typename... NewArgs>
-		auto next_package( NewArgs&&... nargs ) {
+		auto next_package( NewArgs &&... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ), std::move( members->m_result ),
 			                            std::move( members->m_function_list ), std::forward<NewArgs>( nargs )... );
 		}
@@ -128,7 +128,7 @@ namespace daw {
 			return members->m_targs;
 		}
 
-	  private:
+	private:
 		auto const &continue_on_result_destruction( ) const noexcept {
 			return members->m_continue_on_result_destruction;
 		}
@@ -141,16 +141,15 @@ namespace daw {
 	template<typename Result, typename Functions, typename... Args>
 	auto make_package( bool continue_on_result_destruction, Result &&result, Functions &&functions, Args &&... args ) {
 		return package_t<Result, Functions, Args...>{continue_on_result_destruction, std::forward<Result>( result ),
-		                                             std::forward<Functions>( functions ),
-		                                             std::forward<Args>( args )...};
+		                                             std::forward<Functions>( functions ), std::forward<Args>( args )...};
 	}
 
 	template<typename Result, typename Functions, typename... Args>
 	auto make_shared_package( bool continue_on_result_destruction, Result &&result, Functions &&functions,
 	                          Args &&... args ) {
 		return std::make_shared<package_t<Result, Functions, Args...>>(
-		    make_package( continue_on_result_destruction, std::forward<Result>( result ),
-		                  std::forward<Functions>( functions ), std::forward<Args>( args )... ) );
+		  make_package( continue_on_result_destruction, std::forward<Result>( result ),
+		                std::forward<Functions>( functions ), std::forward<Args>( args )... ) );
 	}
 
 } // namespace daw

@@ -37,9 +37,13 @@ namespace daw {
 				template<sort_dir_t>
 				struct not_dir_t;
 				template<>
-				struct not_dir_t<sort_dir_t::up> { static constexpr sort_dir_t const value = sort_dir_t::down; };
+				struct not_dir_t<sort_dir_t::up> {
+					static constexpr sort_dir_t const value = sort_dir_t::down;
+				};
 				template<>
-				struct not_dir_t<sort_dir_t::down> { static constexpr sort_dir_t const value = sort_dir_t::up; };
+				struct not_dir_t<sort_dir_t::down> {
+					static constexpr sort_dir_t const value = sort_dir_t::up;
+				};
 
 				constexpr size_t greatest_power_of_two_less_than( size_t const n ) noexcept {
 					size_t k = 1u;
@@ -55,18 +59,18 @@ namespace daw {
 				template<typename Compare>
 				struct compare_exchange_t<sort_dir_t::up, Compare> {
 					template<typename T>
-					constexpr void operator( )( T & lhs, T & rhs ) noexcept {
+					constexpr void operator( )( T &lhs, T &rhs ) noexcept {
 						if( Compare{}( rhs, lhs ) ) {
 							using std::swap;
 							swap( lhs, rhs );
 						}
 					}
 				};
-				
+
 				template<typename Compare>
 				struct compare_exchange_t<sort_dir_t::down, Compare> {
 					template<typename T>
-					constexpr void operator( )( T & lhs, T & rhs ) noexcept {
+					constexpr void operator( )( T &lhs, T &rhs ) noexcept {
 						if( !Compare{}( rhs, lhs ) ) {
 							using std::swap;
 							swap( lhs, rhs );
@@ -76,10 +80,10 @@ namespace daw {
 				/*
 				template<sort_dir_t sort_dir, typename Compare, typename T>
 				constexpr void compare_exchange( T &lhs, T &rhs ) noexcept {
-					if( static_cast<bool>( sort_dir ) == Compare{}( rhs, lhs ) ) {
-						using std::swap;
-						swap( lhs, rhs );
-					}
+				  if( static_cast<bool>( sort_dir ) == Compare{}( rhs, lhs ) ) {
+				    using std::swap;
+				    swap( lhs, rhs );
+				  }
 				}
 				*/
 				template<sort_dir_t sort_dir, typename Compare, typename T>
@@ -97,8 +101,8 @@ namespace daw {
 					bitonic_merge<sort_dir, Compare>( std::next( first, static_cast<intmax_t>( mid ) ), N - mid );
 				}
 
-				template<sort_dir_t sort_dir, typename Compare, typename T> 
-				constexpr void bitonic_sort( T * const first, size_t const N ) noexcept {
+				template<sort_dir_t sort_dir, typename Compare, typename T>
+				constexpr void bitonic_sort( T *const first, size_t const N ) noexcept {
 					if( N <= 1 ) {
 						return;
 					}
@@ -122,13 +126,11 @@ namespace daw {
 					}
 
 					daw::invoke_tasks(
-					    [first, mid, ts]( ) {
-						    par_bitonic_merge<sort_dir, Compare, PartitionPolicy>( first, mid, ts );
-					    },
-					    [ first, mid, N, ts ]( ) {
-						    par_bitonic_merge<sort_dir, Compare, PartitionPolicy>(
-						        std::next( first, static_cast<intmax_t>( mid ) ), N - mid, ts );
-					    } );
+					  [first, mid, ts]( ) { par_bitonic_merge<sort_dir, Compare, PartitionPolicy>( first, mid, ts ); },
+					  [first, mid, N, ts]( ) {
+						  par_bitonic_merge<sort_dir, Compare, PartitionPolicy>( std::next( first, static_cast<intmax_t>( mid ) ),
+						                                                         N - mid, ts );
+					  } );
 				}
 
 				template<sort_dir_t sort_dir, typename Compare, typename PartitionPolicy, typename T>
@@ -140,13 +142,13 @@ namespace daw {
 
 					auto const mid = N / 2;
 					daw::invoke_tasks(
-					    [first, mid, ts]( ) {
-						    par_bitonic_sort<not_dir_t<sort_dir>::value, Compare, PartitionPolicy>( first, mid, ts );
-					    },
-					    [first, mid, N, ts]( ) {
-						    par_bitonic_sort<sort_dir, Compare, PartitionPolicy>(
-						        std::next( first, static_cast<intmax_t>( mid ) ), N - mid, ts );
-					    } );
+					  [first, mid, ts]( ) {
+						  par_bitonic_sort<not_dir_t<sort_dir>::value, Compare, PartitionPolicy>( first, mid, ts );
+					  },
+					  [first, mid, N, ts]( ) {
+						  par_bitonic_sort<sort_dir, Compare, PartitionPolicy>( std::next( first, static_cast<intmax_t>( mid ) ),
+						                                                        N - mid, ts );
+					  } );
 
 					par_bitonic_merge<sort_dir, Compare, PartitionPolicy>( first, N, ts );
 				}
@@ -159,8 +161,8 @@ namespace daw {
 				               "Supplied Compare does not satisfy the concept of BinaryPredicate.  See "
 				               "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
 
-				impl::bitonic_sort<impl::sort_dir_t::up, Compare>(
-				    &( *first ), static_cast<size_t>( std::distance( first, last ) ) );
+				impl::bitonic_sort<impl::sort_dir_t::up, Compare>( &( *first ),
+				                                                   static_cast<size_t>( std::distance( first, last ) ) );
 			}
 			template<typename RandomIterator,
 			         typename Compare = std::less<typename std::iterator_traits<RandomIterator>::value_type>>
@@ -171,9 +173,8 @@ namespace daw {
 				               "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
 
 				impl::par_bitonic_sort<impl::sort_dir_t::up, Compare, impl::split_range_t<65535u>>(
-				    &( *first ), static_cast<size_t>( std::distance( first, last ) ), std::move( ts ) );
+				  &( *first ), static_cast<size_t>( std::distance( first, last ) ), std::move( ts ) );
 			}
 		} // namespace parallel
-	}     // namespace algorithm
+	}   // namespace algorithm
 } // namespace daw
-

@@ -28,7 +28,7 @@ namespace daw {
 	class spin_lock {
 		std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
 
-	  public:
+	public:
 		bool try_lock( ) noexcept {
 			return !m_flag.test_and_set( std::memory_order_acquire );
 		}
@@ -42,4 +42,3 @@ namespace daw {
 		}
 	};
 } // namespace daw
-
