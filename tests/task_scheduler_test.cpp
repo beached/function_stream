@@ -22,12 +22,12 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
-#include <random>
 #include <thread>
 
 #define BOOST_TEST_MODULE task_scheduler
 #include <daw/boost_test.h>
 #include <daw/daw_locked_stack.h>
+#include <daw/daw_random.h>
 
 #include "task_scheduler.h"
 
@@ -51,16 +51,12 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 	constexpr size_t const ITEMS = 1000u;
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
-	std::random_device rd;
-	std::mt19937 gen{rd( )};
-	std::uniform_int_distribution<uintmax_t> dis{500, 9999};
 
 	daw::locked_stack_t<real_t> results;
 	daw::task_scheduler ts{};
 	for( size_t n = 0; n < ITEMS; ++n ) {
 		ts.add_task( [&]( ) {
-			auto const num = dis( gen );
-			results.push_back( fib( num ) );
+			results.push_back( fib( daw::randint<uintmax_t>( 500, 9999 ) ) );
 		} );
 	}
 	ts.start( );

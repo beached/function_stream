@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <iostream>
-#include <random>
 #include <string>
 
 #define BOOST_TEST_MODULE function_composition

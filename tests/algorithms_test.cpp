@@ -29,12 +29,12 @@
 #include <iostream>
 #include <numeric>
 #include <parallel/algorithm>
-#include <random>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include <daw/daw_benchmark.h>
+#include <daw/daw_random.h>
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
@@ -161,35 +161,6 @@ void fill_test( size_t SZ ) {
 	display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
 }
 
-template<typename T>
-T get_random( T minimum, T maximum ) {
-	std::random_device rnd_device;
-	std::mt19937 rng{rnd_device( )};
-	std::uniform_int_distribution<T> dist( minimum, maximum );
-
-	return dist( rng );
-}
-
-template<typename Iterator>
-void fill_random( Iterator first, Iterator last ) {
-	std::random_device rnd_device;
-	// Specify the engine and distribution.
-	std::mt19937 mersenne_engine{rnd_device( )};
-	std::uniform_int_distribution<int64_t> dist{0, std::distance( first, last ) * 2};
-
-	std::generate( first, last, [&]( ) { return dist( mersenne_engine ); } );
-}
-
-template<typename Iterator, typename T>
-void fill_random( Iterator first, Iterator last, T minimum, T maximum ) {
-	std::random_device rnd_device;
-	// Specify the engine and distribution.
-	std::mt19937 mersenne_engine{rnd_device( )};
-	std::uniform_int_distribution<int64_t> dist{minimum, maximum};
-
-	std::generate( first, last, [&]( ) { return dist( mersenne_engine ); } );
-}
-
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last, daw::string_view label ) {
 	if( first == last ) {
@@ -222,9 +193,8 @@ void test_sort( Iterator const first, Iterator const last, daw::string_view labe
 
 void sort_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<int64_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ) );
+	auto a = daw::make_random_data<int64_t>( SZ );
+
 	auto b = a;
 	auto const result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
@@ -244,9 +214,7 @@ void sort_test( size_t SZ ) {
 
 void bitonic_sort_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<int64_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ) );
+	auto a = daw::make_random_data<int64_t>( SZ );
 	auto b = a;
 	auto const result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::bitonic_sort( a.begin( ), a.end( ) ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
@@ -268,9 +236,7 @@ void bitonic_sort_test( size_t SZ ) {
 
 void stable_sort_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<int64_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ) );
+	auto a = daw::make_random_data<int64_t>( SZ );
 	auto b = a;
 	auto const result_1 = daw::benchmark( [&]( ) { daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts ); } );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
@@ -322,9 +288,7 @@ void reduce_test( size_t SZ ) {
 template<typename value_t, typename BinaryOp>
 void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), 1, 4 );
+	auto a = daw::make_random_data<value_t>( SZ );
 	auto b = a;
 	value_t accum_result1 = 0;
 	value_t accum_result2 = 0;
@@ -350,9 +314,7 @@ void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 template<typename value_t>
 void min_element_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::min( ), std::numeric_limits<value_t>::max( ) );
+	auto a = daw::make_random_data<value_t>( SZ );
 	value_t min_result1 = 0;
 	value_t min_result2 = 0;
 
@@ -372,9 +334,7 @@ void min_element_test( size_t SZ ) {
 template<typename value_t>
 void max_element_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), std::numeric_limits<value_t>::max( ), std::numeric_limits<value_t>::max( ) );
+	auto a = daw::make_random_data<value_t>( SZ );
 	value_t max_result1 = 0;
 	value_t max_result2 = 0;
 
@@ -394,9 +354,7 @@ void max_element_test( size_t SZ ) {
 template<typename value_t>
 void transform_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), -10, 10 );
+	auto a = daw::make_random_data<value_t>( SZ );
 	std::vector<value_t> b;
 	std::vector<value_t> c;
 	b.resize( SZ );
@@ -420,9 +378,7 @@ void transform_test( size_t SZ ) {
 template<typename value_t>
 void transform_test2( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), -10, 10 );
+	auto a = daw::make_random_data<value_t>( SZ, -10, 10 );
 	std::vector<value_t> b;
 	b.resize( SZ );
 
@@ -446,6 +402,7 @@ void transform_test2( size_t SZ ) {
 template<typename value_t>
 void map_reduce_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
+	//auto a = daw::make_random_data<value_t>( SZ );
 	std::vector<value_t> a;
 	a.resize( SZ );
 	// fill_random( a.begin( ), a.end( ), -1, 1 );
@@ -490,9 +447,7 @@ void map_reduce_test( size_t SZ ) {
 template<typename value_t>
 void map_reduce_test2( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), 1, 10000 );
+	auto a = daw::make_random_data<value_t>( SZ, 1, 10'000 );
 
 	auto const map_function = []( value_t value ) {
 		for( intmax_t n = 1; n <= 10000; ++n ) {
@@ -543,9 +498,7 @@ void map_reduce_test2( size_t SZ ) {
 template<typename value_t>
 void scan_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), -10, 10 );
+	auto a = daw::make_random_data<value_t>( SZ, -10, 10 );
 	auto b = a;
 	auto c = a;
 
@@ -580,11 +533,9 @@ void scan_test( size_t SZ ) {
 template<typename value_t>
 void find_if_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	std::vector<value_t> a;
-	a.resize( SZ );
-	fill_random( a.begin( ), a.end( ), -50, 50 );
+	auto a = daw::make_random_data<value_t>( SZ, -50, 50 );
 
-	auto const pos = a.size( ) - 1; // get_random( static_cast<size_t>( 0 ), a.size( ) );
+	auto const pos = a.size( ) - 1; // daw::randint( static_cast<size_t>( 0 ), a.size( ) );
 	a[pos] = 100;
 	auto const pred = []( auto const &value ) noexcept {
 		return value == 100;

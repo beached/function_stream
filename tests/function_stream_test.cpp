@@ -21,12 +21,12 @@
 // SOFTWARE.
 
 #include <iostream>
-#include <random>
 #include <string>
 
 #define BOOST_TEST_MODULE function_stream
 #include <daw/boost_test.h>
 #include <daw/daw_benchmark.h>
+#include <daw/daw_random.h>
 #include <daw/daw_size_literals.h>
 
 #include "function_stream.h"
@@ -99,19 +99,14 @@ namespace part1 {
 	}
 
 	BOOST_AUTO_TEST_CASE( function_stream_test_002 ) {
-		std::random_device rd;
-		std::mt19937 gen( rd( ) );
-		std::uniform_int_distribution<> dis( 5, 7 );
-
 		auto fs2 = daw::make_function_stream( &fib, &fib );
 		auto results = create_vector( fs2( 3 ) );
 
 		for( size_t n = 1; n < 40000; ++n ) {
-			results.push_back( fs2( dis( gen ) ) );
+			results.push_back( fs2( daw::randint( 5, 7 ) ) );
 		};
 
 		for( auto const &v : results ) {
-			// v.get( );
 			std::cout << "'" << v.get( ) << "'\n";
 		}
 
