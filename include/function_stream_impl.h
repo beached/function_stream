@@ -164,7 +164,7 @@ namespace daw {
 		};
 
 		template<typename NextFunction, typename... Functions>
-		constexpr auto operator>>( function_composer_t<Functions...> const &lhs, NextFunction next_func ) noexcept {
+		constexpr auto operator|( function_composer_t<Functions...> const &lhs, NextFunction next_func ) noexcept {
 			return lhs.next( std::move( next_func ) );
 		}
 	} // namespace impl

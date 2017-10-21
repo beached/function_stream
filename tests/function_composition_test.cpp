@@ -68,14 +68,14 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 	auto const values = make_values( 75_MB );
 
 	auto t1 = daw::benchmark( [&]( ) {
-		auto const par_comp = daw::compose_future( ) >> sort_values >> odd_values >> sum_values >> show_value;
+		auto const par_comp = daw::compose_future( ) | sort_values | odd_values | sum_values | show_value;
 		wait_for_function_streams( par_comp( values ), par_comp( values ), par_comp( values ), par_comp( values ) );
 	} );
 
 	std::cout << "Parallel stream time " << daw::utility::format_seconds( t1, 2 ) << '\n';
 
 	auto t2 = daw::benchmark( [&]( ) {
-		auto const seq_comp = daw::compose( ) >> sort_values >> odd_values >> sum_values >> show_value;
+		auto const seq_comp = daw::compose( ) | sort_values | odd_values | sum_values | show_value;
 		seq_comp( values );
 		seq_comp( values );
 		seq_comp( values );
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 
 	constexpr auto const do_nothing = daw::compose( );
 	do_nothing( );
-	auto const func = daw::compose_future( ) >> sort_values >> odd_values >> sum_values >> show_value;
+	auto const func = daw::compose_future( ) | sort_values | odd_values | sum_values | show_value;
 	auto result = func( values );
 	result.wait( );
 }

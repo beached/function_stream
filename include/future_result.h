@@ -182,7 +182,7 @@ namespace daw {
 	}; // future_result_t<void>
 
 	template<typename result_t, typename NextFunction>
-	auto operator>>( future_result_t<result_t> lhs, NextFunction next_func ) {
+	auto operator|( future_result_t<result_t> lhs, NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
 

@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 
 	t.wait( );
 
-	std::cout << "operator>>\n";
+	std::cout << "operator|\n";
 
 	auto const u = daw::make_future_result( []( ) {
 		std::cout << "part1\n";
@@ -146,12 +146,12 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 		return 2;
 	} );
 
-	auto const result = u >> []( int i ) {
+	auto const result = u | []( int i ) {
 		std::cout << "part" << i << '\n';
 		std::cout << "hahaha\n";
 		std::cout << std::endl;
 		return i + 1;
-	} >> blah >> []( std::string s ) { std::cout << s << "\nfin\n"; };
+	} | blah | []( std::string s ) { std::cout << s << "\nfin\n"; };
 
 	auto const v = daw::make_future_generator( []( ) {
 		std::cout << "part1\n";
@@ -159,12 +159,12 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 		return 2;
 	} );
 
-	auto const result2 = v >> []( int i ) {
+	auto const result2 = v | []( int i ) {
 		std::cout << "part" << i << '\n';
 		std::cout << "hahaha\n";
 		std::cout << std::endl;
 		return i + 1;
-	} >> blah >> []( std::string s ) { std::cout << s << "\nfin\n"; };
+	} | blah | []( std::string s ) { std::cout << s << "\nfin\n"; };
 
 	result2( ).wait( );
 }

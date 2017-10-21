@@ -112,7 +112,7 @@ namespace daw {
 	}
 
 	template<typename NextFunction, typename... Functions>
-	auto operator>>( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
+	auto operator|( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
 
