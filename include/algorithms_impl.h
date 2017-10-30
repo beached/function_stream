@@ -30,10 +30,10 @@
 #include <daw/cpp_17.h>
 #include <daw/daw_algorithm.h>
 #include <daw/daw_semaphore.h>
+#include <daw/daw_spin_lock.h>
 
 #include "function_stream.h"
 #include "iterator_range.h"
-#include "spin_lock.h"
 #include "task_scheduler.h"
 
 namespace daw {
