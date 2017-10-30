@@ -67,7 +67,6 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/iterator_range.h
 	${HEADER_FOLDER}/package.h
 	${HEADER_FOLDER}/message_queue.h
-	${HEADER_FOLDER}/spin_lock.h
 	${HEADER_FOLDER}/task_scheduler.h
 	${HEADER_FOLDER}/task_scheduler_impl.h
 )
