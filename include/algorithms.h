@@ -316,6 +316,26 @@ namespace daw {
 				auto const pred = []( auto const &lhs, auto const &rhs ) { return lhs == rhs; };
 				return impl::parallel_equal( first1, last1, first2, last2, pred, std::move( ts ) );
 			}
+
+			template<typename RandomIterator, typename UnaryPredicate>
+			auto count_if( RandomIterator first, RandomIterator last, UnaryPredicate pred,
+			            task_scheduler ts = get_task_scheduler( ) ) {
+
+				static_assert( daw::concept_checks::is_unary_predicate_v<UnaryPredicate, RandomIterator>,
+				               "Supplied UnaryPredicate pred does not satisfy the concept of UnaryPredicate.  See "
+				               "http://en.cppreference.com/w/cpp/concept/Predicate" );
+
+				return impl::parallel_count( first, last, pred, std::move( ts ) );
+			}
+
+			template<typename RandomIterator, typename T>
+			auto count( RandomIterator first, RandomIterator last, T const & value, task_scheduler ts = get_task_scheduler( ) ) {
+
+				return impl::parallel_count( first, last, [&value]( auto const &rhs ) { return value == rhs; },
+				                             std::move( ts ) );
+			}
+
+
 		} // namespace parallel
 	}   // namespace algorithm
 } // namespace daw

@@ -640,6 +640,42 @@ void equal_test_str( size_t SZ ) {
 	display_info( seq_max, par_max, SZ, blah.size( ), "equal" );
 }
 
+template<typename value_t>
+void count_test( size_t SZ ) {
+	auto ts = daw::get_task_scheduler( );
+	std::vector<value_t> a;
+	a.resize( SZ );
+	for( size_t n = 0; n < a.size( ); ++n ) {
+		a[n] = static_cast<value_t>( n );
+	}
+
+	auto const pred = []( value_t val ) noexcept { return val % 2 == 0; };
+
+	intmax_t x1 = 0;
+	intmax_t x2 = 0;
+
+	auto const result_1 =
+	  daw::benchmark( [&]( ) { x1 = daw::algorithm::parallel::count_if( a.cbegin( ), a.cend( ), pred ); } );
+
+	auto const result_2 = daw::benchmark( [&]( ) { x2 = std::count_if( a.cbegin( ), a.cend( ), pred ); } );
+
+	BOOST_REQUIRE_MESSAGE( x1 == x2, "Wrong return value" );
+
+	x1 = 0;
+	x2 = 0;
+
+	auto const result_3 =
+	  daw::benchmark( [&]( ) { x1 = daw::algorithm::parallel::count_if( a.cbegin( ), a.cend( ), pred ); } );
+
+	auto const result_4 = daw::benchmark( [&]( ) { x2 = std::count_if( a.cbegin( ), a.cend( ), pred ); } );
+
+	BOOST_REQUIRE_MESSAGE( x1 == x2, "Wrong return value" );
+
+	auto const par_max = std::max( result_1, result_3 );
+	auto const seq_max = std::max( result_2, result_4 );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "count" );
+}
+
 static size_t const MAX_ITEMS = 134'217'728;
 static size_t const LARGE_TEST_SZ = 268'435'456;
 
@@ -814,3 +850,12 @@ BOOST_AUTO_TEST_CASE( test_equal_string ) {
 		equal_test_str( n );
 	}
 }
+
+BOOST_AUTO_TEST_CASE( test_count_int64_t ) {
+	std::cout << "count tests - int64_t\n";
+	count_test<int64_t>( LARGE_TEST_SZ );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		count_test<int64_t>( n );
+	}
+}
+

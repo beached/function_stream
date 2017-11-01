@@ -467,6 +467,27 @@ namespace daw {
 					return is_equal.load( std::memory_order_relaxed );
 				}
 
+				template<typename PartitionPolicy = split_range_t<500>, typename RandomIterator, typename UnaryPredicate>
+				auto parallel_count( RandomIterator first, RandomIterator last, UnaryPredicate pred, task_scheduler ts ) {
+					static_assert( PartitionPolicy::min_range_size >= 2, "Minimum range size must be >= 2" );
+					daw::exception::daw_throw_on_false( std::distance( first, last ) >= 2, "Must be at least 2 items in range" );
+
+					using result_t = typename std::iterator_traits<RandomIterator>::difference_type;
+					if( static_cast<size_t>( std::distance( first, last ) ) < PartitionPolicy::min_range_size ) {
+						return std::count_if( first, last, pred );
+					}
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					std::vector<result_t> results( ranges.size( ), 0 );
+
+					auto sem = partition_range_pos( ranges,
+					                                [&results, pred]( iterator_range_t<RandomIterator> range, size_t n ) {
+						                                results[n] = std::count_if( range.cbegin( ), range.cend( ), pred );
+					                                },
+					                                ts );
+
+					ts.wait_for( sem );
+					return std::accumulate( results.cbegin( ), results.cend( ), static_cast<result_t>( 0 ) );
+				}
 			} // namespace impl
 		}   // namespace parallel
 	}     // namespace algorithm
