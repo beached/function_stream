@@ -284,9 +284,7 @@ namespace daw {
 					                                  [first_in, first_out, unary_op]( Iterator first, Iterator const last ) {
 						                                  auto out_it = std::next( first_out, std::distance( first_in, first ) );
 
-						                                  for( ; first != last; ++first, ++out_it ) {
-							                                  *out_it = unary_op( *first );
-						                                  }
+						                                  daw::algorithm::map( first, last, out_it, unary_op );
 					                                  },
 					                                  ts )
 					  .wait( );
@@ -362,10 +360,7 @@ namespace daw {
 							  return;
 						  }
 						  value_t result = rng.pop_front( );
-						  auto const rend = rng.cend( );
-						  for( auto it = rng.cbegin( ); it != rend; ++it ) {
-							  result = binary_op( result, *it );
-						  }
+							result = daw::algorithm::reduce( rng.cbegin( ), rng.cend( ), result, binary_op ); 
 						  add_result( n, result );
 					  },
 					  ts ) );
