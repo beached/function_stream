@@ -7,12 +7,12 @@ include( ExternalProject )
 find_package( Boost 1.58.0 COMPONENTS system iostreams filesystem regex unit_test_framework REQUIRED )
 
 enable_testing( )
-add_definitions( -DBOOST_ALL_NO_LIB ) 
+add_definitions( -DBOOST_ALL_NO_LIB )
 
 find_package( Threads REQUIRED )
 
 if( ${CMAKE_CXX_COMPILER_ID} STREQUAL 'MSVC' )
-	add_compile_options( -D_WIN32_WINNT=0x0601 /std:c++latest ) 
+	add_compile_options( -D_WIN32_WINNT=0x0601 /std:c++latest )
 else( )
 	if( ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" )
 		add_compile_options(-std=c++14 -march=native -pthread -Weverything -Wno-c++98-compat -Wno-covered-switch-default -Wno-padded -Wno-exit-time-destructors -Wno-c++98-compat-pedantic -Wno-unused-parameter -Wno-missing-noreturn -Wno-missing-prototypes -Wno-disabled-macro-expansion)
@@ -42,7 +42,6 @@ externalproject_add(
 	INSTALL_DIR "${CMAKE_BINARY_DIR}/install"
 	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/install
 )
-
 
 set( HEADER_FOLDER "include" )
 set( SOURCE_FOLDER "src" )
@@ -83,7 +82,7 @@ set( TASK_SCHEDULER_SOURCE_FILES
 	${SOURCE_FOLDER}/task_scheduler.cpp
 )
 
-add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK ) 
+add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK )
 
 #set( CMAKE_CTEST_COMMAND ctest -V )
 add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} )

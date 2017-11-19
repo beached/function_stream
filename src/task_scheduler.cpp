@@ -43,6 +43,7 @@ namespace daw {
 				}
 			}
 		} // namespace
+
 		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
 		  : m_continue{false}
 		  , m_block_on_destruction{block_on_destruction}
@@ -211,3 +212,4 @@ namespace daw {
 		return ts;
 	}
 } // namespace daw
+
