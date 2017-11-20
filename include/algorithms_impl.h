@@ -89,7 +89,7 @@ namespace daw {
 				};
 
 				template<typename Ranges, typename Func>
-				daw::shared_semaphore partition_range( Ranges const &ranges, Func func, task_scheduler ts ) {
+				daw::shared_semaphore partition_range( Ranges ranges, Func func, task_scheduler ts ) {
 					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
 					for( auto const &rng : ranges ) {
 						schedule_task( sem, [func, rng]( ) mutable { func( rng ); }, ts );
@@ -98,7 +98,7 @@ namespace daw {
 				}
 
 				template<typename Ranges, typename Func>
-				daw::shared_semaphore partition_range_pos( Ranges const &ranges, Func func, task_scheduler ts,
+				daw::shared_semaphore partition_range_pos( Ranges ranges, Func func, task_scheduler ts,
 				                                           size_t const start_pos = 0 ) {
 					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) - start_pos )};
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
@@ -115,7 +115,7 @@ namespace daw {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
 					for( auto const &rng : ranges ) {
-						schedule_task( sem, [func, rng]( ) { func( rng.first, rng.last ); }, ts );
+						schedule_task( sem, [func, rng]( ) mutable { func( rng.first, rng.last ); }, ts );
 					}
 					return sem;
 				}
@@ -123,7 +123,7 @@ namespace daw {
 				template<typename PartitionPolicy = split_range_t<1>, typename RandomIterator, typename Func>
 				void parallel_for_each( RandomIterator first, RandomIterator last, Func func, task_scheduler ts ) {
 					partition_range<PartitionPolicy>( first, last,
-					                                  [func]( RandomIterator f, RandomIterator l ) {
+					                                  [func]( RandomIterator f, RandomIterator l ) mutable {
 						                                  for( auto it = f; it != l; ++it ) {
 							                                  func( *it );
 						                                  }
@@ -135,7 +135,7 @@ namespace daw {
 				template<typename Ranges, typename Func>
 				void parallel_for_each( Ranges &ranges, Func func, task_scheduler ts ) {
 					partition_range( ranges,
-					                 [func]( auto f, auto l ) {
+					                 [func]( auto f, auto l ) mutable {
 						                 for( auto it = f; it != l; ++it ) {
 							                 func( *it );
 						                 }
@@ -360,7 +360,7 @@ namespace daw {
 							  return;
 						  }
 						  value_t result = rng.pop_front( );
-							result = daw::algorithm::reduce( rng.cbegin( ), rng.cend( ), result, binary_op ); 
+							result = daw::algorithm::reduce( rng.cbegin( ), rng.cend( ), result, binary_op );
 						  add_result( n, result );
 					  },
 					  ts ) );

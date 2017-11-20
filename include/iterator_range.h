@@ -25,11 +25,17 @@
 namespace daw {
 	template<typename Iterator>
 	struct iterator_range_t {
-		Iterator first;
-		Iterator last;
+		  using value_type = typename std::iterator_traits<Iterator>::value_type;
+		  using const_reference = value_type const &;
+		  using iterator = Iterator;
+		  using const_iterator = Iterator;
+		  using size_type = size_t;
 
-		constexpr explicit operator bool( ) const noexcept {
-			return first != last;
+		  iterator first;
+		  iterator last;
+
+		  constexpr explicit operator bool( ) const noexcept {
+			  return first != last;
 		}
 
 		constexpr size_t size( ) const noexcept {
@@ -40,39 +46,43 @@ namespace daw {
 			return first == last;
 		}
 
-		constexpr auto &operator*( ) noexcept {
+		constexpr auto operator*( ) noexcept {
 			return front( );
 		}
 
-		constexpr auto const &operator*( ) const noexcept {
+		constexpr const_reference operator*( ) const noexcept {
 			return front( );
 		}
 
-		constexpr auto operator-> ( ) const noexcept {
-			return &( *first );
+		constexpr auto operator-> ( ) noexcept {
+			return front( );
 		}
 
-		constexpr Iterator begin( ) noexcept {
+		constexpr const_reference operator-> ( ) const noexcept {
+			return front( );
+		}
+
+		constexpr iterator begin( ) noexcept {
 			return first;
 		}
 
-		constexpr Iterator const begin( ) const noexcept {
+		constexpr const_iterator begin( ) const noexcept {
 			return first;
 		}
 
-		constexpr Iterator const cbegin( ) const noexcept {
+		constexpr const_iterator cbegin( ) const noexcept {
 			return first;
 		}
 
-		constexpr Iterator end( ) noexcept {
+		constexpr iterator end( ) noexcept {
 			return last;
 		}
 
-		constexpr Iterator const end( ) const noexcept {
+		constexpr const_iterator end( ) const noexcept {
 			return last;
 		}
 
-		constexpr Iterator const cend( ) const noexcept {
+		constexpr const_iterator cend( ) const noexcept {
 			return last;
 		}
 
@@ -95,42 +105,42 @@ namespace daw {
 			return result;
 		}
 
-		constexpr auto &front( ) noexcept {
+		constexpr auto front( ) noexcept {
 			return *first;
 		}
 
-		constexpr auto const &front( ) const noexcept {
+		constexpr const_reference front( ) const noexcept {
 			return *first;
 		}
 
-		constexpr auto &pop_front( ) noexcept {
+		constexpr auto pop_front( ) noexcept {
 			return *( first++ );
 		}
 
-		constexpr auto &operator[]( size_t n ) noexcept {
-			return *std::next( first, static_cast<typename std::iterator_traits<Iterator>::difference_type>( n ) );
+		constexpr auto operator[]( size_t n ) noexcept {
+			return *std::next( first, static_cast<typename std::iterator_traits<iterator>::difference_type>( n ) );
 		}
 
-		constexpr auto const &operator[]( size_t n ) const noexcept {
-			return *std::next( first, static_cast<typename std::iterator_traits<Iterator>::difference_type>( n ) );
+		constexpr const_reference operator[]( size_t n ) const noexcept {
+			return *std::next( first, static_cast<typename std::iterator_traits<iterator>::difference_type>( n ) );
 		}
 
-		constexpr auto &back( ) noexcept {
+		constexpr auto back( ) noexcept {
 			return first[std::distance( first, last ) - 1];
 		}
 
-		constexpr auto const &back( ) const noexcept {
+		constexpr const_reference back( ) const noexcept {
 			return first[std::distance( first, last ) - 1];
 		}
 	};
 
-	template<typename Iterator>
-	constexpr iterator_range_t<Iterator> make_iterator_range( Iterator first, size_t sz ) noexcept {
-		return iterator_range_t<Iterator>{first, std::next( first, static_cast<intmax_t>( sz ) )};
+	template<typename iterator>
+	constexpr iterator_range_t<iterator> make_iterator_range( iterator first, size_t sz ) noexcept {
+		return iterator_range_t<iterator>{first, std::next( first, static_cast<intmax_t>( sz ) )};
 	}
 
-	template<typename Iterator>
-	constexpr iterator_range_t<Iterator> make_iterator_range( Iterator first, Iterator last ) noexcept {
-		return iterator_range_t<Iterator>{first, last};
+	template<typename iterator>
+	constexpr iterator_range_t<iterator> make_iterator_range( iterator first, iterator last ) noexcept {
+		return iterator_range_t<iterator>{first, last};
 	}
 } // namespace daw
