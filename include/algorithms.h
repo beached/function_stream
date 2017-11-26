@@ -319,7 +319,7 @@ namespace daw {
 
 			template<typename RandomIterator, typename UnaryPredicate>
 			auto count_if( RandomIterator first, RandomIterator last, UnaryPredicate pred,
-			            task_scheduler ts = get_task_scheduler( ) ) {
+			               task_scheduler ts = get_task_scheduler( ) ) {
 
 				static_assert( daw::concept_checks::is_unary_predicate_v<UnaryPredicate, RandomIterator>,
 				               "Supplied UnaryPredicate pred does not satisfy the concept of UnaryPredicate.  See "
@@ -329,7 +329,8 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename T>
-			auto count( RandomIterator first, RandomIterator last, T const & value, task_scheduler ts = get_task_scheduler( ) ) {
+			auto count( RandomIterator first, RandomIterator last, T const &value,
+			            task_scheduler ts = get_task_scheduler( ) ) {
 
 				return impl::parallel_count( first, last, [&value]( auto const &rhs ) { return value == rhs; },
 				                             std::move( ts ) );
@@ -347,11 +348,10 @@ namespace daw {
 
 			template<typename PartitionPolicy = default_range_splitter<>, typename RandomIterator, typename Function>
 			void chunked_for_each_pos( RandomIterator first, RandomIterator last, Function func,
-			                       task_scheduler ts = get_task_scheduler( ) ) {
+			                           task_scheduler ts = get_task_scheduler( ) ) {
 				auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
 				impl::partition_range_pos( ranges, std::move( func ), std::move( ts ) ).wait( );
 			}
 		} // namespace parallel
 	}   // namespace algorithm
 } // namespace daw
-

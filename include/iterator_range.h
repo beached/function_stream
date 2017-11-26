@@ -25,17 +25,17 @@
 namespace daw {
 	template<typename Iterator>
 	struct iterator_range_t {
-		  using value_type = typename std::iterator_traits<Iterator>::value_type;
-		  using const_reference = value_type const &;
-		  using iterator = Iterator;
-		  using const_iterator = Iterator;
-		  using size_type = size_t;
+		using value_type = typename std::iterator_traits<Iterator>::value_type;
+		using const_reference = value_type const &;
+		using iterator = Iterator;
+		using const_iterator = Iterator;
+		using size_type = size_t;
 
-		  iterator first;
-		  iterator last;
+		iterator first;
+		iterator last;
 
-		  constexpr explicit operator bool( ) const noexcept {
-			  return first != last;
+		constexpr explicit operator bool( ) const noexcept {
+			return first != last;
 		}
 
 		constexpr size_t size( ) const noexcept {
@@ -58,7 +58,7 @@ namespace daw {
 			return front( );
 		}
 
-		constexpr const_reference operator-> ( ) const noexcept {
+		constexpr const_reference operator->( ) const noexcept {
 			return front( );
 		}
 

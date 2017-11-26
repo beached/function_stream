@@ -41,9 +41,14 @@ namespace daw {
 				std::atomic<bool> m_completed;
 				base_queue_t m_queue;
 
-				members_t( ) : m_completed{false}, m_queue{} {}
-				members_t( unsigned long max_size ) : m_completed{false}, m_queue{max_size} {}
-				members_t( use_autosize ) : members_t{size_msg_queue_to_cache_size<T>( )} {}
+				members_t( )
+				  : m_completed{false}
+				  , m_queue{} {}
+				members_t( unsigned long max_size )
+				  : m_completed{false}
+				  , m_queue{max_size} {}
+				members_t( use_autosize )
+				  : members_t{size_msg_queue_to_cache_size<T>( )} {}
 			};
 			std::shared_ptr<members_t> members;
 
@@ -56,9 +61,12 @@ namespace daw {
 			}
 
 		public:
-			basic_msg_queue_t( ) : members{std::make_shared<members_t>( )} {}
-			basic_msg_queue_t( unsigned long max_size ) : members{std::make_shared<members_t>( max_size )} {}
-			basic_msg_queue_t( use_autosize ) : members{std::make_shared<members_t>( use_autosize{} )} {}
+			basic_msg_queue_t( )
+			  : members{std::make_shared<members_t>( )} {}
+			basic_msg_queue_t( unsigned long max_size )
+			  : members{std::make_shared<members_t>( max_size )} {}
+			basic_msg_queue_t( use_autosize )
+			  : members{std::make_shared<members_t>( use_autosize{} )} {}
 
 			void notify_completed( ) {
 				members->m_completed.store( true );
@@ -98,9 +106,11 @@ namespace daw {
 			using const_reference = value_t const &;
 
 			template<typename... Args>
-			msg_ptr_t( Args &&... args ) : m_ptr{new value_t{std::forward<Args>( args )...}} {}
+			msg_ptr_t( Args &&... args )
+			  : m_ptr{new value_t{std::forward<Args>( args )...}} {}
 
-			msg_ptr_t( msg_ptr_t const &other ) noexcept : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
+			msg_ptr_t( msg_ptr_t const &other ) noexcept
+			  : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
 			msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept {
 				if( this != &rhs ) {
 					m_ptr = std::exchange( rhs.m_ptr, nullptr );

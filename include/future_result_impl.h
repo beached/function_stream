@@ -52,10 +52,14 @@ namespace daw {
 		protected:
 			task_scheduler m_task_scheduler;
 
-			member_data_base_t( task_scheduler ts ) : m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
+			member_data_base_t( task_scheduler ts )
+			  : m_status{future_status::deferred}
+			  , m_task_scheduler{std::move( ts )} {}
 
 			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
-			  : m_semaphore{std::move( sem )}, m_status{future_status::deferred}, m_task_scheduler{std::move( ts )} {}
+			  : m_semaphore{std::move( sem )}
+			  , m_status{future_status::deferred}
+			  , m_task_scheduler{std::move( ts )} {}
 
 		public:
 			member_data_base_t( ) = delete;
@@ -116,10 +120,15 @@ namespace daw {
 			next_function_t m_next;
 			expected_result_t m_result;
 
-			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
+			member_data_t( task_scheduler ts )
+			  : member_data_base_t{std::move( ts )}
+			  , m_next{nullptr}
+			  , m_result{} {}
 
 			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
-			  : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+			  : member_data_base_t{std::move( sem ), std::move( ts )}
+			  , m_next{nullptr}
+			  , m_result{} {}
 
 			~member_data_t( ) override = default;
 
@@ -199,10 +208,15 @@ namespace daw {
 			next_function_t m_next;
 			expected_result_t m_result;
 
-			member_data_t( task_scheduler ts ) : member_data_base_t{std::move( ts )}, m_next{nullptr}, m_result{} {}
+			member_data_t( task_scheduler ts )
+			  : member_data_base_t{std::move( ts )}
+			  , m_next{nullptr}
+			  , m_result{} {}
 
 			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
-			  : member_data_base_t{std::move( sem ), std::move( ts )}, m_next{nullptr}, m_result{} {}
+			  : member_data_base_t{std::move( sem ), std::move( ts )}
+			  , m_next{nullptr}
+			  , m_result{} {}
 
 			~member_data_t( ) override;
 
@@ -293,7 +307,8 @@ namespace daw {
 			Result m_result;
 			Function m_function;
 			function_to_task_t( Result result, Function func )
-			  : m_result{std::move( result )}, m_function{std::move( func )} {}
+			  : m_result{std::move( result )}
+			  , m_function{std::move( func )} {}
 
 			void operator( )( ) {
 				m_result.from_code( m_function );
@@ -340,7 +355,8 @@ namespace daw {
 			std::tuple<Functions...> tp_functions;
 
 		public:
-			future_group_result_t( Functions... fs ) : tp_functions{std::make_tuple( std::move( fs )... )} {}
+			future_group_result_t( Functions... fs )
+			  : tp_functions{std::make_tuple( std::move( fs )... )} {}
 
 			template<typename... Args>
 			auto operator( )( Args... args ) {

@@ -360,7 +360,7 @@ namespace daw {
 							  return;
 						  }
 						  value_t result = rng.pop_front( );
-							result = daw::algorithm::reduce( rng.cbegin( ), rng.cend( ), result, binary_op );
+						  result = daw::algorithm::reduce( rng.cbegin( ), rng.cend( ), result, binary_op );
 						  add_result( n, result );
 					  },
 					  ts ) );

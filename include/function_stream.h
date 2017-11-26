@@ -47,10 +47,12 @@ namespace daw {
 		bool continue_on_result_destruction;
 
 		constexpr function_stream( Functions... funcs )
-		  : m_funcs{std::make_tuple( std::move( funcs )... )}, continue_on_result_destruction{true} {}
+		  : m_funcs{std::make_tuple( std::move( funcs )... )}
+		  , continue_on_result_destruction{true} {}
 
 		constexpr function_stream( std::tuple<Functions...> tpfuncs )
-		  : m_funcs{std::move( tpfuncs )}, continue_on_result_destruction{true} {}
+		  : m_funcs{std::move( tpfuncs )}
+		  , continue_on_result_destruction{true} {}
 
 		template<typename... Args>
 		auto operator( )( Args... args ) const {
@@ -87,8 +89,10 @@ namespace daw {
 		}
 
 	public:
-		future_generator_t( Funcs... funcs ) noexcept : m_funcs{std::move( funcs )...} {}
-		future_generator_t( std::tuple<Funcs...> tp_funcs ) : m_funcs{std::move( tp_funcs )} {}
+		future_generator_t( Funcs... funcs ) noexcept
+		  : m_funcs{std::move( funcs )...} {}
+		future_generator_t( std::tuple<Funcs...> tp_funcs )
+		  : m_funcs{std::move( tp_funcs )} {}
 
 		template<typename... Args>
 		auto operator( )( Args &&... args ) const {

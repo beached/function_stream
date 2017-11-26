@@ -1048,12 +1048,10 @@ BOOST_AUTO_TEST_CASE( chunked_for_each_pos_001 ) {
 
 	std::vector<int64_t> b{};
 	b.resize( a.size( ) );
-	daw::algorithm::parallel::chunked_for_each_pos(
-	  a.cbegin( ), a.cend( ), [&b]( auto rng, size_t start_pos ) mutable {
-		  for( size_t n = 0; n < rng.size( ); ++n ) {
-			  b[start_pos + n] = rng[n] * 2;
-		  }
-	  } );
+	daw::algorithm::parallel::chunked_for_each_pos( a.cbegin( ), a.cend( ), [&b]( auto rng, size_t start_pos ) mutable {
+		for( size_t n = 0; n < rng.size( ); ++n ) {
+			b[start_pos + n] = rng[n] * 2;
+		}
+	} );
 	daw::do_not_optimize( b );
 }
-

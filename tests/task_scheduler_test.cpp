@@ -55,9 +55,7 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 	daw::locked_stack_t<real_t> results;
 	daw::task_scheduler ts{};
 	for( size_t n = 0; n < ITEMS; ++n ) {
-		ts.add_task( [&]( ) {
-			results.push_back( fib( daw::randint<uintmax_t>( 500, 9999 ) ) );
-		} );
+		ts.add_task( [&]( ) { results.push_back( fib( daw::randint<uintmax_t>( 500, 9999 ) ) ); } );
 	}
 	ts.start( );
 	size_t rs_size;
