@@ -14,5 +14,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/beached/function_stream.git"
-  }
+  },
+	"scripts": {
+		"install": "cmake ..",
+		"start": "make"
+	}
 }
