@@ -6,8 +6,8 @@
   "description": "A parallel library with task, pipeline and algorithmic parallelism",
   "keywords": [ "c++", "parallel", "thread" ],
   "dependencies": {
-		"header_libraries": "beached/header_libraries",
-		"date": "howard_hinnant/date"
+		"header_libraries": "git+https://github.com/beached/header_libraries.git",
+		"date": "git+https://github.com/howard_hinnant/date.git"
 	},
   "version": "0.5.0",
   "license": "MIT",
