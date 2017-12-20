@@ -91,7 +91,7 @@ namespace daw {
 		}
 
 		constexpr void safe_advance( size_t n = 1 ) noexcept {
-			first = daw::algorithm::safe_next( first, last, n );
+			first = daw::safe_next( first, last, n );
 		}
 
 		constexpr iterator_range_t &operator++( ) noexcept {

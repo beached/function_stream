@@ -76,10 +76,10 @@ namespace daw {
 					                                                     size_t const max_parts ) const {
 						std::vector<iterator_range_t<Iterator>> results;
 						auto const part_info = get_part_info<min_range_size>( first, last, max_parts );
-						auto last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
+						auto last_pos = std::exchange( first, daw::safe_next( first, last, part_info.size ) );
 						while( first != last ) {
 							results.push_back( {last_pos, first} );
-							last_pos = std::exchange( first, daw::algorithm::safe_next( first, last, part_info.size ) );
+							last_pos = std::exchange( first, daw::safe_next( first, last, part_info.size ) );
 						}
 						if( std::distance( last_pos, first ) > 0 ) {
 							results.push_back( {last_pos, first} );
