@@ -57,7 +57,7 @@ namespace daw {
 			void for_each_index( RandomIterator first, RandomIterator last, UnaryOperation indexed_op,
 			                     task_scheduler ts = get_task_scheduler( ) ) {
 
-				static_assert( daw::concept_checks::is_callable_v<UnaryOperation, size_t>,
+				static_assert( daw::is_callable_v<UnaryOperation, size_t>,
 				               "UnaryOperation passed to "
 				               "for_each_index must a size_t argument "
 				               "unary_op( (size_t)5 ) must be valid" );
