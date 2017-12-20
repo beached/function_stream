@@ -149,9 +149,9 @@ namespace daw {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) )};
 					partition_range( ranges,
-					                 [func, first]( auto f, auto l ) {
-						                 auto const start_pos = static_cast<size_t>( std::distance( first, f ) );
-						                 auto const end_pos = static_cast<size_t>( std::distance( first, l ) );
+					                 [func, first]( auto rng ) {
+						                 auto const start_pos = static_cast<size_t>( std::distance( first, rng.begin( ) ) );
+						                 auto const end_pos = static_cast<size_t>( std::distance( first, rng.end( ) ) );
 						                 for( size_t n = start_pos; n < end_pos; ++n ) {
 							                 func( n );
 						                 }
