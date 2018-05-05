@@ -84,14 +84,14 @@ namespace daw {
 		std::tuple<Funcs...> m_funcs;
 
 		template<typename... Functions>
-		static auto make_future_generator( std::tuple<Functions...> tp_funcs ) {
+		constexpr static auto make_future_generator( std::tuple<Functions...> tp_funcs ) {
 			return future_generator_t<Functions...>{std::move( tp_funcs )};
 		}
 
 	public:
-		future_generator_t( Funcs... funcs ) noexcept
+		constexpr future_generator_t( Funcs... funcs ) noexcept
 		  : m_funcs{std::move( funcs )...} {}
-		future_generator_t( std::tuple<Funcs...> tp_funcs )
+		constexpr future_generator_t( std::tuple<Funcs...> tp_funcs )
 		  : m_funcs{std::move( tp_funcs )} {}
 
 		template<typename... Args>
@@ -99,24 +99,24 @@ namespace daw {
 			return get_function_stream( )( std::forward<Args...>( args )... );
 		}
 
-		function_stream<Funcs...> get_function_stream( ) const {
+		constexpr function_stream<Funcs...> get_function_stream( ) const {
 			return function_stream<Funcs...>( m_funcs );
 		}
 
 		template<typename... NextFunctions>
-		auto next( NextFunctions... next_functions ) const {
+		constexpr auto next( NextFunctions... next_functions ) const {
 			auto tp_next_funcs = std::tuple_cat( m_funcs, std::make_tuple( std::move( next_functions )... ) );
 			return make_future_generator( tp_next_funcs );
 		}
 	};
 
 	template<typename... Functions>
-	auto make_future_generator( Functions... functions ) {
+	constexpr auto make_future_generator( Functions... functions ) {
 		return future_generator_t<Functions...>{std::move( functions )...};
 	}
 
 	template<typename NextFunction, typename... Functions>
-	auto operator|( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
+	constexpr auto operator|( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
 
@@ -129,7 +129,7 @@ namespace daw {
 		return impl::function_composer_t<>{};
 	}
 
-	future_generator_t<> compose_future( ) {
+	constexpr future_generator_t<> compose_future( ) {
 		return future_generator_t<>{};
 	}
 } // namespace daw

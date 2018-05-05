@@ -34,11 +34,11 @@
 using namespace daw::size_literals;
 
 namespace part1 {
-	double operator"" _R( long double d ) {
+	constexpr double operator"" _R( long double d ) {
 		return static_cast<double>( d );
 	}
 
-	double fib( double n ) noexcept {
+	constexpr double fib( double n ) noexcept {
 		double last = 0;
 		double result = 1;
 		for( uintmax_t m = 1; m < n; ++m ) {
@@ -49,30 +49,32 @@ namespace part1 {
 		return result;
 	}
 
-	int a( int x ) {
+	constexpr int a( int x ) noexcept {
 		return x * 2;
 	}
-	int b( int x ) {
+
+	constexpr int b( int x ) noexcept {
 		return x * 3;
 	}
-	int c( int x ) {
+
+	constexpr int c( int x ) noexcept {
 		return x * 4;
 	}
 
 	struct A {
-		int operator( )( int x ) const {
+		constexpr int operator( )( int x ) const noexcept {
 			return 1;
 		}
 	};
 
 	struct B {
-		int operator( )( int x ) const {
+		constexpr int operator( )( int x ) const noexcept {
 			return 2;
 		}
 	};
 
 	struct C {
-		void operator( )( std::string const &x ) const {}
+		void operator( )( std::string const & ) const noexcept {}
 	};
 
 	struct D {
@@ -89,7 +91,7 @@ namespace part1 {
 	}
 
 	BOOST_AUTO_TEST_CASE( function_stream_test_001 ) {
-		auto fs = daw::make_function_stream( &a, &b, &c );
+		constexpr auto fs = daw::make_function_stream( &a, &b, &c );
 		std::cout << fs( 1 ).get( ) << std::endl;
 	}
 
@@ -99,7 +101,7 @@ namespace part1 {
 	}
 
 	BOOST_AUTO_TEST_CASE( function_stream_test_002 ) {
-		auto fs2 = daw::make_function_stream( &fib, &fib );
+		constexpr auto fs2 = daw::make_function_stream( &fib, &fib );
 		auto results = create_vector( fs2( 3 ) );
 
 		for( size_t n = 1; n < 40000; ++n ) {
