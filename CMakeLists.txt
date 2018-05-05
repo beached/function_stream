@@ -90,6 +90,11 @@ target_link_libraries( function_composition_test_bin task_scheduler_lib function
 add_test( function_composition_test function_composition_test_bin )
 add_dependencies( check function_composition_test_bin )
 
+add_executable( function_composition_test_bin2 EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_composition_test2.cpp )
+target_link_libraries( function_composition_test_bin2 task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_test( function_composition_test2 function_composition_test_bin2 )
+add_dependencies( check function_composition_test_bin2 )
+
 add_executable( algorithms_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_test.cpp )
 target_link_libraries( algorithms_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_test algorithms_test_bin )

@@ -30,6 +30,7 @@
 
 #include "function_stream.h"
 
+
 using namespace daw::size_literals;
 
 BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
@@ -90,4 +91,21 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 	auto const func = daw::compose_future( ) | sort_values | odd_values | sum_values | show_value;
 	auto result = func( values );
 	result.wait( );
+}
+
+constexpr int a( int x ) noexcept {
+	return x * 2;
+}
+
+constexpr int b( int x ) noexcept {
+	return x * 3;
+}
+
+constexpr int c( int x ) noexcept {
+	return x * 4;
+}
+
+BOOST_AUTO_TEST_CASE( composable_function_stream_test_002 ) {
+	constexpr auto fs = daw::compose_future( ) | a | b | c;
+	std::cout << fs( 3 ).get( ) << '\n';
 }
