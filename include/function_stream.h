@@ -95,7 +95,7 @@ namespace daw {
 		  : m_funcs{std::move( tp_funcs )} {}
 
 		template<typename... Args>
-		auto operator( )( Args &&... args ) const {
+		constexpr auto operator( )( Args &&... args ) const {
 			return get_function_stream( )( std::forward<Args...>( args )... );
 		}
 
