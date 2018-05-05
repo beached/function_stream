@@ -148,13 +148,13 @@ namespace daw {
 
 		public:
 			template<typename... Args>
-			auto apply( Args &&... args ) const {
+			constexpr auto apply( Args &&... args ) const {
 				return function_composer_impl<0>( funcs, typename which_type_t<0, tfunction_t>::category{},
 				                                  std::forward<Args>( args )... );
 			}
 
 			template<typename... Args>
-			auto operator( )( Args &&... args ) const {
+			constexpr auto operator( )( Args &&... args ) const {
 				return apply( std::forward<Args>( args )... );
 			}
 
