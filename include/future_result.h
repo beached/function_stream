@@ -182,7 +182,7 @@ namespace daw {
 	}; // future_result_t<void>
 
 	template<typename result_t, typename NextFunction>
-	auto operator|( future_result_t<result_t> lhs, NextFunction next_func ) {
+	constexpr auto operator|( future_result_t<result_t> lhs, NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
 
@@ -216,7 +216,7 @@ namespace daw {
 	//
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
-	auto make_future_result_group( Functions... functions ) {
+	constexpr auto make_future_result_group( Functions... functions ) {
 		return make_callable_future_result_group( std::move( functions )... )( );
 	}
 } // namespace daw

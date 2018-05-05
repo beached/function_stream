@@ -355,7 +355,7 @@ namespace daw {
 			std::tuple<Functions...> tp_functions;
 
 		public:
-			future_group_result_t( Functions... fs )
+			constexpr future_group_result_t( Functions... fs ) noexcept
 			  : tp_functions{std::make_tuple( std::move( fs )... )} {}
 
 			template<typename... Args>
