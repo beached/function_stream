@@ -182,7 +182,7 @@ namespace daw {
 				future_result_t<next_result_t> result{m_task_scheduler};
 				std::function<next_result_t( base_result_t )> func = next_func;
 				auto ts = m_task_scheduler;
-				m_next = [ result, func = std::move( func ), ts = std::move( ts ) ]( expected_result_t e_result ) mutable {
+				m_next = [result, func = std::move( func ), ts = std::move( ts )]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -254,7 +254,7 @@ namespace daw {
 				future_result_t<next_result_t> result{m_task_scheduler};
 
 				std::function<next_result_t( )> func = next_func;
-				m_next = [ result, func = std::move( func ), ts = m_task_scheduler ]( expected_result_t e_result ) mutable {
+				m_next = [result, func = std::move( func ), ts = m_task_scheduler]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;

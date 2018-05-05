@@ -102,7 +102,7 @@ namespace daw {
 				                                           size_t const start_pos = 0 ) {
 					daw::shared_semaphore sem{1 - static_cast<intmax_t>( ranges.size( ) - start_pos )};
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
-						schedule_task( sem, [ func, rng = ranges[n], n ]( ) mutable { func( rng, n ); }, ts );
+						schedule_task( sem, [func, rng = ranges[n], n]( ) mutable { func( rng, n ); }, ts );
 					}
 					return sem;
 				}
@@ -367,7 +367,6 @@ namespace daw {
 					ts.wait_for( partition_range_pos(
 					  ranges,
 					  [&p1_results, first, first_out, binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
-
 						  auto out_pos = std::next( first_out, std::distance( first, cur_range.begin( ) ) );
 						  auto const &cur_value = *p1_results[n];
 						  auto sum = binary_op( cur_value, cur_range.pop_front( ) );
@@ -391,7 +390,6 @@ namespace daw {
 					ts.wait_for( partition_range_pos(
 					  ranges,
 					  [&results, pred, &has_found, &mut_found]( iterator_range_t<Iterator> range, size_t pos ) {
-
 						  size_t const stride = std::thread::hardware_concurrency( ) * 100;
 						  size_t m = 0;
 						  for( size_t n = 0; n < range.size( ); n += stride ) {

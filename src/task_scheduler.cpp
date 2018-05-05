@@ -168,7 +168,7 @@ namespace daw {
 				auto it = other_threads->emplace( other_threads->end( ), boost::none );
 				other_threads.release( );
 
-				auto const thread_worker = [ it, id, wself = get_weak_this( ), sem ]( ) mutable {
+				auto const thread_worker = [it, id, wself = get_weak_this( ), sem]( ) mutable {
 					auto const at_exit = daw::on_scope_exit( [&wself, it]( ) {
 						auto self = wself.lock( );
 						if( self ) {

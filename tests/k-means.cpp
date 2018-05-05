@@ -61,7 +61,6 @@ void k_means_run( daw::array_view<T> view, daw::span<size_t> labels, daw::span<s
 
 	chunked_for_each_pos( centres.begin( ), centres.end( ), [view, labels, dist_func]( auto range, size_t start_pos ) {
 		auto const sz = range.size( );
-
 	} );
 }
 

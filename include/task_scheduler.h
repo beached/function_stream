@@ -95,7 +95,7 @@ namespace daw {
 	void schedule_task( daw::shared_semaphore sem, Task task, task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Task>,
 		               "Task task passed to schedule_task must be callable without an arugment. e.g. task( )" );
-		ts.add_task( [ task = std::move( task ), sem = std::move( sem ) ]( ) mutable {
+		ts.add_task( [task = std::move( task ), sem = std::move( sem )]( ) mutable {
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
 			task( );
 		} );

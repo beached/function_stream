@@ -33,7 +33,7 @@
 
 namespace daw {
 	template<typename Result, typename Functions, typename... Args>
-	auto make_shared_package( bool, Result &&, Functions &&, Args &&... );
+	decltype(auto) make_shared_package( bool, Result &&, Functions &&, Args &&... );
 
 	template<typename R>
 	constexpr auto weak_ptr_test( std::weak_ptr<R> wp ) {
@@ -59,9 +59,9 @@ namespace daw {
 		package_t( package_t const & ) = delete;
 		package_t &operator=( package_t const & ) = delete;
 
-		~package_t( ) = default;
-		package_t( package_t && ) noexcept = default;
-		package_t &operator=( package_t && ) noexcept = default;
+		~package_t( ) noexcept = default;
+		constexpr package_t( package_t && ) noexcept = default;
+		constexpr package_t &operator=( package_t && ) noexcept = default;
 
 	private:
 		struct members_t {
@@ -70,14 +70,7 @@ namespace daw {
 			result_t m_result;
 			bool m_continue_on_result_destruction;
 
-			~members_t( ) = default;
-			members_t( ) = delete;
-			members_t( members_t const & ) = delete;
-			members_t &operator=( members_t const & ) = delete;
-			members_t( members_t && ) = delete;
-			members_t &operator=( members_t && ) = delete;
-
-			members_t( bool continueonclientdestruction, result_t result, functions_t functions, Args... args )
+			constexpr members_t( bool continueonclientdestruction, result_t result, functions_t functions, Args... args )
 			  : m_function_list{std::move( functions )}
 			  , m_targs{std::make_tuple( std::move( args )... )}
 			  , m_result{result}
@@ -86,27 +79,27 @@ namespace daw {
 		std::unique_ptr<members_t> members;
 
 	public:
-		package_t( bool continueonclientdestruction, result_t result, functions_t functions, Args &&... args )
-		  : members{std::make_unique<members_t>( continueonclientdestruction, std::move( result ), std::move( functions ),
-		                                         std::forward<Args>( args )... )} {}
+		constexpr package_t( bool continueonclientdestruction, result_t result, functions_t functions, Args &&... args )
+		  : members{std::make_unique<members_t>(continueonclientdestruction, std::move( result ),
+		                                                  std::move( functions ), std::forward<Args>( args )...)} {}
 
-		auto const &function_list( ) const noexcept {
+		constexpr auto const &function_list( ) const noexcept {
 			return members->m_function_list;
 		}
 
-		auto &function_list( ) noexcept {
+		constexpr auto &function_list( ) noexcept {
 			return members->m_function_list;
 		}
 
-		auto const &result( ) const noexcept {
+		constexpr auto const &result( ) const noexcept {
 			return members->m_result;
 		}
 
-		auto &result( ) noexcept {
+		constexpr auto &result( ) noexcept {
 			return members->m_result;
 		}
 
-		bool continue_processing( ) const {
+		constexpr bool continue_processing( ) const {
 			return !destination_expired( ) || continue_on_result_destruction( );
 		}
 
@@ -116,37 +109,37 @@ namespace daw {
 			                            std::move( members->m_function_list ), std::forward<NewArgs>( nargs )... );
 		}
 
-		bool destination_expired( ) const {
+		constexpr bool destination_expired( ) const {
 			return result( ).expired( );
 		}
 
-		auto const &targs( ) const noexcept {
+		constexpr auto const &targs( ) const noexcept {
 			return members->m_targs;
 		}
 
-		auto &targs( ) noexcept {
+		constexpr auto &targs( ) noexcept {
 			return members->m_targs;
 		}
 
 	private:
-		auto const &continue_on_result_destruction( ) const noexcept {
+		constexpr auto const &continue_on_result_destruction( ) const noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 
-		auto &continue_on_result_destruction( ) noexcept {
+		constexpr auto &continue_on_result_destruction( ) noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 	}; // package_t
 
 	template<typename Result, typename Functions, typename... Args>
-	auto make_package( bool continue_on_result_destruction, Result &&result, Functions &&functions, Args &&... args ) {
+	constexpr auto make_package( bool continue_on_result_destruction, Result &&result,
+	                                                    Functions &&functions, Args &&... args ) {
 		return package_t<Result, Functions, Args...>{continue_on_result_destruction, std::forward<Result>( result ),
 		                                             std::forward<Functions>( functions ), std::forward<Args>( args )...};
 	}
 
 	template<typename Result, typename Functions, typename... Args>
-	auto make_shared_package( bool continue_on_result_destruction, Result &&result, Functions &&functions,
-	                          Args &&... args ) {
+	decltype(auto) make_shared_package( bool continue_on_result_destruction, Result &&result, Functions &&functions, Args &&... args ) {
 		return std::make_shared<package_t<Result, Functions, Args...>>(
 		  make_package( continue_on_result_destruction, std::forward<Result>( result ),
 		                std::forward<Functions>( functions ), std::forward<Args>( args )... ) );

@@ -30,7 +30,6 @@
 
 #include "function_stream.h"
 
-
 using namespace daw::size_literals;
 
 BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {

@@ -841,11 +841,11 @@ namespace {
 	// static size_t const MAX_ITEMS = 134'217'728;
 	// static size_t const LARGE_TEST_SZ = 268'435'456;
 
-	//static size_t const MAX_ITEMS = 14'217'728;
-	//static size_t const LARGE_TEST_SZ = 28'435'456;
+	// static size_t const MAX_ITEMS = 14'217'728;
+	// static size_t const LARGE_TEST_SZ = 28'435'456;
 
 	static size_t const MAX_ITEMS = 4'217'728;
-	static size_t const LARGE_TEST_SZ = 2*MAX_ITEMS;
+	static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 } // namespace
 
 BOOST_AUTO_TEST_CASE( test_for_each_double ) {
@@ -892,11 +892,11 @@ BOOST_AUTO_TEST_CASE( test_fill_int32_t ) {
 
 /*
 BOOST_AUTO_TEST_CASE( test_bitonic_sort_int64_t ) {
-	std::cout << "bitonic_sort tests - int64_t\n";
-	// bitonic_sort_test( 134217728 );
-	for( size_t n = 16777216; n >= 100; n /= 4 ) {
-		bitonic_sort_test( n );
-	}
+  std::cout << "bitonic_sort tests - int64_t\n";
+  // bitonic_sort_test( 134217728 );
+  for( size_t n = 16777216; n >= 100; n /= 4 ) {
+    bitonic_sort_test( n );
+  }
 }
 */
 
