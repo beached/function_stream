@@ -323,7 +323,7 @@ Compose a stream of functions that may be run as parallel tasks or a sequential 
 
 Compose a function that returns a future.  The result of each subsequent function must be the argument of the test.  The future will have a value of the type of the final function.
 ``` C++
-auto func = daw::compose_future( ) >> callable1 >> callable2 >> callable3;
+auto func = daw::compose_future( ) | callable1 | callable2 | callable3;
 auto fut = func( args... );
 fut.wait( );
 auto result = fut.get( );
@@ -331,7 +331,7 @@ auto result = fut.get( );
 
 Compose a sequential function and return the value of the final sub-function.
 ``` C++
-constexpr auto func = daw::compose( ) >> callable1 >> callable2 >> callable3;
+constexpr auto func = daw::compose( ) | callable1 | callable2 | callable3;
 constexpr auto result = func( args... );
 ```
 
