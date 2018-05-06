@@ -316,7 +316,7 @@ namespace daw {
 		}; // function_to_task_t
 
 		template<typename Result, typename Function, typename... Args>
-		auto convert_function_to_task( Result &result, Function func, Args &&... args ) {
+		function_to_task_t<Result, Function, Args...> convert_function_to_task( Result &result, Function func, Args &&... args ) {
 			return function_to_task_t<Result, Function, Args...>{result, std::move( func ), std::forward<Args>( args )...};
 		}
 

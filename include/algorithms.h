@@ -132,15 +132,15 @@ namespace daw {
 			}
 
 			template<typename RandomIterator>
-			auto reduce( RandomIterator first, RandomIterator last, task_scheduler ts = get_task_scheduler( ) ) {
+			decltype( auto ) reduce( RandomIterator first, RandomIterator last, task_scheduler ts = get_task_scheduler( ) ) {
 				using value_type = typename std::iterator_traits<RandomIterator>::value_type;
 				return ::daw::algorithm::parallel::reduce( first, last, value_type{}, std::move( ts ) );
 			}
 
 			template<typename RandomIterator,
 			         typename Compare = std::less<std::decay_t<decltype( *std::declval<RandomIterator>( ) )>>>
-			auto min_element( RandomIterator first, RandomIterator last, task_scheduler ts = get_task_scheduler( ),
-			                  Compare comp = Compare{} ) {
+			decltype( auto ) min_element( RandomIterator first, RandomIterator last,
+			                              task_scheduler ts = get_task_scheduler( ), Compare comp = Compare{} ) {
 
 				static_assert( daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator, RandomIterator>,
 				               "Supplied Compare does not satisfy the concept of BinaryPredicate.  See "
@@ -151,8 +151,8 @@ namespace daw {
 
 			template<typename RandomIterator,
 			         typename Compare = std::less<std::decay_t<decltype( *std::declval<RandomIterator>( ) )>>>
-			auto max_element( RandomIterator first, RandomIterator const last, task_scheduler ts = get_task_scheduler( ),
-			                  Compare comp = Compare{} ) {
+			decltype( auto ) max_element( RandomIterator first, RandomIterator const last,
+			                              task_scheduler ts = get_task_scheduler( ), Compare comp = Compare{} ) {
 
 				static_assert( daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator, RandomIterator>,
 				               "Supplied Compare does not satisfy the concept of BinaryPredicate.  See "
@@ -194,8 +194,8 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename UnaryOperation, typename BinaryOperation>
-			auto map_reduce( RandomIterator first, RandomIterator last, UnaryOperation map_function,
-			                 BinaryOperation reduce_function, task_scheduler ts = get_task_scheduler( ) ) {
+			decltype( auto ) map_reduce( RandomIterator first, RandomIterator last, UnaryOperation map_function,
+			                             BinaryOperation reduce_function, task_scheduler ts = get_task_scheduler( ) ) {
 
 				static_assert(
 				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
@@ -226,8 +226,9 @@ namespace daw {
 			/// @param reduce_function binary function that maps results of map_function to resulting value
 			/// @return Value from reduce function after range is of size 1
 			template<typename RandomIterator, typename T, typename UnaryOperation, typename BinaryOperation>
-			auto map_reduce( RandomIterator first, RandomIterator last, T const &init, UnaryOperation map_function,
-			                 BinaryOperation reduce_function, task_scheduler ts = get_task_scheduler( ) ) {
+			decltype( auto ) map_reduce( RandomIterator first, RandomIterator last, T const &init,
+			                             UnaryOperation map_function, BinaryOperation reduce_function,
+			                             task_scheduler ts = get_task_scheduler( ) ) {
 
 				static_assert(
 				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
@@ -318,8 +319,8 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename UnaryPredicate>
-			auto count_if( RandomIterator first, RandomIterator last, UnaryPredicate pred,
-			               task_scheduler ts = get_task_scheduler( ) ) {
+			decltype( auto ) count_if( RandomIterator first, RandomIterator last, UnaryPredicate pred,
+			                           task_scheduler ts = get_task_scheduler( ) ) {
 
 				static_assert( daw::concept_checks::is_unary_predicate_v<UnaryPredicate, RandomIterator>,
 				               "Supplied UnaryPredicate pred does not satisfy the concept of UnaryPredicate.  See "
@@ -329,8 +330,8 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename T>
-			auto count( RandomIterator first, RandomIterator last, T const &value,
-			            task_scheduler ts = get_task_scheduler( ) ) {
+			decltype( auto ) count( RandomIterator first, RandomIterator last, T const &value,
+			                        task_scheduler ts = get_task_scheduler( ) ) {
 
 				return impl::parallel_count( first, last, [&value]( auto const &rhs ) { return value == rhs; },
 				                             std::move( ts ) );

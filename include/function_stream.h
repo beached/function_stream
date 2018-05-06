@@ -65,7 +65,7 @@ namespace daw {
 	}; // function_stream
 
 	template<typename... Functions>
-	constexpr auto make_function_stream( Functions &&... funcs ) {
+	constexpr function_stream<Functions...> make_function_stream( Functions &&... funcs ) {
 		return function_stream<Functions...>{std::forward<Functions>( funcs )...};
 	}
 
@@ -84,7 +84,7 @@ namespace daw {
 		std::tuple<Funcs...> m_funcs;
 
 		template<typename... Functions>
-		constexpr static auto make_future_generator( std::tuple<Functions...> tp_funcs ) {
+		constexpr static future_generator_t<Functions...> make_future_generator( std::tuple<Functions...> tp_funcs ) {
 			return future_generator_t<Functions...>{std::move( tp_funcs )};
 		}
 
@@ -95,7 +95,7 @@ namespace daw {
 		  : m_funcs{std::move( tp_funcs )} {}
 
 		template<typename... Args>
-		constexpr auto operator( )( Args &&... args ) const {
+		constexpr decltype( auto ) operator( )( Args &&... args ) const {
 			return get_function_stream( )( std::forward<Args...>( args )... );
 		}
 
@@ -104,24 +104,24 @@ namespace daw {
 		}
 
 		template<typename... NextFunctions>
-		constexpr auto next( NextFunctions... next_functions ) const {
+		constexpr decltype( auto ) next( NextFunctions... next_functions ) const {
 			auto tp_next_funcs = std::tuple_cat( m_funcs, std::make_tuple( std::move( next_functions )... ) );
 			return make_future_generator( tp_next_funcs );
 		}
 	};
 
 	template<typename... Functions>
-	constexpr auto make_future_generator( Functions... functions ) {
+	constexpr future_generator_t<Functions...> make_future_generator( Functions... functions ) {
 		return future_generator_t<Functions...>{std::move( functions )...};
 	}
 
 	template<typename NextFunction, typename... Functions>
-	constexpr auto operator|( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
+	constexpr decltype( auto ) operator|( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
 
 	template<typename... Functions>
-	constexpr auto compose_functions( Functions... functions ) {
+	constexpr impl::function_composer_t<Functions...> compose_functions( Functions... functions ) {
 		return impl::function_composer_t<Functions...>{std::move( functions )...};
 	}
 

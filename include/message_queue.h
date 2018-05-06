@@ -52,11 +52,11 @@ namespace daw {
 			};
 			std::shared_ptr<members_t> members;
 
-			auto const &queue( ) const {
+			base_queue_t const &queue( ) const {
 				return members->m_queue;
 			}
 
-			auto &queue( ) {
+			base_queue_t &queue( ) {
 				return members->m_queue;
 			}
 

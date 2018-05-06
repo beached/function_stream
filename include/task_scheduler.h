@@ -65,7 +65,7 @@ namespace daw {
 		size_t size( ) const;
 
 		template<typename Function>
-		auto wait_for_scope( Function func ) {
+		decltype( auto ) wait_for_scope( Function func ) {
 			static_assert( impl::is_task_v<Function>,
 			               "Function passed to wait_for_scope must be callable without an arugment. e.g. func( )" );
 
@@ -147,7 +147,7 @@ namespace daw {
 	}
 
 	template<typename Function>
-	auto wait_for_scope( Function func, task_scheduler ts = get_task_scheduler( ) ) {
+	decltype( auto ) wait_for_scope( Function func, task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Function>,
 		               "Function passed to wait_for_scope must be callable without an arugment. e.g. func( )" );
 		return ts.wait_for_scope( func );

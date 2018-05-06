@@ -41,6 +41,8 @@ namespace daw {
 		using result_type_t = std::decay_t<Result>;
 		using result_t = daw::expected_t<result_type_t>;
 		using m_data_t = impl::member_data_t<result_type_t>;
+
+	private:
 		std::shared_ptr<m_data_t> m_data;
 
 	public:
@@ -112,7 +114,7 @@ namespace daw {
 			return m_data->m_result.has_exception( );
 		}
 
-		auto const &get( ) const {
+		decltype( auto ) get( ) const {
 			m_data->wait( );
 			// TODO: look into not throwing and allowing values to be retrieved
 			daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued,
@@ -121,7 +123,7 @@ namespace daw {
 		}
 
 		template<typename Function>
-		auto next( Function &&next_function ) {
+		decltype( auto ) next( Function &&next_function ) {
 			return m_data->next( std::forward<Function>( next_function ) );
 		}
 	};
@@ -176,13 +178,13 @@ namespace daw {
 		}
 
 		template<typename Function>
-		auto next( Function next_function ) {
+		decltype( auto ) next( Function next_function ) {
 			return m_data->next( next_function );
 		}
 	}; // future_result_t<void>
 
 	template<typename result_t, typename NextFunction>
-	constexpr auto operator|( future_result_t<result_t> lhs, NextFunction next_func ) {
+	constexpr decltype( auto ) operator|( future_result_t<result_t> lhs, NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
 
@@ -203,12 +205,12 @@ namespace daw {
 	}
 
 	template<typename Function, typename... Args>
-	auto make_future_result( Function func, Args &&... args ) {
+	decltype( auto ) make_future_result( Function func, Args &&... args ) {
 		return make_future_result( get_task_scheduler( ), func, std::forward<Args>( args )... );
 	}
 
 	template<typename... Functions>
-	auto make_callable_future_result_group( Functions... functions ) {
+	decltype( auto ) make_callable_future_result_group( Functions... functions ) {
 		return impl::future_group_result_t<Functions...>{std::move( functions )...};
 	}
 
@@ -216,7 +218,7 @@ namespace daw {
 	//
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
-	constexpr auto make_future_result_group( Functions... functions ) {
+	constexpr decltype( auto ) make_future_result_group( Functions... functions ) {
 		return make_callable_future_result_group( std::move( functions )... )( );
 	}
 } // namespace daw

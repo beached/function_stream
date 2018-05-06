@@ -46,7 +46,7 @@ namespace daw {
 			return first == last;
 		}
 
-		constexpr auto operator*( ) noexcept {
+		constexpr decltype( auto ) operator*( ) noexcept {
 			return front( );
 		}
 
@@ -54,7 +54,7 @@ namespace daw {
 			return front( );
 		}
 
-		constexpr auto operator-> ( ) noexcept {
+		constexpr decltype( auto ) operator-> ( ) noexcept {
 			return front( );
 		}
 
@@ -117,7 +117,7 @@ namespace daw {
 			return *( first++ );
 		}
 
-		constexpr auto operator[]( size_t n ) noexcept {
+		constexpr decltype( auto ) operator[]( size_t n ) noexcept {
 			return *std::next( first, static_cast<typename std::iterator_traits<iterator>::difference_type>( n ) );
 		}
 
