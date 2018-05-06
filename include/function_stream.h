@@ -3,14 +3,14 @@
 // Copyright (c) 2017-2018 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files( the "Software" ), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
+// of this software and associated documentation files( the "Software" ), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and / or
+// sell copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -56,16 +56,19 @@ namespace daw {
 
 		template<typename... Args>
 		auto operator( )( Args... args ) const {
-			using func_result_t = decltype( std::declval<func_comp_t>( ).apply( args... ) );
+			using func_result_t =
+			  decltype( std::declval<func_comp_t>( ).apply( args... ) );
 			future_result_t<func_result_t> result;
-			impl::call<0>(
-			  make_shared_package( continue_on_result_destruction, result.weak_ptr( ), m_funcs, std::move( args )... ) );
+			impl::call<0>( make_shared_package( continue_on_result_destruction,
+			                                    result.weak_ptr( ), m_funcs,
+			                                    std::move( args )... ) );
 			return result;
 		}
 	}; // function_stream
 
 	template<typename... Functions>
-	constexpr function_stream<Functions...> make_function_stream( Functions &&... funcs ) {
+	constexpr function_stream<Functions...>
+	make_function_stream( Functions &&... funcs ) {
 		return function_stream<Functions...>{std::forward<Functions>( funcs )...};
 	}
 
@@ -84,7 +87,8 @@ namespace daw {
 		std::tuple<Funcs...> m_funcs;
 
 		template<typename... Functions>
-		constexpr static future_generator_t<Functions...> make_future_generator( std::tuple<Functions...> tp_funcs ) {
+		constexpr static future_generator_t<Functions...>
+		make_future_generator( std::tuple<Functions...> tp_funcs ) {
 			return future_generator_t<Functions...>{std::move( tp_funcs )};
 		}
 
@@ -105,23 +109,28 @@ namespace daw {
 
 		template<typename... NextFunctions>
 		constexpr decltype( auto ) next( NextFunctions... next_functions ) const {
-			auto tp_next_funcs = std::tuple_cat( m_funcs, std::make_tuple( std::move( next_functions )... ) );
+			auto tp_next_funcs = std::tuple_cat(
+			  m_funcs, std::make_tuple( std::move( next_functions )... ) );
 			return make_future_generator( tp_next_funcs );
 		}
 	};
 
 	template<typename... Functions>
-	constexpr future_generator_t<Functions...> make_future_generator( Functions... functions ) {
+	constexpr future_generator_t<Functions...>
+	make_future_generator( Functions... functions ) {
 		return future_generator_t<Functions...>{std::move( functions )...};
 	}
 
 	template<typename NextFunction, typename... Functions>
-	constexpr decltype( auto ) operator|( future_generator_t<Functions...> const &lhs, NextFunction next_func ) {
+	constexpr decltype( auto )
+	operator|( future_generator_t<Functions...> const &lhs,
+	           NextFunction next_func ) {
 		return lhs.next( std::move( next_func ) );
 	}
 
 	template<typename... Functions>
-	constexpr impl::function_composer_t<Functions...> compose_functions( Functions... functions ) {
+	constexpr impl::function_composer_t<Functions...>
+	compose_functions( Functions... functions ) {
 		return impl::function_composer_t<Functions...>{std::move( functions )...};
 	}
 

@@ -3,14 +3,14 @@
 // Copyright (c) 2016-2017 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files( the "Software" ), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
+// of this software and associated documentation files( the "Software" ), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and / or
+// sell copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -37,14 +37,15 @@ namespace daw {
 				try {
 					return std::thread{std::forward<Args>( args )...};
 				} catch( std::system_error const &e ) {
-					std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( ) << "\nMessage: " << e.what( )
-					          << std::endl;
+					std::cerr << "Error creating thread, aborting.\n Error code: "
+					          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
 					std::terminate( );
 				}
 			}
 		} // namespace
 
-		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads, bool block_on_destruction )
+		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads,
+		                                          bool block_on_destruction )
 		  : m_continue{false}
 		  , m_block_on_destruction{block_on_destruction}
 		  , m_num_threads{num_threads}
@@ -81,7 +82,8 @@ namespace daw {
 				// wait for own queue to fill
 				daw::impl::task_ptr_t tsk;
 				auto is_popped = self->m_tasks[id].receive( tsk );
-				for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id; m = ( m + 1 ) % self->m_num_threads ) {
+				for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id;
+				     m = ( m + 1 ) % self->m_num_threads ) {
 					is_popped = self->m_tasks[m].receive( tsk );
 				}
 				if( !is_popped ) {
@@ -109,8 +111,9 @@ namespace daw {
 			m_continue = true;
 			auto threads = m_threads.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
-				threads->push_back(
-				  create_thread( []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n, get_weak_this( ) ) );
+				threads->push_back( create_thread(
+				  []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n,
+				  get_weak_this( ) ) );
 			}
 		}
 
@@ -155,12 +158,15 @@ namespace daw {
 			return false;
 		}
 
-		daw::shared_semaphore task_scheduler_impl::start_temp_task_runners( size_t task_count ) {
+		daw::shared_semaphore
+		task_scheduler_impl::start_temp_task_runners( size_t task_count ) {
 			daw::shared_semaphore sem{1 - task_count};
 			for( size_t n = 0; n < task_count; ++n ) {
 				auto const id = [&]( ) {
 					auto const current_epoch =
-					  static_cast<size_t>( ( std::chrono::high_resolution_clock::now( ) ).time_since_epoch( ).count( ) );
+					  static_cast<size_t>( ( std::chrono::high_resolution_clock::now( ) )
+					                         .time_since_epoch( )
+					                         .count( ) );
 					return current_epoch % size( );
 				}( );
 
@@ -168,7 +174,8 @@ namespace daw {
 				auto it = other_threads->emplace( other_threads->end( ), boost::none );
 				other_threads.release( );
 
-				auto const thread_worker = [it, id, wself = get_weak_this( ), sem]( ) mutable {
+				auto const thread_worker = [it, id, wself = get_weak_this( ),
+				                            sem]( ) mutable {
 					auto const at_exit = daw::on_scope_exit( [&wself, it]( ) {
 						auto self = wself.lock( );
 						if( self ) {
@@ -184,8 +191,10 @@ namespace daw {
 		}
 	} // namespace impl
 
-	task_scheduler::task_scheduler( std::size_t num_threads, bool block_on_destruction )
-	  : m_impl{std::make_shared<impl::task_scheduler_impl>( num_threads, block_on_destruction )} {}
+	task_scheduler::task_scheduler( std::size_t num_threads,
+	                                bool block_on_destruction )
+	  : m_impl{std::make_shared<impl::task_scheduler_impl>(
+	      num_threads, block_on_destruction )} {}
 
 	void task_scheduler::start( ) {
 		m_impl->start( );

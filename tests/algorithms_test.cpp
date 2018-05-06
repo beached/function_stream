@@ -3,14 +3,14 @@
 // Copyright (c) 2017 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files( the "Software" ), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
+// of this software and associated documentation files( the "Software" ), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and / or
+// sell copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -58,7 +58,8 @@ namespace {
 		return 100.0 * ( ( seq_time / N ) / par_time );
 	}
 
-	void display_info( double seq_time, double par_time, double count, size_t bytes, daw::string_view label ) {
+	void display_info( double seq_time, double par_time, double count,
+	                   size_t bytes, daw::string_view label ) {
 		using namespace std::chrono;
 		using namespace date;
 
@@ -108,12 +109,17 @@ namespace {
 			return ss.str( );
 		};
 
-		std::cout << std::setprecision( 1 ) << std::fixed << label << ": size->" << static_cast<uint64_t>( count ) << " "
-		          << mbs( 1 ) << " %max->" << calc_speedup( seq_time, par_time ) << "(" << ( seq_time / par_time ) << "/"
-		          << std::thread::hardware_concurrency( ) << "X) par_total->" << make_seconds( par_time, 1 )
-		          << " par_item->" << make_seconds( par_time, count ) << " throughput->" << mbs( par_time )
-		          << "/s seq_total->" << make_seconds( seq_time, 1 ) << " seq_item->" << make_seconds( seq_time, count )
-		          << " throughput->" << mbs( seq_time ) << "/s \n";
+		std::cout << std::setprecision( 1 ) << std::fixed << label << ": size->"
+		          << static_cast<uint64_t>( count ) << " " << mbs( 1 ) << " %max->"
+		          << calc_speedup( seq_time, par_time ) << "("
+		          << ( seq_time / par_time ) << "/"
+		          << std::thread::hardware_concurrency( ) << "X) par_total->"
+		          << make_seconds( par_time, 1 ) << " par_item->"
+		          << make_seconds( par_time, count ) << " throughput->"
+		          << mbs( par_time ) << "/s seq_total->"
+		          << make_seconds( seq_time, 1 ) << " seq_item->"
+		          << make_seconds( seq_time, count ) << " throughput->"
+		          << mbs( seq_time ) << "/s \n";
 	}
 
 	template<typename T>
@@ -130,15 +136,19 @@ namespace {
 			}
 			daw::do_not_optimize( found );
 		};
-		auto const result_1 =
-		  daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts ); } );
+		auto const result_1 = daw::benchmark( [&]( ) {
+			daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even,
+			                                    ts );
+		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
 			for( auto const &item : a ) {
 				find_even( item );
 			}
 		} );
-		auto const result_3 =
-		  daw::benchmark( [&]( ) { daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts ); } );
+		auto const result_3 = daw::benchmark( [&]( ) {
+			daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even,
+			                                    ts );
+		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
 			for( auto const &item : a ) {
 				find_even( item );
@@ -176,7 +186,8 @@ namespace {
 	}
 
 	template<typename Iterator>
-	void test_sort( Iterator const first, Iterator const last, daw::string_view label ) {
+	void test_sort( Iterator const first, Iterator const last,
+	                daw::string_view label ) {
 		if( first == last ) {
 			return;
 		}
@@ -186,11 +197,13 @@ namespace {
 		for( ; it != last; ++it ) {
 			if( *it < last_val ) {
 				auto const pos = std::distance( first, it );
-				std::cerr << "Sequence '" << label << "' not sorted at position (" << std::distance( first, it ) << '/'
+				std::cerr << "Sequence '" << label << "' not sorted at position ("
+				          << std::distance( first, it ) << '/'
 				          << std::distance( first, last ) << ")\n";
 
 				auto start = pos > 10 ? std::next( first, pos - 10 ) : first;
-				auto const end = std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
+				auto const end =
+				  std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
 				if( std::distance( start, end ) > 0 ) {
 					std::cerr << '[' << *start;
 					++start;
@@ -312,29 +325,37 @@ namespace {
 		T accum_result1 = 0;
 		T accum_result2 = 0;
 		auto const result_1 = daw::benchmark( [&]( ) {
-			accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>( 0 ), ts );
+			accum_result1 = daw::algorithm::parallel::reduce(
+			  a.begin( ), a.end( ), static_cast<T>( 0 ), ts );
 			daw::do_not_optimize( accum_result1 );
 		} );
 		a = b;
 		auto const result_2 = daw::benchmark( [&]( ) {
-			accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>( 0 ) );
+			accum_result2 =
+			  std::accumulate( a.begin( ), a.end( ), static_cast<T>( 0 ) );
 			daw::do_not_optimize( accum_result2 );
 		} );
 
-		BOOST_REQUIRE_MESSAGE( daw::math::nearly_equal( accum_result1, accum_result2 ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  daw::math::nearly_equal( accum_result1, accum_result2 ),
+		  "Wrong return value" );
 
 		a = b;
 		auto const result_3 = daw::benchmark( [&]( ) {
-			accum_result1 = daw::algorithm::parallel::reduce( a.begin( ), a.end( ), static_cast<T>( 0 ), ts );
+			accum_result1 = daw::algorithm::parallel::reduce(
+			  a.begin( ), a.end( ), static_cast<T>( 0 ), ts );
 			daw::do_not_optimize( accum_result1 );
 		} );
 		a = b;
 		auto const result_4 = daw::benchmark( [&]( ) {
-			accum_result2 = std::accumulate( a.begin( ), a.end( ), static_cast<T>( 0 ) );
+			accum_result2 =
+			  std::accumulate( a.begin( ), a.end( ), static_cast<T>( 0 ) );
 			daw::do_not_optimize( accum_result2 );
 		} );
 
-		BOOST_REQUIRE_MESSAGE( daw::math::nearly_equal( accum_result1, accum_result2 ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  daw::math::nearly_equal( accum_result1, accum_result2 ),
+		  "Wrong return value" );
 
 		auto const par_min = std::min( result_1, result_3 );
 		auto const seq_min = std::min( result_2, result_4 );
@@ -350,7 +371,8 @@ namespace {
 		value_t accum_result2 = 0;
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op, ts );
+			accum_result1 = daw::algorithm::parallel::reduce<value_t>(
+			  a.begin( ), a.end( ), init, bin_op, ts );
 			daw::do_not_optimize( accum_result1 );
 		} );
 		a = b;
@@ -358,10 +380,12 @@ namespace {
 			accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op );
 			daw::do_not_optimize( accum_result2 );
 		} );
-		BOOST_REQUIRE_MESSAGE( accum_result1 == accum_result2, "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE( accum_result1 == accum_result2,
+		                       "Wrong return value" );
 		a = b;
 		auto const result_3 = daw::benchmark( [&]( ) {
-			accum_result1 = daw::algorithm::parallel::reduce<value_t>( a.begin( ), a.end( ), init, bin_op, ts );
+			accum_result1 = daw::algorithm::parallel::reduce<value_t>(
+			  a.begin( ), a.end( ), init, bin_op, ts );
 			daw::do_not_optimize( accum_result1 );
 		} );
 		a = b;
@@ -369,7 +393,8 @@ namespace {
 			accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op );
 			daw::do_not_optimize( accum_result2 );
 		} );
-		BOOST_REQUIRE_MESSAGE( accum_result1 == accum_result2, "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE( accum_result1 == accum_result2,
+		                       "Wrong return value" );
 		auto const par_min = std::min( result_1, result_3 );
 		auto const seq_min = std::min( result_2, result_4 );
 		display_info( seq_min, par_min, SZ, sizeof( value_t ), "reduce2" );
@@ -383,7 +408,8 @@ namespace {
 		value_t min_result2 = 0;
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			min_result1 = *daw::algorithm::parallel::min_element( a.begin( ), a.end( ), ts );
+			min_result1 =
+			  *daw::algorithm::parallel::min_element( a.begin( ), a.end( ), ts );
 			daw::do_not_optimize( min_result1 );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
@@ -392,7 +418,8 @@ namespace {
 		} );
 		BOOST_REQUIRE_MESSAGE( min_result1 == min_result2, "Wrong return value" );
 		auto const result_3 = daw::benchmark( [&]( ) {
-			min_result1 = *daw::algorithm::parallel::min_element( a.begin( ), a.end( ), ts );
+			min_result1 =
+			  *daw::algorithm::parallel::min_element( a.begin( ), a.end( ), ts );
 			daw::do_not_optimize( min_result1 );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
@@ -413,7 +440,8 @@ namespace {
 		value_t max_result2 = 0;
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			max_result1 = *daw::algorithm::parallel::max_element( a.begin( ), a.end( ), ts );
+			max_result1 =
+			  *daw::algorithm::parallel::max_element( a.begin( ), a.end( ), ts );
 			daw::do_not_optimize( max_result1 );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
@@ -422,7 +450,8 @@ namespace {
 		} );
 		BOOST_REQUIRE_MESSAGE( max_result1 == max_result2, "Wrong return value" );
 		auto const result_3 = daw::benchmark( [&]( ) {
-			max_result1 = *daw::algorithm::parallel::max_element( a.begin( ), a.end( ), ts );
+			max_result1 =
+			  *daw::algorithm::parallel::max_element( a.begin( ), a.end( ), ts );
 			daw::do_not_optimize( max_result1 );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
@@ -447,23 +476,29 @@ namespace {
 		auto unary_op = []( auto const &value ) { return value + value; };
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ), unary_op, ts );
+			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ),
+			                                     unary_op, ts );
 			daw::do_not_optimize( b );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
 			std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 			daw::do_not_optimize( c );
 		} );
-		BOOST_REQUIRE_MESSAGE( std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
+		  "Wrong return value" );
 		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ), unary_op, ts );
+			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ),
+			                                     unary_op, ts );
 			daw::do_not_optimize( b );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
 			std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 			daw::do_not_optimize( c );
 		} );
-		BOOST_REQUIRE_MESSAGE( std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
+		  "Wrong return value" );
 		auto const par_max = std::max( result_1, result_3 );
 		auto const seq_max = std::max( result_2, result_4 );
 		display_info( seq_max, par_max, SZ, sizeof( value_t ), "transform" );
@@ -481,24 +516,30 @@ namespace {
 		auto unary_op = []( auto const &value ) { return value * value; };
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ), unary_op, ts );
+			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ),
+			                                     unary_op, ts );
 			daw::do_not_optimize( b );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
 			std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 			daw::do_not_optimize( c );
 		} );
-		BOOST_REQUIRE_MESSAGE( std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
+		  "Wrong return value" );
 
 		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ), unary_op, ts );
+			daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ),
+			                                     unary_op, ts );
 			daw::do_not_optimize( b );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
 			std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 			daw::do_not_optimize( c );
 		} );
-		BOOST_REQUIRE_MESSAGE( std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
+		  "Wrong return value" );
 
 		auto const par_max = std::max( result_1, result_3 );
 		auto const seq_max = std::max( result_2, result_4 );
@@ -515,20 +556,26 @@ namespace {
 		std::fill( a.begin( ), a.end( ), 1 );
 		auto b = a;
 
-		auto const map_function = []( value_t const &value ) { return value * value; };
-		auto const reduce_function = []( value_t const &lhs, value_t const &rhs ) { return lhs + rhs; };
+		auto const map_function = []( value_t const &value ) {
+			return value * value;
+		};
+		auto const reduce_function = []( value_t const &lhs, value_t const &rhs ) {
+			return lhs + rhs;
+		};
 
 		value_t mr_value1 = 0;
 		value_t mr_value2 = 0;
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
+			mr_value1 = daw::algorithm::parallel::map_reduce(
+			  a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
 			daw::do_not_optimize( mr_value1 );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
 			std::transform( b.cbegin( ), b.cend( ), b.begin( ), map_function );
 			auto start_it = std::next( b.cbegin( ) );
-			mr_value2 = std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
+			mr_value2 =
+			  std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
 			daw::do_not_optimize( mr_value2 );
 		} );
 		BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
@@ -538,13 +585,15 @@ namespace {
 		mr_value2 = 0;
 
 		auto const result_3 = daw::benchmark( [&]( ) {
-			mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
+			mr_value1 = daw::algorithm::parallel::map_reduce(
+			  a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
 			daw::do_not_optimize( mr_value1 );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
 			std::transform( b.cbegin( ), b.cend( ), b.begin( ), map_function );
 			auto start_it = std::next( b.cbegin( ) );
-			mr_value2 = std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
+			mr_value2 =
+			  std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
 			daw::do_not_optimize( mr_value2 );
 		} );
 		BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
@@ -568,9 +617,12 @@ namespace {
 			}
 			return value;
 		};
-		auto const reduce_function = []( value_t const &lhs, value_t const &rhs ) { return lhs + rhs; };
+		auto const reduce_function = []( value_t const &lhs, value_t const &rhs ) {
+			return lhs + rhs;
+		};
 
-		auto const map_reduce = []( auto first, auto const last, auto const m_func, auto const r_func ) {
+		auto const map_reduce = []( auto first, auto const last, auto const m_func,
+		                            auto const r_func ) {
 			auto result = r_func( m_func( *first ), m_func( *std::next( first ) ) );
 			std::advance( first, 2 );
 
@@ -584,11 +636,13 @@ namespace {
 		value_t mr_value2 = 0;
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
+			mr_value1 = daw::algorithm::parallel::map_reduce(
+			  a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
 			daw::do_not_optimize( mr_value1 );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
-			mr_value2 = map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
+			mr_value2 =
+			  map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
 			daw::do_not_optimize( mr_value2 );
 		} );
 		BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
@@ -597,11 +651,13 @@ namespace {
 		mr_value2 = 0;
 
 		auto const result_3 = daw::benchmark( [&]( ) {
-			mr_value1 = daw::algorithm::parallel::map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
+			mr_value1 = daw::algorithm::parallel::map_reduce(
+			  a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
 			daw::do_not_optimize( mr_value1 );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
-			mr_value2 = map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
+			mr_value2 =
+			  map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
 			daw::do_not_optimize( mr_value1 );
 		} );
 		BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
@@ -627,7 +683,8 @@ namespace {
 		};
 
 		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::scan( a.data( ), a.data( ) + a.size( ), b.data( ), b.data( ) + b.size( ),
+			daw::algorithm::parallel::scan( a.data( ), a.data( ) + a.size( ),
+			                                b.data( ), b.data( ) + b.size( ),
 			                                reduce_function, ts );
 
 			daw::do_not_optimize( b );
@@ -636,18 +693,23 @@ namespace {
 			std::partial_sum( a.cbegin( ), a.cend( ), c.begin( ), reduce_function );
 			daw::do_not_optimize( c );
 		} );
-		BOOST_REQUIRE_MESSAGE( std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
+		  "Wrong return value" );
 		b = a;
 		c = a;
 		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::scan( a.cbegin( ), a.cend( ), b.begin( ), b.end( ), reduce_function, ts );
+			daw::algorithm::parallel::scan( a.cbegin( ), a.cend( ), b.begin( ),
+			                                b.end( ), reduce_function, ts );
 			daw::do_not_optimize( b );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
 			std::partial_sum( a.cbegin( ), a.cend( ), c.begin( ), reduce_function );
 			daw::do_not_optimize( c );
 		} );
-		BOOST_REQUIRE_MESSAGE( std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ), "Wrong return value" );
+		BOOST_REQUIRE_MESSAGE(
+		  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
+		  "Wrong return value" );
 
 		auto const par_max = std::max( result_1, result_3 );
 		auto const seq_max = std::max( result_2, result_4 );
@@ -659,7 +721,8 @@ namespace {
 		auto ts = daw::get_task_scheduler( );
 		auto a = daw::make_random_data<value_t>( SZ, -50, 50 );
 
-		auto const pos = a.size( ) - 1; // daw::randint( static_cast<size_t>( 0 ), a.size( ) );
+		auto const pos =
+		  a.size( ) - 1; // daw::randint( static_cast<size_t>( 0 ), a.size( ) );
 		a[pos] = 100;
 		auto const pred = []( auto const &value ) noexcept {
 			return value == 100;
@@ -668,7 +731,8 @@ namespace {
 		auto it1 = a.cend( );
 		auto it2 = a.cend( );
 		auto const result_1 = daw::benchmark( [&]( ) {
-			it1 = daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
+			it1 =
+			  daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
 			daw::do_not_optimize( it1 );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
@@ -680,7 +744,8 @@ namespace {
 		it1 = a.cend( );
 		it2 = a.cend( );
 		auto const result_3 = daw::benchmark( [&]( ) {
-			it1 = daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
+			it1 =
+			  daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
 			daw::do_not_optimize( it1 );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
@@ -715,7 +780,8 @@ namespace {
 		bool b1 = false;
 		bool b2 = false;
 		auto const result_1 = daw::benchmark( [&]( ) {
-			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred, ts );
+			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ),
+			                                      b.cend( ), pred, ts );
 			daw::do_not_optimize( b1 );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
@@ -728,7 +794,8 @@ namespace {
 		b1 = false;
 		b2 = false;
 		auto const result_3 = daw::benchmark( [&]( ) {
-			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred, ts );
+			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ),
+			                                      b.cend( ), pred, ts );
 			daw::do_not_optimize( b1 );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
@@ -763,7 +830,8 @@ namespace {
 		bool b1 = false;
 		bool b2 = false;
 		auto const result_1 = daw::benchmark( [&]( ) {
-			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred, ts );
+			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ),
+			                                      b.cend( ), pred, ts );
 			daw::do_not_optimize( b1 );
 		} );
 		auto const result_2 = daw::benchmark( [&]( ) {
@@ -772,11 +840,13 @@ namespace {
 		} );
 		BOOST_REQUIRE_MESSAGE( b1 == b2, "Wrong return value" );
 
-		a[3 * ( a.size( ) / 4 ) + 1] = std::string{"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"};
+		a[3 * ( a.size( ) / 4 ) + 1] =
+		  std::string{"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"};
 		b1 = false;
 		b2 = false;
 		auto const result_3 = daw::benchmark( [&]( ) {
-			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred, ts );
+			b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ),
+			                                      b.cend( ), pred, ts );
 			daw::do_not_optimize( b1 );
 		} );
 		auto const result_4 = daw::benchmark( [&]( ) {
@@ -1043,7 +1113,8 @@ namespace chunked_for_each_001_ns {
 	};
 	BOOST_AUTO_TEST_CASE( chunked_for_each_001 ) {
 		auto a = daw::make_random_data<int64_t>( 100'000 );
-		daw::algorithm::parallel::chunked_for_each( a.data( ), a.data( ) + a.size( ), call_t{} );
+		daw::algorithm::parallel::chunked_for_each(
+		  a.data( ), a.data( ) + a.size( ), call_t{} );
 		daw::do_not_optimize( a );
 	}
 } // namespace chunked_for_each_001_ns
@@ -1053,10 +1124,11 @@ BOOST_AUTO_TEST_CASE( chunked_for_each_pos_001 ) {
 
 	std::vector<int64_t> b{};
 	b.resize( a.size( ) );
-	daw::algorithm::parallel::chunked_for_each_pos( a.cbegin( ), a.cend( ), [&b]( auto rng, size_t start_pos ) mutable {
-		for( size_t n = 0; n < rng.size( ); ++n ) {
-			b[start_pos + n] = rng[n] * 2;
-		}
-	} );
+	daw::algorithm::parallel::chunked_for_each_pos(
+	  a.cbegin( ), a.cend( ), [&b]( auto rng, size_t start_pos ) mutable {
+		  for( size_t n = 0; n < rng.size( ); ++n ) {
+			  b[start_pos + n] = rng[n] * 2;
+		  }
+	  } );
 	daw::do_not_optimize( b );
 }

@@ -3,14 +3,14 @@
 // Copyright (c) 2017-2018 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files( the "Software" ), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
+// of this software and associated documentation files( the "Software" ), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and / or
+// sell copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -118,11 +118,17 @@ namespace daw {
 		}
 
 		constexpr decltype( auto ) operator[]( size_t n ) noexcept {
-			return *std::next( first, static_cast<typename std::iterator_traits<iterator>::difference_type>( n ) );
+			return *std::next(
+			  first,
+			  static_cast<typename std::iterator_traits<iterator>::difference_type>(
+			    n ) );
 		}
 
 		constexpr const_reference operator[]( size_t n ) const noexcept {
-			return *std::next( first, static_cast<typename std::iterator_traits<iterator>::difference_type>( n ) );
+			return *std::next(
+			  first,
+			  static_cast<typename std::iterator_traits<iterator>::difference_type>(
+			    n ) );
 		}
 
 		constexpr auto back( ) noexcept {
@@ -135,12 +141,15 @@ namespace daw {
 	};
 
 	template<typename iterator>
-	constexpr iterator_range_t<iterator> make_iterator_range( iterator first, size_t sz ) noexcept {
-		return iterator_range_t<iterator>{first, std::next( first, static_cast<intmax_t>( sz ) )};
+	constexpr iterator_range_t<iterator>
+	make_iterator_range( iterator first, size_t sz ) noexcept {
+		return iterator_range_t<iterator>{
+		  first, std::next( first, static_cast<intmax_t>( sz ) )};
 	}
 
 	template<typename iterator>
-	constexpr iterator_range_t<iterator> make_iterator_range( iterator first, iterator last ) noexcept {
+	constexpr iterator_range_t<iterator>
+	make_iterator_range( iterator first, iterator last ) noexcept {
 		return iterator_range_t<iterator>{first, last};
 	}
 } // namespace daw

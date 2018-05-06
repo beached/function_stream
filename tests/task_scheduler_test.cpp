@@ -3,14 +3,14 @@
 // Copyright (c) 2016-2017 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files( the "Software" ), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
+// of this software and associated documentation files( the "Software" ), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and / or
+// sell copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -31,7 +31,8 @@
 
 #include "task_scheduler.h"
 
-using real_t = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
+using real_t =
+  boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
 
 real_t fib( uintmax_t n ) noexcept {
 	if( 0 == n ) {
@@ -55,7 +56,9 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 	daw::locked_stack_t<real_t> results;
 	daw::task_scheduler ts{};
 	for( size_t n = 0; n < ITEMS; ++n ) {
-		ts.add_task( [&]( ) { results.push_back( fib( daw::randint<uintmax_t>( 500, 9999 ) ) ); } );
+		ts.add_task( [&]( ) {
+			results.push_back( fib( daw::randint<uintmax_t>( 500, 9999 ) ) );
+		} );
 	}
 	ts.start( );
 	size_t rs_size;

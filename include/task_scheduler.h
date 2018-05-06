@@ -3,14 +3,14 @@
 // Copyright (c) 2016-2018 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files( the "Software" ), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
+// of this software and associated documentation files( the "Software" ), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and / or
+// sell copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -43,7 +43,9 @@ namespace daw {
 		std::shared_ptr<impl::task_scheduler_impl> m_impl;
 
 	public:
-		task_scheduler( std::size_t num_threads = std::thread::hardware_concurrency( ), bool block_on_destruction = true );
+		task_scheduler(
+		  std::size_t num_threads = std::thread::hardware_concurrency( ),
+		  bool block_on_destruction = true );
 		~task_scheduler( ) = default;
 
 		task_scheduler( task_scheduler && ) = default;
@@ -54,7 +56,8 @@ namespace daw {
 		template<typename Task>
 		void add_task( Task &&task ) noexcept {
 			static_assert( impl::is_task_v<Task>,
-			               "Task task passed to add_task must be callable without an arugment. e.g. task( )" );
+			               "Task task passed to add_task must be callable without an "
+			               "arugment. e.g. task( )" );
 
 			m_impl->add_task( std::forward<Task>( task ) );
 		}
@@ -67,7 +70,8 @@ namespace daw {
 		template<typename Function>
 		decltype( auto ) wait_for_scope( Function func ) {
 			static_assert( impl::is_task_v<Function>,
-			               "Function passed to wait_for_scope must be callable without an arugment. e.g. func( )" );
+			               "Function passed to wait_for_scope must be callable "
+			               "without an arugment. e.g. func( )" );
 
 			/*if( !m_impl->am_i_in_pool( ) ) {
 			  return func( );
@@ -79,22 +83,27 @@ namespace daw {
 
 		template<typename Waitable>
 		void wait_for( Waitable &&waitable ) {
-			static_assert( impl::is_waitable_v<Waitable>, "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
+			static_assert(
+			  impl::is_waitable_v<Waitable>,
+			  "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
 		}
 	}; // task_scheduler
 
 	task_scheduler get_task_scheduler( );
 
-	/// Add a single task to the supplied task scheduler and notify supplied semaphore when complete
+	/// Add a single task to the supplied task scheduler and notify supplied
+	/// semaphore when complete
 	///
 	/// @param sem Semaphore to notify when task is completed
 	/// @param task Task of form void( ) to run
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	void schedule_task( daw::shared_semaphore sem, Task task, task_scheduler ts = get_task_scheduler( ) ) {
+	void schedule_task( daw::shared_semaphore sem, Task task,
+	                    task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Task>,
-		               "Task task passed to schedule_task must be callable without an arugment. e.g. task( )" );
+		               "Task task passed to schedule_task must be callable without "
+		               "an arugment. e.g. task( )" );
 		ts.add_task( [task = std::move( task ), sem = std::move( sem )]( ) mutable {
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
 			task( );
@@ -102,9 +111,12 @@ namespace daw {
 	}
 
 	template<typename Task>
-	daw::shared_semaphore create_waitable_task( Task task, task_scheduler ts = get_task_scheduler( ) ) {
+	daw::shared_semaphore
+	create_waitable_task( Task task, task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Task>,
-		               "Task task passed to create_waitable_task must be callable without an arugment. e.g. task( )" );
+		               "Task task passed to create_waitable_task must be callable "
+		               "without an arugment. "
+		               "e.g. task( )" );
 		daw::shared_semaphore sem;
 		schedule_task( sem, ts, std::move( task ) );
 		return sem;
@@ -117,7 +129,8 @@ namespace daw {
 	template<typename... Tasks>
 	daw::shared_semaphore create_task_group( Tasks &&... tasks ) {
 		static_assert( impl::are_tasks_v<Tasks...>,
-		               "Tasks passed to create_task_group must be callable without an arugment. e.g. task( )" );
+		               "Tasks passed to create_task_group must be callable without "
+		               "an arugment. e.g. task( )" );
 		auto ts = get_task_scheduler( );
 		daw::shared_semaphore sem{1 - sizeof...( tasks )};
 
@@ -142,14 +155,17 @@ namespace daw {
 	template<typename... Tasks>
 	void invoke_tasks( Tasks... tasks ) {
 		static_assert( impl::are_tasks_v<Tasks...>,
-		               "Tasks passed to invoke_tasks must be callable without an arugment. e.g. task( )" );
+		               "Tasks passed to invoke_tasks must be callable without an "
+		               "arugment. e.g. task( )" );
 		invoke_tasks( get_task_scheduler( ), std::move( tasks )... );
 	}
 
 	template<typename Function>
-	decltype( auto ) wait_for_scope( Function func, task_scheduler ts = get_task_scheduler( ) ) {
+	decltype( auto ) wait_for_scope( Function func,
+	                                 task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Function>,
-		               "Function passed to wait_for_scope must be callable without an arugment. e.g. func( )" );
+		               "Function passed to wait_for_scope must be callable without "
+		               "an arugment. e.g. func( )" );
 		return ts.wait_for_scope( func );
 	}
 } // namespace daw

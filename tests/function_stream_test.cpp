@@ -3,14 +3,14 @@
 // Copyright (c) 2016-2017 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files( the "Software" ), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
+// of this software and associated documentation files( the "Software" ), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and / or
+// sell copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -85,8 +85,9 @@ namespace part1 {
 
 	BOOST_AUTO_TEST_CASE( function_composer_test ) {
 		daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
-		static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
-		               "function_composer_t is not returning the correct type" );
+		static_assert(
+		  std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
+		  "function_composer_t is not returning the correct type" );
 		std::cout << fc.apply( 4 ) << std::endl;
 	}
 
@@ -97,7 +98,8 @@ namespace part1 {
 
 	template<typename T, typename... Ts>
 	std::vector<T> create_vector( T &&value, Ts &&... values ) {
-		return std::vector<T>{std::initializer_list<T>{std::forward<T>( value ), std::forward<Ts>( values )...}};
+		return std::vector<T>{std::initializer_list<T>{
+		  std::forward<T>( value ), std::forward<Ts>( values )...}};
 	}
 
 	BOOST_AUTO_TEST_CASE( function_stream_test_002 ) {
