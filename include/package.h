@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2017 Darrell Wright
+// Copyright (c) 2016-2018 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to deal
@@ -33,10 +33,14 @@
 
 namespace daw {
 	template<typename Result, typename Functions, typename... Args>
-	decltype(auto) make_shared_package( bool, Result &&, Functions &&, Args &&... );
+	struct package_t;
+
+	template<typename Result, typename Functions, typename... Args>
+	std::shared_ptr<package_t<Result, Functions, Args...>>
+	make_shared_package( bool continue_on_result_destruction, Result &&result, Functions &&functions, Args &&... args );
 
 	template<typename R>
-	constexpr auto weak_ptr_test( std::weak_ptr<R> wp ) {
+	constexpr R *weak_ptr_test( std::weak_ptr<R> wp ) {
 		return static_cast<R *>( nullptr );
 	}
 
@@ -55,14 +59,6 @@ namespace daw {
 		using result_t = Result;
 		using result_value_t = weak_ptr_type_t<result_t>;
 
-		package_t( ) = delete;
-		package_t( package_t const & ) = delete;
-		package_t &operator=( package_t const & ) = delete;
-
-		~package_t( ) noexcept = default;
-		constexpr package_t( package_t && ) noexcept = default;
-		constexpr package_t &operator=( package_t && ) noexcept = default;
-
 	private:
 		struct members_t {
 			functions_t m_function_list;
@@ -79,67 +75,77 @@ namespace daw {
 		std::unique_ptr<members_t> members;
 
 	public:
-		constexpr package_t( bool continueonclientdestruction, result_t result, functions_t functions, Args &&... args )
-		  : members{std::make_unique<members_t>(continueonclientdestruction, std::move( result ),
-		                                                  std::move( functions ), std::forward<Args>( args )...)} {}
+		package_t( ) = delete;
+		package_t( package_t const & ) = delete;
+		package_t &operator=( package_t const & ) = delete;
 
-		constexpr auto const &function_list( ) const noexcept {
+		~package_t( ) noexcept = default;
+
+		package_t( package_t && ) noexcept = default;
+		package_t &operator=( package_t && ) noexcept = default;
+
+		package_t( bool continueonclientdestruction, result_t result, functions_t functions, Args &&... args )
+		  : members{std::make_unique<members_t>( continueonclientdestruction, std::move( result ), std::move( functions ),
+		                                         std::forward<Args>( args )... )} {}
+
+		functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;
 		}
 
-		constexpr auto &function_list( ) noexcept {
+		functions_t &function_list( ) noexcept {
 			return members->m_function_list;
 		}
 
-		constexpr auto const &result( ) const noexcept {
+		result_t const &result( ) const noexcept {
 			return members->m_result;
 		}
 
-		constexpr auto &result( ) noexcept {
+		result_t &result( ) noexcept {
 			return members->m_result;
 		}
 
-		constexpr bool continue_processing( ) const {
+		bool continue_processing( ) const {
 			return !destination_expired( ) || continue_on_result_destruction( );
 		}
 
 		template<typename... NewArgs>
-		auto next_package( NewArgs &&... nargs ) {
+		decltype( auto ) next_package( NewArgs &&... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ), std::move( members->m_result ),
 			                            std::move( members->m_function_list ), std::forward<NewArgs>( nargs )... );
 		}
 
-		constexpr bool destination_expired( ) const {
+		bool destination_expired( ) const {
 			return result( ).expired( );
 		}
 
-		constexpr auto const &targs( ) const noexcept {
+		arguments_t const &targs( ) const noexcept {
 			return members->m_targs;
 		}
 
-		constexpr auto &targs( ) noexcept {
+		arguments_t &targs( ) noexcept {
 			return members->m_targs;
 		}
 
 	private:
-		constexpr auto const &continue_on_result_destruction( ) const noexcept {
+		bool const &continue_on_result_destruction( ) const noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 
-		constexpr auto &continue_on_result_destruction( ) noexcept {
+		bool &continue_on_result_destruction( ) noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 	}; // package_t
 
 	template<typename Result, typename Functions, typename... Args>
-	constexpr auto make_package( bool continue_on_result_destruction, Result &&result,
+	package_t<Result, Functions, Args...> make_package( bool continue_on_result_destruction, Result &&result,
 	                                                    Functions &&functions, Args &&... args ) {
 		return package_t<Result, Functions, Args...>{continue_on_result_destruction, std::forward<Result>( result ),
 		                                             std::forward<Functions>( functions ), std::forward<Args>( args )...};
 	}
 
 	template<typename Result, typename Functions, typename... Args>
-	decltype(auto) make_shared_package( bool continue_on_result_destruction, Result &&result, Functions &&functions, Args &&... args ) {
+	std::shared_ptr<package_t<Result, Functions, Args...>>
+	make_shared_package( bool continue_on_result_destruction, Result &&result, Functions &&functions, Args &&... args ) {
 		return std::make_shared<package_t<Result, Functions, Args...>>(
 		  make_package( continue_on_result_destruction, std::forward<Result>( result ),
 		                std::forward<Functions>( functions ), std::forward<Args>( args )... ) );

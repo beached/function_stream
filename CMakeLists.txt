@@ -41,6 +41,7 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/algorithms.h
 	${HEADER_FOLDER}/algorithms_impl.h
 	${HEADER_FOLDER}/bitonic_sort.h
+	${HEADER_FOLDER}/concept_checks.h
 	${HEADER_FOLDER}/function_stream.h
 	${HEADER_FOLDER}/function_stream_impl.h
 	${HEADER_FOLDER}/future_result.h
