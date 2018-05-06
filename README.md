@@ -311,7 +311,7 @@ template<typename FunctionStream>
 void wait_for_function_streams( FunctionStream & function_stream );
 ```
 
-Wait for a group of function stream results to complete
+Wait for a group of function stream results to complete.  This implements the join pattern
 ``` C++
 template<typename... FunctionStreams>
 void wait_for_function_streams( FunctionStreams&... function_streams );
