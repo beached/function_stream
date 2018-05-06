@@ -65,7 +65,7 @@ namespace daw {
 					}
 					return result;
 				}
-l
+
 				template<size_t MinRangeSize = 1>
 				struct split_range_t {
 					static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );

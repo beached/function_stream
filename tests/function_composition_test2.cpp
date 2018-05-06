@@ -42,5 +42,9 @@ constexpr int c( int x ) noexcept {
 
 int main( ) {
 	constexpr auto fs = daw::compose_future( ) | a | b | c;
-	return fs( 3 ).get( );
+	if( fs( 3 ).get( ) != 72 ) {
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
 }
+
