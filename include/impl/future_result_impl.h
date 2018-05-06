@@ -180,6 +180,7 @@ namespace daw {
 				} catch( ... ) { set_exception( std::current_exception( ) ); }
 			}
 
+		public:
 			template<typename Function>
 			auto next( Function next_func ) {
 				daw::exception::daw_throw_on_true( m_next,
@@ -189,9 +190,8 @@ namespace daw {
 
 				future_result_t<next_result_t> result{m_task_scheduler};
 				std::function<next_result_t( base_result_t )> func = next_func;
-				auto ts = m_task_scheduler;
 				m_next = [result, func = std::move( func ),
-				          ts = std::move( ts )]( expected_result_t e_result ) mutable {
+				          ts = m_task_scheduler]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -200,6 +200,34 @@ namespace daw {
 					  convert_function_to_task( result, func, e_result.get( ) ) );
 				};
 
+				if( future_status::ready == status( ) ) {
+					pass_next( std::move( m_result ) );
+				}
+				status( ) = future_status::continued;
+				notify( );
+				return result;
+			}
+		private:
+			/*
+			template<typename... Results, typename... Functions>
+		    void split( std::tuple<Results> & results )  {
+
+			}
+			 */
+		public:
+			template<typename... Functions>
+			auto split( Functions &&... funcs ) {
+				using result_t = std::tuple<future_result_t<decltype(
+				  funcs( std::declval<expected_result_t>( ).get( ) ) )>...>;
+				result_t result{m_task_scheduler};
+				m_next = [=]( expected_result_t eresult ) {
+					if( e_result.has_exception( ) ) {
+						result.set_exception( e_result.get_exception_ptr( ) );
+						return;
+					}
+					ts.add_task( convert_function_to_task(
+					  std::get<N>( result ), std::get<N>( funcs ), e_result.get( ) ) );
+				};
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
 				}
