@@ -32,7 +32,7 @@
 
 #include <daw/cpp_17.h>
 
-#include "function_stream_impl.h"
+#include "impl/function_stream_impl.h"
 
 namespace daw {
 	template<typename... Functions>
