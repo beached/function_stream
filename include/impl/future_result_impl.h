@@ -117,6 +117,27 @@ namespace daw {
 			virtual void set_exception( std::exception_ptr ptr ) noexcept = 0;
 		};
 
+		template<size_t N, typename... Functions, typename... Results, typename Arg>
+		auto add_split_task( task_scheduler &ts, std::tuple<Results...> &results,
+		                     std::tuple<Functions...> &funcs, Arg &&arg )
+		  -> std::enable_if_t<( N == sizeof...( Functions ) - 1 ), void> {
+
+			ts.add_task( convert_function_to_task( std::get<N>( results ),
+			                                       std::get<N>( funcs ),
+			                                       std::forward<Arg>( arg ) ) );
+		}
+
+		template<size_t N, typename... Functions, typename... Results, typename Arg>
+		auto add_split_task( task_scheduler &ts, std::tuple<Results...> &results,
+		                     std::tuple<Functions...> &funcs, Arg &&arg )
+		  -> std::enable_if_t<( N < sizeof...( Functions ) - 1 ), void> {
+
+			ts.add_task( convert_function_to_task( std::get<N>( results ),
+			                                       std::get<N>( funcs ), arg ) );
+
+			add_split_task<N + 1>( ts, results, funcs, std::forward<Arg>( arg ) );
+		}
+
 		template<typename base_result_t>
 		struct member_data_t : public member_data_base_t {
 			using expected_result_t = daw::expected_t<base_result_t>;
@@ -207,27 +228,25 @@ namespace daw {
 				notify( );
 				return result;
 			}
-		private:
-			/*
-			template<typename... Results, typename... Functions>
-		    void split( std::tuple<Results> & results )  {
 
-			}
-			 */
 		public:
 			template<typename... Functions>
 			auto split( Functions &&... funcs ) {
 				using result_t = std::tuple<future_result_t<decltype(
 				  funcs( std::declval<expected_result_t>( ).get( ) ) )>...>;
 				result_t result{m_task_scheduler};
-				m_next = [=]( expected_result_t eresult ) {
+				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
+
+				m_next = [ts = m_task_scheduler, result = std::move( result ),
+				          tpfuncs =
+				            std::move( tpfuncs )]( expected_result_t e_result ) {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
 					}
-					ts.add_task( convert_function_to_task(
-					  std::get<N>( result ), std::get<N>( funcs ), e_result.get( ) ) );
+					impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
 				};
+
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
 				}
