@@ -25,7 +25,7 @@
 #include <daw/cpp_17.h>
 
 #include "impl/algorithms_impl.h"
-#include "concept_checks.h"
+#include "impl/concept_checks.h"
 
 namespace daw {
 	namespace algorithm {
