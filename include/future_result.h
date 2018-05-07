@@ -280,8 +280,8 @@ namespace daw {
 		}
 		while( first != last ) {
 			results.push_back( first->next(
-			  [r = std::move( *first++ ), binary_op]( value_t&& result ) mutable {
-				  return binary_op( std::forward<value_t>( result ), r.get( ) );
+			  [r = std::move( *first++ ), binary_op]( value_t result ) mutable {
+				  return binary_op( result.get( ), r.get( ) );
 			  } ) );
 			++first;
 		}
