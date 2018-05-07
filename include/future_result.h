@@ -133,6 +133,11 @@ namespace daw {
 		decltype( auto ) next( Function &&next_function ) {
 			return m_data->next( std::forward<Function>( next_function ) );
 		}
+
+		template<typename... Functions>
+		decltype( auto ) split( Functions&&... funcs ) {
+			return m_data->split( std::forward<Functions>( funcs )... );
+		}
 	};
 	// future_result_t
 
