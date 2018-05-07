@@ -271,30 +271,48 @@ namespace daw {
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
-		using value_t = std::decay_t<decltype( *first )>;
-		std::list<future_result_t<value_t>> results{};
+		using value_t = std::decay_t<decltype( first->get( ) )>;
+		using future_value_t = future_result_t<value_t>;
+		std::list<future_value_t> results{};
 
-		if( std::distance( first, last ) % 2 == 1 ) {
-			results.push_back( std::move( *first ) );
-			++first;
+		auto const sz = std::distance( first, last );
+		if( sz == 0 ) {
+			future_value_t result{};
+			result.set_exception(
+			  daw::exception::AssertException{"Attempt to reduce an empty range"} );
+			return result;
+		}
+		if( sz == 1 ) {
+			return *first;
+		}
+		if( sz % 2 == 1 ) {
+			results.push_back( *first++ );
 		}
 		while( first != last ) {
-			results.push_back( first->next(
-			  [r = std::move( *first++ ), binary_op]( value_t result ) mutable {
-				  return binary_op( result.get( ), r.get( ) );
-			  } ) );
-			++first;
+			future_value_t l = *first++;
+			future_value_t r = *first++;
+			results.push_back( l.next( [r, binary_op]( auto result ) mutable {
+				value_t r_value = r.get( );
+				value_t tmp = binary_op( result, r_value );
+				return tmp;
+			} ) );
+		}
+		for( auto &s : results ) {
+			s.wait( );
 		}
 		while( results.size( ) > 1 ) {
-			auto l = std::move( *results.begin( ) );
+			auto l = results.front( );
 			results.pop_front( );
-			results.push_back( l.next( [r = std::move( *results.begin( ) ),
-			                            binary_op]( value_t result ) mutable {
-				return binary_op( std::move( result ), r.get( ) );
-			} ) );
+			auto r = results.front( );
 			results.pop_front( );
+			results.push_back(
+			  l.next( [r = std::move( r ), binary_op]( value_t result ) mutable {
+				  value_t r_value = r.get( );
+				  value_t tmp = binary_op( result, r_value );
+				  return tmp;
+			  } ) );
 		}
-		return std::move( *results.begin( ) );
+		return results.front( );
 	}
 
 } // namespace daw

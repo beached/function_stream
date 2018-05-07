@@ -243,22 +243,22 @@ namespace daw {
 						srt( first, last, cmp );
 						return;
 					}
-					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					std::vector<iterator_range_t<Iterator>> const ranges =
+					  PartitionPolicy{}( first, last, ts.size( ) );
 
 					std::vector<future_result_t<iterator_range_t<Iterator>>> sorters{};
 					sorters.reserve( ranges.size( ) );
-					std::transform(
-					  ranges.begin( ), ranges.end( ), std::back_inserter( sorters ),
-					  [&]( iterator_range_t<Iterator> const &range ) {
-						  return ::daw::make_future_result(
-						    ts, [cmp, srt]( iterator_range_t<Iterator> rng ) {
-							    srt( rng.begin( ), rng.end( ), cmp );
-							    return rng;
-						    }, range );
-					  } );
+					auto const sorter = [cmp, srt]( iterator_range_t<Iterator> rng ) {
+						srt( rng.begin( ), rng.end( ), cmp );
+						return std::move( rng );
+					};
+					for( auto const &rng : ranges ) {
+						future_result_t<iterator_range_t<Iterator>> f{ ts };
+						f.from_code( sorter, rng );
+						sorters.push_back( std::move( f ) );
+					}
 
-					reduce_futures( sorters.begin( ), sorters.end( ),
-					                [cmp]( iterator_range_t<Iterator> rng_left,
+					auto const merger = [cmp]( iterator_range_t<Iterator> rng_left,
 					                       iterator_range_t<Iterator> rng_right ) {
 						                std::inplace_merge( rng_left.begin( ),
 						                                    rng_left.end( ),
@@ -266,8 +266,9 @@ namespace daw {
 
 						                return iterator_range_t<Iterator>{rng_left.begin( ),
 						                                                  rng_right.end( )};
-					                } )
-					  .wait( );
+					                };
+					auto fut = reduce_futures( sorters.begin( ), sorters.end( ), merger );
+					ts.wait_for( fut );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename T,
