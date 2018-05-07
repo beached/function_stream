@@ -246,6 +246,7 @@ namespace daw {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 
 					std::vector<future_result_t<iterator_range_t<Iterator>>> sorters{};
+					sorters.reserve( ranges.size( ) );
 					std::transform(
 					  ranges.begin( ), ranges.end( ), std::back_inserter( sorters ),
 					  [&]( iterator_range_t<Iterator> const &range ) {
@@ -253,7 +254,7 @@ namespace daw {
 						    ts, [cmp, srt]( iterator_range_t<Iterator> rng ) {
 							    srt( rng.begin( ), rng.end( ), cmp );
 							    return rng;
-						    } );
+						    }, range );
 					  } );
 
 					reduce_futures( sorters.begin( ), sorters.end( ),

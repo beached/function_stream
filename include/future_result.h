@@ -23,6 +23,7 @@
 #pragma once
 
 #include <chrono>
+#include <list>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -270,7 +271,7 @@ namespace daw {
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
-		using value_t = std::decay_t<decltype( first->get( ) )>;
+		using value_t = std::decay_t<decltype( *first )>;
 		std::list<future_result_t<value_t>> results{};
 
 		if( std::distance( first, last ) % 2 == 1 ) {
@@ -279,8 +280,8 @@ namespace daw {
 		}
 		while( first != last ) {
 			results.push_back( first->next(
-			  [r = std::move( *first++ ), binary_op]( value_t result ) mutable {
-				  return binary_op( std::move( result ), r.get( ) );
+			  [r = std::move( *first++ ), binary_op]( value_t&& result ) mutable {
+				  return binary_op( std::forward<value_t>( result ), r.get( ) );
 			  } ) );
 			++first;
 		}
