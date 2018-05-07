@@ -44,7 +44,7 @@ namespace daw {
 
 	public:
 		task_scheduler(
-		  std::size_t num_threads = 2, // std::thread::hardware_concurrency( ),
+		  std::size_t num_threads = std::thread::hardware_concurrency( ),
 		  bool block_on_destruction = true );
 		~task_scheduler( ) = default;
 

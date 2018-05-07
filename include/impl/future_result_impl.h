@@ -170,17 +170,31 @@ namespace daw {
 			}
 
 		public:
-			void set_value( expected_result_t value ) noexcept {
-				m_result = std::move( value );
+			void set_value( expected_result_t &&value ) noexcept {
 				if( m_next ) {
-					pass_next( std::move( m_result ) );
+					pass_next( std::move( value ) );
 					return;
 				}
+				m_result = std::move( value );
 				status( ) = future_status::ready;
 				notify( );
 			}
 
-			void set_value( base_result_t value ) noexcept {
+			void set_value( expected_result_t const &value ) noexcept {
+				if( m_next ) {
+					pass_next( value );
+					return;
+				}
+				m_result = value;
+				status( ) = future_status::ready;
+				notify( );
+			}
+
+			void set_value( base_result_t &&value ) noexcept {
+				set_value( expected_result_t{std::move( value )} );
+			}
+
+			void set_value( base_result_t const &value ) noexcept {
 				set_value( expected_result_t{value} );
 			}
 
@@ -193,32 +207,32 @@ namespace daw {
 			}
 
 			template<typename Function, typename... Args>
-			void from_code( Function func, Args &&... args ) {
+			void from_code( Function &&func, Args &&... args ) {
 				try {
-					auto result = expected_from_code<base_result_t>(
-					  func, std::forward<Args>( args )... );
-					set_value( std::move( result ) );
+					set_value( expected_from_code<base_result_t>(
+					  std::forward<Function>( func ), std::forward<Args>( args )... ) );
 				} catch( ... ) { set_exception( std::current_exception( ) ); }
 			}
 
 		public:
 			template<typename Function>
-			auto next( Function next_func ) {
+			auto next( Function &&next_func ) {
 				daw::exception::daw_throw_on_true( m_next,
 				                                   "Can only set next function once" );
 				using next_result_t = std::decay_t<decltype(
 				  next_func( std::declval<expected_result_t>( ).get( ) ) )>;
 
 				future_result_t<next_result_t> result{m_task_scheduler};
-				std::function<next_result_t( base_result_t )> func = next_func;
+				std::function<next_result_t( base_result_t )> func =
+				  std::forward<Function>( next_func );
 				m_next = [result, func = std::move( func ),
 				          ts = m_task_scheduler]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
 					}
-					ts.add_task(
-					  convert_function_to_task( result, func, e_result.get( ) ) );
+					ts.add_task( convert_function_to_task(
+					  std::move( result ), std::move( func ), e_result.get( ) ) );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -282,10 +296,16 @@ namespace daw {
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
 
 		private:
-			void pass_next( expected_result_t value ) noexcept {
+			void pass_next( expected_result_t &&value ) noexcept {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
 				m_next( std::move( value ) );
+			}
+
+			void pass_next( expected_result_t const &value ) noexcept {
+				daw::exception::daw_throw_on_false(
+				  m_next, "Attempt to call next function on empty function" );
+				m_next( value );
 			}
 
 		public:
@@ -297,7 +317,7 @@ namespace daw {
 			void set_exception( ) noexcept override;
 
 			template<typename Function, typename... Args>
-			void from_code( Function func, Args &&... args ) {
+			void from_code( Function &&func, Args &&... args ) {
 				try {
 					func( std::forward<Args>( args )... );
 					set_value( );
@@ -371,16 +391,18 @@ namespace daw {
 		template<typename... Unknown>
 		struct function_to_task_t;
 
-		template<typename Result, typename Function, typename Arg, typename... Args>
-		struct function_to_task_t<Result, Function, Arg, Args...> {
+		template<typename Result, typename Function, typename... Args>
+		struct function_to_task_t<Result, Function, Args...> {
+			static_assert( sizeof...( Args ) > 0, "Must supply at least 1 argument" );
 			Result m_result;
 			Function m_function;
-			std::tuple<Arg, Args...> m_args;
-			function_to_task_t( Result result, Function func, Arg &&arg,
-			                    Args &&... args )
-			  : m_result{std::move( result )}
-			  , m_function{std::move( func )}
-			  , m_args{std::forward<Arg>( arg ), std::forward<Args>( args )...} {}
+			std::tuple<Args...> m_args;
+
+			template<typename R, typename F, typename... A>
+			function_to_task_t( R &&result, F &&func, A &&... args )
+			  : m_result{std::forward<R>( result )}
+			  , m_function{std::forward<F>( func )}
+			  , m_args{std::forward<A>( args )...} {}
 
 			void operator( )( ) {
 				m_result.from_code(
@@ -403,9 +425,12 @@ namespace daw {
 
 		template<typename Result, typename Function, typename... Args>
 		function_to_task_t<Result, Function, Args...>
-		convert_function_to_task( Result &result, Function func, Args &&... args ) {
+		convert_function_to_task( Result &&result, Function &&func,
+		                          Args &&... args ) {
+
 			return function_to_task_t<Result, Function, Args...>{
-			  result, std::move( func ), std::forward<Args>( args )...};
+			  std::forward<Result>( result ), std::forward<Function>( func ),
+			  std::forward<Args>( args )...};
 		}
 
 		template<size_t N, size_t SZ, typename... Callables>

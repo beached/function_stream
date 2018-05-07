@@ -90,8 +90,11 @@ namespace daw {
 			return m_data->try_wait( );
 		}
 
-		void set_value( Result value ) noexcept {
-			m_data->set_value( std::move( value ) );
+		template<typename R>
+		void set_value( R &&value ) noexcept {
+			static_assert( daw::is_convertible_v<R, Result>,
+			               "Argument must convertible to a Result type" );
+			m_data->set_value( std::forward<R>( value ) );
 		}
 
 		template<typename Exception>
@@ -104,13 +107,14 @@ namespace daw {
 		}
 
 		template<typename Function, typename... Args>
-		void from_code( Function func, Args &&... args ) {
+		void from_code( Function &&func, Args &&... args ) {
 			using func_result_t = decltype( func( std::forward<Args>( args )... ) );
 			static_assert( std::is_convertible<func_result_t, Result>::value,
 			               "Function func with Args does not return a value that is "
 			               "convertible to Result. e.g Result "
 			               "r = func( args... ) must be valid" );
-			m_data->from_code( std::move( func ), std::forward<Args>( args )... );
+			m_data->from_code( std::forward<Function>( func ),
+			                   std::forward<Args>( args )... );
 		}
 
 		bool is_exception( ) const {
@@ -190,9 +194,10 @@ namespace daw {
 		}
 
 		template<typename Function, typename... Args>
-		void from_code( Function func, Args &&... args ) {
-			m_data->from_code( daw::make_void_function( func ),
-			                   std::forward<Args>( args )... );
+		void from_code( Function &&func, Args &&... args ) {
+			m_data->from_code(
+			  daw::make_void_function( std::forward<Function>( func ) ),
+			  std::forward<Args>( args )... );
 		}
 
 		template<typename Function>
@@ -264,20 +269,20 @@ namespace daw {
 	  decltype( is_future_result_impl( std::declval<T>( ) ) )::value;
 
 	template<typename RandomIterator, typename RandomIterator2,
-	         typename BinaryOperation>
-	auto reduce_futures( RandomIterator first, RandomIterator2 last,
-	                     BinaryOperation binary_op ) {
+	         typename BinaryOperation,
+	         typename ResultType = future_result_t<
+	           std::decay_t<decltype( (*std::declval<RandomIterator>( )).get( ) )>>>
+	ResultType reduce_futures( RandomIterator first, RandomIterator2 last,
+	                           BinaryOperation binary_op ) {
 
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
-		using value_t = std::decay_t<decltype( first->get( ) )>;
-		using future_value_t = future_result_t<value_t>;
-		std::list<future_value_t> results{};
+		std::list<ResultType> results{};
 
 		auto const sz = std::distance( first, last );
 		if( sz == 0 ) {
-			future_value_t result{};
+			ResultType result{};
 			result.set_exception(
 			  daw::exception::AssertException{"Attempt to reduce an empty range"} );
 			return result;
@@ -289,30 +294,29 @@ namespace daw {
 			results.push_back( *first++ );
 		}
 		while( first != last ) {
-			future_value_t l = *first++;
-			future_value_t r = *first++;
-			results.push_back( l.next( [r, binary_op]( auto result ) mutable {
-				value_t r_value = r.get( );
-				value_t tmp = binary_op( result, r_value );
-				return tmp;
-			} ) );
+			auto l = std::move( *first++ );
+			auto r = std::move( *first++ );
+			results.push_back(
+			  l.next( [r = std::move( r ), binary_op]( auto &&result ) mutable {
+				  return binary_op( std::forward<decltype( result )>( result ),
+				                    r.get( ) );
+			  } ) );
 		}
 		for( auto &s : results ) {
 			s.wait( );
 		}
 		while( results.size( ) > 1 ) {
-			auto l = results.front( );
+			auto l = std::move( *results.begin( ) );
 			results.pop_front( );
-			auto r = results.front( );
+			auto r = std::move( *results.begin( ) );
 			results.pop_front( );
 			results.push_back(
-			  l.next( [r = std::move( r ), binary_op]( value_t result ) mutable {
-				  value_t r_value = r.get( );
-				  value_t tmp = binary_op( result, r_value );
-				  return tmp;
+			  l.next( [r = std::move( r ), binary_op]( auto &&result ) mutable {
+				  return binary_op( std::forward<decltype( result )>( result ),
+				                    r.get( ) );
 			  } ) );
 		}
-		return results.front( );
-	}
+		return std::move( *results.begin( ) );
+	} // namespace daw
 
 } // namespace daw
