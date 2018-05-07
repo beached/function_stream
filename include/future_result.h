@@ -25,6 +25,7 @@
 #include <chrono>
 #include <memory>
 #include <tuple>
+#include <utility>
 
 #include <daw/cpp_17.h>
 #include <daw/daw_exception.h>
@@ -277,20 +278,20 @@ namespace daw {
 			++first;
 		}
 		while( first != last ) {
-			auto l = std::move( *first++ );
-			l.next( [r = std::move( *first++ ), binary_op]( auto result ) mutable {
-				binary_op( std::move( result ), r.get( ) );
-			} );
-			results.push_back( std::move( l ) );
+			results.push_back( first->next(
+			  [r = std::move( *first++ ), binary_op]( value_t result ) mutable {
+				  return binary_op( std::move( result ), r.get( ) );
+			  } ) );
+			++first;
 		}
 		while( results.size( ) > 1 ) {
 			auto l = std::move( *results.begin( ) );
 			results.pop_front( );
-			l.next( [r = std::move( *results.begin( ) ), binary_op]( auto result ) mutable {
-				binary_op( std::move( result ), r.get( ) );
-			} );
+			results.push_back( l.next( [r = std::move( *results.begin( ) ),
+			                            binary_op]( value_t result ) mutable {
+				return binary_op( std::move( result ), r.get( ) );
+			} ) );
 			results.pop_front( );
-			results.push_back( std::move( l ) );
 		}
 		return std::move( *results.begin( ) );
 	}

@@ -248,21 +248,24 @@ namespace daw {
 					std::vector<future_result_t<value_t>> sorters( ranges.size( ), ts );
 
 					for( size_t n = 0; n < ranges.size( ); ++n ) {
-						sorters[n].from_code( [srt, cmp, range = std::move(ranges[n])]( ) mutable {
-							srt( range.begin( ), range.end( ), cmp );
-							return range;
-						} );
+						sorters[n].from_code(
+						  [srt, cmp, range = std::move( ranges[n] )]( ) mutable {
+							  srt( range.begin( ), range.end( ), cmp );
+							  return range;
+						  } );
 					}
 					ranges.clear( );
 
-					reduce_futures( sorters.begin( ), sorters.end( ),
-					                [cmp]( iterator_range_t<Iterator> rng_left,
-					                           iterator_range_t<Iterator> rng_right ) mutable {
+					reduce_futures(
+					  sorters.begin( ), sorters.end( ),
+					  [cmp]( iterator_range_t<Iterator> rng_left,
+					         iterator_range_t<Iterator> rng_right ) mutable {
+						  std::inplace_merge( rng_left.begin( ), rng_left.end( ),
+						                      rng_right.end( ), cmp );
 
-						                std::inplace_merge( rng_left.begin( ),
-						                                    rng_left.end( ),
-						                                    rng_right.end( ), cmp );
-					                } )
+						  return iterator_range_t<Iterator>{rng_left.begin( ),
+						                                    rng_right.end( )};
+					  } )
 					  .wait( );
 				}
 
