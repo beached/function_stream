@@ -216,7 +216,7 @@ namespace daw {
 				                    Compare cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size >
 					    static_cast<size_t>( std::distance( first, last ) ) ) {
-						sort( first, last, cmp );
+						srt( first, last, cmp );
 						return;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
@@ -240,32 +240,32 @@ namespace daw {
 				                     Compare cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size >
 					    static_cast<size_t>( std::distance( first, last ) ) ) {
-						sort( first, last, cmp );
+						srt( first, last, cmp );
 						return;
 					}
-					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					using value_t = std::decay_t<decltype( *first )>;
-					std::vector<future_result_t<value_t>> sorters( ranges.size( ), ts );
+					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 
-					for( size_t n = 0; n < ranges.size( ); ++n ) {
-						sorters[n].from_code(
-						  [srt, cmp, range = std::move( ranges[n] )]( ) mutable {
-							  srt( range.begin( ), range.end( ), cmp );
-							  return range;
-						  } );
-					}
-					ranges.clear( );
+					std::vector<future_result_t<iterator_range_t<Iterator>>> sorters{};
+					std::transform(
+					  ranges.begin( ), ranges.end( ), std::back_inserter( sorters ),
+					  [&]( iterator_range_t<Iterator> const &range ) {
+						  return ::daw::make_future_result(
+						    ts, [cmp, srt]( iterator_range_t<Iterator> range ) {
+							    srt( range.begin( ), range.end( ), cmp );
+							    return range;
+						    } );
+					  } );
 
-					reduce_futures(
-					  sorters.begin( ), sorters.end( ),
-					  [cmp]( iterator_range_t<Iterator> rng_left,
-					         iterator_range_t<Iterator> rng_right ) mutable {
-						  std::inplace_merge( rng_left.begin( ), rng_left.end( ),
-						                      rng_right.end( ), cmp );
+					reduce_futures( sorters.begin( ), sorters.end( ),
+					                [cmp]( iterator_range_t<Iterator> rng_left,
+					                       iterator_range_t<Iterator> rng_right ) {
+						                std::inplace_merge( rng_left.begin( ),
+						                                    rng_left.end( ),
+						                                    rng_right.end( ), cmp );
 
-						  return iterator_range_t<Iterator>{rng_left.begin( ),
-						                                    rng_right.end( )};
-					  } )
+						                return iterator_range_t<Iterator>{rng_left.begin( ),
+						                                                  rng_right.end( )};
+					                } )
 					  .wait( );
 				}
 
