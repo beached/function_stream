@@ -250,8 +250,8 @@ namespace daw {
 					  ranges.begin( ), ranges.end( ), std::back_inserter( sorters ),
 					  [&]( iterator_range_t<Iterator> const &range ) {
 						  return ::daw::make_future_result(
-						    ts, [cmp, srt]( iterator_range_t<Iterator> range ) {
-							    srt( range.begin( ), range.end( ), cmp );
+						    ts, [cmp, srt]( iterator_range_t<Iterator> rng ) {
+							    srt( rng.begin( ), rng.end( ), cmp );
 							    return range;
 						    } );
 					  } );
