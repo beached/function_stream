@@ -229,7 +229,6 @@ namespace daw {
 				return result;
 			}
 
-		public:
 			template<typename... Functions>
 			auto split( Functions &&... funcs ) {
 				using result_t = std::tuple<future_result_t<decltype(
@@ -320,6 +319,30 @@ namespace daw {
 						return;
 					}
 					ts.add_task( convert_function_to_task( result, func ) );
+				};
+
+				if( future_status::ready == status( ) ) {
+					pass_next( std::move( m_result ) );
+				}
+				status( ) = future_status::continued;
+				notify( );
+				return result;
+			}
+			template<typename... Functions>
+			auto split( Functions &&... funcs ) {
+				using result_t = std::tuple<future_result_t<decltype( funcs( ) )>...>;
+
+				result_t result{m_task_scheduler};
+				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
+
+				m_next = [ts = m_task_scheduler, result = std::move( result ),
+				          tpfuncs =
+				            std::move( tpfuncs )]( expected_result_t e_result ) {
+					if( e_result.has_exception( ) ) {
+						result.set_exception( e_result.get_exception_ptr( ) );
+						return;
+					}
+					impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
 				};
 
 				if( future_status::ready == status( ) ) {
