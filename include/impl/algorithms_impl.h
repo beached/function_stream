@@ -252,7 +252,7 @@ namespace daw {
 						  return ::daw::make_future_result(
 						    ts, [cmp, srt]( iterator_range_t<Iterator> rng ) {
 							    srt( rng.begin( ), rng.end( ), cmp );
-							    return range;
+							    return rng;
 						    } );
 					  } );
 
