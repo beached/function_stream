@@ -212,35 +212,35 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<512>,
 				         typename Iterator, typename Sort, typename Compare>
-				void parallel_sort( Iterator first, Iterator last, Sort sort,
-				                    Compare compare, task_scheduler ts ) {
+				void parallel_sort( Iterator first, Iterator last, Sort srt,
+				                    Compare cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size >
 					    static_cast<size_t>( std::distance( first, last ) ) ) {
-						sort( first, last, compare );
+						sort( first, last, cmp );
 						return;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					partition_range( ranges,
-					                 [sort, compare]( auto const &range ) {
-						                 sort( range.begin( ), range.end( ), compare );
+					                 [srt, cmp]( auto const &range ) {
+						                 srt( range.begin( ), range.end( ), cmp );
 					                 },
 					                 ts )
 					  .wait( );
 
 					merge_reduce_range( ranges,
-					                    [compare]( Iterator f, Iterator m, Iterator l ) {
-						                    std::inplace_merge( f, m, l, compare );
+					                    [cmp]( Iterator f, Iterator m, Iterator l ) {
+						                    std::inplace_merge( f, m, l, cmp );
 					                    },
 					                    ts );
 				}
 
 				template<typename PartitionPolicy = split_range_t<512>,
 				         typename Iterator, typename Sort, typename Compare>
-				void fork_join_sort( Iterator first, Iterator last, Sort sort,
-				                     Compare compare, task_scheduler ts ) {
+				void fork_join_sort( Iterator first, Iterator last, Sort srt,
+				                     Compare cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size >
 					    static_cast<size_t>( std::distance( first, last ) ) ) {
-						sort( first, last, compare );
+						sort( first, last, cmp );
 						return;
 					}
 					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
@@ -248,20 +248,20 @@ namespace daw {
 					std::vector<future_result_t<value_t>> sorters( ranges.size( ), ts );
 
 					for( size_t n = 0; n < ranges.size( ); ++n ) {
-						sorters[n].from_code( [sort, compare, range = std::move(ranges[n])]( ) mutable {
-							sort( range.begin( ), range.end( ), compare );
+						sorters[n].from_code( [srt, cmp, range = std::move(ranges[n])]( ) mutable {
+							srt( range.begin( ), range.end( ), cmp );
 							return range;
 						} );
 					}
 					ranges.clear( );
 
 					reduce_futures( sorters.begin( ), sorters.end( ),
-					                [compare]( iterator_range_t<Iterator> rng_left,
+					                [cmp]( iterator_range_t<Iterator> rng_left,
 					                           iterator_range_t<Iterator> rng_right ) mutable {
 
 						                std::inplace_merge( rng_left.begin( ),
 						                                    rng_left.end( ),
-						                                    rng_right.end( ), compare );
+						                                    rng_right.end( ), cmp );
 					                } )
 					  .wait( );
 				}
