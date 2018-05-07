@@ -250,6 +250,17 @@ Set the value from the result of function and optional arguments args
 template<typename Function, typename... Args>
 void from_code( Function func, Args &&... args );
 ```
+### Continuation of future_result_t
+Add next function in chain and return a new future_result_t that has the result of that function with the argument being the result of the previous
+``` C++
+template<typename Function>
+auto next( Function next_function );
+```
+Split the result of future_result_t and pass it to a list of Functions.  The result is a tuple of future_result_t with the result of each function
+``` C++
+template<typename... Functions>
+auto split( Functions&&... funcs );
+```
 
 ### Retreiving the value from future_result_t
 Check if the future result is an exception
