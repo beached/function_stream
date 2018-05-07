@@ -43,6 +43,7 @@
 
 #include "algorithms.h"
 #include "bitonic_sort.h"
+#include "function_stream.h"
 
 BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
 	// Prime task scheduler so we don't pay to start it up in first test
@@ -185,7 +186,7 @@ namespace {
 		display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
 	}
 
-	template<typename Iterator>
+		template<typename Iterator>
 	void test_sort( Iterator const first, Iterator const last,
 	                daw::string_view label ) {
 		if( first == last ) {
@@ -229,6 +230,12 @@ namespace {
 		} );
 		test_sort( a.begin( ), a.end( ), "p_result_1" );
 		a = b;
+		auto const result_fj1 = daw::benchmark( [&]( ) {
+			daw::algorithm::parallel::fork_join_sort( a.begin( ), a.end( ), ts );
+			daw::do_not_optimize( a );
+		});
+		test_sort( a.begin( ), a.end( ), "p_result_1" );
+		a = b;
 		auto const result_2 = daw::benchmark( [&]( ) {
 			std::sort( a.begin( ), a.end( ) );
 			daw::do_not_optimize( a );
@@ -241,6 +248,12 @@ namespace {
 		} );
 		test_sort( a.begin( ), a.end( ), "p_result2" );
 		a = b;
+		auto const result_fj2 = daw::benchmark( [&]( ) {
+			daw::algorithm::parallel::fork_join_sort( a.begin( ), a.end( ), ts );
+			daw::do_not_optimize( a );
+		});
+		test_sort( a.begin( ), a.end( ), "p_result_1" );
+		a = b;
 		auto const result_4 = daw::benchmark( [&]( ) {
 			std::sort( a.begin( ), a.end( ) );
 			daw::do_not_optimize( a );
@@ -248,7 +261,10 @@ namespace {
 		test_sort( a.begin( ), a.end( ), "s_result2" );
 		auto const par_min = std::min( result_1, result_3 );
 		auto const seq_min = std::min( result_2, result_4 );
+		auto const fj_min = std::min( result_fj1, result_fj2 );
+
 		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
+		display_info( fj_min, par_min, SZ, sizeof( int64_t ), "sort_fj" );
 	}
 
 	void bitonic_sort_test( size_t SZ ) {

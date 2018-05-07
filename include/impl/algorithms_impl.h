@@ -234,6 +234,38 @@ namespace daw {
 					                    ts );
 				}
 
+				template<typename PartitionPolicy = split_range_t<512>,
+				         typename Iterator, typename Sort, typename Compare>
+				void fork_join_sort( Iterator first, Iterator last, Sort sort,
+				                     Compare compare, task_scheduler ts ) {
+					if( PartitionPolicy::min_range_size >
+					    static_cast<size_t>( std::distance( first, last ) ) ) {
+						sort( first, last, compare );
+						return;
+					}
+					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					using value_t = std::decay_t<decltype( *first )>;
+					std::vector<future_result_t<value_t>> sorters( ranges.size( ), ts );
+
+					for( size_t n = 0; n < ranges.size( ); ++n ) {
+						sorters[n].from_code( [sort, compare, range = std::move(ranges[n])]( ) mutable {
+							sort( range.begin( ), range.end( ), compare );
+							return range;
+						} );
+					}
+					ranges.clear( );
+
+					reduce_futures( sorters.begin( ), sorters.end( ),
+					                [compare]( iterator_range_t<Iterator> rng_left,
+					                           iterator_range_t<Iterator> rng_right ) mutable {
+
+						                std::inplace_merge( rng_left.begin( ),
+						                                    rng_left.end( ),
+						                                    rng_right.end( ), compare );
+					                } )
+					  .wait( );
+				}
+
 				template<typename PartitionPolicy = split_range_t<1>, typename T,
 				         typename Iterator, typename BinaryOp>
 				auto parallel_reduce( Iterator first, Iterator last, T init,

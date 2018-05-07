@@ -135,7 +135,7 @@ namespace daw {
 		}
 
 		template<typename... Functions>
-		decltype( auto ) split( Functions&&... funcs ) {
+		decltype( auto ) split( Functions &&... funcs ) {
 			return m_data->split( std::forward<Functions>( funcs )... );
 		}
 	};
@@ -199,7 +199,7 @@ namespace daw {
 		}
 
 		template<typename... Functions>
-		decltype( auto ) split( Functions&&... funcs ) {
+		decltype( auto ) split( Functions &&... funcs ) {
 			return m_data->split( std::forward<Functions>( funcs )... );
 		}
 	}; // future_result_t<void>
@@ -251,4 +251,48 @@ namespace daw {
 	make_future_result_group( Functions... functions ) {
 		return make_callable_future_result_group( std::move( functions )... )( );
 	}
+
+	std::false_type is_future_result_impl( ... ) noexcept;
+
+	template<typename T>
+	constexpr std::true_type is_future_result_impl( future_result_t<T> ) noexcept;
+
+	template<typename T>
+	constexpr bool is_future_result_v =
+	  decltype( is_future_result_impl( std::declval<T>( ) ) )::value;
+
+	template<typename RandomIterator, typename RandomIterator2,
+	         typename BinaryOperation>
+	auto reduce_futures( RandomIterator first, RandomIterator2 last,
+	                     BinaryOperation binary_op ) {
+
+		static_assert( is_future_result_v<decltype( *first )>,
+		               "RandomIterator's value type must be a future result" );
+
+		using value_t = std::decay_t<decltype( first->get( ) )>;
+		std::list<future_result_t<value_t>> results{};
+
+		if( std::distance( first, last ) % 2 == 1 ) {
+			results.push_back( std::move( *first ) );
+			++first;
+		}
+		while( first != last ) {
+			auto l = std::move( *first++ );
+			l.next( [r = std::move( *first++ ), binary_op]( auto result ) mutable {
+				binary_op( std::move( result ), r.get( ) );
+			} );
+			results.push_back( std::move( l ) );
+		}
+		while( results.size( ) > 1 ) {
+			auto l = std::move( *results.begin( ) );
+			results.pop_front( );
+			l.next( [r = std::move( *results.begin( ) ), binary_op]( auto result ) mutable {
+				binary_op( std::move( result ), r.get( ) );
+			} );
+			results.pop_front( );
+			results.push_back( std::move( l ) );
+		}
+		return std::move( *results.begin( ) );
+	}
+
 } // namespace daw
