@@ -295,28 +295,22 @@ namespace daw {
 		}
 		while( first != last ) {
 			auto l = std::move( *first++ );
-			auto r = std::move( *first++ );
-			results.push_back(
-			  l.next( [r = std::move( r ), binary_op]( auto &&result ) mutable {
+			results.push_back( l.next(
+			  [r = std::move( *first++ ), binary_op]( auto &&result ) mutable {
 				  return binary_op( std::forward<decltype( result )>( result ),
 				                    r.get( ) );
 			  } ) );
-		}
-		for( auto &s : results ) {
-			s.wait( );
 		}
 		while( results.size( ) > 1 ) {
 			auto l = std::move( *results.begin( ) );
 			results.pop_front( );
-			auto r = std::move( *results.begin( ) );
+			results.push_back( l.next( [r = std::move( *results.begin( ) ),
+			                            binary_op]( auto &&result ) mutable {
+				return binary_op( std::forward<decltype( result )>( result ),
+				                  r.get( ) );
+			} ) );
 			results.pop_front( );
-			results.push_back(
-			  l.next( [r = std::move( r ), binary_op]( auto &&result ) mutable {
-				  return binary_op( std::forward<decltype( result )>( result ),
-				                    r.get( ) );
-			  } ) );
 		}
 		return std::move( *results.begin( ) );
-	} // namespace daw
-
+	}
 } // namespace daw
