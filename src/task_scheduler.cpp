@@ -100,9 +100,15 @@ namespace daw {
 			}
 		}
 
-		bool task_scheduler_impl::run_next_task( ) {
+		bool task_scheduler_impl::run_next_task( size_t id ) {
 			daw::impl::task_ptr_t tsk;
-			for( size_t m = 0; m < m_num_threads; ++m ) {
+			if( m_tasks[id].receive( tsk ) ) {
+				run_task( tsk );
+				return true;
+			}
+			for( auto m = ( id + 1 ) % m_num_threads; m != id;
+			     m = ( m + 1 ) % m_num_threads ) {
+
 				if( m_tasks[m].receive( tsk ) ) {
 					run_task( tsk );
 					return true;

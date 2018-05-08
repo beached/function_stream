@@ -105,11 +105,11 @@ namespace daw {
 			void add_task( Task &&task ) noexcept {
 				auto id = ( m_task_count++ ) % m_num_threads;
 				auto tsk = [wself = get_weak_this( ),
-				            task = std::forward<Task>( task )]( ) mutable {
+				            task = std::forward<Task>( task ), id]( ) mutable {
 					task( );
 					auto self = wself.lock( );
 					if( self ) {
-						while( self->run_next_task( ) ) {}
+						while( self->run_next_task( id ) ) {}
 					}
 				};
 				task_ptr_t tmp{std::move( tsk )};
@@ -119,7 +119,7 @@ namespace daw {
 				}
 			}
 
-			bool run_next_task( );
+			bool run_next_task( size_t id );
 
 			void start( );
 			void stop( bool block = true ) noexcept;
