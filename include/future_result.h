@@ -268,10 +268,10 @@ namespace daw {
 	constexpr bool is_future_result_v =
 	  decltype( is_future_result_impl( std::declval<T>( ) ) )::value;
 
-	template<typename RandomIterator, typename RandomIterator2,
-	         typename BinaryOperation,
-	         typename ResultType = future_result_t<
-	           std::decay_t<decltype( (*std::declval<RandomIterator>( )).get( ) )>>>
+	template<
+	  typename RandomIterator, typename RandomIterator2, typename BinaryOperation,
+	  typename ResultType = future_result_t<
+	    std::decay_t<decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
 	ResultType reduce_futures( RandomIterator first, RandomIterator2 last,
 	                           BinaryOperation binary_op ) {
 

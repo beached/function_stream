@@ -231,8 +231,9 @@ namespace daw {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
 					}
+					auto r = e_result.get( );
 					ts.add_task( convert_function_to_task(
-					  std::move( result ), std::move( func ), e_result.get( ) ) );
+					  std::move( result ), std::move( func ), std::move( r ) ) );
 				};
 
 				if( future_status::ready == status( ) ) {
