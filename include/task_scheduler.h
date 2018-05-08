@@ -68,7 +68,7 @@ namespace daw {
 		size_t size( ) const;
 
 		template<typename Function>
-		decltype( auto ) wait_for_scope( Function func ) {
+		decltype( auto ) wait_for_scope( Function &&func ) {
 			static_assert( impl::is_task_v<Function>,
 			               "Function passed to wait_for_scope must be callable "
 			               "without an arugment. e.g. func( )" );
@@ -86,7 +86,9 @@ namespace daw {
 			static_assert(
 			  impl::is_waitable_v<Waitable>,
 			  "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
-			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
+
+			wait_for_scope( [waitable = std::forward<Waitable>(
+			                   waitable )]( ) mutable { waitable.wait( ); } );
 		}
 	}; // task_scheduler
 
@@ -99,26 +101,28 @@ namespace daw {
 	/// @param task Task of form void( ) to run
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	void schedule_task( daw::shared_semaphore sem, Task task,
+	void schedule_task( daw::shared_semaphore sem, Task &&task,
 	                    task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Task>,
 		               "Task task passed to schedule_task must be callable without "
 		               "an arugment. e.g. task( )" );
-		ts.add_task( [task = std::move( task ), sem = std::move( sem )]( ) mutable {
-			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
-			task( );
-		} );
+		ts.add_task(
+		  [task = std::forward<Task>( task ), sem = std::move( sem )]( ) mutable {
+			  auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
+			  task( );
+		  } );
 	}
 
 	template<typename Task>
 	daw::shared_semaphore
-	create_waitable_task( Task task, task_scheduler ts = get_task_scheduler( ) ) {
+	create_waitable_task( Task &&task,
+	                      task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Task>,
 		               "Task task passed to create_waitable_task must be callable "
 		               "without an arugment. "
 		               "e.g. task( )" );
 		daw::shared_semaphore sem;
-		schedule_task( sem, ts, std::move( task ) );
+		schedule_task( sem, ts, std::forward<Task>( task ) );
 		return sem;
 	}
 
@@ -134,12 +138,12 @@ namespace daw {
 		auto ts = get_task_scheduler( );
 		daw::shared_semaphore sem{1 - sizeof...( tasks )};
 
-		auto const st = [&]( auto task ) {
-			schedule_task( sem, std::move( task ), ts );
+		auto const st = [&]( auto &&task ) {
+			schedule_task( sem, std::forward<decltype( task )>( task ), ts );
 			return 0;
 		};
 
-		auto const dummy = {st( std::move( tasks ) )...};
+		auto const dummy = {st( std::forward<Tasks>( tasks ) )...};
 		Unused( dummy );
 		return sem;
 	}
@@ -148,24 +152,24 @@ namespace daw {
 	///
 	/// @param tasks callable items of the form void( )
 	template<typename... Tasks>
-	void invoke_tasks( task_scheduler ts, Tasks... tasks ) {
-		ts.wait_for( create_task_group( tasks... ) );
+	void invoke_tasks( task_scheduler ts, Tasks &&... tasks ) {
+		ts.wait_for( create_task_group( std::forward<Tasks>( tasks )... ) );
 	}
 
 	template<typename... Tasks>
-	void invoke_tasks( Tasks... tasks ) {
+	void invoke_tasks( Tasks &&... tasks ) {
 		static_assert( impl::are_tasks_v<Tasks...>,
 		               "Tasks passed to invoke_tasks must be callable without an "
 		               "arugment. e.g. task( )" );
-		invoke_tasks( get_task_scheduler( ), std::move( tasks )... );
+		invoke_tasks( get_task_scheduler( ), std::forward<Tasks>( tasks )... );
 	}
 
 	template<typename Function>
-	decltype( auto ) wait_for_scope( Function func,
+	decltype( auto ) wait_for_scope( Function &&func,
 	                                 task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( impl::is_task_v<Function>,
 		               "Function passed to wait_for_scope must be callable without "
 		               "an arugment. e.g. func( )" );
-		return ts.wait_for_scope( func );
+		return ts.wait_for_scope( std::forward<Function>( func ) );
 	}
 } // namespace daw

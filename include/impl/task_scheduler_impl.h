@@ -88,6 +88,8 @@ namespace daw {
 			impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 			                   boost::optional<daw::shared_semaphore> sem );
 
+			daw::impl::task_ptr_t wait_for_task_from_pool( size_t id );
+
 		public:
 			task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
 			~task_scheduler_impl( );
@@ -102,12 +104,22 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task &&task ) noexcept {
 				auto id = ( m_task_count++ ) % m_num_threads;
-				task_ptr_t tmp{std::forward<Task>( task )};
+				auto tsk = [wself = get_weak_this( ),
+				            task = std::forward<Task>( task )]( ) mutable {
+					task( );
+					auto self = wself.lock( );
+					if( self ) {
+						while( self->run_next_task( ) ) {}
+					}
+				};
+				task_ptr_t tmp{std::move( tsk )};
 				while( !m_tasks[id].send( tmp ) ) {
 					using namespace std::chrono_literals;
 					std::this_thread::sleep_for( 1ns );
 				}
 			}
+
+			bool run_next_task( );
 
 			void start( );
 			void stop( bool block = true ) noexcept;

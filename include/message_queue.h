@@ -107,49 +107,52 @@ namespace daw {
 			using const_reference = value_t const &;
 
 			template<typename... Args>
-			msg_ptr_t( Args &&... args )
-			  : m_ptr{new value_t{std::forward<Args>( args )...}} {}
+			msg_ptr_t( Args... args )
+			  : m_ptr{new value_t{std::move( args )...}} {}
 
-			msg_ptr_t( msg_ptr_t const &other ) noexcept
+			constexpr msg_ptr_t( pointer p ) noexcept
+			  : m_ptr{p} {}
+
+			constexpr msg_ptr_t( msg_ptr_t const &other ) noexcept
 			  : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
-			msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept {
+			constexpr msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept {
 				if( this != &rhs ) {
 					m_ptr = std::exchange( rhs.m_ptr, nullptr );
 				}
 				return *this;
 			}
 
-			msg_ptr_t( msg_ptr_t && ) noexcept = default;
-			msg_ptr_t &operator=( msg_ptr_t && ) noexcept = default;
+			constexpr msg_ptr_t( msg_ptr_t && ) noexcept = default;
+			constexpr msg_ptr_t &operator=( msg_ptr_t && ) noexcept = default;
 
-			~msg_ptr_t( ) {
+			~msg_ptr_t( ) noexcept {
 				auto tmp = std::exchange( m_ptr, nullptr );
 				if( tmp ) {
 					delete tmp;
 				}
 			}
 
-			reference operator*( ) noexcept {
+			constexpr reference operator*( ) noexcept {
 				return *m_ptr;
 			}
 
-			const_reference operator*( ) const noexcept {
+			constexpr const_reference operator*( ) const noexcept {
 				return *m_ptr;
 			}
 
-			pointer operator->( ) noexcept {
+			constexpr pointer operator->( ) noexcept {
 				return m_ptr;
 			}
 
-			const_pointer operator->( ) const noexcept {
+			constexpr const_pointer operator->( ) const noexcept {
 				return m_ptr;
 			}
 
-			explicit operator bool( ) const {
+			constexpr explicit operator bool( ) const {
 				return static_cast<bool>( m_ptr );
 			}
 
-			value_t move_out( ) noexcept {
+			constexpr value_t move_out( ) noexcept {
 				auto tmp = std::exchange( m_ptr, nullptr );
 				return std::move( *tmp );
 			}

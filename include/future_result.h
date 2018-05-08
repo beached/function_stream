@@ -292,8 +292,7 @@ namespace daw {
 				  return binary_op( std::forward<decltype( result )>( result ),
 				                    r.get( ) );
 			  } ) );
-			results.pop_front( );
 		}
-		return std::move( *results.begin( ) );
+		return move_front( results );
 	}
 } // namespace daw

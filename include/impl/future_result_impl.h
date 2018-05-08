@@ -415,9 +415,10 @@ namespace daw {
 		struct function_to_task_t<Result, Function> {
 			Result m_result;
 			Function m_function;
-			function_to_task_t( Result result, Function func )
-			  : m_result{std::move( result )}
-			  , m_function{std::move( func )} {}
+			template<typename R, typename F>
+			function_to_task_t( R &&result, F &&func )
+			  : m_result{std::forward<Result>( result )}
+			  , m_function{std::forward<Function>( func )} {}
 
 			void operator( )( ) {
 				m_result.from_code( m_function );
@@ -482,19 +483,21 @@ namespace daw {
 			  : tp_functions{std::make_tuple( std::move( fs )... )} {}
 
 			template<typename... Args>
-			auto operator( )( Args... args ) {
-				using result_tp_t = std::tuple<daw::expected_t<
-				  std::decay_t<decltype( std::declval<Functions>( )( args... ) )>>...>;
+			auto operator( )( Args &&... args ) {
+				using result_tp_t = std::tuple<daw::expected_t<std::decay_t<decltype(
+				  std::declval<Functions>( )( std::forward<Args>( args )... ) )>>...>;
 
 				// Copy arguments to const, non-ref, non-volatile versions in a
 				// shared_pointer so that only one copy is ever created
 				auto tp_args =
 				  std::make_shared<std::tuple<std::add_const_t<std::decay_t<Args>>...>>(
-				    std::make_tuple( std::move( args )... ) );
+				    std::make_tuple( std::forward<Args>( args )... ) );
 
 				future_result_t<result_tp_t> result;
+
 				daw::shared_semaphore sem{
 				  1 - static_cast<intmax_t>( sizeof...( Functions ) )};
+
 				auto th_worker = [
 					result, sem, tp_functions = std::move( tp_functions ),
 					tp_args = std::move( tp_args )

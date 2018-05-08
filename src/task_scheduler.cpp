@@ -67,6 +67,50 @@ namespace daw {
 			return m_continue;
 		}
 
+		daw::impl::task_ptr_t
+		task_scheduler_impl::wait_for_task_from_pool( size_t id ) {
+			// Get task.  First try own queue, if not try the others and finally
+			// wait for own queue to fill
+			daw::impl::task_ptr_t tsk;
+			if( m_tasks[id].receive( tsk ) ) {
+				return tsk;
+			}
+			for( auto m = ( id + 1 ) % m_num_threads; m != id;
+			     m = ( m + 1 ) % m_num_threads ) {
+
+				if( m_tasks[m].receive( tsk ) ) {
+					return tsk;
+				}
+			}
+			while( !m_tasks[id].receive( tsk ) ) {
+				using namespace std::chrono_literals;
+				std::this_thread::sleep_for( 1ns );
+			}
+			return tsk;
+		}
+
+		void run_task( daw::impl::task_ptr_t tsk ) noexcept {
+			task_t task{tsk.move_out( )};
+			try {
+				task( );
+			} catch( ... ) {
+				// Don't let a task take down thread
+				// TODO: add callback to task_scheduler for handling
+				// task exceptions
+			}
+		}
+
+		bool task_scheduler_impl::run_next_task( ) {
+			daw::impl::task_ptr_t tsk;
+			for( size_t m = 0; m < m_num_threads; ++m ) {
+				if( m_tasks[m].receive( tsk ) ) {
+					run_task( tsk );
+					return true;
+				}
+			}
+			return false;
+		}
+
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 		                  boost::optional<daw::shared_semaphore> sem ) {
 			// The self.lock( ) determines where or not the
@@ -78,28 +122,7 @@ namespace daw {
 					// Either we have destructed already or stop has been called
 					break;
 				}
-				// Get task.  First try own queue, if not try the others and finally
-				// wait for own queue to fill
-				daw::impl::task_ptr_t tsk;
-				auto is_popped = self->m_tasks[id].receive( tsk );
-				for( auto m = ( id + 1 ) % self->m_num_threads; !is_popped && m != id;
-				     m = ( m + 1 ) % self->m_num_threads ) {
-					is_popped = self->m_tasks[m].receive( tsk );
-				}
-				if( !is_popped ) {
-					while( !self->m_tasks[id].receive( tsk ) ) {
-						using namespace std::chrono_literals;
-						std::this_thread::sleep_for( 1ns );
-					}
-				}
-				task_t task{tsk.move_out( )};
-				try {
-					task( );
-				} catch( ... ) {
-					// Don't let a task take down thread
-					// TODO: add callback to task_scheduler for handling
-					// task exceptions
-				}
+				run_task( self->wait_for_task_from_pool( id ) );
 			}
 		}
 
