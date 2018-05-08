@@ -278,37 +278,20 @@ namespace daw {
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
-		std::list<ResultType> results{};
-
-		auto const sz = std::distance( first, last );
-		if( sz == 0 ) {
-			ResultType result{};
-			result.set_exception(
-			  daw::exception::AssertException{"Attempt to reduce an empty range"} );
-			return result;
-		}
-		if( sz == 1 ) {
-			return *first;
-		}
-		if( sz % 2 == 1 ) {
-			results.push_back( *first++ );
-		}
-		while( first != last ) {
-			auto l = std::move( *first++ );
+		std::list<ResultType> results( std::make_move_iterator( first ),
+		                               std::make_move_iterator( last ) );
+		auto const move_front = []( auto &container ) {
+			auto res = std::move( *container.begin( ) );
+			container.pop_front( );
+			return res;
+		};
+		while( results.size( ) > 1 ) {
+			auto l = move_front( results );
 			results.push_back( l.next(
-			  [r = std::move( *first++ ), binary_op]( auto &&result ) mutable {
+			  [r = move_front( results ), binary_op]( auto &&result ) mutable {
 				  return binary_op( std::forward<decltype( result )>( result ),
 				                    r.get( ) );
 			  } ) );
-		}
-		while( results.size( ) > 1 ) {
-			auto l = std::move( *results.begin( ) );
-			results.pop_front( );
-			results.push_back( l.next( [r = std::move( *results.begin( ) ),
-			                            binary_op]( auto &&result ) mutable {
-				return binary_op( std::forward<decltype( result )>( result ),
-				                  r.get( ) );
-			} ) );
 			results.pop_front( );
 		}
 		return std::move( *results.begin( ) );
