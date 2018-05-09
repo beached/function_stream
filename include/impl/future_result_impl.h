@@ -45,6 +45,17 @@ namespace daw {
 	struct future_result_t<void>;
 
 	namespace impl {
+		template<typename... Unknown>
+		struct function_to_task_t;
+
+		template<typename Result, typename Function, typename... Args>
+		struct function_to_task_t<Result, Function, Args...>;
+
+		template<typename Result, typename Function, typename... Args>
+		function_to_task_t<Result, Function, Args...>
+		convert_function_to_task( Result &&result, Function &&func,
+		                          Args &&... args );
+
 		class member_data_base_t {
 			daw::shared_semaphore m_semaphore;
 			future_status m_status;
@@ -223,17 +234,20 @@ namespace daw {
 				  next_func( std::declval<expected_result_t>( ).get( ) ) )>;
 
 				future_result_t<next_result_t> result{m_task_scheduler};
+
 				std::function<next_result_t( base_result_t )> func =
 				  std::forward<Function>( next_func );
-				m_next = [result, func = std::move( func ),
-				          ts = m_task_scheduler]( expected_result_t e_result ) mutable {
+
+				m_next = [result, func = std::move( func ), ts = m_task_scheduler](
+				           expected_result_t &&e_result ) mutable {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
 					}
 					auto r = e_result.get( );
-					ts.add_task( convert_function_to_task(
-					  std::move( result ), std::move( func ), std::move( r ) ) );
+					ts.add_task(
+					  convert_function_to_task( std::forward<expected_result_t>( result ),
+					                            std::move( func ), std::move( r ) ) );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -400,12 +414,12 @@ namespace daw {
 			std::tuple<Args...> m_args;
 
 			template<typename R, typename F, typename... A>
-			function_to_task_t( R &&result, F &&func, A &&... args )
+			constexpr function_to_task_t( R &&result, F &&func, A &&... args )
 			  : m_result{std::forward<R>( result )}
 			  , m_function{std::forward<F>( func )}
 			  , m_args{std::forward<A>( args )...} {}
 
-			void operator( )( ) {
+			constexpr void operator( )( ) noexcept {
 				m_result.from_code(
 				  [&]( ) { return daw::apply( m_function, m_args ); } );
 			}

@@ -253,7 +253,7 @@ namespace daw {
 						return std::forward<decltype( rng )>( rng );
 					};
 					for( auto &&rng : ranges ) {
-						future_result_t<iterator_range_t<Iterator>> f{ts};
+						future_result_t<iterator_range_t<Iterator>> f( ts );
 						f.from_code( sorter, std::move( rng ) );
 						sorters.push_back( std::move( f ) );
 					}

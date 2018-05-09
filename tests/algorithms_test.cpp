@@ -222,11 +222,13 @@ namespace {
 	void sort_test( size_t SZ ) {
 		auto ts = daw::get_task_scheduler( );
 		auto a = daw::make_random_data<int64_t>( SZ );
-		/*
-		std::vector<int> a;
+
+/*
+ 		std::vector<int> a;
 		a.resize( SZ );
 		std::iota( a.begin( ), a.end( ), 0 );
-		*/
+*/
+
 		auto b = a;
 		auto const par_test = [&]( ) {
 			daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts );
@@ -241,34 +243,35 @@ namespace {
 			std::sort( a.begin( ), a.end( ) );
 			daw::do_not_optimize( a );
 		};
+
 		auto const par_result_1 = daw::benchmark( par_test );
 		test_sort( a.begin( ), a.end( ), "p_result_1" );
 		a = b;
-		/*
+
 		auto const fj_result_1 = daw::benchmark( fj_test );
 		test_sort( a.begin( ), a.end( ), "p_result_1" );
 		a = b;
-		 */
+
 		auto const ser_result_1 = daw::benchmark( ser_test );
 		test_sort( a.begin( ), a.end( ), "s_result_1" );
 		a = b;
 		auto const par_result_2 = daw::benchmark( par_test );
 		test_sort( a.begin( ), a.end( ), "p_result2" );
 		a = b;
-		/*
+
 		auto const fj_result_2 = daw::benchmark( fj_test );
 		test_sort( a.begin( ), a.end( ), "p_result_1" );
 		a = b;
-		 */
+
 		auto const ser_result_2 = daw::benchmark( ser_test );
 		test_sort( a.begin( ), a.end( ), "s_result2" );
 
 		auto const par_min = std::min( par_result_1, par_result_2 );
 		auto const seq_min = std::min( ser_result_1, ser_result_2 );
-//		auto const fj_min = std::min( fj_result_1, fj_result_2 );
+		auto const fj_min = std::min( fj_result_1, fj_result_2 );
 
 		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
-//		display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "sort_fj" );
+		display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "sort_fj" );
 	}
 
 	void bitonic_sort_test( size_t SZ ) {
@@ -938,6 +941,7 @@ namespace {
 	static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 } // namespace
 
+/*
 BOOST_AUTO_TEST_CASE( test_for_each_double ) {
   std::cout << "for_each tests - double\n";
   for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -980,7 +984,6 @@ BOOST_AUTO_TEST_CASE( test_fill_int32_t ) {
   }
 }
 
-/*
 BOOST_AUTO_TEST_CASE( test_bitonic_sort_int64_t ) {
   std::cout << "bitonic_sort tests - int64_t\n";
   // bitonic_sort_test( 134217728 );

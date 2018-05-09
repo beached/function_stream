@@ -104,8 +104,8 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task &&task ) noexcept {
 				auto id = ( m_task_count++ ) % m_num_threads;
-				auto tsk = [wself = get_weak_this( ),
-				            task = std::forward<Task>( task ), id]( ) mutable {
+				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
+				            id]( ) mutable {
 					task( );
 					auto self = wself.lock( );
 					if( self ) {
