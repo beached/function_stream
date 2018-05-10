@@ -191,4 +191,4 @@ nbproject/*
 *.cd
 *.cd
 a.out
-cmake-build-debug/*
+cmake-build-*/*
