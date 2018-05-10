@@ -136,8 +136,8 @@ namespace daw {
 		}
 
 		template<typename Function>
-		decltype( auto ) next( Function &&next_function ) {
-			return m_data->next( std::forward<Function>( next_function ) );
+		decltype( auto ) next( Function &&func ) {
+			return m_data->next( std::forward<Function>( func ) );
 		}
 
 		template<typename... Functions>
@@ -201,8 +201,8 @@ namespace daw {
 		}
 
 		template<typename Function>
-		decltype( auto ) next( Function next_function ) {
-			return m_data->next( next_function );
+		decltype( auto ) next( Function &&function ) {
+			return m_data->next( std::forward<Function>(function) );
 		}
 
 		template<typename... Functions>
@@ -211,42 +211,47 @@ namespace daw {
 		}
 	}; // future_result_t<void>
 
-	template<typename result_t, typename NextFunction>
+	template<typename result_t, typename Function>
 	constexpr decltype( auto ) operator|( future_result_t<result_t> lhs,
-	                                      NextFunction next_func ) {
-		return lhs.next( std::move( next_func ) );
+	                                      Function &&rhs ) {
+		return lhs.next( std::forward<Function>( rhs ) );
 	}
 
 	template<typename Function, typename... Args>
-	auto make_future_result( task_scheduler ts, Function func, Args &&... args ) {
+	auto make_future_result( task_scheduler ts, Function &&func,
+	                         Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
-		future_result_t<result_t> result;
+		auto result = future_result_t<result_t>{};
 		ts.add_task( impl::convert_function_to_task(
-		  result, func, std::forward<Args>( args )... ) );
+		  result, std::forward<Function>( func ), std::forward<Args>( args )... ) );
 		return result;
 	}
 
 	template<typename Function, typename... Args>
 	auto make_future_result( task_scheduler ts, daw::shared_semaphore sem,
-	                         Function func, Args &&... args ) {
+	                         Function &&func, Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
-		future_result_t<result_t> result{std::move( sem )};
+		auto result = future_result_t<result_t>{std::move( sem )};
+
 		ts.add_task( impl::convert_function_to_task(
-		  result, func, std::forward<Args>( args )... ) );
+		  result, std::forward<Function>( func ), std::forward<Args>( args )... ) );
 		return result;
 	}
 
 	template<typename Function, typename... Args>
-	decltype( auto ) make_future_result( Function func, Args &&... args ) {
-		return make_future_result( get_task_scheduler( ), func,
+	decltype( auto ) make_future_result( Function &&func, Args &&... args ) {
+		return make_future_result( get_task_scheduler( ),
+		                           std::forward<Function>( func ),
 		                           std::forward<Args>( args )... );
 	}
 
 	template<typename... Functions>
-	decltype( auto ) make_callable_future_result_group( Functions... functions ) {
-		return impl::future_group_result_t<Functions...>{std::move( functions )...};
+	decltype( auto )
+	make_callable_future_result_group( Functions &&... functions ) {
+		return impl::future_group_result_t<Functions...>{
+		  std::forward<Functions>( functions )...};
 	}
 
 	/// Create a group of functions that all return at the same time.  A tuple of
@@ -255,14 +260,16 @@ namespace daw {
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
 	constexpr decltype( auto )
-	make_future_result_group( Functions... functions ) {
-		return make_callable_future_result_group( std::move( functions )... )( );
+	make_future_result_group( Functions &&... functions ) {
+		return make_callable_future_result_group(
+		  std::forward<Functions>( functions )... )( );
 	}
 
 	std::false_type is_future_result_impl( ... ) noexcept;
 
 	template<typename T>
-	constexpr std::true_type is_future_result_impl( future_result_t<T> ) noexcept;
+	constexpr std::true_type
+	is_future_result_impl( future_result_t<T> const & ) noexcept;
 
 	template<typename T>
 	constexpr bool is_future_result_v =

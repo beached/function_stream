@@ -243,20 +243,21 @@ namespace daw {
 						srt( first, last, cmp );
 						return;
 					}
-					std::vector<iterator_range_t<Iterator>> const ranges =
-					  PartitionPolicy{}( first, last, ts.size( ) );
+					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
 
-					std::vector<future_result_t<iterator_range_t<Iterator>>> sorters{};
+					auto sorters =
+					  std::vector<future_result_t<iterator_range_t<Iterator>>>{};
 					sorters.reserve( ranges.size( ) );
+
 					auto const sorter = [cmp, srt]( auto &&rng ) {
 						srt( rng.begin( ), rng.end( ), cmp );
 						return std::forward<decltype( rng )>( rng );
 					};
-					for( auto &&rng : ranges ) {
-						future_result_t<iterator_range_t<Iterator>> f( ts );
-						f.from_code( sorter, std::move( rng ) );
-						sorters.push_back( std::move( f ) );
-					}
+
+					std::transform( std::make_move_iterator( ranges.begin( ) ), std::make_move_iterator( ranges.end( ) ), std::back_inserter( sorters ), [&]( auto && rng ) {
+						return make_future_result( ts, sorter,
+						                           std::forward<decltype( rng )>( rng ) );
+					} );
 
 					auto merger = [cmp]( auto &&rng_left, auto &&rng_right ) {
 						std::inplace_merge( rng_left.begin( ), rng_left.end( ),
