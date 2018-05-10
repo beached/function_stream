@@ -174,10 +174,16 @@ namespace daw {
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
 
 		private:
-			void pass_next( expected_result_t value ) noexcept {
+			void pass_next( expected_result_t &&value ) noexcept {
+				daw::exception::daw_throw_on_false(
+						m_next, "Attempt to call next function on empty function" );
+				m_next( std::move( value ) );
+			}
+
+			void pass_next( expected_result_t const &value ) noexcept {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
-				m_next( std::move( value ) );
+				m_next( value );
 			}
 
 		public:
@@ -234,9 +240,8 @@ namespace daw {
 				  next_func( std::declval<expected_result_t>( ).get( ) ) )>;
 
 				future_result_t<next_result_t> result{m_task_scheduler};
-
-				std::function<next_result_t( base_result_t )> func =
-				  std::forward<Function>( next_func );
+				auto func = std::function<next_result_t( base_result_t )>{
+				  std::forward<Function>( next_func )};
 
 				m_next = [result, func = std::move( func ), ts = m_task_scheduler](
 				           expected_result_t &&e_result ) mutable {
@@ -244,10 +249,9 @@ namespace daw {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
 					}
-					auto r = e_result.get( );
-					ts.add_task(
-					  convert_function_to_task( std::forward<expected_result_t>( result ),
-					                            std::move( func ), std::move( r ) ) );
+					ts.add_task( convert_function_to_task(
+					  std::forward<future_result_t<next_result_t>>( result ),
+					  std::move( func ), e_result.get( ) ) );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -262,6 +266,7 @@ namespace daw {
 			auto split( Functions &&... funcs ) {
 				using result_t = std::tuple<future_result_t<decltype(
 				  funcs( std::declval<expected_result_t>( ).get( ) ) )>...>;
+
 				result_t result{m_task_scheduler};
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
@@ -340,13 +345,14 @@ namespace daw {
 			}
 
 			template<typename Function>
-			auto next( Function next_func ) {
+			auto next( Function &&next_func ) {
 				daw::exception::daw_throw_on_true( m_next,
 				                                   "Can only set next function once" );
 				using next_result_t = std::decay_t<decltype( next_func( ) )>;
-				future_result_t<next_result_t> result{m_task_scheduler};
+				auto result = future_result_t<next_result_t>{m_task_scheduler};
+				auto func =
+				  std::function<next_result_t( )>{std::forward<Function>( next_func )};
 
-				std::function<next_result_t( )> func = next_func;
 				m_next = [result, func = std::move( func ),
 				          ts = m_task_scheduler]( expected_result_t e_result ) mutable {
 					if( e_result.has_exception( ) ) {
@@ -367,7 +373,7 @@ namespace daw {
 			auto split( Functions &&... funcs ) {
 				using result_t = std::tuple<future_result_t<decltype( funcs( ) )>...>;
 
-				result_t result{m_task_scheduler};
+				auto result = result_t{m_task_scheduler};
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
@@ -429,6 +435,7 @@ namespace daw {
 		struct function_to_task_t<Result, Function> {
 			Result m_result;
 			Function m_function;
+
 			template<typename R, typename F>
 			function_to_task_t( R &&result, F &&func )
 			  : m_result{std::forward<Result>( result )}
@@ -440,13 +447,21 @@ namespace daw {
 		}; // function_to_task_t
 
 		template<typename Result, typename Function, typename... Args>
+		using is_from_code_callable = decltype( std::declval<Result>( ).from_code(
+		  std::declval<Function>( ), std::declval<Args>( )... ) );
+
+		template<typename Result, typename Function, typename... Args>
 		function_to_task_t<Result, Function, Args...>
 		convert_function_to_task( Result &&result, Function &&func,
 		                          Args &&... args ) {
 
-			return function_to_task_t<Result, Function, Args...>{
+			static_assert(
+			  daw::is_detected_v<is_from_code_callable, Result, Function, Args...>,
+			  "Cannot call from_code on " );
+
+			return function_to_task_t<Result, Function, Args...>(
 			  std::forward<Result>( result ), std::forward<Function>( func ),
-			  std::forward<Args>( args )...};
+			  std::forward<Args>( args )... );
 		}
 
 		template<size_t N, size_t SZ, typename... Callables>
@@ -456,6 +471,7 @@ namespace daw {
 			                  Results &results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
+
 				schedule_task( sem,
 				               [&results, &callables, tp_args ]( ) mutable noexcept {
 					               try {
@@ -466,6 +482,7 @@ namespace daw {
 					               }
 				               },
 				               ts );
+
 				apply_many_t<N + 1, SZ, Callables...>{}( ts, sem, results, callables,
 				                                         tp_args );
 			}
@@ -484,6 +501,7 @@ namespace daw {
 		void apply_many( daw::task_scheduler &ts, daw::shared_semaphore sem,
 		                 Result &result, std::tuple<Functions...> const &callables,
 		                 std::shared_ptr<std::tuple<Args...>> tp_args ) {
+
 			apply_many_t<0, sizeof...( Functions ), Functions...>{}(
 			  ts, sem, result, callables, tp_args );
 		}
@@ -507,9 +525,9 @@ namespace daw {
 				  std::make_shared<std::tuple<std::add_const_t<std::decay_t<Args>>...>>(
 				    std::make_tuple( std::forward<Args>( args )... ) );
 
-				future_result_t<result_tp_t> result;
+				auto result = future_result_t<result_tp_t>{};
 
-				daw::shared_semaphore sem{
+				auto sem = daw::shared_semaphore{
 				  1 - static_cast<intmax_t>( sizeof...( Functions ) )};
 
 				auto th_worker = [

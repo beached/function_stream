@@ -32,7 +32,7 @@
 #include <daw/daw_semaphore.h>
 #include <daw/daw_spin_lock.h>
 
-#include "function_stream.h"
+#include "future_result.h"
 #include "iterator_range.h"
 #include "task_scheduler.h"
 
@@ -258,15 +258,15 @@ namespace daw {
 						sorters.push_back( std::move( f ) );
 					}
 
-					auto const merger = [cmp]( auto &&rng_left, auto &&rng_right ) {
+					auto merger = [cmp]( auto &&rng_left, auto &&rng_right ) {
 						std::inplace_merge( rng_left.begin( ), rng_left.end( ),
 						                    rng_right.end( ), cmp );
 
 						return iterator_range_t<Iterator>{rng_left.begin( ),
 						                                  rng_right.end( )};
 					};
-					auto fut = reduce_futures( sorters.begin( ), sorters.end( ), merger );
-					ts.wait_for( fut );
+					ts.wait_for( reduce_futures( sorters.begin( ), sorters.end( ),
+					                             std::move( merger ) ) );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename T,

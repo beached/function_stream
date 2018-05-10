@@ -43,7 +43,6 @@
 
 #include "algorithms.h"
 #include "bitonic_sort.h"
-#include "function_stream.h"
 
 BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
 	// Prime task scheduler so we don't pay to start it up in first test
@@ -223,11 +222,11 @@ namespace {
 		auto ts = daw::get_task_scheduler( );
 		auto a = daw::make_random_data<int64_t>( SZ );
 
-/*
- 		std::vector<int> a;
-		a.resize( SZ );
-		std::iota( a.begin( ), a.end( ), 0 );
-*/
+		/*
+		    std::vector<int> a;
+		    a.resize( SZ );
+		    std::iota( a.begin( ), a.end( ), 0 );
+		*/
 
 		auto b = a;
 		auto const par_test = [&]( ) {

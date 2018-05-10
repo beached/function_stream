@@ -73,9 +73,6 @@ namespace daw {
 			               "Function passed to wait_for_scope must be callable "
 			               "without an arugment. e.g. func( )" );
 
-			/*if( !m_impl->am_i_in_pool( ) ) {
-			  return func( );
-			}*/
 			auto sem = m_impl->start_temp_task_runners( );
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
 			return func( );
