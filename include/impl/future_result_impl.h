@@ -149,8 +149,9 @@ namespace daw {
 			add_split_task<N + 1>( ts, results, funcs, std::forward<Arg>( arg ) );
 		}
 
-		template<typename base_result_t>
+		template<typename Result>
 		struct member_data_t : public member_data_base_t {
+			using base_result_t = Result;
 			using expected_result_t = daw::expected_t<base_result_t>;
 			using next_function_t = std::function<void( expected_result_t )>;
 			next_function_t m_next;
@@ -174,21 +175,27 @@ namespace daw {
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
 
 		private:
-			void pass_next( expected_result_t &&value ) noexcept {
-				daw::exception::daw_throw_on_false(
-						m_next, "Attempt to call next function on empty function" );
-				m_next( std::move( value ) );
+			decltype(auto) pass_next( expected_result_t &&value ) noexcept {
+			  daw::exception::daw_throw_on_false(
+			    m_next, "Attempt to call next function on empty function" );
+				daw::exception::dbg_throw_on_true(
+						value.has_exception( ), "Unexpected exception in expected_t" );
+
+			  return m_next( std::move( value ) );
+
 			}
 
-			void pass_next( expected_result_t const &value ) noexcept {
-				daw::exception::daw_throw_on_false(
-				  m_next, "Attempt to call next function on empty function" );
-				m_next( value );
-			}
+			decltype(auto) pass_next( expected_result_t const &value ) noexcept {
+			  daw::exception::daw_throw_on_false(
+			    m_next, "Attempt to call next function on empty function" );
+				daw::exception::dbg_throw_on_true(
+						value.has_exception( ), "Unexpected exception in expected_t" );
 
+				return m_next( value );
+			}
 		public:
 			void set_value( expected_result_t &&value ) noexcept {
-				if( m_next ) {
+				if( !value.has_exception( ) && m_next ) {
 					pass_next( std::move( value ) );
 					return;
 				}
@@ -198,7 +205,7 @@ namespace daw {
 			}
 
 			void set_value( expected_result_t const &value ) noexcept {
-				if( m_next ) {
+				if( !value.has_exeption( ) && m_next ) {
 					pass_next( value );
 					return;
 				}
@@ -208,11 +215,23 @@ namespace daw {
 			}
 
 			void set_value( base_result_t &&value ) noexcept {
-				set_value( expected_result_t{std::move( value )} );
+				if( m_next ) {
+					pass_next( std::move( value ) );
+					return;
+				}
+				m_result = std::move( value );
+				status( ) = future_status::ready;
+				notify( );
 			}
 
 			void set_value( base_result_t const &value ) noexcept {
-				set_value( expected_result_t{value} );
+				if( m_next ) {
+					pass_next( value );
+					return;
+				}
+				m_result = value;
+				status( ) = future_status::ready;
+				notify( );
 			}
 
 			void set_exception( std::exception_ptr ptr ) noexcept override {
@@ -239,19 +258,24 @@ namespace daw {
 				using next_result_t = std::decay_t<decltype(
 				  next_func( std::declval<expected_result_t>( ).get( ) ) )>;
 
-				future_result_t<next_result_t> result{m_task_scheduler};
-				auto func = std::function<next_result_t( base_result_t )>{
-				  std::forward<Function>( next_func )};
+				auto result = future_result_t<next_result_t>{m_task_scheduler};
 
-				m_next = [result, func = std::move( func ), ts = m_task_scheduler](
-				           expected_result_t &&e_result ) mutable {
-					if( e_result.has_exception( ) ) {
-						result.set_exception( e_result.get_exception_ptr( ) );
-						return;
-					}
-					ts.add_task( convert_function_to_task(
-					  std::forward<future_result_t<next_result_t>>( result ),
-					  std::move( func ), e_result.get( ) ) );
+				m_next = [result, next_func = std::forward<Function>( next_func ), ts = m_task_scheduler](
+				           expected_result_t e_result ) mutable -> void {
+
+					e_result.visit( daw::make_expected_void_visitor<base_result_t>(
+							[&]( base_result_t const & value ) {
+								ts.add_task( convert_function_to_task(
+										std::forward<future_result_t<next_result_t>>( result ),
+										std::move( next_func ), value ) );
+							},
+							[]( ) {
+								throw std::out_of_range{"It is not valid to have an emty value when next is run"};
+							},
+							[&]( std::exception_ptr ptr ) {
+								result.set_exception( ptr );
+							}
+							));
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -272,7 +296,7 @@ namespace daw {
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
 				          tpfuncs =
-				            std::move( tpfuncs )]( expected_result_t e_result ) {
+				            std::move( tpfuncs )]( expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -319,12 +343,18 @@ namespace daw {
 			void pass_next( expected_result_t &&value ) noexcept {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
-				m_next( std::move( value ) );
+				daw::exception::dbg_throw_on_true(
+				  value.has_exception( ), "Unexpected exception in expected_t" );
+
+				m_next( value );
 			}
 
 			void pass_next( expected_result_t const &value ) noexcept {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
+				daw::exception::dbg_throw_on_true(
+						value.has_exception( ), "Unexpected exception in expected_t" );
+
 				m_next( value );
 			}
 
@@ -354,7 +384,7 @@ namespace daw {
 				  std::function<next_result_t( )>{std::forward<Function>( next_func )};
 
 				m_next = [result, func = std::move( func ),
-				          ts = m_task_scheduler]( expected_result_t e_result ) mutable {
+				          ts = m_task_scheduler]( expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -378,7 +408,7 @@ namespace daw {
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
 				          tpfuncs =
-				            std::move( tpfuncs )]( expected_result_t e_result ) {
+				            std::move( tpfuncs )]( expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;

@@ -44,6 +44,8 @@
 #include "algorithms.h"
 #include "bitonic_sort.h"
 
+#define USE_SORT_FJ
+
 BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
 	// Prime task scheduler so we don't pay to start it up in first test
 	auto ts = daw::get_task_scheduler( );
@@ -247,11 +249,11 @@ namespace {
 		test_sort( a.begin( ), a.end( ), "p_result_1" );
 		a = b;
 
-		#ifdef USE_SORT_FJ
+#ifdef USE_SORT_FJ
 		auto const fj_result_1 = daw::benchmark( fj_test );
 		test_sort( a.begin( ), a.end( ), "p_result_1" );
 		a = b;
-		#endif
+#endif
 
 		auto const ser_result_1 = daw::benchmark( ser_test );
 		test_sort( a.begin( ), a.end( ), "s_result_1" );
@@ -260,25 +262,25 @@ namespace {
 		test_sort( a.begin( ), a.end( ), "p_result2" );
 		a = b;
 
-		#ifdef USE_SORT_FJ
+#ifdef USE_SORT_FJ
 		auto const fj_result_2 = daw::benchmark( fj_test );
 		test_sort( a.begin( ), a.end( ), "p_result_1" );
 		a = b;
-		#endif
+#endif
 
 		auto const ser_result_2 = daw::benchmark( ser_test );
 		test_sort( a.begin( ), a.end( ), "s_result2" );
 
 		auto const par_min = std::min( par_result_1, par_result_2 );
 		auto const seq_min = std::min( ser_result_1, ser_result_2 );
-		#ifdef USE_SORT_FJ
+#ifdef USE_SORT_FJ
 		auto const fj_min = std::min( fj_result_1, fj_result_2 );
-		#endif
+#endif
 
 		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
-		#ifdef USE_SORT_FJ
+#ifdef USE_SORT_FJ
 		display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "sort_fj" );
-		#endif
+#endif
 	}
 
 	void bitonic_sort_test( size_t SZ ) {

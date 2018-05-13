@@ -110,7 +110,7 @@ namespace daw {
 			           typename std::iterator_traits<RandomIterator>::value_type>>
 			void fork_join_sort( RandomIterator first, RandomIterator last,
 			                     task_scheduler ts = get_task_scheduler( ),
-			                     Compare comp = Compare{} ) {
+			                     Compare &&comp = Compare{} ) {
 
 				static_assert(
 				  daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator,
@@ -122,7 +122,7 @@ namespace daw {
 				impl::fork_join_sort( first, last,
 				                      []( RandomIterator f, RandomIterator l,
 				                          Compare cmp ) { std::sort( f, l, cmp ); },
-				                      std::move( comp ), std::move( ts ) );
+				                      std::forward<Compare>( comp ), std::move( ts ) );
 			}
 
 			template<typename RandomIterator,

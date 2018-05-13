@@ -28,7 +28,7 @@
 namespace daw {
 	namespace parallel {
 		template<typename T>
-		constexpr unsigned long size_msg_queue_to_cache_size( ) {
+		constexpr unsigned long size_msg_queue_to_cache_size( ) noexcept {
 			auto const sz = 4096;
 			return sz / sizeof( T );
 		}

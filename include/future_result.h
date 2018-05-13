@@ -108,11 +108,12 @@ namespace daw {
 
 		template<typename Function, typename... Args>
 		void from_code( Function &&func, Args &&... args ) {
-			using func_result_t = decltype( func( std::forward<Args>( args )... ) );
-			static_assert( std::is_convertible<func_result_t, Result>::value,
-			               "Function func with Args does not return a value that is "
-			               "convertible to Result. e.g Result "
-			               "r = func( args... ) must be valid" );
+			static_assert(
+			  daw::is_convertible_v<daw::traits::result_of_t<Function, Args...>,
+			                        Result>,
+			  "Function func with Args does not return a value that is "
+			  "convertible to Result. e.g Result "
+			  "r = func( args... ) must be valid" );
 			m_data->from_code( std::forward<Function>( func ),
 			                   std::forward<Args>( args )... );
 		}
@@ -202,7 +203,7 @@ namespace daw {
 
 		template<typename Function>
 		decltype( auto ) next( Function &&function ) {
-			return m_data->next( std::forward<Function>(function) );
+			return m_data->next( std::forward<Function>( function ) );
 		}
 
 		template<typename... Functions>
@@ -275,31 +276,37 @@ namespace daw {
 	constexpr bool is_future_result_v =
 	  decltype( is_future_result_impl( std::declval<T>( ) ) )::value;
 
-	template<
-	  typename RandomIterator, typename RandomIterator2, typename BinaryOperation,
-	  typename ResultType = future_result_t<
-	    std::decay_t<decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
+	template<typename RandomIterator, typename RandomIterator2,
+	         typename BinaryOperation, typename It,
+	         typename ResultType = future_result_t<std::decay_t<
+	           decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
 	ResultType reduce_futures( RandomIterator first, RandomIterator2 last,
-	                           BinaryOperation binary_op ) {
+	                           BinaryOperation &&binary_op, It frst ) {
 
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
 		std::list<ResultType> results( std::make_move_iterator( first ),
 		                               std::make_move_iterator( last ) );
-		auto const move_front = []( auto &container ) {
+		auto const pop_move_front = []( auto &container ) {
 			auto res = std::move( *container.begin( ) );
 			container.pop_front( );
 			return res;
 		};
+		auto result_back = std::back_inserter( results );
 		while( results.size( ) > 1 ) {
-			auto l = move_front( results );
-			results.push_back( l.next(
-			  [r = move_front( results ), binary_op]( auto &&result ) mutable {
-				  return binary_op( std::forward<decltype( result )>( result ),
-				                    r.get( ) );
-			  } ) );
+			auto l = pop_move_front( results );
+			auto r = pop_move_front( results );
+			*result_back =
+			  l.next( [r = std::move( r ), binary_op, frst]( auto &&result ) mutable {
+				  auto arrr = r.get( );
+				  std::cout << "BinaryOp ( " << std::distance( frst, result.begin( ) )
+				            << ", " << std::distance( frst, result.end( ) ) << " )\n";
+				  std::cout << "and ( " << std::distance( frst, arrr.begin( ) ) << ", "
+				            << std::distance( frst, arrr.end( ) ) << " )\n";
+				  return binary_op( std::forward<decltype( result )>( result ), arrr );
+			  } );
 		}
-		return move_front( results );
+		return pop_move_front( results );
 	}
 } // namespace daw

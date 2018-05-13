@@ -236,30 +236,52 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<512>,
 				         typename Iterator, typename Sort, typename Compare>
-				void fork_join_sort( Iterator first, Iterator last, Sort srt,
-				                     Compare cmp, task_scheduler ts ) {
+				void fork_join_sort( Iterator first, Iterator last, Sort &&srt,
+				                     Compare &&cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size >
 					    static_cast<size_t>( std::distance( first, last ) ) ) {
 						srt( first, last, cmp );
 						return;
 					}
 					auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
-
+					std::cout << "FJ Ranges\n";
+					for( size_t n = 0; n < ranges.size( ); ++n ) {
+						std::cout << n << ": ( "
+						          << std::distance( first, ranges[n].begin( ) ) << ", "
+						          << std::distance( first, ranges[n].end( ) ) << " )\n";
+					}
+					std::cout << '\n';
 					auto sorters =
 					  std::vector<future_result_t<iterator_range_t<Iterator>>>{};
 					sorters.reserve( ranges.size( ) );
 
-					auto const sorter = [cmp, srt]( auto &&rng ) {
+					auto const sorter = [cmp, srt = std::forward<Sort>( srt ),
+					                     first]( auto &&rng ) {
+						std::cout << "Sorting from ( "
+						          << std::distance( first, rng.begin( ) ) << ", "
+						          << std::distance( first, rng.end( ) ) << " )\n";
 						srt( rng.begin( ), rng.end( ), cmp );
 						return std::forward<decltype( rng )>( rng );
 					};
 
-					std::transform( std::make_move_iterator( ranges.begin( ) ), std::make_move_iterator( ranges.end( ) ), std::back_inserter( sorters ), [&]( auto && rng ) {
-						return make_future_result( ts, sorter,
-						                           std::forward<decltype( rng )>( rng ) );
-					} );
+					std::transform( std::make_move_iterator( ranges.begin( ) ),
+					                std::make_move_iterator( ranges.end( ) ),
+					                std::back_inserter( sorters ), [&]( auto &&rng ) {
+						                return make_future_result(
+						                  ts, sorter,
+						                  std::forward<decltype( rng )>( rng ) );
+					                } );
 
-					auto merger = [cmp]( auto &&rng_left, auto &&rng_right ) {
+					auto merger = [cmp, first]( auto rng_left, auto rng_right ) {
+						std::cout << "Merging ( "
+						          << std::distance( first, rng_left.begin( ) ) << ", "
+						          << std::distance( first, rng_left.end( ) ) << " )\n";
+						std::cout << "and ( " << std::distance( first, rng_right.begin( ) )
+						          << ", " << std::distance( first, rng_right.end( ) )
+						          << " )\n";
+
+						daw::exception::DebugAssert( rng_left.end( ) == rng_right.begin( ),
+						                             "Ranges must be next to each other" );
 						std::inplace_merge( rng_left.begin( ), rng_left.end( ),
 						                    rng_right.end( ), cmp );
 
@@ -267,7 +289,7 @@ namespace daw {
 						                                  rng_right.end( )};
 					};
 					ts.wait_for( reduce_futures( sorters.begin( ), sorters.end( ),
-					                             std::move( merger ) ) );
+					                             std::move( merger ), first ) );
 				}
 
 				template<typename PartitionPolicy = split_range_t<1>, typename T,
