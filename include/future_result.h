@@ -276,37 +276,55 @@ namespace daw {
 	constexpr bool is_future_result_v =
 	  decltype( is_future_result_impl( std::declval<T>( ) ) )::value;
 
-	template<typename RandomIterator, typename RandomIterator2,
-	         typename BinaryOperation, typename It,
-	         typename ResultType = future_result_t<std::decay_t<
-	           decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
+	namespace impl {
+		template<typename Iterator, typename OutputIterator, typename BinaryOp>
+		void reduce_futures2( Iterator first, Iterator last,
+		                      OutputIterator out_first, BinaryOp &&binary_op ) {
+			auto const sz = std::distance( first, last );
+			if( sz == 0 ) {
+				return;
+			} else if( sz == 1 ) {
+				*out_first = *first++;
+				return;
+			}
+			bool const odd_count = sz % 2 == 1;
+			if( odd_count ) {
+				last = std::next( first, sz - 1 );
+			}
+			while( first != last ) {
+				auto l = first++;
+				auto r_it = first++;
+				*out_first = l->next( [r = *r_it, binary_op]( auto &&result ) mutable {
+					return binary_op( std::forward<decltype( result )>( result ),
+					                  r.get( ) );
+				} );
+			}
+			if( odd_count ) {
+				*out_first = *last;
+			}
+		}
+	} // namespace impl
+
+	template<
+	  typename RandomIterator, typename RandomIterator2, typename BinaryOperation,
+	  typename ResultType = future_result_t<
+	    std::decay_t<decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
 	ResultType reduce_futures( RandomIterator first, RandomIterator2 last,
-	                           BinaryOperation &&binary_op, It frst ) {
+	                           BinaryOperation &&binary_op ) {
 
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
-		std::list<ResultType> results( std::make_move_iterator( first ),
-		                               std::make_move_iterator( last ) );
-		auto const pop_move_front = []( auto &container ) {
-			auto res = std::move( *container.begin( ) );
-			container.pop_front( );
-			return res;
-		};
-		auto result_back = std::back_inserter( results );
+		std::list<ResultType> results{};
+		impl::reduce_futures2( first, last, std::back_inserter( results ),
+		                       binary_op );
+
 		while( results.size( ) > 1 ) {
-			auto l = pop_move_front( results );
-			auto r = pop_move_front( results );
-			*result_back =
-			  l.next( [r = std::move( r ), binary_op, frst]( auto &&result ) mutable {
-				  auto arrr = r.get( );
-				  std::cout << "BinaryOp ( " << std::distance( frst, result.begin( ) )
-				            << ", " << std::distance( frst, result.end( ) ) << " )\n";
-				  std::cout << "and ( " << std::distance( frst, arrr.begin( ) ) << ", "
-				            << std::distance( frst, arrr.end( ) ) << " )\n";
-				  return binary_op( std::forward<decltype( result )>( result ), arrr );
-			  } );
+			std::list<ResultType> tmp{};
+			impl::reduce_futures2( first, last, std::back_inserter( tmp ),
+			                       binary_op );
+			results = tmp;
 		}
-		return pop_move_front( results );
+		return results.front( );
 	}
 } // namespace daw

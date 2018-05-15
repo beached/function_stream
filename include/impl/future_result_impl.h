@@ -32,6 +32,7 @@
 #include <daw/daw_expected.h>
 #include <daw/daw_semaphore.h>
 #include <daw/daw_traits.h>
+#include <daw/daw_utility.h>
 
 #include "task_scheduler.h"
 
@@ -64,7 +65,8 @@ namespace daw {
 			task_scheduler m_task_scheduler;
 
 			member_data_base_t( task_scheduler ts )
-			  : m_status{future_status::deferred}
+			  : m_semaphore{}
+				,	m_status{future_status::deferred}
 			  , m_task_scheduler{std::move( ts )} {}
 
 			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
@@ -175,24 +177,24 @@ namespace daw {
 			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
 
 		private:
-			decltype(auto) pass_next( expected_result_t &&value ) noexcept {
-			  daw::exception::daw_throw_on_false(
-			    m_next, "Attempt to call next function on empty function" );
+			decltype( auto ) pass_next( expected_result_t &&value ) noexcept {
+				daw::exception::daw_throw_on_false(
+				  m_next, "Attempt to call next function on empty function" );
 				daw::exception::dbg_throw_on_true(
-						value.has_exception( ), "Unexpected exception in expected_t" );
+				  value.has_exception( ), "Unexpected exception in expected_t" );
 
-			  return m_next( std::move( value ) );
-
+				return m_next( std::move( value ) );
 			}
 
-			decltype(auto) pass_next( expected_result_t const &value ) noexcept {
-			  daw::exception::daw_throw_on_false(
-			    m_next, "Attempt to call next function on empty function" );
+			decltype( auto ) pass_next( expected_result_t const &value ) noexcept {
+				daw::exception::daw_throw_on_false(
+				  m_next, "Attempt to call next function on empty function" );
 				daw::exception::dbg_throw_on_true(
-						value.has_exception( ), "Unexpected exception in expected_t" );
+				  value.has_exception( ), "Unexpected exception in expected_t" );
 
 				return m_next( value );
 			}
+
 		public:
 			void set_value( expected_result_t &&value ) noexcept {
 				if( !value.has_exception( ) && m_next ) {
@@ -260,22 +262,25 @@ namespace daw {
 
 				auto result = future_result_t<next_result_t>{m_task_scheduler};
 
-				m_next = [result, next_func = std::forward<Function>( next_func ), ts = m_task_scheduler](
+				m_next = [result, next_func = std::forward<Function>( next_func ),
+				          ts = m_task_scheduler](
 				           expected_result_t e_result ) mutable -> void {
-
-					e_result.visit( daw::make_expected_void_visitor<base_result_t>(
-							[&]( base_result_t const & value ) {
-								ts.add_task( convert_function_to_task(
-										std::forward<future_result_t<next_result_t>>( result ),
-										std::move( next_func ), value ) );
-							},
-							[]( ) {
-								throw std::out_of_range{"It is not valid to have an emty value when next is run"};
-							},
-							[&]( std::exception_ptr ptr ) {
-								result.set_exception( ptr );
-							}
-							));
+					e_result.visit( daw::make_overload(
+					  [&]( base_result_t &&value ) {
+						  ts.add_task( convert_function_to_task(
+						    std::forward<future_result_t<next_result_t>>( result ),
+						    std::move( next_func ), std::move( value ) ) );
+					  },
+					  [&]( base_result_t const &value ) {
+						  ts.add_task( convert_function_to_task(
+						    std::forward<future_result_t<next_result_t>>( result ),
+						    std::move( next_func ), value ) );
+					  },
+					  []( daw::empty_value_t ) {
+						  std::terminate( ); // This can never happen and if it does we
+						                     // cannot reason about the state
+					  },
+					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -295,8 +300,8 @@ namespace daw {
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
-				          tpfuncs =
-				            std::move( tpfuncs )]( expected_result_t e_result ) mutable -> void {
+				          tpfuncs = std::move( tpfuncs )](
+				           expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -353,7 +358,7 @@ namespace daw {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
 				daw::exception::dbg_throw_on_true(
-						value.has_exception( ), "Unexpected exception in expected_t" );
+				  value.has_exception( ), "Unexpected exception in expected_t" );
 
 				m_next( value );
 			}
@@ -383,8 +388,8 @@ namespace daw {
 				auto func =
 				  std::function<next_result_t( )>{std::forward<Function>( next_func )};
 
-				m_next = [result, func = std::move( func ),
-				          ts = m_task_scheduler]( expected_result_t e_result ) mutable -> void {
+				m_next = [result, func = std::move( func ), ts = m_task_scheduler](
+				           expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
@@ -407,8 +412,8 @@ namespace daw {
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
-				          tpfuncs =
-				            std::move( tpfuncs )]( expected_result_t e_result ) mutable -> void {
+				          tpfuncs = std::move( tpfuncs )](
+				           expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
