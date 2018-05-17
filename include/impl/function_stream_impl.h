@@ -150,9 +150,9 @@ namespace daw {
 			using tfunction_t = std::tuple<std::decay_t<Functions>...>;
 			tfunction_t funcs;
 
-			constexpr function_composer_t( Functions &&... fs ) noexcept
+			constexpr explicit function_composer_t( Functions &&... fs ) noexcept
 			  : funcs{std::make_tuple( fs... )} {}
-			constexpr function_composer_t( tfunction_t functions ) noexcept
+			constexpr explicit function_composer_t( tfunction_t functions ) noexcept
 			  : funcs{std::move( functions )} {}
 
 		private:

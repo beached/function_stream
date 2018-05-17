@@ -89,7 +89,7 @@ namespace daw {
 			return tsk;
 		}
 
-		void run_task( daw::impl::task_ptr_t&& tsk ) noexcept {
+		void run_task( daw::impl::task_ptr_t &&tsk ) noexcept {
 			task_t task{tsk.move_out( )};
 			try {
 				task( );
@@ -103,14 +103,14 @@ namespace daw {
 		bool task_scheduler_impl::run_next_task( size_t id ) {
 			daw::impl::task_ptr_t tsk;
 			if( m_tasks[id].receive( tsk ) ) {
-				run_task( tsk.move_out( ) );
+				run_task( std::move( tsk ) );
 				return true;
 			}
 			for( auto m = ( id + 1 ) % m_num_threads; m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
 				if( m_tasks[m].receive( tsk ) ) {
-					run_task( tsk.move_out( ) );
+					run_task( std::move( tsk ) );
 					return true;
 				}
 			}

@@ -64,7 +64,7 @@ namespace daw {
 		protected:
 			task_scheduler m_task_scheduler;
 
-			member_data_base_t( task_scheduler ts )
+			explicit member_data_base_t( task_scheduler ts )
 			  : m_semaphore{}
 			  , m_status{future_status::deferred}
 			  , m_task_scheduler{std::move( ts )} {}
@@ -159,7 +159,7 @@ namespace daw {
 			next_function_t m_next;
 			expected_result_t m_result;
 
-			member_data_t( task_scheduler ts )
+			explicit member_data_t( task_scheduler ts )
 			  : member_data_base_t{std::move( ts )}
 			  , m_next{}
 			  , m_result{} {}
@@ -198,7 +198,7 @@ namespace daw {
 		public:
 			void set_value( expected_result_t &&value ) noexcept {
 				auto const has_except = value.has_exception( );
-				if( has_except && m_next ) {
+				if( !has_except && m_next ) {
 					pass_next( std::move( value ) );
 					return;
 				}
@@ -248,8 +248,8 @@ namespace daw {
 			template<typename Function, typename... Args>
 			void from_code( Function &&func, Args &&... args ) {
 				try {
-					set_value( expected_from_code<base_result_t>(
-					  std::forward<Function>( func ), std::forward<Args>( args )... ) );
+					set_value( expected_from_code( std::forward<Function>( func ),
+					                               std::forward<Args>( args )... ) );
 				} catch( ... ) { set_exception( std::current_exception( ) ); }
 			}
 
@@ -335,7 +335,7 @@ namespace daw {
 			next_function_t m_next;
 			expected_result_t m_result;
 
-			member_data_t( task_scheduler ts )
+			explicit member_data_t( task_scheduler ts )
 			  : member_data_base_t{std::move( ts )}
 			  , m_next{nullptr}
 			  , m_result{} {}
@@ -474,8 +474,8 @@ namespace daw {
 		}; // function_to_task_t
 
 		template<typename Result, typename Function, typename... Args>
-		using detect_has_from_code = decltype(
-		  std::declval<Result>( ).from_code( std::declval<Function>( ), std::declval<Args>( )... ) );
+		using detect_has_from_code = decltype( std::declval<Result>( ).from_code(
+		  std::declval<Function>( ), std::declval<Args>( )... ) );
 
 		template<typename Result, typename Function, typename... Args>
 		constexpr function_to_task_t<Result, Function, Args...>
@@ -484,7 +484,7 @@ namespace daw {
 
 			static_assert(
 			  daw::is_detected_v<detect_has_from_code, Result, Function, Args...>,
-				"Result must have a from_code member that takes a callable" );
+			  "Result must have a from_code member that takes a callable" );
 
 			return function_to_task_t<Result, Function, Args...>(
 			  std::forward<Result>( result ), std::forward<Function>( func ),
@@ -538,7 +538,7 @@ namespace daw {
 			std::tuple<std::decay_t<Functions>...> tp_functions;
 
 		public:
-			constexpr future_group_result_t( Functions &&... fs ) noexcept
+			constexpr explicit future_group_result_t( Functions &&... fs ) noexcept
 			  : tp_functions{std::make_tuple( std::forward<Functions>( fs )... )} {}
 
 			template<typename... Args>

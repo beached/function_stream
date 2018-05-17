@@ -32,8 +32,7 @@ namespace daw {
 
 		void member_data_t<void>::set_value(
 		  member_data_t<void>::expected_result_t result ) noexcept {
-			m_result = result;
-			//	std::move( result );
+			m_result = std::move( result );
 			if( m_next ) {
 				pass_next( std::move( m_result ) );
 				return;

@@ -43,15 +43,18 @@ namespace daw {
 		std::shared_ptr<impl::task_scheduler_impl> m_impl;
 
 	public:
-		task_scheduler(
+		explicit task_scheduler(
 		  std::size_t num_threads = std::thread::hardware_concurrency( ),
 		  bool block_on_destruction = true );
+
+		/*
 		~task_scheduler( ) = default;
 
 		task_scheduler( task_scheduler && ) = default;
 		task_scheduler &operator=( task_scheduler && ) = default;
 		task_scheduler( task_scheduler const & ) = default;
 		task_scheduler &operator=( task_scheduler const & ) = default;
+		*/
 
 		template<typename Task>
 		void add_task( Task &&task ) noexcept {
