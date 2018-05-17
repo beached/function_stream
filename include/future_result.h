@@ -276,7 +276,7 @@ namespace daw {
 			if( sz == 0 ) {
 				return;
 			} else if( sz == 1 ) {
-				*out_first = *first++;
+				*out_first++ = *first++;
 				return;
 			}
 			bool const odd_count = sz % 2 == 1;
@@ -286,13 +286,13 @@ namespace daw {
 			while( first != last ) {
 				auto l = first++;
 				auto r_it = first++;
-				*out_first = l->next( [r = *r_it, binary_op]( auto &&result ) mutable {
+				*out_first++ = l->next( [r = *r_it, binary_op]( auto &&result ) mutable {
 					return binary_op( std::forward<decltype( result )>( result ),
 					                  r.get( ) );
 				} );
 			}
 			if( odd_count ) {
-				*out_first = *last;
+				*out_first++ = *last;
 			}
 		}
 	} // namespace impl
@@ -313,7 +313,7 @@ namespace daw {
 
 		while( results.size( ) > 1 ) {
 			std::list<ResultType> tmp{};
-			impl::reduce_futures2( first, last, std::back_inserter( tmp ),
+			impl::reduce_futures2( results.begin( ), results.end( ), std::back_inserter( tmp ),
 			                       binary_op );
 			results = tmp;
 		}
