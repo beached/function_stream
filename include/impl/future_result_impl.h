@@ -53,7 +53,7 @@ namespace daw {
 		struct function_to_task_t<Result, Function, Args...>;
 
 		template<typename Result, typename Function, typename... Args>
-		function_to_task_t<Result, Function, Args...>
+		constexpr function_to_task_t<Result, Function, Args...>
 		convert_function_to_task( Result &&result, Function &&func,
 		                          Args &&... args );
 
@@ -457,7 +457,6 @@ namespace daw {
 
 		template<typename Result, typename Function, typename... Args>
 		struct function_to_task_t<Result, Function, Args...> {
-			static_assert( sizeof...( Args ) > 0, "Must supply at least 1 argument" );
 			Result m_result;
 			Function m_function;
 			std::tuple<Args...> m_args;
@@ -474,33 +473,18 @@ namespace daw {
 			}
 		}; // function_to_task_t
 
-		template<typename Result, typename Function>
-		struct function_to_task_t<Result, Function> {
-			Result m_result;
-			Function m_function;
-
-			template<typename R, typename F>
-			function_to_task_t( R &&result, F &&func )
-			  : m_result{std::forward<Result>( result )}
-			  , m_function{std::forward<Function>( func )} {}
-
-			void operator( )( ) {
-				m_result.from_code( m_function );
-			}
-		}; // function_to_task_t
+		template<typename Result, typename Function, typename... Args>
+		using detect_has_from_code = decltype(
+		  std::declval<Result>( ).from_code( std::declval<Function>( ), std::declval<Args>( )... ) );
 
 		template<typename Result, typename Function, typename... Args>
-		using is_from_code_callable = decltype( std::declval<Result>( ).from_code(
-		  std::declval<Function>( ), std::declval<Args>( )... ) );
-
-		template<typename Result, typename Function, typename... Args>
-		function_to_task_t<Result, Function, Args...>
+		constexpr function_to_task_t<Result, Function, Args...>
 		convert_function_to_task( Result &&result, Function &&func,
 		                          Args &&... args ) {
 
 			static_assert(
-			  daw::is_detected_v<is_from_code_callable, Result, Function, Args...>,
-			  "Cannot call from_code on " );
+			  daw::is_detected_v<detect_has_from_code, Result, Function, Args...>,
+				"Result must have a from_code member that takes a callable" );
 
 			return function_to_task_t<Result, Function, Args...>(
 			  std::forward<Result>( result ), std::forward<Function>( func ),

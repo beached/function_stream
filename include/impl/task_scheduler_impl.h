@@ -102,10 +102,13 @@ namespace daw {
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
 
 			template<typename Task>
-			void add_task( Task &&task ) noexcept {
+			void add_task( Task &&task ) {
 				auto id = ( m_task_count++ ) % m_num_threads;
 				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
 				            id]( ) mutable {
+					if( wself.expired( ) ) {
+						return;
+					}
 					task( );
 					auto self = wself.lock( );
 					if( self ) {

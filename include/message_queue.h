@@ -115,6 +115,7 @@ namespace daw {
 
 			constexpr msg_ptr_t( msg_ptr_t const &other ) noexcept
 			  : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
+
 			constexpr msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept {
 				if( this != &rhs ) {
 					m_ptr = std::exchange( rhs.m_ptr, nullptr );
@@ -152,7 +153,7 @@ namespace daw {
 				return static_cast<bool>( m_ptr );
 			}
 
-			constexpr value_t move_out( ) noexcept {
+			constexpr value_t && move_out( ) noexcept {
 				auto tmp = std::exchange( m_ptr, nullptr );
 				return std::move( *tmp );
 			}

@@ -58,7 +58,7 @@ namespace daw {
 	} // namespace impl
 
 	future_result_t<void>::future_result_t( )
-			: m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {}
+	  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {}
 
 	future_result_t<void>::future_result_t( task_scheduler ts )
 	  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
