@@ -48,19 +48,16 @@ namespace daw {
 		std::shared_ptr<m_data_t> m_data;
 
 	public:
-		future_result_t( task_scheduler ts = get_task_scheduler( ) )
+		future_result_t( )
+		  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {}
+
+		explicit future_result_t( task_scheduler ts )
 		  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
 
 		explicit future_result_t( daw::shared_semaphore sem,
 		                          task_scheduler ts = get_task_scheduler( ) )
 		  : m_data{
 		      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
-
-		~future_result_t( ) override = default;
-		future_result_t( future_result_t const & ) = default;
-		future_result_t( future_result_t && ) noexcept = default;
-		future_result_t &operator=( future_result_t const & ) = default;
-		future_result_t &operator=( future_result_t && ) noexcept = default;
 
 		std::weak_ptr<m_data_t> weak_ptr( ) {
 			return m_data;
@@ -156,15 +153,10 @@ namespace daw {
 		std::shared_ptr<m_data_t> m_data;
 
 	public:
-		future_result_t( task_scheduler ts = get_task_scheduler( ) );
+		future_result_t( );
+		explicit future_result_t( task_scheduler ts );
 		explicit future_result_t( daw::shared_semaphore sem,
 		                          task_scheduler ts = get_task_scheduler( ) );
-
-		~future_result_t( ) override;
-		future_result_t( future_result_t const & ) = default;
-		future_result_t( future_result_t && ) noexcept = default;
-		future_result_t &operator=( future_result_t const & ) = default;
-		future_result_t &operator=( future_result_t && ) noexcept = default;
 
 		std::weak_ptr<m_data_t> weak_ptr( );
 		void wait( ) const override;

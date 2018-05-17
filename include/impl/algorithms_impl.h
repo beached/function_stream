@@ -249,11 +249,11 @@ namespace daw {
 					  std::vector<future_result_t<iterator_range_t<Iterator>>>{};
 					sorters.reserve( ranges.size( ) );
 
-					auto const sort_fn = [cmp,
-					                      srt = std::forward<Sort>( srt )]( auto const &rng ) {
-						srt( rng.begin( ), rng.end( ), cmp );
-						return std::forward<decltype( rng )>( rng );
-					};
+					auto const sort_fn =
+					  [cmp, srt = std::forward<Sort>( srt )]( auto const &rng ) {
+						  srt( rng.begin( ), rng.end( ), cmp );
+						  return std::forward<decltype( rng )>( rng );
+					  };
 
 					std::transform( ranges.begin( ), ranges.end( ),
 					                std::back_inserter( sorters ),

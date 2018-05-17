@@ -66,7 +66,7 @@ namespace daw {
 
 			member_data_base_t( task_scheduler ts )
 			  : m_semaphore{}
-				,	m_status{future_status::deferred}
+			  , m_status{future_status::deferred}
 			  , m_task_scheduler{std::move( ts )} {}
 
 			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
@@ -161,12 +161,12 @@ namespace daw {
 
 			member_data_t( task_scheduler ts )
 			  : member_data_base_t{std::move( ts )}
-			  , m_next{nullptr}
+			  , m_next{}
 			  , m_result{} {}
 
 			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
 			  : member_data_base_t{std::move( sem ), std::move( ts )}
-			  , m_next{nullptr}
+			  , m_next{}
 			  , m_result{} {}
 
 			~member_data_t( ) override = default;
@@ -197,7 +197,8 @@ namespace daw {
 
 		public:
 			void set_value( expected_result_t &&value ) noexcept {
-				if( !value.has_exception( ) && m_next ) {
+				auto const has_except = value.has_exception( );
+				if( has_except && m_next ) {
 					pass_next( std::move( value ) );
 					return;
 				}
@@ -218,7 +219,7 @@ namespace daw {
 
 			void set_value( base_result_t &&value ) noexcept {
 				if( m_next ) {
-					pass_next( std::move( value ) );
+					pass_next( expected_result_t{std::move( value )} );
 					return;
 				}
 				m_result = std::move( value );
@@ -228,7 +229,7 @@ namespace daw {
 
 			void set_value( base_result_t const &value ) noexcept {
 				if( m_next ) {
-					pass_next( value );
+					pass_next( expected_result_t{value} );
 					return;
 				}
 				m_result = value;
@@ -302,11 +303,18 @@ namespace daw {
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
 				          tpfuncs = std::move( tpfuncs )](
 				           expected_result_t e_result ) mutable -> void {
-					if( e_result.has_exception( ) ) {
-						result.set_exception( e_result.get_exception_ptr( ) );
-						return;
-					}
-					impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
+					e_result.visit( daw::make_overload(
+					  [&]( base_result_t &&value ) {
+						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
+					  },
+					  [&]( base_result_t const &value ) {
+						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
+					  },
+					  []( daw::empty_value_t ) {
+						  std::terminate( ); // This can never happen and if it does we
+						                     // cannot reason about the state
+					  },
+					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -543,11 +551,11 @@ namespace daw {
 
 		template<typename... Functions>
 		class future_group_result_t {
-			std::tuple<Functions...> tp_functions;
+			std::tuple<std::decay_t<Functions>...> tp_functions;
 
 		public:
-			constexpr future_group_result_t( Functions... fs ) noexcept
-			  : tp_functions{std::make_tuple( std::move( fs )... )} {}
+			constexpr future_group_result_t( Functions &&... fs ) noexcept
+			  : tp_functions{std::make_tuple( std::forward<Functions>( fs )... )} {}
 
 			template<typename... Args>
 			auto operator( )( Args &&... args ) {
