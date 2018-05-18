@@ -77,9 +77,9 @@ namespace daw {
 		public:
 			member_data_base_t( ) = delete;
 			member_data_base_t( member_data_base_t const & ) = delete;
-			member_data_base_t( member_data_base_t && ) noexcept = delete;
+			member_data_base_t( member_data_base_t && ) = delete;
 			member_data_base_t &operator=( member_data_base_t const & ) = delete;
-			member_data_base_t &operator=( member_data_base_t && ) noexcept = delete;
+			member_data_base_t &operator=( member_data_base_t && ) = delete;
 			virtual ~member_data_base_t( );
 
 			void wait( ) {
@@ -122,12 +122,12 @@ namespace daw {
 				m_semaphore.notify( );
 			}
 
-			future_status &status( ) noexcept {
+			future_status &status( ) {
 				return m_status;
 			}
 
-			virtual void set_exception( ) noexcept = 0;
-			virtual void set_exception( std::exception_ptr ptr ) noexcept = 0;
+			virtual void set_exception( ) = 0;
+			virtual void set_exception( std::exception_ptr ptr ) = 0;
 		};
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
@@ -173,11 +173,11 @@ namespace daw {
 
 			member_data_t( member_data_t const & ) = delete;
 			member_data_t &operator=( member_data_t const & ) = delete;
-			member_data_t( member_data_t &&other ) noexcept = delete;
-			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
+			member_data_t( member_data_t &&other ) = delete;
+			member_data_t &operator=( member_data_t &&rhs ) = delete;
 
 		private:
-			decltype( auto ) pass_next( expected_result_t &&value ) noexcept {
+			decltype( auto ) pass_next( expected_result_t &&value ) {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
 				daw::exception::dbg_throw_on_true(
@@ -186,7 +186,7 @@ namespace daw {
 				return m_next( std::move( value ) );
 			}
 
-			decltype( auto ) pass_next( expected_result_t const &value ) noexcept {
+			decltype( auto ) pass_next( expected_result_t const &value ) {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
 				daw::exception::dbg_throw_on_true(
@@ -196,9 +196,8 @@ namespace daw {
 			}
 
 		public:
-			void set_value( expected_result_t &&value ) noexcept {
-				auto const has_except = value.has_exception( );
-				if( !has_except && m_next ) {
+			void set_value( expected_result_t &&value ) {
+				if( !value.has_exception( ) && m_next ) {
 					pass_next( std::move( value ) );
 					return;
 				}
@@ -207,8 +206,8 @@ namespace daw {
 				notify( );
 			}
 
-			void set_value( expected_result_t const &value ) noexcept {
-				if( !value.has_exeption( ) && m_next ) {
+			void set_value( expected_result_t const &value ) {
+				if( !value.has_exception( ) && m_next ) {
 					pass_next( value );
 					return;
 				}
@@ -217,7 +216,7 @@ namespace daw {
 				notify( );
 			}
 
-			void set_value( base_result_t &&value ) noexcept {
+			void set_value( base_result_t &&value ) {
 				if( m_next ) {
 					pass_next( expected_result_t{std::move( value )} );
 					return;
@@ -227,7 +226,7 @@ namespace daw {
 				notify( );
 			}
 
-			void set_value( base_result_t const &value ) noexcept {
+			void set_value( base_result_t const &value ) {
 				if( m_next ) {
 					pass_next( expected_result_t{value} );
 					return;
@@ -237,11 +236,11 @@ namespace daw {
 				notify( );
 			}
 
-			void set_exception( std::exception_ptr ptr ) noexcept override {
+			void set_exception( std::exception_ptr ptr ) override {
 				set_value( expected_result_t{ptr} );
 			}
 
-			void set_exception( ) noexcept override {
+			void set_exception( ) override {
 				set_exception( std::current_exception( ) );
 			}
 
@@ -349,11 +348,11 @@ namespace daw {
 
 			member_data_t( member_data_t const & ) = delete;
 			member_data_t &operator=( member_data_t const & ) = delete;
-			member_data_t( member_data_t &&other ) noexcept = delete;
-			member_data_t &operator=( member_data_t &&rhs ) noexcept = delete;
+			member_data_t( member_data_t &&other ) = delete;
+			member_data_t &operator=( member_data_t &&rhs ) = delete;
 
 		private:
-			void pass_next( expected_result_t &&value ) noexcept {
+			void pass_next( expected_result_t &&value ) {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
 				daw::exception::dbg_throw_on_true(
@@ -362,7 +361,7 @@ namespace daw {
 				m_next( value );
 			}
 
-			void pass_next( expected_result_t const &value ) noexcept {
+			void pass_next( expected_result_t const &value ) {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
 				daw::exception::dbg_throw_on_true(
@@ -372,12 +371,12 @@ namespace daw {
 			}
 
 		public:
-			void set_value( expected_result_t result ) noexcept;
-			void set_value( ) noexcept;
+			void set_value( expected_result_t result );
+			void set_value( );
 
-			void set_exception( std::exception_ptr ptr ) noexcept override;
+			void set_exception( std::exception_ptr ptr ) override;
 
-			void set_exception( ) noexcept override;
+			void set_exception( ) override;
 
 			template<typename Function, typename... Args>
 			void from_code( Function &&func, Args &&... args ) {
@@ -442,10 +441,9 @@ namespace daw {
 		struct future_result_base_t {
 			future_result_base_t( ) = default;
 			future_result_base_t( future_result_base_t const & ) = default;
-			future_result_base_t( future_result_base_t && ) noexcept = default;
+			future_result_base_t( future_result_base_t && ) = default;
 			future_result_base_t &operator=( future_result_base_t const & ) = default;
-			future_result_base_t &
-			operator=( future_result_base_t && ) noexcept = default;
+			future_result_base_t &operator=( future_result_base_t && ) = default;
 
 			virtual ~future_result_base_t( );
 			virtual void wait( ) const = 0;
@@ -467,7 +465,7 @@ namespace daw {
 			  , m_function{std::forward<F>( func )}
 			  , m_args{std::forward<A>( args )...} {}
 
-			constexpr void operator( )( ) noexcept {
+			constexpr void operator( )( ) {
 				m_result.from_code(
 				  [&]( ) { return daw::apply( m_function, m_args ); } );
 			}
@@ -500,7 +498,7 @@ namespace daw {
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
 				schedule_task( sem,
-				               [&results, &callables, tp_args ]( ) mutable noexcept {
+				               [&results, &callables, tp_args]( ) mutable {
 					               try {
 						               std::get<N>( results ) =
 						                 daw::apply( std::get<N>( callables ), *tp_args );
@@ -521,7 +519,7 @@ namespace daw {
 			constexpr void
 			operator( )( daw::task_scheduler const &, daw::shared_semaphore const &,
 			             Results const &, std::tuple<Functions...> const &,
-			             std::shared_ptr<std::tuple<Args...>> const & ) noexcept {}
+			             std::shared_ptr<std::tuple<Args...>> const & ) {}
 		}; // apply_many_t<SZ, SZ, Functions..>
 
 		template<typename Result, typename... Functions, typename... Args>
@@ -538,7 +536,7 @@ namespace daw {
 			std::tuple<std::decay_t<Functions>...> tp_functions;
 
 		public:
-			constexpr explicit future_group_result_t( Functions &&... fs ) noexcept
+			constexpr explicit future_group_result_t( Functions &&... fs )
 			  : tp_functions{std::make_tuple( std::forward<Functions>( fs )... )} {}
 
 			template<typename... Args>
@@ -557,10 +555,8 @@ namespace daw {
 				auto sem = daw::shared_semaphore{
 				  1 - static_cast<intmax_t>( sizeof...( Functions ) )};
 
-				auto th_worker = [
-					result, sem, tp_functions = std::move( tp_functions ),
-					tp_args = std::move( tp_args )
-				]( ) mutable noexcept {
+				auto th_worker = [result, sem, tp_functions = std::move( tp_functions ),
+				                  tp_args = std::move( tp_args )]( ) mutable {
 					auto ts = get_task_scheduler( );
 					result_tp_t tp_result;
 					impl::apply_many( ts, sem, tp_result, tp_functions,

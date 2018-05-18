@@ -44,6 +44,7 @@ namespace daw {
 				members_t( )
 				  : m_completed{false}
 				  , m_queue{} {}
+
 				explicit members_t( unsigned long max_size )
 				  : m_completed{false}
 				  , m_queue{max_size} {}
@@ -110,6 +111,7 @@ namespace daw {
 			using reference = value_t &;
 			using const_reference = value_t const &;
 
+		private:
 			template<typename... Args,
 			         std::enable_if_t<(!daw::traits::is_type_v<msg_ptr_t, Args...> &&
 			                           !daw::traits::is_type_v<pointer, Args...>),

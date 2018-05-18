@@ -31,7 +31,7 @@ namespace daw {
 		member_data_base_t::~member_data_base_t( ) = default;
 
 		void member_data_t<void>::set_value(
-		  member_data_t<void>::expected_result_t result ) noexcept {
+		  member_data_t<void>::expected_result_t result ) {
 			m_result = std::move( result );
 			if( m_next ) {
 				pass_next( std::move( m_result ) );
@@ -41,17 +41,17 @@ namespace daw {
 			notify( );
 		}
 
-		void member_data_t<void>::set_value( ) noexcept {
+		void member_data_t<void>::set_value( ) {
 			expected_result_t result;
 			result = true;
 			set_value( std::move( result ) );
 		}
 
-		void member_data_t<void>::set_exception( ) noexcept {
+		void member_data_t<void>::set_exception( ) {
 			set_exception( std::current_exception( ) );
 		}
 
-		void member_data_t<void>::set_exception( std::exception_ptr ptr ) noexcept {
+		void member_data_t<void>::set_exception( std::exception_ptr ptr ) {
 			set_value( expected_result_t{ptr} );
 		}
 	} // namespace impl
@@ -88,7 +88,7 @@ namespace daw {
 		return m_data->try_wait( );
 	}
 
-	void future_result_t<void>::set_value( ) noexcept {
+	void future_result_t<void>::set_value( ) {
 		m_data->set_value( );
 	}
 

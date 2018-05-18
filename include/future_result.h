@@ -49,15 +49,24 @@ namespace daw {
 
 	public:
 		future_result_t( )
-		  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {}
+		  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {
+
+			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
+		}
 
 		explicit future_result_t( task_scheduler ts )
-		  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
+		  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {
+
+			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
+		}
 
 		explicit future_result_t( daw::shared_semaphore sem,
 		                          task_scheduler ts = get_task_scheduler( ) )
 		  : m_data{
-		      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
+		      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {
+
+			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
+		}
 
 		std::weak_ptr<m_data_t> weak_ptr( ) {
 			return m_data;
@@ -88,7 +97,7 @@ namespace daw {
 		}
 
 		template<typename R>
-		void set_value( R &&value ) noexcept {
+		void set_value( R &&value ) {
 			static_assert( daw::is_convertible_v<R, Result>,
 			               "Argument must convertible to a Result type" );
 			m_data->set_value( std::forward<R>( value ) );
@@ -178,7 +187,7 @@ namespace daw {
 		explicit operator bool( ) const;
 		bool is_exception( ) const;
 
-		void set_value( ) noexcept;
+		void set_value( );
 		void set_exception( );
 
 		template<typename Exception>
@@ -258,11 +267,10 @@ namespace daw {
 		  std::forward<Functions>( functions )... )( );
 	}
 
-	std::false_type is_future_result_impl( ... ) noexcept;
+	std::false_type is_future_result_impl( ... );
 
 	template<typename T>
-	constexpr std::true_type
-	is_future_result_impl( future_result_t<T> const & ) noexcept;
+	constexpr std::true_type is_future_result_impl( future_result_t<T> const & );
 
 	template<typename T>
 	constexpr bool is_future_result_v =
@@ -286,10 +294,11 @@ namespace daw {
 			while( first != last ) {
 				auto l = first++;
 				auto r_it = first++;
-				*out_first++ = l->next( [r = *r_it, binary_op]( auto &&result ) mutable {
-					return binary_op( std::forward<decltype( result )>( result ),
-					                  r.get( ) );
-				} );
+				*out_first++ =
+				  l->next( [r = *r_it, binary_op]( auto &&result ) mutable {
+					  return binary_op( std::forward<decltype( result )>( result ),
+					                    r.get( ) );
+				  } );
 			}
 			if( odd_count ) {
 				*out_first++ = *last;
@@ -313,8 +322,8 @@ namespace daw {
 
 		while( results.size( ) > 1 ) {
 			std::list<ResultType> tmp{};
-			impl::reduce_futures2( results.begin( ), results.end( ), std::back_inserter( tmp ),
-			                       binary_op );
+			impl::reduce_futures2( results.begin( ), results.end( ),
+			                       std::back_inserter( tmp ), binary_op );
 			results = tmp;
 		}
 		return results.front( );
