@@ -164,7 +164,7 @@ namespace daw {
 			  , m_next{}
 			  , m_result{} {}
 
-			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
+			member_data_t( daw::shared_semaphore sem, task_scheduler ts )
 			  : member_data_base_t{std::move( sem ), std::move( ts )}
 			  , m_next{}
 			  , m_result{} {}

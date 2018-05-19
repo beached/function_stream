@@ -26,8 +26,10 @@
 
 #define BOOST_TEST_MODULE task_scheduler
 #include <daw/boost_test.h>
+#include <daw/daw_benchmark.h>
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_random.h>
+#include <daw/daw_semaphore.h>
 
 #include "task_scheduler.h"
 
@@ -49,24 +51,53 @@ real_t fib( uintmax_t n ) noexcept {
 }
 
 BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
-	constexpr size_t const ITEMS = 1000u;
+	constexpr size_t const ITEMS = 100u;
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 
-	daw::locked_stack_t<real_t> results;
-	daw::task_scheduler ts{};
-	for( size_t n = 0; n < ITEMS; ++n ) {
-		ts.add_task( [&]( ) {
-			results.push_back( fib( daw::randint<uintmax_t>( 500, 9999 ) ) );
-		} );
-	}
-	ts.start( );
-	size_t rs_size;
-	while( ( rs_size = results.size( ) ) < ITEMS ) {
-		std::cout << rs_size << " items processed\n";
-		std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
-	}
-	for( size_t n = 0; n < ITEMS; ++n ) {
-		std::cout << n << ": " << results.pop_back( ) << '\n';
-	}
+	auto const nums = [&]( ) {
+		auto result = std::vector<uintmax_t>{};
+		for( size_t n = 0; n < ITEMS; ++n ) {
+			result.push_back( daw::randint<uintmax_t>( 500, 9999 ) );
+		}
+		return result;
+	}( );
+
+	auto ts = daw::get_task_scheduler( );
+	auto par_test = [&]( ) {
+		auto results = daw::locked_stack_t<real_t>{ };
+		auto sem = daw::semaphore{ 1 - ITEMS };
+		for( auto i: nums ) {
+			ts.add_task( [&results, &sem, i]( ) {
+				results.push_back( fib( i ) );
+				sem.notify( );
+			} );
+		}
+		sem.wait( );
+		daw::do_not_optimize( results );
+	};
+	auto seq_test = [&]( ) {
+		auto results = std::vector<real_t>{ };
+		for( auto i: nums ) {
+			results.push_back( fib( i ) );
+		}
+		daw::do_not_optimize( results );
+	};
+
+	auto par_t1 = daw::benchmark( par_test );
+	auto seq_t1 = daw::benchmark( seq_test );
+	auto par_t2 = daw::benchmark( par_test );
+	auto seq_t2 = daw::benchmark( seq_test );
+	auto par_avg = (par_t1 + par_t2) / 2.0;
+	auto seq_avg = (seq_t1 + seq_t2) / 2.0;
+
+	std::cout << "Sequential time: t1-> " << daw::utility::format_seconds( seq_t1, 2 )
+	<< " t2-> " << daw::utility::format_seconds( seq_t2, 2 )
+	<< " average-> " << daw::utility::format_seconds( seq_avg, 2 ) << '\n';
+
+	std::cout << "Parallel time: t1-> " << daw::utility::format_seconds( par_t1, 2 )
+		<< " t2-> " << daw::utility::format_seconds( par_t2, 2 )
+		<< " average-> " << daw::utility::format_seconds( par_avg, 2 ) << '\n';
+
+	std::cout << "diff-> " << (seq_avg/par_avg) << '\n';
 }
