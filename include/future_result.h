@@ -146,7 +146,11 @@ namespace daw {
 
 		template<typename Function>
 		decltype( auto ) next( Function &&func ) {
-			return m_data->next( std::forward<Function>( func ) );
+			auto m_data2 = m_data;
+			auto next_func = [m_data2, func=std::forward<Function>( func )]( auto&&...args ) {
+				return func( std::forward<decltype(args)>(args)... );
+			};
+			return m_data->next( std::move( next_func ) );
 		}
 
 		template<typename... Functions>

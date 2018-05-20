@@ -54,6 +54,34 @@ namespace daw {
 		void member_data_t<void>::set_exception( std::exception_ptr ptr ) {
 			set_value( expected_result_t{ptr} );
 		}
+
+		member_data_base_t::member_data_base_t( task_scheduler ts )
+				: m_semaphore{}
+				, m_status{future_status::deferred}
+				, m_task_scheduler{std::move( ts )} {}
+
+		member_data_base_t::member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
+				: m_semaphore{std::move( sem )}
+				, m_status{future_status::deferred}
+				, m_task_scheduler{std::move( ts )} {}
+
+		void member_data_base_t::wait( ) {
+			if( m_status != future_status::ready ) {
+				m_semaphore.wait( );
+			}
+		}
+
+		bool member_data_base_t::try_wait( ) {
+			return m_semaphore.try_wait( );
+		}
+
+		void member_data_base_t::notify( ) {
+			m_semaphore.notify( );
+		}
+
+		future_status & member_data_base_t::status( ) {
+			return m_status;
+		}
 	} // namespace impl
 
 	future_result_t<void>::future_result_t( )

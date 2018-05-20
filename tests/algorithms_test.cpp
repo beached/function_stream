@@ -44,7 +44,7 @@
 #include "algorithms.h"
 #include "bitonic_sort.h"
 
-//#define USE_SORT_FJ
+#define USE_SORT_FJ
 
 BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
 	// Prime task scheduler so we don't pay to start it up in first test
@@ -236,7 +236,7 @@ namespace {
 			daw::do_not_optimize( a );
 		};
 
-#ifdef USE_FJ_SORT
+#ifdef USE_SORT_FJ
 		auto const fj_test = [&]( ) {
 			daw::algorithm::parallel::fork_join_sort(
 			  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );

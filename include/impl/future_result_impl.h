@@ -63,16 +63,8 @@ namespace daw {
 
 		protected:
 			task_scheduler m_task_scheduler;
-
-			explicit member_data_base_t( task_scheduler ts )
-			  : m_semaphore{}
-			  , m_status{future_status::deferred}
-			  , m_task_scheduler{std::move( ts )} {}
-
-			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
-			  : m_semaphore{std::move( sem )}
-			  , m_status{future_status::deferred}
-			  , m_task_scheduler{std::move( ts )} {}
+			explicit member_data_base_t( task_scheduler ts );
+			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts );
 
 		public:
 			member_data_base_t( ) = delete;
@@ -82,11 +74,7 @@ namespace daw {
 			member_data_base_t &operator=( member_data_base_t && ) = delete;
 			virtual ~member_data_base_t( );
 
-			void wait( ) {
-				if( m_status != future_status::ready ) {
-					m_semaphore.wait( );
-				}
-			}
+			void wait( );
 
 			template<typename Rep, typename Period>
 			future_status
@@ -114,18 +102,9 @@ namespace daw {
 				return future_status::timeout;
 			}
 
-			bool try_wait( ) {
-				return m_semaphore.try_wait( );
-			}
-
-			void notify( ) {
-				m_semaphore.notify( );
-			}
-
-			future_status &status( ) {
-				return m_status;
-			}
-
+			bool try_wait( );
+			void notify( );
+			future_status &status( );
 			virtual void set_exception( ) = 0;
 			virtual void set_exception( std::exception_ptr ptr ) = 0;
 		};
