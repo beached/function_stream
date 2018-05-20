@@ -120,6 +120,8 @@ namespace daw {
 			  "Function func with Args does not return a value that is "
 			  "convertible to Result. e.g Result "
 			  "r = func( args... ) must be valid" );
+			daw::exception::dbg_throw_on_false( m_data,
+			                                    "Expected m_data to be valid" );
 			m_data->from_code( std::forward<Function>( func ),
 			                   std::forward<Args>( args )... );
 		}
@@ -225,8 +227,9 @@ namespace daw {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>{};
+		auto result2 = result;
 		ts.add_task( impl::convert_function_to_task(
-		  result, std::forward<Function>( func ), std::forward<Args>( args )... ) );
+		  std::move( result2 ), std::forward<Function>( func ), std::forward<Args>( args )... ) );
 		return result;
 	}
 
@@ -236,9 +239,9 @@ namespace daw {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>{std::move( sem )};
-
+		auto result2 = result;
 		ts.add_task( impl::convert_function_to_task(
-		  result, std::forward<Function>( func ), std::forward<Args>( args )... ) );
+		  std::move( result2 ), std::forward<Function>( func ), std::forward<Args>( args )... ) );
 		return result;
 	}
 

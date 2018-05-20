@@ -57,14 +57,23 @@ namespace daw {
 	} // namespace impl
 
 	future_result_t<void>::future_result_t( )
-	  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {}
+	  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {
+
+		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
+	}
 
 	future_result_t<void>::future_result_t( task_scheduler ts )
-	  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {}
+	  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {
+
+		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
+	}
 
 	future_result_t<void>::future_result_t( daw::shared_semaphore sem,
 	                                        task_scheduler ts )
-	  : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {}
+	  : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {
+
+		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
+	}
 
 	std::weak_ptr<future_result_t<void>::m_data_t>
 	future_result_t<void>::weak_ptr( ) {
