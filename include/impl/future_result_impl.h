@@ -255,10 +255,6 @@ namespace daw {
 						    std::forward<future_result_t<next_result_t>>( result ),
 						    std::move( next_func ), value ) );
 					  },
-					  []( daw::empty_value_t ) {
-						  std::terminate( ); // This can never happen and if it does we
-						                     // cannot reason about the state
-					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
 
@@ -287,10 +283,6 @@ namespace daw {
 					  },
 					  [&]( base_result_t const &value ) {
 						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
-					  },
-					  []( daw::empty_value_t ) {
-						  std::terminate( ); // This can never happen and if it does we
-						                     // cannot reason about the state
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
