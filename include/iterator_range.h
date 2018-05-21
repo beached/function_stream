@@ -100,7 +100,7 @@ namespace daw {
 		}
 
 		constexpr iterator_range_t operator++( int ) noexcept {
-			iterator_range_t result{*this};
+			auto result = iterator_range_t( *this );
 			++( *this );
 			return result;
 		}

@@ -69,10 +69,10 @@ namespace daw {
 
 			constexpr members_t( bool continueonclientdestruction, result_t result,
 			                     functions_t functions, Args... args )
-			  : m_function_list{std::move( functions )}
-			  , m_targs{std::make_tuple( std::move( args )... )}
-			  , m_result{result}
-			  , m_continue_on_result_destruction{continueonclientdestruction} {}
+			  : m_function_list( std::move( functions ) )
+			  , m_targs( std::make_tuple( std::move( args )... ) )
+			  , m_result( result )
+			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
 		}; // members_t
 		std::unique_ptr<members_t> members;
 
@@ -88,9 +88,9 @@ namespace daw {
 
 		package_t( bool continueonclientdestruction, result_t result,
 		           functions_t functions, Args &&... args )
-		  : members{std::make_unique<members_t>(
+		  : members( std::make_unique<members_t>(
 		      continueonclientdestruction, std::move( result ),
-		      std::move( functions ), std::forward<Args>( args )... )} {}
+		      std::move( functions ), std::forward<Args>( args )... ) ) {}
 
 		functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;
@@ -146,9 +146,9 @@ namespace daw {
 	package_t<Result, Functions, Args...>
 	make_package( bool continue_on_result_destruction, Result &&result,
 	              Functions &&functions, Args &&... args ) {
-		return package_t<Result, Functions, Args...>{
+		return package_t<Result, Functions, Args...>(
 		  continue_on_result_destruction, std::forward<Result>( result ),
-		  std::forward<Functions>( functions ), std::forward<Args>( args )...};
+		  std::forward<Functions>( functions ), std::forward<Args>( args )... );
 	}
 
 	template<typename Result, typename Functions, typename... Args>

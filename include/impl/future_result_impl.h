@@ -142,12 +142,12 @@ namespace daw {
 
 			explicit member_data_t( task_scheduler ts )
 			  : member_data_base_t( std::move( ts ) )
-			  , m_next( )
+			  , m_next( nullptr )
 			  , m_result( ) {}
 
 			member_data_t( daw::shared_semaphore sem, task_scheduler ts )
 			  : member_data_base_t( std::move( sem ), std::move( ts ) )
-			  , m_next( )
+			  , m_next( nullptr )
 			  , m_result( ) {}
 
 			~member_data_t( ) override = default;
@@ -258,8 +258,6 @@ namespace daw {
 						    std::move( next_func ), value ) );
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
-
-					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -290,8 +288,6 @@ namespace daw {
 						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
-
-					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -316,13 +312,13 @@ namespace daw {
 
 			explicit member_data_t( task_scheduler ts )
 			  : member_data_base_t( std::move( ts ) )
-			  , m_next{nullptr}
-			  , m_result{} {}
+			  , m_next( nullptr )
+			  , m_result( ) {}
 
 			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
 			  : member_data_base_t( std::move( sem ), std::move( ts ) )
-			  , m_next{nullptr}
-			  , m_result{} {}
+			  , m_next( nullptr )
+			  , m_result( ) {}
 
 			~member_data_t( ) override;
 
@@ -370,8 +366,8 @@ namespace daw {
 				                                   "Can only set next function once" );
 				using next_result_t = std::decay_t<decltype( next_func( ) )>;
 				auto result = future_result_t<next_result_t>{m_task_scheduler};
-				auto func =
-				  std::function<next_result_t( )>{std::forward<Function>( next_func )};
+				auto func = std::function<next_result_t( )>(
+				  std::forward<Function>( next_func ) );
 
 				m_next = [result, func = std::move( func ), ts = m_task_scheduler,
 				          self = this->shared_from_this( )](
@@ -381,7 +377,6 @@ namespace daw {
 						return;
 					}
 					ts.add_task( convert_function_to_task( result, func ) );
-					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -396,7 +391,7 @@ namespace daw {
 			auto split( Functions &&... funcs ) {
 				using result_t = std::tuple<future_result_t<decltype( funcs( ) )>...>;
 
-				auto result = result_t{m_task_scheduler};
+				auto result = result_t( m_task_scheduler );
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
@@ -408,7 +403,6 @@ namespace daw {
 						return;
 					}
 					impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
-					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {

@@ -47,15 +47,6 @@ namespace daw {
 		  std::size_t num_threads = std::thread::hardware_concurrency( ),
 		  bool block_on_destruction = true );
 
-		/*
-		~task_scheduler( ) = default;
-
-		task_scheduler( task_scheduler && ) = default;
-		task_scheduler &operator=( task_scheduler && ) = default;
-		task_scheduler( task_scheduler const & ) = default;
-		task_scheduler &operator=( task_scheduler const & ) = default;
-		*/
-
 		template<typename Task>
 		void add_task( Task &&task ) noexcept {
 			static_assert( impl::is_task_v<Task>,

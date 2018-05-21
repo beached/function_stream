@@ -42,16 +42,16 @@ namespace daw {
 				base_queue_t m_queue;
 
 				members_t( )
-				  : m_completed{false}
-				  , m_queue{} {}
+				  : m_completed( false )
+				  , m_queue( ) {}
 
 				explicit members_t( unsigned long max_size )
-				  : m_completed{false}
-				  , m_queue{max_size} {}
+				  : m_completed( false )
+				  , m_queue( max_size ) {}
 
 				explicit members_t( use_autosize )
-				  : m_completed{false}
-				  , m_queue{size_msg_queue_to_cache_size<T>( )} {}
+				  : m_completed( false )
+				  , m_queue( size_msg_queue_to_cache_size<T>( ) ) {}
 			};
 			std::shared_ptr<members_t> members;
 
@@ -65,13 +65,13 @@ namespace daw {
 
 		public:
 			basic_msg_queue_t( )
-			  : members{std::make_shared<members_t>( )} {}
+			  : members( std::make_shared<members_t>( ) ) {}
 
 			explicit basic_msg_queue_t( unsigned long max_size )
-			  : members{std::make_shared<members_t>( max_size )} {}
+			  : members( std::make_shared<members_t>( max_size ) ) {}
 
 			explicit basic_msg_queue_t( use_autosize )
-			  : members{std::make_shared<members_t>( use_autosize{} )} {}
+			  : members( std::make_shared<members_t>( use_autosize{} ) ) {}
 
 			void notify_completed( ) {
 				members->m_completed.store( true );
@@ -116,13 +116,13 @@ namespace daw {
 			                           !daw::traits::is_type_v<pointer, Args...>),
 			                          std::nullptr_t> = nullptr>
 			explicit msg_ptr_t( Args &&... args )
-			  : m_ptr{new value_t{std::forward<Args>( args )...}} {}
+			  : m_ptr( new value_t( std::forward<Args>( args )... ) ) {}
 
 			constexpr explicit msg_ptr_t( pointer p ) noexcept
-			  : m_ptr{p} {}
+			  : m_ptr( p ) {}
 
 			constexpr msg_ptr_t( msg_ptr_t const &other ) noexcept
-			  : m_ptr{std::exchange( other.m_ptr, nullptr )} {}
+			  : m_ptr( std::exchange( other.m_ptr, nullptr ) ) {}
 
 			constexpr msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept {
 				if( this != &rhs ) {

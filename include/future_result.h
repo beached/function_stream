@@ -49,21 +49,21 @@ namespace daw {
 
 	public:
 		future_result_t( )
-		  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {
+		  : m_data( std::make_shared<m_data_t>( get_task_scheduler( ) ) ) {
 
 			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 		}
 
 		explicit future_result_t( task_scheduler ts )
-		  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {
+		  : m_data( std::make_shared<m_data_t>( std::move( ts ) ) ) {
 
 			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 		}
 
 		explicit future_result_t( daw::shared_semaphore sem,
 		                          task_scheduler ts = get_task_scheduler( ) )
-		  : m_data{
-		      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {
+		  : m_data(
+		      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) ) ) {
 
 			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 		}
@@ -228,7 +228,7 @@ namespace daw {
 	                         Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
-		auto result = future_result_t<result_t>{};
+		auto result = future_result_t<result_t>( );
 		ts.add_task( impl::convert_function_to_task(
 		  daw::copy( result ), std::forward<Function>( func ),
 		  std::forward<Args>( args )... ) );
@@ -242,7 +242,7 @@ namespace daw {
 	                         Function &&func, Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
-		auto result = future_result_t<result_t>{std::move( sem )};
+		auto result = future_result_t<result_t>( std::move( sem ) );
 		ts.add_task( impl::convert_function_to_task(
 		  daw::copy( result ), std::forward<Function>( func ),
 		  std::forward<Args>( args )... ) );
@@ -261,8 +261,8 @@ namespace daw {
 	template<typename... Functions>
 	decltype( auto )
 	make_callable_future_result_group( Functions &&... functions ) {
-		return impl::future_group_result_t<Functions...>{
-		  std::forward<Functions>( functions )...};
+		return impl::future_group_result_t<Functions...>(
+		  std::forward<Functions>( functions )... );
 	}
 
 	/// Create a group of functions that all return at the same time.  A tuple of
@@ -325,12 +325,12 @@ namespace daw {
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
-		std::list<ResultType> results{};
+		auto results = std::list<ResultType>( );
 		impl::reduce_futures2( first, last, std::back_inserter( results ),
 		                       binary_op );
 
 		while( results.size( ) > 1 ) {
-			std::list<ResultType> tmp{};
+			auto tmp = std::list<ResultType>( );
 			impl::reduce_futures2( results.begin( ), results.end( ),
 			                       std::back_inserter( tmp ), binary_op );
 			results = tmp;
