@@ -86,6 +86,11 @@ target_link_libraries( function_stream_test_bin task_scheduler_lib function_stre
 add_test( function_stream_test function_stream_test_bin )
 add_dependencies( check function_stream_test_bin )
 
+add_executable( future_result_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/future_result_test.cpp )
+target_link_libraries( future_result_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_test( future_result_test future_result_test_bin )
+add_dependencies( check future_result_test_bin )
+
 add_executable( function_composition_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_composition_test.cpp )
 target_link_libraries( function_composition_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_test( function_composition_test function_composition_test_bin )

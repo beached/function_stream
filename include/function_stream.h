@@ -47,18 +47,19 @@ namespace daw {
 		bool continue_on_result_destruction;
 
 		constexpr explicit function_stream( Functions &&... funcs )
-				: m_funcs{std::make_tuple( std::move( funcs )... )}
-				, continue_on_result_destruction{true} {}
+		  : m_funcs{std::make_tuple( std::move( funcs )... )}
+		  , continue_on_result_destruction{true} {}
 
 		constexpr explicit function_stream( Functions const &... funcs )
 		  : m_funcs{std::make_tuple( funcs... )}
 		  , continue_on_result_destruction{true} {}
 
-		constexpr explicit function_stream( std::tuple<Functions...> && tpfuncs )
-				: m_funcs{std::move( tpfuncs )}
-				, continue_on_result_destruction{true} {}
+		constexpr explicit function_stream( std::tuple<Functions...> &&tpfuncs )
+		  : m_funcs{std::move( tpfuncs )}
+		  , continue_on_result_destruction{true} {}
 
-		constexpr explicit function_stream( std::tuple<Functions...> const & tpfuncs )
+		constexpr explicit function_stream(
+		  std::tuple<Functions...> const &tpfuncs )
 		  : m_funcs{tpfuncs}
 		  , continue_on_result_destruction{true} {}
 
@@ -96,27 +97,27 @@ namespace daw {
 
 		template<typename... Functions>
 		constexpr static future_generator_t<Functions...>
-		make_future_generator( std::tuple<Functions...> && tp_funcs ) {
+		make_future_generator( std::tuple<Functions...> &&tp_funcs ) {
 			return future_generator_t<Functions...>{std::move( tp_funcs )};
 		}
 
 		template<typename... Functions>
 		constexpr static future_generator_t<Functions...>
-		make_future_generator( std::tuple<Functions...> const & tp_funcs ) {
+		make_future_generator( std::tuple<Functions...> const &tp_funcs ) {
 			return future_generator_t<Functions...>{tp_funcs};
 		}
 
 	public:
 		constexpr future_generator_t( Funcs const &... funcs )
-				: m_funcs{funcs...} {}
+		  : m_funcs{funcs...} {}
 
-		constexpr future_generator_t( Funcs&&... funcs ) noexcept
+		constexpr future_generator_t( Funcs &&... funcs ) noexcept
 		  : m_funcs{std::move( funcs )...} {}
 
-		constexpr future_generator_t( std::tuple<Funcs...> const & tp_funcs )
-				: m_funcs{tp_funcs} {}
+		constexpr future_generator_t( std::tuple<Funcs...> const &tp_funcs )
+		  : m_funcs{tp_funcs} {}
 
-		constexpr future_generator_t( std::tuple<Funcs...> && tp_funcs )
+		constexpr future_generator_t( std::tuple<Funcs...> &&tp_funcs )
 		  : m_funcs{std::move( tp_funcs )} {}
 
 		template<typename... Args>
@@ -129,39 +130,43 @@ namespace daw {
 		}
 
 		template<typename... NextFunctions>
-		constexpr decltype( auto ) next( NextFunctions&&... next_functions ) const {
+		constexpr decltype( auto )
+		next( NextFunctions &&... next_functions ) const {
 			auto tp_next_funcs = std::tuple_cat(
-			  m_funcs, std::make_tuple( std::forward<NextFunctions>( next_functions )... ) );
+			  m_funcs,
+			  std::make_tuple( std::forward<NextFunctions>( next_functions )... ) );
 			return make_future_generator( tp_next_funcs );
 		}
 	};
 
 	template<typename... Functions>
 	constexpr future_generator_t<Functions...>
-	make_future_generator( Functions&&... functions ) {
-		return future_generator_t<Functions...>{std::forward<Functions>( functions )...};
+	make_future_generator( Functions &&... functions ) {
+		return future_generator_t<Functions...>{
+		  std::forward<Functions>( functions )...};
 	}
 
 	template<typename NextFunction, typename... Functions>
 	constexpr decltype( auto )
 	operator|( future_generator_t<Functions...> const &lhs,
-	           NextFunction && next_func ) {
+	           NextFunction &&next_func ) {
 		return lhs.next( std::forward<NextFunction>( next_func ) );
 	}
 
 	template<typename... Functions>
 	constexpr impl::function_composer_t<Functions...>
-	compose_functions( Functions&&... functions ) {
-		return impl::function_composer_t<Functions...>{std::forward<Functions>( functions )...};
+	compose_functions( Functions &&... functions ) {
+		return impl::function_composer_t<Functions...>{
+		  std::forward<Functions>( functions )...};
 	}
 
 	/*
 	constexpr impl::function_composer_t<> compose( ) noexcept {
-		return impl::function_composer_t<>{};
+	  return impl::function_composer_t<>{};
 	}
 
 	constexpr future_generator_t<> compose_future( ) {
-		return future_generator_t<>{};
+	  return future_generator_t<>{};
 	}
 	 */
 } // namespace daw

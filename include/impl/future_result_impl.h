@@ -52,10 +52,12 @@ namespace daw {
 		template<typename Result, typename Function, typename... Args>
 		struct function_to_task_t<Result, Function, Args...>;
 
-		template<typename Result, typename Function, typename... Args>
-		constexpr function_to_task_t<Result, Function, Args...>
-		convert_function_to_task( Result &&result, Function &&func,
-		                          Args &&... args );
+		template<typename Result, typename Function, typename... Args,
+		         std::enable_if_t<daw::is_callable_v<Function, Args...>,
+		                          std::nullptr_t> = nullptr>
+		constexpr auto convert_function_to_task( Result &&result, Function &&func,
+		                                         Args &&... args )
+		  -> function_to_task_t<Result, Function, Args...>;
 
 		class member_data_base_t {
 			daw::shared_semaphore m_semaphore;
@@ -72,13 +74,12 @@ namespace daw {
 			member_data_base_t( member_data_base_t && ) = delete;
 			member_data_base_t &operator=( member_data_base_t const & ) = delete;
 			member_data_base_t &operator=( member_data_base_t && ) = delete;
-			virtual ~member_data_base_t( );
+			virtual ~member_data_base_t( ) noexcept;
 
 			void wait( );
 
 			template<typename Rep, typename Period>
-			future_status
-			wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+			future_status wait_for( std::chrono::duration<Rep, Period> rel_time ) {
 				if( future_status::deferred == m_status ||
 				    future_status::ready == m_status ) {
 					return m_status;
@@ -90,8 +91,8 @@ namespace daw {
 			}
 
 			template<typename Clock, typename Duration>
-			future_status wait_until(
-			  std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+			future_status
+			wait_until( std::chrono::time_point<Clock, Duration> timeout_time ) {
 				if( future_status::deferred == m_status ||
 				    future_status::ready == m_status ) {
 					return m_status;
@@ -131,7 +132,8 @@ namespace daw {
 		}
 
 		template<typename Result>
-		struct member_data_t : public member_data_base_t {
+		struct member_data_t : public member_data_base_t,
+		                       std::enable_shared_from_this<member_data_t<Result>> {
 			using base_result_t = Result;
 			using expected_result_t = daw::expected_t<base_result_t>;
 			using next_function_t = std::function<void( expected_result_t )>;
@@ -139,14 +141,14 @@ namespace daw {
 			expected_result_t m_result;
 
 			explicit member_data_t( task_scheduler ts )
-			  : member_data_base_t{std::move( ts )}
-			  , m_next{}
-			  , m_result{} {}
+			  : member_data_base_t( std::move( ts ) )
+			  , m_next( )
+			  , m_result( ) {}
 
 			member_data_t( daw::shared_semaphore sem, task_scheduler ts )
-			  : member_data_base_t{std::move( sem ), std::move( ts )}
-			  , m_next{}
-			  , m_result{} {}
+			  : member_data_base_t( std::move( sem ), std::move( ts ) )
+			  , m_next( )
+			  , m_result( ) {}
 
 			~member_data_t( ) override = default;
 
@@ -242,7 +244,7 @@ namespace daw {
 				auto result = future_result_t<next_result_t>{m_task_scheduler};
 
 				m_next = [result, next_func = std::forward<Function>( next_func ),
-				          ts = m_task_scheduler](
+				          ts = m_task_scheduler, self = this->shared_from_this( )](
 				           expected_result_t e_result ) mutable -> void {
 					e_result.visit( daw::make_overload(
 					  [&]( base_result_t &&value ) {
@@ -256,6 +258,8 @@ namespace daw {
 						    std::move( next_func ), value ) );
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
+
+					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -275,7 +279,8 @@ namespace daw {
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
-				          tpfuncs = std::move( tpfuncs )](
+				          tpfuncs = std::move( tpfuncs ),
+				          self = this->shared_from_this( )](
 				           expected_result_t e_result ) mutable -> void {
 					e_result.visit( daw::make_overload(
 					  [&]( base_result_t &&value ) {
@@ -285,6 +290,8 @@ namespace daw {
 						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
+
+					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -298,7 +305,9 @@ namespace daw {
 		// member_data_t
 
 		template<>
-		struct member_data_t<void> : public member_data_base_t {
+		struct member_data_t<void>
+		  : public member_data_base_t,
+		    std::enable_shared_from_this<member_data_t<void>> {
 			using base_result_t = void;
 			using expected_result_t = daw::expected_t<void>;
 			using next_function_t = std::function<void( expected_result_t )>;
@@ -306,12 +315,12 @@ namespace daw {
 			expected_result_t m_result;
 
 			explicit member_data_t( task_scheduler ts )
-			  : member_data_base_t{std::move( ts )}
+			  : member_data_base_t( std::move( ts ) )
 			  , m_next{nullptr}
 			  , m_result{} {}
 
 			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
-			  : member_data_base_t{std::move( sem ), std::move( ts )}
+			  : member_data_base_t( std::move( sem ), std::move( ts ) )
 			  , m_next{nullptr}
 			  , m_result{} {}
 
@@ -344,9 +353,7 @@ namespace daw {
 		public:
 			void set_value( expected_result_t result );
 			void set_value( );
-
 			void set_exception( std::exception_ptr ptr ) override;
-
 			void set_exception( ) override;
 
 			template<typename Function, typename... Args>
@@ -366,13 +373,15 @@ namespace daw {
 				auto func =
 				  std::function<next_result_t( )>{std::forward<Function>( next_func )};
 
-				m_next = [result, func = std::move( func ), ts = m_task_scheduler](
+				m_next = [result, func = std::move( func ), ts = m_task_scheduler,
+				          self = this->shared_from_this( )](
 				           expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
 					}
 					ts.add_task( convert_function_to_task( result, func ) );
+					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -382,6 +391,7 @@ namespace daw {
 				notify( );
 				return result;
 			}
+
 			template<typename... Functions>
 			auto split( Functions &&... funcs ) {
 				using result_t = std::tuple<future_result_t<decltype( funcs( ) )>...>;
@@ -390,13 +400,15 @@ namespace daw {
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
-				          tpfuncs = std::move( tpfuncs )](
+				          tpfuncs = std::move( tpfuncs ),
+				          self = this->shared_from_this( )](
 				           expected_result_t e_result ) mutable -> void {
 					if( e_result.has_exception( ) ) {
 						result.set_exception( e_result.get_exception_ptr( ) );
 						return;
 					}
 					impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
+					self.reset( );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -410,18 +422,20 @@ namespace daw {
 		// member_data_t<void, daw::expected_t<void>>
 
 		struct future_result_base_t {
-			future_result_base_t( ) = default;
-			future_result_base_t( future_result_base_t const & ) = default;
-			future_result_base_t( future_result_base_t && ) = default;
-			future_result_base_t &operator=( future_result_base_t const & ) = default;
-			future_result_base_t &operator=( future_result_base_t && ) = default;
+			future_result_base_t( ) noexcept = default;
+			future_result_base_t( future_result_base_t const & ) noexcept = default;
+			future_result_base_t( future_result_base_t && ) noexcept = default;
+			future_result_base_t &
+			operator=( future_result_base_t const & ) noexcept = default;
+			future_result_base_t &
+			operator=( future_result_base_t && ) noexcept = default;
 
-			virtual ~future_result_base_t( );
+			virtual ~future_result_base_t( ) noexcept;
 			virtual void wait( ) const = 0;
 			virtual bool try_wait( ) const = 0;
 		}; // future_result_base_t
 
-		template<typename... Unknown>
+		template<typename...>
 		struct function_to_task_t;
 
 		template<typename Result, typename Function, typename... Args>
@@ -430,11 +444,17 @@ namespace daw {
 			Function m_function;
 			std::tuple<Args...> m_args;
 
+			static_assert(
+			  daw::is_callable_convertible_v<
+			    typename std::decay_t<Result>::result_type_t, Function, Args...>,
+			  "Function called with Args... must be convertible to "
+			  "Result::valuetype" );
+
 			template<typename R, typename F, typename... A>
 			constexpr function_to_task_t( R &&result, F &&func, A &&... args )
-			  : m_result{std::forward<R>( result )}
-			  , m_function{std::forward<F>( func )}
-			  , m_args{std::forward<A>( args )...} {}
+			  : m_result( std::forward<R>( result ) )
+			  , m_function( std::forward<F>( func ) )
+			  , m_args( std::forward<A>( args )... ) {}
 
 			constexpr void operator( )( ) {
 				m_result.from_code(
@@ -446,10 +466,12 @@ namespace daw {
 		using detect_has_from_code = decltype( std::declval<Result>( ).from_code(
 		  std::declval<Function>( ), std::declval<Args>( )... ) );
 
-		template<typename Result, typename Function, typename... Args>
-		constexpr function_to_task_t<Result, Function, Args...>
-		convert_function_to_task( Result &&result, Function &&func,
-		                          Args &&... args ) {
+		template<
+		  typename Result, typename Function, typename... Args,
+		  std::enable_if_t<daw::is_callable_v<Function, Args...>, std::nullptr_t>>
+		constexpr auto convert_function_to_task( Result &&result, Function &&func,
+		                                         Args &&... args )
+		  -> function_to_task_t<Result, Function, Args...> {
 
 			static_assert(
 			  daw::is_detected_v<detect_has_from_code, Result, Function, Args...>,
@@ -508,7 +530,7 @@ namespace daw {
 
 		public:
 			constexpr explicit future_group_result_t( Functions &&... fs )
-			  : tp_functions{std::make_tuple( std::forward<Functions>( fs )... )} {}
+			  : tp_functions( std::make_tuple( std::forward<Functions>( fs )... ) ) {}
 
 			template<typename... Args>
 			auto operator( )( Args &&... args ) {
@@ -521,7 +543,7 @@ namespace daw {
 				  std::make_shared<std::tuple<std::add_const_t<std::decay_t<Args>>...>>(
 				    std::make_tuple( std::forward<Args>( args )... ) );
 
-				auto result = future_result_t<result_tp_t>{};
+				auto result = future_result_t<result_tp_t>( );
 
 				auto sem = daw::shared_semaphore{
 				  1 - static_cast<intmax_t>( sizeof...( Functions ) )};

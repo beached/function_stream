@@ -78,13 +78,13 @@ namespace daw {
 
 		template<typename Rep, typename Period>
 		future_status
-		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
+		wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
 			return m_data->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		future_status wait_until(
-		  std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
+		future_status
+		wait_until( std::chrono::time_point<Clock, Duration> timeout_time ) const {
 			return m_data->wait_until( timeout_time );
 		}
 
@@ -146,11 +146,7 @@ namespace daw {
 
 		template<typename Function>
 		decltype( auto ) next( Function &&func ) {
-			auto m_data2 = m_data;
-			return m_data->next( [m_data2, func=std::forward<Function>( func )]( auto&&...args ) mutable {
-				m_data2.reset( );
-				return func( std::forward<decltype(args)>(args)... );
-			} );
+			return m_data->next( std::forward<Function>( func ) );
 		}
 
 		template<typename... Functions>
@@ -178,13 +174,13 @@ namespace daw {
 
 		template<typename Rep, typename Period>
 		future_status
-		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
+		wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
 			return m_data->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		future_status wait_until(
-		  std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
+		future_status
+		wait_until( std::chrono::time_point<Clock, Duration> timeout_time ) const {
 			return m_data->wait_until( timeout_time );
 		}
 
@@ -225,31 +221,37 @@ namespace daw {
 		return lhs.next( std::forward<Function>( rhs ) );
 	}
 
-	template<typename Function, typename... Args>
+	template<typename Function, typename... Args,
+	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
+	                          std::nullptr_t> = nullptr>
 	auto make_future_result( task_scheduler ts, Function &&func,
 	                         Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>{};
-		auto result2 = result;
 		ts.add_task( impl::convert_function_to_task(
-		  std::move( result2 ), std::forward<Function>( func ), std::forward<Args>( args )... ) );
+		  daw::copy( result ), std::forward<Function>( func ),
+		  std::forward<Args>( args )... ) );
 		return result;
 	}
 
-	template<typename Function, typename... Args>
+	template<typename Function, typename... Args,
+	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
+	                          std::nullptr_t> = nullptr>
 	auto make_future_result( task_scheduler ts, daw::shared_semaphore sem,
 	                         Function &&func, Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>{std::move( sem )};
-		auto result2 = result;
 		ts.add_task( impl::convert_function_to_task(
-		  std::move( result2 ), std::forward<Function>( func ), std::forward<Args>( args )... ) );
+		  daw::copy( result ), std::forward<Function>( func ),
+		  std::forward<Args>( args )... ) );
 		return result;
 	}
 
-	template<typename Function, typename... Args>
+	template<typename Function, typename... Args,
+	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
+	                          std::nullptr_t> = nullptr>
 	decltype( auto ) make_future_result( Function &&func, Args &&... args ) {
 		return make_future_result( get_task_scheduler( ),
 		                           std::forward<Function>( func ),

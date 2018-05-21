@@ -26,9 +26,9 @@ namespace daw {
 	namespace impl {
 		member_data_t<void>::~member_data_t( ) = default;
 
-		future_result_base_t::~future_result_base_t( ) = default;
+		future_result_base_t::~future_result_base_t( ) noexcept = default;
 
-		member_data_base_t::~member_data_base_t( ) = default;
+		member_data_base_t::~member_data_base_t( ) noexcept = default;
 
 		void member_data_t<void>::set_value(
 		  member_data_t<void>::expected_result_t result ) {
@@ -56,14 +56,15 @@ namespace daw {
 		}
 
 		member_data_base_t::member_data_base_t( task_scheduler ts )
-				: m_semaphore{}
-				, m_status{future_status::deferred}
-				, m_task_scheduler{std::move( ts )} {}
+		  : m_semaphore( )
+		  , m_status( future_status::deferred )
+		  , m_task_scheduler( std::move( ts ) ) {}
 
-		member_data_base_t::member_data_base_t( daw::shared_semaphore sem, task_scheduler ts )
-				: m_semaphore{std::move( sem )}
-				, m_status{future_status::deferred}
-				, m_task_scheduler{std::move( ts )} {}
+		member_data_base_t::member_data_base_t( daw::shared_semaphore sem,
+		                                        task_scheduler ts )
+		  : m_semaphore( std::move( sem ) )
+		  , m_status( future_status::deferred )
+		  , m_task_scheduler( std::move( ts ) ) {}
 
 		void member_data_base_t::wait( ) {
 			if( m_status != future_status::ready ) {
@@ -79,26 +80,27 @@ namespace daw {
 			m_semaphore.notify( );
 		}
 
-		future_status & member_data_base_t::status( ) {
+		future_status &member_data_base_t::status( ) {
 			return m_status;
 		}
 	} // namespace impl
 
 	future_result_t<void>::future_result_t( )
-	  : m_data{std::make_shared<m_data_t>( get_task_scheduler( ) )} {
+	  : m_data( std::make_shared<m_data_t>( get_task_scheduler( ) ) ) {
 
 		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 	}
 
 	future_result_t<void>::future_result_t( task_scheduler ts )
-	  : m_data{std::make_shared<m_data_t>( std::move( ts ) )} {
+	  : m_data( std::make_shared<m_data_t>( std::move( ts ) ) ) {
 
 		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 	}
 
 	future_result_t<void>::future_result_t( daw::shared_semaphore sem,
 	                                        task_scheduler ts )
-	  : m_data{std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) )} {
+	  : m_data(
+	      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) ) ) {
 
 		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 	}
