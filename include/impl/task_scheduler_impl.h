@@ -42,14 +42,10 @@ namespace daw {
 	using task_t = std::function<void( )>;
 	namespace impl {
 		template<typename Task>
-		using is_task_detector = decltype( std::declval<Task &>( )( ) );
-
-		template<typename Task>
-		constexpr bool is_task_v = daw::is_detected_v<is_task_detector, Task>;
+		constexpr bool is_task_v = daw::is_callable_v<Task>;
 
 		template<typename... Tasks>
-		constexpr bool are_tasks_v =
-		  daw::all_true_v<daw::is_detected_v<is_task_detector, Tasks>...>;
+		constexpr bool are_tasks_v = daw::all_true_v<daw::is_callable_v<Tasks>...>;
 
 		template<typename Waitable>
 		using is_waitable_detector =
