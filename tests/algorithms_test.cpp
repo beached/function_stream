@@ -1045,6 +1045,7 @@ BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
 	sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
 		sort_test( n );
+		std::cout << '\n';
 	}
 }
 
@@ -1053,6 +1054,7 @@ BOOST_AUTO_TEST_CASE( test_stable_sort_int64_t ) {
 	stable_sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
 		stable_sort_test( n );
+		std::cout << '\n';
 	}
 }
 

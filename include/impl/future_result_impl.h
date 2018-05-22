@@ -105,7 +105,6 @@ namespace daw {
 			ts.add_task( [result = std::get<N>( results ),
 			              func = std::get<N>( funcs ),
 			              arg = std::forward<Arg>( arg )]( ) mutable {
-
 				result.from_code( std::move( func ), std::move( arg ) );
 			} );
 		}
@@ -118,7 +117,6 @@ namespace daw {
 			ts.add_task( [result = std::get<N>( results ),
 			              func = std::get<N>( funcs ),
 			              arg = std::forward<Arg>( arg )]( ) mutable {
-
 				result.from_code( std::move( func ), std::move( arg ) );
 			} );
 

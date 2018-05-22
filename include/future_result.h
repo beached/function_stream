@@ -334,11 +334,16 @@ namespace daw {
 		               "RandomIterator's value type must be a future result" );
 
 		auto results = std::vector<ResultType>( );
-		impl::reduce_futures2( first, last, std::back_inserter( results ),
-		                       binary_op );
+		results.reserve( static_cast<size_t>( std::distance( first, last ) ) / 2 );
+
+		impl::reduce_futures2( std::make_move_iterator( first ),
+		                       std::make_move_iterator( last ),
+		                       std::back_inserter( results ), binary_op );
 
 		while( results.size( ) > 1 ) {
 			auto tmp = std::vector<ResultType>( );
+			tmp.reserve( results.size( ) / 2 );
+
 			impl::reduce_futures2( std::make_move_iterator( results.begin( ) ),
 			                       std::make_move_iterator( results.end( ) ),
 			                       std::back_inserter( tmp ), binary_op );
