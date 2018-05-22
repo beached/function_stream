@@ -245,7 +245,7 @@ namespace daw {
 				using next_result_t =
 				  std::decay_t<decltype( func( std::declval<base_result_t>( ) ) )>;
 
-				auto result = future_result_t<next_result_t>{m_task_scheduler};
+				auto result = future_result_t<next_result_t>( m_task_scheduler );
 
 				m_next = [result, func = std::forward<Function>( func ),
 				          ts = m_task_scheduler, self = this->shared_from_this( )](
@@ -368,22 +368,24 @@ namespace daw {
 			}
 
 			template<typename Function>
-			auto next( Function &&next_func ) {
+			auto next( Function &&func ) {
 				daw::exception::daw_throw_on_true( m_next,
 				                                   "Can only set next function once" );
-				using next_result_t = std::decay_t<decltype( next_func( ) )>;
-				auto result = future_result_t<next_result_t>{m_task_scheduler};
-				auto func = std::function<next_result_t( )>(
-				  std::forward<Function>( next_func ) );
+				using next_result_t = std::decay_t<decltype( func( ) )>;
 
-				m_next = [result, func = std::move( func ), ts = m_task_scheduler,
-				          self = this->shared_from_this( )](
-				           expected_result_t e_result ) mutable -> void {
-					if( e_result.has_exception( ) ) {
-						result.set_exception( e_result.get_exception_ptr( ) );
-						return;
-					}
-					ts.add_task( convert_function_to_task( result, func ) );
+				auto result = future_result_t<next_result_t>( m_task_scheduler );
+
+				m_next = [result, func = std::forward<Function>( func ),
+				          ts = m_task_scheduler, self = this->shared_from_this( )](
+				           expected_result_t value ) mutable -> void {
+					value.visit( daw::overload(
+					  [&]( ) {
+						  ts.add_task( [result = std::move( result ),
+						                func = std::move( func )]( ) mutable {
+							  result.from_code( std::move( func ) );
+						  } );
+					  },
+					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
 
 				if( future_status::ready == status( ) ) {

@@ -944,11 +944,11 @@ namespace {
 		display_info( seq_max, par_max, SZ, sizeof( value_t ), "count" );
 	}
 
-	// static size_t const MAX_ITEMS = 134'217'728;
-	// static size_t const LARGE_TEST_SZ = 268'435'456;
+	static size_t const MAX_ITEMS = 134'217'728;
+	static size_t const LARGE_TEST_SZ = 268'435'456;
 
-	static size_t const MAX_ITEMS = 14'217'728;
-	static size_t const LARGE_TEST_SZ = 28'435'456;
+	// static size_t const MAX_ITEMS = 14'217'728;
+	// static size_t const LARGE_TEST_SZ = 28'435'456;
 
 	//static size_t const MAX_ITEMS = 4'217'728;
 	//static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
@@ -1009,7 +1009,7 @@ BOOST_AUTO_TEST_CASE( test_bitonic_sort_int64_t ) {
 BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
 	std::cout << "sort tests - int64_t\n";
 	sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
 		sort_test( n );
 	}
 }
@@ -1017,7 +1017,7 @@ BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
 BOOST_AUTO_TEST_CASE( test_stable_sort_int64_t ) {
 	std::cout << "stable_sort tests - int64_t\n";
 	stable_sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
 		stable_sort_test( n );
 	}
 }
