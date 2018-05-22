@@ -111,6 +111,10 @@ namespace daw {
 			using reference = value_t &;
 			using const_reference = value_t const &;
 
+		private:
+			mutable pointer m_ptr;
+
+		public:
 			template<typename... Args,
 			         std::enable_if_t<(!daw::traits::is_type_v<msg_ptr_t, Args...> &&
 			                           !daw::traits::is_type_v<pointer, Args...>),
@@ -165,9 +169,6 @@ namespace daw {
 				auto tmp = std::exchange( m_ptr, nullptr );
 				return std::move( *tmp );
 			}
-
-		private:
-			mutable pointer m_ptr;
 		};
 	} // namespace parallel
 } // namespace daw

@@ -161,8 +161,6 @@ namespace daw {
 			decltype( auto ) pass_next( expected_result_t &&value ) {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
-				daw::exception::dbg_throw_on_true(
-				  value.has_exception( ), "Unexpected exception in expected_t" );
 
 				return m_next( std::move( value ) );
 			}
@@ -170,15 +168,15 @@ namespace daw {
 			decltype( auto ) pass_next( expected_result_t const &value ) {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
-				daw::exception::dbg_throw_on_true(
-				  value.has_exception( ), "Unexpected exception in expected_t" );
 
 				return m_next( value );
 			}
 
 		public:
 			void set_value( expected_result_t &&value ) {
-				if( !value.has_exception( ) && m_next ) {
+				auto const has_except = value.has_exception( );
+				auto const has_next = static_cast<bool>( m_next );
+				if( !has_except && has_next ) {
 					pass_next( std::move( value ) );
 					return;
 				}
@@ -188,7 +186,9 @@ namespace daw {
 			}
 
 			void set_value( expected_result_t const &value ) {
-				if( !value.has_exception( ) && m_next ) {
+				auto const has_except = value.has_exception( );
+				auto const has_next = static_cast<bool>( m_next );
+				if( !has_except && has_next ) {
 					pass_next( value );
 					return;
 				}
@@ -198,7 +198,8 @@ namespace daw {
 			}
 
 			void set_value( base_result_t &&value ) {
-				if( m_next ) {
+				auto const has_next = static_cast<bool>( m_next );
+				if( has_next ) {
 					pass_next( expected_result_t{std::move( value )} );
 					return;
 				}
@@ -208,7 +209,8 @@ namespace daw {
 			}
 
 			void set_value( base_result_t const &value ) {
-				if( m_next ) {
+				auto const has_next = static_cast<bool>( m_next );
+				if( has_next ) {
 					pass_next( expected_result_t{value} );
 					return;
 				}
@@ -218,7 +220,9 @@ namespace daw {
 			}
 
 			void set_exception( std::exception_ptr ptr ) override {
-				set_value( expected_result_t{ptr} );
+				m_result = ptr;
+				status( ) = future_status::ready;
+				notify( );
 			}
 
 			void set_exception( ) override {
@@ -235,27 +239,30 @@ namespace daw {
 
 		public:
 			template<typename Function>
-			auto next( Function &&next_func ) {
+			auto next( Function &&func ) {
 				daw::exception::daw_throw_on_true( m_next,
 				                                   "Can only set next function once" );
-				using next_result_t = std::decay_t<decltype(
-				  next_func( std::declval<expected_result_t>( ).get( ) ) )>;
+				using next_result_t =
+				  std::decay_t<decltype( func( std::declval<base_result_t>( ) ) )>;
 
 				auto result = future_result_t<next_result_t>{m_task_scheduler};
 
-				m_next = [result, next_func = std::forward<Function>( next_func ),
+				m_next = [result, func = std::forward<Function>( func ),
 				          ts = m_task_scheduler, self = this->shared_from_this( )](
-				           expected_result_t e_result ) mutable -> void {
-					e_result.visit( daw::make_overload(
-					  [&]( base_result_t &&value ) {
-						  ts.add_task( convert_function_to_task(
-						    std::forward<future_result_t<next_result_t>>( result ),
-						    std::move( next_func ), std::move( value ) ) );
+				           expected_result_t value ) mutable -> void {
+					value.visit( daw::overload(
+					  [&]( base_result_t const &v ) {
+						  ts.add_task( [result = std::move( result ),
+						                func = std::move( func ), v]( ) mutable {
+							  result.from_code( std::move( func ), std::move( v ) );
+						  } );
 					  },
-					  [&]( base_result_t const &value ) {
-						  ts.add_task( convert_function_to_task(
-						    std::forward<future_result_t<next_result_t>>( result ),
-						    std::move( next_func ), value ) );
+					  [&]( base_result_t &&v ) {
+						  ts.add_task( [result = std::move( result ),
+						                func = std::move( func ),
+						                v = std::move( v )]( ) mutable {
+							  result.from_code( std::move( func ), std::move( v ) );
+						  } );
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
@@ -280,7 +287,7 @@ namespace daw {
 				          tpfuncs = std::move( tpfuncs ),
 				          self = this->shared_from_this( )](
 				           expected_result_t e_result ) mutable -> void {
-					e_result.visit( daw::make_overload(
+					e_result.visit( daw::overload(
 					  [&]( base_result_t &&value ) {
 						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
 					  },
@@ -297,7 +304,7 @@ namespace daw {
 				notify( );
 				return result;
 			}
-		};
+		}; // namespace impl
 		// member_data_t
 
 		template<>

@@ -229,9 +229,14 @@ namespace daw {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>( );
-		ts.add_task( impl::convert_function_to_task(
-		  daw::copy( result ), std::forward<Function>( func ),
-		  std::forward<Args>( args )... ) );
+
+		ts.add_task( [result, func = std::forward<Function>( func ),
+		              args = std::make_tuple(
+		                std::forward<Args>( args )... )]( ) mutable -> void {
+			try {
+				result.set_value( daw::apply( std::move( func ), std::move( args ) ) );
+			} catch( ... ) { result.set_exception( ); }
+		} );
 		return result;
 	}
 

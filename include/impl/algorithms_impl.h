@@ -267,8 +267,8 @@ namespace daw {
 						std::inplace_merge( rng_left.begin( ), rng_left.end( ),
 						                    rng_right.end( ), cmp );
 
-						return iterator_range_t<Iterator>( rng_left.begin( ),
-						                                   rng_right.end( ) );
+						return iterator_range_t<Iterator>{rng_left.begin( ),
+						                                  rng_right.end( )};
 					};
 					ts.wait_for( reduce_futures( sorters.begin( ), sorters.end( ),
 					                             std::move( merger ) ) );
