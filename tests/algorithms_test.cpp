@@ -219,7 +219,6 @@ namespace {
 			last_val = *it;
 		}
 	}
-
 	void sort_test( size_t SZ ) {
 		auto ts = daw::get_task_scheduler( );
 		auto a = daw::make_random_data<int64_t>( SZ );
@@ -287,6 +286,73 @@ namespace {
 #endif
 	}
 
+	void stable_sort_test( size_t SZ ) {
+		auto ts = daw::get_task_scheduler( );
+		auto a = daw::make_random_data<int64_t>( SZ );
+
+		/*
+		    std::vector<int> a;
+		    a.resize( SZ );
+		    std::iota( a.begin( ), a.end( ), 0 );
+		*/
+
+		auto b = a;
+		auto const par_test = [&]( ) {
+			daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts );
+			daw::do_not_optimize( a );
+		};
+
+#ifdef USE_SORT_FJ
+		auto const fj_test = [&]( ) {
+			daw::algorithm::parallel::stable_fork_join_sort(
+			  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
+			daw::do_not_optimize( a );
+		};
+#endif
+
+		auto const ser_test = [&]( ) {
+			std::stable_sort( a.begin( ), a.end( ) );
+			daw::do_not_optimize( a );
+		};
+
+		auto const par_result_1 = daw::benchmark( par_test );
+		test_sort( a.begin( ), a.end( ), "p_result_1" );
+		a = b;
+
+#ifdef USE_SORT_FJ
+		auto const fj_result_1 = daw::benchmark( fj_test );
+		test_sort( a.begin( ), a.end( ), "p_result_1" );
+		a = b;
+#endif
+
+		auto const ser_result_1 = daw::benchmark( ser_test );
+		test_sort( a.begin( ), a.end( ), "s_result_1" );
+		a = b;
+		auto const par_result_2 = daw::benchmark( par_test );
+		test_sort( a.begin( ), a.end( ), "p_result2" );
+		a = b;
+
+#ifdef USE_SORT_FJ
+		auto const fj_result_2 = daw::benchmark( fj_test );
+		test_sort( a.begin( ), a.end( ), "p_result_1" );
+		a = b;
+#endif
+
+		auto const ser_result_2 = daw::benchmark( ser_test );
+		test_sort( a.begin( ), a.end( ), "s_result2" );
+
+		auto const par_min = std::min( par_result_1, par_result_2 );
+		auto const seq_min = std::min( ser_result_1, ser_result_2 );
+#ifdef USE_SORT_FJ
+		auto const fj_min = std::min( fj_result_1, fj_result_2 );
+#endif
+
+		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort" );
+#ifdef USE_SORT_FJ
+		display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "stable_sort_fj" );
+#endif
+	}
+
 	void bitonic_sort_test( size_t SZ ) {
 		auto ts = daw::get_task_scheduler( );
 		auto a = daw::make_random_data<int64_t>( SZ );
@@ -317,38 +383,6 @@ namespace {
 		auto const par_min = std::min( result_1, result_3 );
 		auto const seq_min = std::min( result_2, result_4 );
 		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "bitonic_sort" );
-	}
-
-	void stable_sort_test( size_t SZ ) {
-		auto ts = daw::get_task_scheduler( );
-		auto a = daw::make_random_data<int64_t>( SZ );
-		auto b = a;
-		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-		auto const result_2 = daw::benchmark( [&]( ) {
-			std::stable_sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "s_result_1" );
-		a = b;
-		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "p_result2" );
-		a = b;
-		auto const result_4 = daw::benchmark( [&]( ) {
-			std::stable_sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "s_result2" );
-		auto const par_min = std::min( result_1, result_3 );
-		auto const seq_min = std::min( result_2, result_4 );
-		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort" );
 	}
 
 	template<typename T>
@@ -944,14 +978,14 @@ namespace {
 		display_info( seq_max, par_max, SZ, sizeof( value_t ), "count" );
 	}
 
-	static size_t const MAX_ITEMS = 134'217'728;
-	static size_t const LARGE_TEST_SZ = 268'435'456;
+	// static size_t const MAX_ITEMS = 134'217'728;
+	// static size_t const LARGE_TEST_SZ = 268'435'456;
 
-	// static size_t const MAX_ITEMS = 14'217'728;
-	// static size_t const LARGE_TEST_SZ = 28'435'456;
+	static size_t const MAX_ITEMS = 14'217'728;
+	static size_t const LARGE_TEST_SZ = 28'435'456;
 
-	//static size_t const MAX_ITEMS = 4'217'728;
-	//static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
+	// static size_t const MAX_ITEMS = 4'217'728;
+	// static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 } // namespace
 
 /*

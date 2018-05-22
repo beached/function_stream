@@ -46,19 +46,6 @@ namespace daw {
 	struct future_result_t<void>;
 
 	namespace impl {
-		template<typename... Unknown>
-		struct function_to_task_t;
-
-		template<typename Result, typename Function, typename... Args>
-		struct function_to_task_t<Result, Function, Args...>;
-
-		template<typename Result, typename Function, typename... Args,
-		         std::enable_if_t<daw::is_callable_v<Function, Args...>,
-		                          std::nullptr_t> = nullptr>
-		constexpr auto convert_function_to_task( Result &&result, Function &&func,
-		                                         Args &&... args )
-		  -> function_to_task_t<Result, Function, Args...>;
-
 		class member_data_base_t {
 			daw::shared_semaphore m_semaphore;
 			future_status m_status;
@@ -115,9 +102,12 @@ namespace daw {
 		                     std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N == sizeof...( Functions ) - 1 ), void> {
 
-			ts.add_task( convert_function_to_task( std::get<N>( results ),
-			                                       std::get<N>( funcs ),
-			                                       std::forward<Arg>( arg ) ) );
+			ts.add_task( [result = std::get<N>( results ),
+			              func = std::get<N>( funcs ),
+			              arg = std::forward<Arg>( arg )]( ) mutable {
+
+				result.from_code( std::move( func ), std::move( arg ) );
+			} );
 		}
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
@@ -125,8 +115,12 @@ namespace daw {
 		                     std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N < sizeof...( Functions ) - 1 ), void> {
 
-			ts.add_task( convert_function_to_task( std::get<N>( results ),
-			                                       std::get<N>( funcs ), arg ) );
+			ts.add_task( [result = std::get<N>( results ),
+			              func = std::get<N>( funcs ),
+			              arg = std::forward<Arg>( arg )]( ) mutable {
+
+				result.from_code( std::move( func ), std::move( arg ) );
+			} );
 
 			add_split_task<N + 1>( ts, results, funcs, std::forward<Arg>( arg ) );
 		}
@@ -465,26 +459,6 @@ namespace daw {
 			}
 		}; // function_to_task_t
 
-		template<typename Result, typename Function, typename... Args>
-		using detect_has_from_code = decltype( std::declval<Result>( ).from_code(
-		  std::declval<Function>( ), std::declval<Args>( )... ) );
-
-		template<
-		  typename Result, typename Function, typename... Args,
-		  std::enable_if_t<daw::is_callable_v<Function, Args...>, std::nullptr_t>>
-		constexpr auto convert_function_to_task( Result &&result, Function &&func,
-		                                         Args &&... args )
-		  -> function_to_task_t<Result, Function, Args...> {
-
-			static_assert(
-			  daw::is_detected_v<detect_has_from_code, Result, Function, Args...>,
-			  "Result must have a from_code member that takes a callable" );
-
-			return function_to_task_t<Result, Function, Args...>(
-			  std::forward<Result>( result ), std::forward<Function>( func ),
-			  std::forward<Args>( args )... );
-		}
-
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
 			template<typename Results, typename... Args>
@@ -507,7 +481,7 @@ namespace daw {
 				apply_many_t<N + 1, SZ, Callables...>{}( ts, sem, results, callables,
 				                                         tp_args );
 			}
-		}; // apply_many_t
+		}; // namespace impl
 
 		template<size_t SZ, typename... Functions>
 		struct apply_many_t<SZ, SZ, Functions...> {

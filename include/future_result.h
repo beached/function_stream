@@ -248,11 +248,15 @@ namespace daw {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>( std::move( sem ) );
-		ts.add_task( impl::convert_function_to_task(
-		  daw::copy( result ), std::forward<Function>( func ),
-		  std::forward<Args>( args )... ) );
+		ts.add_task( [result, func = std::forward<Function>( func ),
+		              args = std::make_tuple(
+		                std::forward<Args>( args )... )]( ) mutable {
+			try {
+				result.set_value( daw::apply( std::move( func ), std::move( args ) ) );
+			} catch( ... ) { result.set_exception( ); }
+		} );
 		return result;
-	}
+	} // namespace daw
 
 	template<typename Function, typename... Args,
 	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
@@ -306,13 +310,12 @@ namespace daw {
 				last = std::next( first, sz - 1 );
 			}
 			while( first != last ) {
-				auto l = first++;
+				auto l = *first++;
 				auto r_it = first++;
-				*out_first++ =
-				  l->next( [r = *r_it, binary_op]( auto &&result ) mutable {
-					  return binary_op( std::forward<decltype( result )>( result ),
-					                    r.get( ) );
-				  } );
+				*out_first++ = l.next( [r = *r_it, binary_op]( auto &&result ) mutable {
+					return binary_op( std::forward<decltype( result )>( result ),
+					                  r.get( ) );
+				} );
 			}
 			if( odd_count ) {
 				*out_first++ = *last;
@@ -330,15 +333,16 @@ namespace daw {
 		static_assert( is_future_result_v<decltype( *first )>,
 		               "RandomIterator's value type must be a future result" );
 
-		auto results = std::list<ResultType>( );
+		auto results = std::vector<ResultType>( );
 		impl::reduce_futures2( first, last, std::back_inserter( results ),
 		                       binary_op );
 
 		while( results.size( ) > 1 ) {
-			auto tmp = std::list<ResultType>( );
-			impl::reduce_futures2( results.begin( ), results.end( ),
+			auto tmp = std::vector<ResultType>( );
+			impl::reduce_futures2( std::make_move_iterator( results.begin( ) ),
+			                       std::make_move_iterator( results.end( ) ),
 			                       std::back_inserter( tmp ), binary_op );
-			results = tmp;
+			std::swap( results, tmp );
 		}
 		return results.front( );
 	}
