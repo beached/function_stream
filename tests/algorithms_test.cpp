@@ -947,11 +947,11 @@ namespace {
 	// static size_t const MAX_ITEMS = 134'217'728;
 	// static size_t const LARGE_TEST_SZ = 268'435'456;
 
-	// static size_t const MAX_ITEMS = 14'217'728;
-	// static size_t const LARGE_TEST_SZ = 28'435'456;
+	static size_t const MAX_ITEMS = 14'217'728;
+	static size_t const LARGE_TEST_SZ = 28'435'456;
 
-	static size_t const MAX_ITEMS = 4'217'728;
-	static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
+	//static size_t const MAX_ITEMS = 4'217'728;
+	//static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 } // namespace
 
 /*

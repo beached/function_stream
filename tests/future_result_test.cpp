@@ -63,8 +63,8 @@ BOOST_AUTO_TEST_CASE( future_result_test_002 ) {
 }
 
 BOOST_AUTO_TEST_CASE( future_result_test_003 ) {
-	auto f2 = daw::make_future_result( fib, 6 ).next( fib );
-	double const expected_value = 21;
+	auto f2 = daw::make_future_result( fib, 6 ).next( fib ).next( fib );
+	double const expected_value = 10946;
 	double const actual_value = f2.get( );
 	BOOST_TEST( expected_value == actual_value,
 	            boost::test_tools::tolerance( 0.00000000000001 ) );
