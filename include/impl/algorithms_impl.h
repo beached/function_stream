@@ -589,20 +589,17 @@ namespace daw {
 					  ts ) );
 					return is_equal.load( std::memory_order_relaxed );
 				}
-
 				template<typename PartitionPolicy = split_range_t<500>,
 				         typename RandomIterator, typename UnaryPredicate>
-				decltype( auto )
-				parallel_count( RandomIterator first, RandomIterator last,
-				                UnaryPredicate pred, task_scheduler ts ) {
+				auto parallel_count( RandomIterator first, RandomIterator last,
+				                     UnaryPredicate pred, task_scheduler ts ) {
 					static_assert( PartitionPolicy::min_range_size >= 2,
 					               "Minimum range size must be >= 2" );
 					daw::exception::daw_throw_on_false(
 					  std::distance( first, last ) >= 2,
 					  "Must be at least 2 items in range" );
 
-					using result_t =
-					  typename std::iterator_traits<RandomIterator>::difference_type;
+					using result_t = decltype( std::count_if( first, last, pred ) );
 					if( static_cast<size_t>( std::distance( first, last ) ) <
 					    PartitionPolicy::min_range_size ) {
 						return std::count_if( first, last, pred );

@@ -108,16 +108,16 @@ namespace daw {
 		}
 
 	public:
-		constexpr future_generator_t( Funcs const &... funcs )
+		constexpr explicit future_generator_t( Funcs const &... funcs )
 		  : m_funcs{funcs...} {}
 
-		constexpr future_generator_t( Funcs &&... funcs ) noexcept
+		constexpr explicit future_generator_t( Funcs &&... funcs ) noexcept
 		  : m_funcs{std::move( funcs )...} {}
 
-		constexpr future_generator_t( std::tuple<Funcs...> const &tp_funcs )
+		constexpr explicit future_generator_t( std::tuple<Funcs...> const &tp_funcs )
 		  : m_funcs{tp_funcs} {}
 
-		constexpr future_generator_t( std::tuple<Funcs...> &&tp_funcs )
+		constexpr explicit future_generator_t( std::tuple<Funcs...> &&tp_funcs )
 		  : m_funcs{std::move( tp_funcs )} {}
 
 		template<typename... Args>

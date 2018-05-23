@@ -988,7 +988,6 @@ namespace {
 	// static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 } // namespace
 
-/*
 BOOST_AUTO_TEST_CASE( test_for_each_double ) {
   std::cout << "for_each tests - double\n";
   for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1038,7 +1037,6 @@ BOOST_AUTO_TEST_CASE( test_bitonic_sort_int64_t ) {
     bitonic_sort_test( n );
   }
 }
-*/
 
 BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
 	std::cout << "sort tests - int64_t\n";
