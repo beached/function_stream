@@ -114,7 +114,8 @@ namespace daw {
 		constexpr explicit future_generator_t( Funcs &&... funcs ) noexcept
 		  : m_funcs{std::move( funcs )...} {}
 
-		constexpr explicit future_generator_t( std::tuple<Funcs...> const &tp_funcs )
+		constexpr explicit future_generator_t(
+		  std::tuple<Funcs...> const &tp_funcs )
 		  : m_funcs{tp_funcs} {}
 
 		constexpr explicit future_generator_t( std::tuple<Funcs...> &&tp_funcs )

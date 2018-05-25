@@ -233,9 +233,10 @@ namespace daw {
 		ts.add_task( [result, func = std::forward<Function>( func ),
 		              args = std::make_tuple(
 		                std::forward<Args>( args )... )]( ) mutable -> void {
-			try {
-				result.set_value( daw::apply( std::move( func ), std::move( args ) ) );
-			} catch( ... ) { result.set_exception( ); }
+			result.from_code( [func = std::move( func ),
+			                   args = std::move( args )]( ) mutable {
+				return daw::apply( std::move( func ), std::move( args ) );
+			} );
 		} );
 		return result;
 	}

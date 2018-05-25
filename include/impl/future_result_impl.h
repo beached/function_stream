@@ -166,9 +166,8 @@ namespace daw {
 
 		public:
 			void set_value( expected_result_t &&value ) {
-				auto const has_except = value.has_exception( );
 				auto const has_next = static_cast<bool>( m_next );
-				if( !has_except && has_next ) {
+				if( has_next ) {
 					pass_next( std::move( value ) );
 					return;
 				}
@@ -178,9 +177,8 @@ namespace daw {
 			}
 
 			void set_value( expected_result_t const &value ) {
-				auto const has_except = value.has_exception( );
 				auto const has_next = static_cast<bool>( m_next );
-				if( !has_except && has_next ) {
+				if( has_next ) {
 					pass_next( value );
 					return;
 				}
@@ -212,6 +210,11 @@ namespace daw {
 			}
 
 			void set_exception( std::exception_ptr ptr ) override {
+				auto const has_next = static_cast<bool>( m_next );
+				if( has_next ) {
+					pass_next( expected_result_t{ptr} );
+					return;
+				}
 				m_result = ptr;
 				status( ) = future_status::ready;
 				notify( );
@@ -258,7 +261,6 @@ namespace daw {
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
-
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
 				}

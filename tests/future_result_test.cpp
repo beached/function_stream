@@ -20,10 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cmath>
+#include <exception>
 #include <iostream>
 #include <string>
 
-#define BOOST_TEST_MODULE function_composition
+#define BOOST_TEST_MODULE future_result
 #include <daw/boost_test.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_size_literals.h>
@@ -44,28 +46,60 @@ double fib( double n ) noexcept {
 	return result;
 }
 
+/*
 BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
-	auto f1 = daw::make_future_result( fib, 500.0 );
-	double const expected_value =
-	  139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125.0;
-	double const actual_value = f1.get( );
-	BOOST_TEST( expected_value == actual_value,
-	            boost::test_tools::tolerance( 0.00000000000001 ) );
+  auto f1 = daw::make_future_result( fib, 500.0 );
+  double const expected_value =
+    139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125.0;
+  double const actual_value = f1.get( );
+  BOOST_TEST( expected_value == actual_value,
+              boost::test_tools::tolerance( 0.00000000000001 ) );
 }
 
 BOOST_AUTO_TEST_CASE( future_result_test_002 ) {
-	auto f1 = daw::make_future_result( fib, 6 );
-	auto f2 = f1.next( fib );
-	double const expected_value = 21;
-	double const actual_value = f2.get( );
-	BOOST_TEST( expected_value == actual_value,
-	            boost::test_tools::tolerance( 0.00000000000001 ) );
+  auto f1 = daw::make_future_result( fib, 6 );
+  auto f2 = f1.next( fib );
+  double const expected_value = 21;
+  double const actual_value = f2.get( );
+  BOOST_TEST( expected_value == actual_value,
+              boost::test_tools::tolerance( 0.00000000000001 ) );
 }
 
 BOOST_AUTO_TEST_CASE( future_result_test_003 ) {
-	auto f2 = daw::make_future_result( fib, 6 ).next( fib ).next( fib );
-	double const expected_value = 10946;
-	double const actual_value = f2.get( );
-	BOOST_TEST( expected_value == actual_value,
-	            boost::test_tools::tolerance( 0.00000000000001 ) );
+  auto f2 = daw::make_future_result( fib, 6 ).next( fib ).next( fib );
+  double const expected_value = 10946;
+  double const actual_value = f2.get( );
+  BOOST_TEST( expected_value == actual_value,
+              boost::test_tools::tolerance( 0.00000000000001 ) );
+}
+ */
+
+BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
+	auto count = 0;
+	auto fib2 = [&count]( double d ) {
+		++count;
+		if( d > 200 ) {
+			throw std::exception{};
+		}
+		return fib( d );
+	};
+	auto fib3 = fib2;
+	auto fib4 = fib2;
+	auto fib5 = fib2;
+
+	auto f3 = daw::make_future_result( fib, 6 )
+	            .next( fib2 )
+	            .next( fib3 )
+	            .next( fib4 )
+	            .next( fib5 );
+
+	BOOST_REQUIRE( f3.is_exception( ) );
+	BOOST_REQUIRE( count == 3 );
+	try {
+		f3.get( );
+	} catch( std::exception const & ) {
+		std::cout << "known exception\n";
+	} catch( ... ) {
+		std::cout << "unknown exception\n";
+	}
 }

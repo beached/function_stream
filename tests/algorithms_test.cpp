@@ -989,53 +989,53 @@ namespace {
 } // namespace
 
 BOOST_AUTO_TEST_CASE( test_for_each_double ) {
-  std::cout << "for_each tests - double\n";
-  for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-    for_each_test<double>( n );
-  }
+	std::cout << "for_each tests - double\n";
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		for_each_test<double>( n );
+	}
 }
 
 BOOST_AUTO_TEST_CASE( test_for_each_int64_t ) {
-  std::cout << "for_each tests - int64_t\n";
-  for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-    for_each_test<int64_t>( n );
-  }
+	std::cout << "for_each tests - int64_t\n";
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		for_each_test<int64_t>( n );
+	}
 }
 
 BOOST_AUTO_TEST_CASE( test_for_each_int32_t ) {
-  std::cout << "for_each tests - int32_t\n";
-  for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-    for_each_test<int32_t>( n );
-  }
+	std::cout << "for_each tests - int32_t\n";
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		for_each_test<int32_t>( n );
+	}
 }
 
 BOOST_AUTO_TEST_CASE( test_fill_double ) {
-  std::cout << "fill tests - double\n";
-  for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-    fill_test<double>( n );
-  }
+	std::cout << "fill tests - double\n";
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		fill_test<double>( n );
+	}
 }
 
 BOOST_AUTO_TEST_CASE( test_fill_int64_t ) {
-  std::cout << "fill tests - int64_t\n";
-  for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-    fill_test<int64_t>( n );
-  }
+	std::cout << "fill tests - int64_t\n";
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		fill_test<int64_t>( n );
+	}
 }
 
 BOOST_AUTO_TEST_CASE( test_fill_int32_t ) {
-  std::cout << "fill tests - int32_t\n";
-  for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-    fill_test<int32_t>( n );
-  }
+	std::cout << "fill tests - int32_t\n";
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		fill_test<int32_t>( n );
+	}
 }
 
 BOOST_AUTO_TEST_CASE( test_bitonic_sort_int64_t ) {
-  std::cout << "bitonic_sort tests - int64_t\n";
-  // bitonic_sort_test( 134217728 );
-  for( size_t n = 16777216; n >= 100; n /= 4 ) {
-    bitonic_sort_test( n );
-  }
+	std::cout << "bitonic_sort tests - int64_t\n";
+	// bitonic_sort_test( 134217728 );
+	for( size_t n = 16777216; n >= 100; n /= 4 ) {
+		bitonic_sort_test( n );
+	}
 }
 
 BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
