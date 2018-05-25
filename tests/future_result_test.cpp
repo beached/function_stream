@@ -75,11 +75,25 @@ BOOST_AUTO_TEST_CASE( future_result_test_003 ) {
  */
 
 BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
+	struct my_ex {
+		constexpr my_ex( ) noexcept = default;
+		constexpr my_ex( my_ex const & ) noexcept {}
+		constexpr my_ex( my_ex && ) noexcept {}
+		constexpr my_ex &operator=( my_ex const & ) noexcept {
+			return *this;
+		}
+		constexpr my_ex &operator=( my_ex && ) noexcept {
+			return *this;
+		}
+		~my_ex( ) {
+			std::cout << "destructor\n";
+		}
+	};
 	auto count = 0;
 	auto fib2 = [&count]( double d ) {
 		++count;
 		if( d > 200 ) {
-			throw std::exception{};
+			throw my_ex(); // std::exception{};
 		}
 		return fib( d );
 	};
@@ -97,9 +111,10 @@ BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
 	BOOST_REQUIRE( count == 3 );
 	try {
 		f3.get( );
-	} catch( std::exception const & ) {
+	} catch( my_ex const & ) {
 		std::cout << "known exception\n";
-	} catch( ... ) {
+	} catch( std::exception const & ) { std::cout << "known exception\n"; }
+	catch(...) {
 		std::cout << "unknown exception\n";
 	}
 }
