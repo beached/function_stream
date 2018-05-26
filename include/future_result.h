@@ -215,8 +215,18 @@ namespace daw {
 	}; // future_result_t<void>
 
 	template<typename result_t, typename Function>
-	constexpr decltype( auto ) operator|( future_result_t<result_t> lhs,
+	constexpr decltype( auto ) operator|( future_result_t<result_t> &lhs,
 	                                      Function &&rhs ) {
+		static_assert( daw::is_callable_v<Function, result_t>,
+		               "Supplied function must be callable with result of future" );
+		return lhs.next( std::forward<Function>( rhs ) );
+	}
+
+	template<typename result_t, typename Function>
+	constexpr decltype( auto ) operator|( future_result_t<result_t> &&lhs,
+	                                      Function &&rhs ) {
+		static_assert( daw::is_callable_v<Function, result_t>,
+		               "Supplied function must be callable with result of future" );
 		return lhs.next( std::forward<Function>( rhs ) );
 	}
 

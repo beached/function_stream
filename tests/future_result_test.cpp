@@ -115,3 +115,45 @@ BOOST_AUTO_TEST_CASE( future_result_test_005 ) {
 	BOOST_REQUIRE_EXCEPTION( f4.get( ), std::exception,
 	                         []( auto && ) { return true; } );
 }
+
+BOOST_AUTO_TEST_CASE( future_result_test_006 ) {
+	auto f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 )
+	            .next( []( ) { return 5; } )
+	            .next( []( int i ) {
+		            std::cout << "done " << i << '\n';
+		            return i;
+	            } );
+
+	BOOST_REQUIRE( f5.get( ) == 5 );
+}
+
+BOOST_AUTO_TEST_CASE( future_result_test_007 ) {
+	auto const f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 )
+	                  .next( []( ) { return 5; } )
+	                  .next( []( int i ) {
+		                  std::cout << "done " << i << '\n';
+		                  return i;
+	                  } );
+
+	BOOST_REQUIRE( f5.get( ) == 5 );
+}
+
+BOOST_AUTO_TEST_CASE( future_result_test_008 ) {
+	auto const f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) |
+	                []( ) { return 5; } | []( int i ) {
+		                std::cout << "done " << i << '\n';
+		                return i;
+	                };
+
+	BOOST_REQUIRE( f5.get( ) == 5 );
+}
+
+BOOST_AUTO_TEST_CASE( future_result_test_009 ) {
+	auto f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) |
+	          []( ) { return 5; } | []( int i ) {
+		          std::cout << "done " << i << '\n';
+		          return i;
+	          };
+
+	BOOST_REQUIRE( f5.get( ) == 5 );
+}
