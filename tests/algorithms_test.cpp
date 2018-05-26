@@ -42,7 +42,6 @@
 #include <daw/boost_test.h>
 
 #include "algorithms.h"
-#include "bitonic_sort.h"
 
 #define USE_SORT_FJ
 
@@ -351,38 +350,6 @@ namespace {
 #ifdef USE_SORT_FJ
 		display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "stable_sort_fj" );
 #endif
-	}
-
-	void bitonic_sort_test( size_t SZ ) {
-		auto ts = daw::get_task_scheduler( );
-		auto a = daw::make_random_data<int64_t>( SZ );
-		auto b = a;
-		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::bitonic_sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-		auto const result_2 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::seq_bitonic_sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "s_result_1" );
-		a = b;
-		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::bitonic_sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "p_result2" );
-		a = b;
-		auto const result_4 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::seq_bitonic_sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		} );
-		test_sort( a.begin( ), a.end( ), "s_result2" );
-		auto const par_min = std::min( result_1, result_3 );
-		auto const seq_min = std::min( result_2, result_4 );
-		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "bitonic_sort" );
 	}
 
 	template<typename T>
@@ -1029,16 +996,6 @@ BOOST_AUTO_TEST_CASE( test_fill_int32_t ) {
 		fill_test<int32_t>( n );
 	}
 }
-
-
-BOOST_AUTO_TEST_CASE( test_bitonic_sort_int64_t ) {
-  std::cout << "bitonic_sort tests - int64_t\n";
-  // bitonic_sort_test( 134217728 );
-  for( size_t n = 16777216; n >= 100; n /= 4 ) {
-    bitonic_sort_test( n );
-  }
-}
-
 
 BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
 	std::cout << "sort tests - int64_t\n";
