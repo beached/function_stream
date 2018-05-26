@@ -139,6 +139,10 @@ namespace daw {
 		m_data->set_exception( std::current_exception( ) );
 	}
 
+	void future_result_t<void>::set_exception( std::exception_ptr ptr ) {
+		m_data->set_exception( ptr );
+	}
+
 	bool future_result_t<void>::is_exception( ) const {
 		wait( );
 		return m_data->m_result.has_exception( );

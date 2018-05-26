@@ -145,22 +145,36 @@ namespace daw {
 				         typename PartitionPolicy, typename T>
 				void par_bitonic_sort( T *first, size_t N, daw::task_scheduler ts ) {
 					if( N <= static_cast<intmax_t>( PartitionPolicy::min_range_size ) ) {
-						bitonic_sort<sort_dir, Compare>( first, N );
-						return;
+						if( sort_dir == sort_dir_t::down ) {
+							std::sort( first,
+							           std::next( first, static_cast<std::ptrdiff_t>( N ) ),
+							           Compare{} );
+						} else {
+							std::sort(
+							  first, std::next( first, static_cast<std::ptrdiff_t>( N ) ),
+							  []( auto &&lhs, auto &&rhs ) {
+								  return !Compare{}( std::forward<decltype( lhs )>( lhs ),
+								                     std::forward<decltype( rhs )>( rhs ) );
+							  } );
+						}
 					}
 
 					auto const mid = N / 2;
-					daw::invoke_tasks(
-					  [first, mid, ts]( ) {
-						  par_bitonic_sort<not_dir_t<sort_dir>::value, Compare,
-						                   PartitionPolicy>( first, mid, ts );
-					  },
-					  [first, mid, N, ts]( ) {
-						  par_bitonic_sort<sort_dir, Compare, PartitionPolicy>(
-						    std::next( first, static_cast<intmax_t>( mid ) ), N - mid, ts );
+					auto fut_lhs = daw::async( [first, mid, ts]( ) {
+						par_bitonic_sort<not_dir_t<sort_dir>::value, Compare,
+						                 PartitionPolicy>( first, mid, ts );
+					} );
+					auto fut_rhs = daw::async( [first, mid, N, ts]( ) {
+						par_bitonic_sort<sort_dir, Compare, PartitionPolicy>(
+						  std::next( first, static_cast<intmax_t>( mid ) ), N - mid, ts );
+					} );
+					auto fut_res = fut_lhs.next(
+					  [fut_rhs = std::move( fut_rhs ), first, N, ts]( ) mutable {
+						  fut_rhs.wait( );
+						  par_bitonic_merge<sort_dir, Compare, PartitionPolicy>( first, N,
+						                                                         ts );
 					  } );
-
-					par_bitonic_merge<sort_dir, Compare, PartitionPolicy>( first, N, ts );
+					ts.wait_for( fut_res );
 				}
 			} // namespace impl
 			template<typename RandomIterator,
