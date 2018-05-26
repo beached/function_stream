@@ -95,3 +95,28 @@ BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
 	BOOST_REQUIRE( count == 3 );
 	BOOST_REQUIRE_EXCEPTION( f3.get( ), std::exception, []( auto && ) { return true; } );
 }
+
+BOOST_AUTO_TEST_CASE( future_result_test_005 ) {
+	auto count = 0;
+	auto fib2 = [&count]( double d ) {
+		++count;
+		if( d > 200 ) {
+			throw std::exception{};
+		}
+		return fib( d );
+	};
+	auto fib3 = fib2;
+	auto fib4 = fib2;
+	auto fib5 = fib2;
+
+	auto const f4 = daw::make_future_result( fib, 6 )
+	            .next( fib2 )
+	            .next( fib3 )
+	            .next( fib4 )
+	            .next( fib5 );
+
+	BOOST_REQUIRE( f4.is_exception( ) );
+	BOOST_REQUIRE( count == 3 );
+	BOOST_REQUIRE_EXCEPTION( f4.get( ), std::exception, []( auto && ) { return true; } );
+}
+
