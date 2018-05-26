@@ -112,6 +112,10 @@ namespace daw {
 			m_data->set_exception( std::current_exception( ) );
 		}
 
+		void set_exception( std::exception_ptr ptr ) {
+			m_data->set_exception( ptr );
+		}
+
 		template<typename Function, typename... Args>
 		void from_code( Function &&func, Args &&... args ) {
 			static_assert(
@@ -127,21 +131,15 @@ namespace daw {
 		}
 
 		bool is_exception( ) const {
-			m_data->wait( );
-			// TODO: look into not throwing and allowing values to be retrieved
-			daw::exception::daw_throw_on_true(
-			  m_data->status( ) == future_status::continued,
-			  "Attempt to use a future that has been continued" );
-			return m_data->m_result.has_exception( );
+			return m_data->is_exception( );
+		}
+
+		decltype( auto ) get( ) {
+			return m_data->get( );
 		}
 
 		decltype( auto ) get( ) const {
-			m_data->wait( );
-			// TODO: look into not throwing and allowing values to be retrieved
-			daw::exception::daw_throw_on_true(
-			  m_data->status( ) == future_status::continued,
-			  "Attempt to use a future that has been continued" );
-			return m_data->m_result.get( );
+			return m_data->get( );
 		}
 
 		template<typename Function>
@@ -191,6 +189,7 @@ namespace daw {
 
 		void set_value( );
 		void set_exception( );
+		void set_exception( std::exception_ptr ptr );
 
 		template<typename Exception>
 		void set_exception( Exception const &ex ) {

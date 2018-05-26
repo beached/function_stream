@@ -46,7 +46,6 @@ double fib( double n ) noexcept {
 	return result;
 }
 
-/*
 BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
   auto f1 = daw::make_future_result( fib, 500.0 );
   double const expected_value =
@@ -72,23 +71,8 @@ BOOST_AUTO_TEST_CASE( future_result_test_003 ) {
   BOOST_TEST( expected_value == actual_value,
               boost::test_tools::tolerance( 0.00000000000001 ) );
 }
- */
 
 BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
-	struct my_ex {
-		constexpr my_ex( ) noexcept = default;
-		constexpr my_ex( my_ex const & ) noexcept {}
-		constexpr my_ex( my_ex && ) noexcept {}
-		constexpr my_ex &operator=( my_ex const & ) noexcept {
-			return *this;
-		}
-		constexpr my_ex &operator=( my_ex && ) noexcept {
-			return *this;
-		}
-		~my_ex( ) {
-			std::cout << "destructor\n";
-		}
-	};
 	auto count = 0;
 	auto fib2 = [&count]( double d ) {
 		++count;
@@ -109,16 +93,5 @@ BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
 
 	BOOST_REQUIRE( f3.is_exception( ) );
 	BOOST_REQUIRE( count == 3 );
-	try {
-		f3.get( );
-	} catch( std::exception const & ) {
-		std::cout << "expected exception\n";
-	} catch( std::logic_error const & ) {
-		std::cout << "logic error\n";
-	} catch( my_ex const & ) {
-		std::cout << "my_ex\n";
-	} catch(...) {
-		std::cout << "unexpected exception\n";
-	}
-	BOOST_REQUIRE_EXCEPTION( f3.get( ), my_ex, []( auto && ) { return true; } );
+	BOOST_REQUIRE_EXCEPTION( f3.get( ), std::exception, []( auto && ) { return true; } );
 }

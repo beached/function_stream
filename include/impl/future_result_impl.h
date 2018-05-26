@@ -47,7 +47,7 @@ namespace daw {
 
 	namespace impl {
 		class member_data_base_t {
-			daw::shared_semaphore m_semaphore;
+			mutable daw::shared_semaphore m_semaphore;
 			future_status m_status;
 
 		protected:
@@ -63,7 +63,7 @@ namespace daw {
 			member_data_base_t &operator=( member_data_base_t && ) = delete;
 			virtual ~member_data_base_t( ) noexcept;
 
-			void wait( );
+			void wait( ) const;
 
 			template<typename Rep, typename Period>
 			future_status wait_for( std::chrono::duration<Rep, Period> rel_time ) {
@@ -93,6 +93,7 @@ namespace daw {
 			bool try_wait( );
 			void notify( );
 			future_status &status( );
+			future_status const &status( ) const;
 			virtual void set_exception( ) = 0;
 			virtual void set_exception( std::exception_ptr ptr ) = 0;
 		};
@@ -166,7 +167,6 @@ namespace daw {
 
 		public:
 			void set_value( expected_result_t &&value ) {
-				std::clog << "set_value( expected_result_t && value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( std::move( value ) );
@@ -178,7 +178,6 @@ namespace daw {
 			}
 
 			void set_value( expected_result_t const &value ) {
-				std::clog << "set_value( expected_result_t const & value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( value );
@@ -190,7 +189,6 @@ namespace daw {
 			}
 
 			void set_value( base_result_t &&value ) {
-				std::clog << "set_value( base_result_t && value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( expected_result_t{std::move( value )} );
@@ -202,7 +200,6 @@ namespace daw {
 			}
 
 			void set_value( base_result_t const &value ) {
-				std::clog << "set_value( base_result_t const & value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( expected_result_t{value} );
@@ -214,7 +211,6 @@ namespace daw {
 			}
 
 			void set_exception( std::exception_ptr ptr ) override {
-				std::clog << "set_exception( std::exception_ptr ptr )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( expected_result_t{ptr} );
@@ -223,6 +219,31 @@ namespace daw {
 				m_result = ptr;
 				status( ) = future_status::ready;
 				notify( );
+			}
+
+			bool is_exception( ) const {
+				wait( );
+				// TODO: look into not throwing and allowing values to be retrieved
+				daw::exception::daw_throw_on_true(
+				  status( ) == future_status::continued,
+				  "Attempt to use a future that has been continued" );
+				return m_result.has_exception( );
+			}
+
+			decltype( auto ) get( ) {
+				wait( );
+				daw::exception::daw_throw_on_true(
+				  status( ) == future_status::continued,
+				  "Attempt to use a future that has been continued" );
+				return m_result.get( );
+			}
+
+			decltype( auto ) get( ) const {
+				wait( );
+				daw::exception::daw_throw_on_true(
+				  status( ) == future_status::continued,
+				  "Attempt to use a future that has been continued" );
+				return m_result.get( );
 			}
 
 			void set_exception( ) override {
@@ -437,35 +458,6 @@ namespace daw {
 			virtual bool try_wait( ) const = 0;
 		}; // future_result_base_t
 
-		template<typename...>
-		struct function_to_task_t;
-
-		/*
-		template<typename Result, typename Function, typename... Args>
-		struct function_to_task_t<Result, Function, Args...> {
-			Result m_result;
-			Function m_function;
-			std::tuple<Args...> m_args;
-
-			static_assert(
-			  daw::is_callable_convertible_v<
-			    typename std::decay_t<Result>::result_type_t, Function, Args...>,
-			  "Function called with Args... must be convertible to "
-			  "Result::valuetype" );
-
-			template<typename R, typename F, typename... A>
-			constexpr function_to_task_t( R &&result, F &&func, A &&... args )
-			  : m_result( std::forward<R>( result ) )
-			  , m_function( std::forward<F>( func ) )
-			  , m_args( std::forward<A>( args )... ) {}
-
-			constexpr void operator( )( ) {
-				m_result.from_code(
-				  [&]( ) { return daw::apply( m_function, m_args ); } );
-			}
-		}; // function_to_task_t
-		*/
-		
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
 			template<typename Results, typename... Args>

@@ -66,7 +66,7 @@ namespace daw {
 		  , m_status( future_status::deferred )
 		  , m_task_scheduler( std::move( ts ) ) {}
 
-		void member_data_base_t::wait( ) {
+		void member_data_base_t::wait( ) const {
 			if( m_status != future_status::ready ) {
 				m_semaphore.wait( );
 			}
@@ -81,6 +81,10 @@ namespace daw {
 		}
 
 		future_status &member_data_base_t::status( ) {
+			return m_status;
+		}
+
+		future_status const &member_data_base_t::status( ) const {
 			return m_status;
 		}
 	} // namespace impl
