@@ -166,6 +166,7 @@ namespace daw {
 
 		public:
 			void set_value( expected_result_t &&value ) {
+				std::clog << "set_value( expected_result_t && value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( std::move( value ) );
@@ -177,6 +178,7 @@ namespace daw {
 			}
 
 			void set_value( expected_result_t const &value ) {
+				std::clog << "set_value( expected_result_t const & value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( value );
@@ -188,6 +190,7 @@ namespace daw {
 			}
 
 			void set_value( base_result_t &&value ) {
+				std::clog << "set_value( base_result_t && value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( expected_result_t{std::move( value )} );
@@ -199,6 +202,7 @@ namespace daw {
 			}
 
 			void set_value( base_result_t const &value ) {
+				std::clog << "set_value( base_result_t const & value )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( expected_result_t{value} );
@@ -210,6 +214,7 @@ namespace daw {
 			}
 
 			void set_exception( std::exception_ptr ptr ) override {
+				std::clog << "set_exception( std::exception_ptr ptr )\n";
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
 					pass_next( expected_result_t{ptr} );
@@ -435,6 +440,7 @@ namespace daw {
 		template<typename...>
 		struct function_to_task_t;
 
+		/*
 		template<typename Result, typename Function, typename... Args>
 		struct function_to_task_t<Result, Function, Args...> {
 			Result m_result;
@@ -458,7 +464,8 @@ namespace daw {
 				  [&]( ) { return daw::apply( m_function, m_args ); } );
 			}
 		}; // function_to_task_t
-
+		*/
+		
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
 			template<typename Results, typename... Args>

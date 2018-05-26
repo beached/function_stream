@@ -108,11 +108,18 @@ namespace daw {
 		}
 
 	public:
-		constexpr explicit future_generator_t( Funcs const &... funcs )
-		  : m_funcs{funcs...} {}
+		constexpr future_generator_t( ) noexcept
+		  : m_funcs{} {}
 
-		constexpr explicit future_generator_t( Funcs &&... funcs ) noexcept
-		  : m_funcs{std::move( funcs )...} {}
+		template<typename... Functions,
+		         std::enable_if_t<(sizeof...( Functions ) > 1 &&
+		                           sizeof...( Functions ) == sizeof...( Funcs ) &&
+		                           !daw::is_same_v<std::tuple<Funcs...>,
+		                                           std::tuple<Functions...>>),
+		                          std::nullptr_t> = nullptr>
+		constexpr explicit future_generator_t( Functions &&... funcs ) noexcept(
+		  noexcept( std::tuple<Funcs...>{std::forward<Functions>( funcs )...} ) )
+		  : m_funcs{std::forward<Functions>( funcs )...} {}
 
 		constexpr explicit future_generator_t(
 		  std::tuple<Funcs...> const &tp_funcs )
@@ -161,13 +168,12 @@ namespace daw {
 		  std::forward<Functions>( functions )...};
 	}
 
-	/*
 	constexpr impl::function_composer_t<> compose( ) noexcept {
-	  return impl::function_composer_t<>{};
+		return impl::function_composer_t<>{};
 	}
 
-	constexpr future_generator_t<> compose_future( ) {
-	  return future_generator_t<>{};
+	constexpr future_generator_t<> compose_future( ) noexcept {
+		return future_generator_t<>{};
 	}
-	 */
+
 } // namespace daw

@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
 	auto fib2 = [&count]( double d ) {
 		++count;
 		if( d > 200 ) {
-			throw my_ex(); // std::exception{};
+			throw std::exception{};
 		}
 		return fib( d );
 	};
@@ -111,10 +111,14 @@ BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
 	BOOST_REQUIRE( count == 3 );
 	try {
 		f3.get( );
+	} catch( std::exception const & ) {
+		std::cout << "expected exception\n";
+	} catch( std::logic_error const & ) {
+		std::cout << "logic error\n";
 	} catch( my_ex const & ) {
-		std::cout << "known exception\n";
-	} catch( std::exception const & ) { std::cout << "known exception\n"; }
-	catch(...) {
-		std::cout << "unknown exception\n";
+		std::cout << "my_ex\n";
+	} catch(...) {
+		std::cout << "unexpected exception\n";
 	}
+	BOOST_REQUIRE_EXCEPTION( f3.get( ), my_ex, []( auto && ) { return true; } );
 }
