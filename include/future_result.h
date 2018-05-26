@@ -267,6 +267,11 @@ namespace daw {
 		                           std::forward<Args>( args )... );
 	}
 
+	template<typename... Args>
+	decltype( auto ) async( Args &&... args ) {
+		return make_future_result( std::forward<Args>( args )... );
+	}
+
 	template<typename... Functions>
 	decltype( auto )
 	make_callable_future_result_group( Functions &&... functions ) {
