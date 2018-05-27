@@ -169,12 +169,18 @@ namespace daw {
 		  std::forward<Functions>( functions )...};
 	}
 
-	constexpr impl::function_composer_t<> compose( ) noexcept {
-		return impl::function_composer_t<>{};
+	template<typename... Functions>
+	constexpr impl::function_composer_t<Functions...>
+	compose( Functions &&... funcs ) noexcept {
+		return impl::function_composer_t<Functions...>(
+		  std::forward<Functions>( funcs )... );
 	}
 
-	constexpr future_generator_t<> compose_future( ) noexcept {
-		return future_generator_t<>{};
+	template<typename... Functions>
+	constexpr future_generator_t<Functions...>
+	compose_future( Functions &&... funcs ) noexcept {
+		return future_generator_t<Functions...>(
+		  std::tuple<Functions...>( std::forward<Functions>( funcs )... ) );
 	}
 
 } // namespace daw
