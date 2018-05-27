@@ -35,8 +35,8 @@
 namespace daw {
 	namespace impl {
 		template<size_t S, typename Tuple>
-		using is_function_tag = daw::bool_constant < 0 <=
-		                        S &&S<std::tuple_size<std::decay_t<Tuple>>::value>;
+		using is_function_tag = daw::bool_constant<(
+		  0 <= S && S < daw::tuple_size_v<std::decay_t<Tuple>> )>;
 
 		template<size_t S, typename Tuple>
 		constexpr bool const is_function_tag_v = is_function_tag<S, Tuple>::value;
@@ -53,14 +53,16 @@ namespace daw {
 		struct function_tag {
 			using category = function_tag;
 		};
+
 		struct last_function_tag {
 			using category = last_function_tag;
 		};
 
 		template<size_t S, typename Tuple>
-		using which_type_t = typename std::conditional <
-		                     S<std::tuple_size<std::decay_t<Tuple>>::value - 1,
-		                       function_tag, last_function_tag>::type;
+		using which_type_t =
+		  typename std::conditional<( S <
+		                              daw::tuple_size_v<std::decay_t<Tuple>> - 1 ),
+		                            function_tag, last_function_tag>::type;
 
 		template<size_t pos, typename Package>
 		void call_task( Package &&, last_function_tag );
@@ -114,33 +116,31 @@ namespace daw {
 		constexpr decltype( auto )
 		function_composer_impl( TFunctions funcs, last_function_tag, Arg &&arg ) {
 			static_assert(
-			  pos == std::tuple_size<TFunctions>::value - 1,
+			  pos == daw::tuple_size_v<TFunctions> - 1,
 			  "last_function_tag should only be retuned for last item in tuple" );
-			auto func = std::get<pos>( std::forward<TFunctions>( funcs ) );
+
+			auto const func = std::get<pos>( std::forward<TFunctions>( funcs ) );
 			return func( std::forward<Arg>( arg ) );
 		}
 
-		template<
-		  size_t pos, typename TFunctions, typename... Args,
-		  typename = std::enable_if_t<std::tuple_size<TFunctions>::value == 0>>
+		template<size_t pos, typename TFunctions, typename... Args,
+		         typename = std::enable_if_t<daw::tuple_size_v<TFunctions> == 0>>
 		constexpr void function_composer_impl( TFunctions, function_tag,
 		                                       Args &&... ) noexcept {}
 
-		template<
-		  size_t pos, typename TFunctions, typename... Args,
-		  typename = std::enable_if_t<std::tuple_size<TFunctions>::value != 0>>
+		template<size_t pos, typename TFunctions, typename... Args,
+		         typename = std::enable_if_t<daw::tuple_size_v<TFunctions> != 0>>
 		constexpr decltype( auto )
 		function_composer_impl( TFunctions funcs, function_tag, Args &&... args ) {
 			static_assert(
-			  pos < std::tuple_size<TFunctions>::value - 1,
+			  pos < daw::tuple_size_v<TFunctions> - 1,
 			  "function_tag should only be retuned for all but last item in tuple" );
-			auto func = std::get<pos>( funcs );
-			auto const next_pos = pos + 1;
+			auto const func = std::get<pos>( funcs );
 
 			// If this crashes here, the next function probably does not take as
 			// arugment the result of the previous function
-			return function_composer_impl<next_pos>(
-			  funcs, typename which_type_t<next_pos, TFunctions>::category{},
+			return function_composer_impl<pos + 1>(
+			  funcs, typename which_type_t<pos + 1, TFunctions>::category{},
 			  func( std::forward<Args>( args )... ) );
 		}
 
@@ -186,8 +186,8 @@ namespace daw {
 		template<typename NextFunction, typename... Functions>
 		constexpr decltype( auto )
 		operator|( function_composer_t<Functions...> const &lhs,
-		           NextFunction next_func ) noexcept {
-			return lhs.next( std::move( next_func ) );
+		           NextFunction &&next_func ) noexcept {
+			return lhs.next( std::forward<NextFunction>( next_func ) );
 		}
 	} // namespace impl
 } // namespace daw

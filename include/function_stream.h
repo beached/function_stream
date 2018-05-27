@@ -142,10 +142,9 @@ namespace daw {
 		template<typename... NextFunctions>
 		constexpr decltype( auto )
 		next( NextFunctions &&... next_functions ) const {
-			auto tp_next_funcs = std::tuple_cat(
+			return make_future_generator( std::tuple_cat(
 			  m_funcs,
-			  std::make_tuple( std::forward<NextFunctions>( next_functions )... ) );
-			return make_future_generator( std::move( tp_next_funcs ) );
+			  std::make_tuple( std::forward<NextFunctions>( next_functions )... ) ) );
 		}
 	};
 

@@ -381,7 +381,8 @@ namespace daw {
 
 			template<typename Function, typename... Args>
 			void from_code( Function &&func, Args &&... args ) {
-				static_assert( daw::is_callable_v<Function, Args...>, "Cannot call func with args provided" );
+				static_assert( daw::is_callable_v<Function, Args...>,
+				               "Cannot call func with args provided" );
 				try {
 					func( std::forward<Args>( args )... );
 					set_value( );

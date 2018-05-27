@@ -107,9 +107,7 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 
 BOOST_AUTO_TEST_CASE( create_waitable_task_test_001 ) {
 	real_t ans = 0;
-	auto ts = daw::create_waitable_task( [&ans]( ) {
-		ans = fib( 30 );
-	});
+	auto ts = daw::create_waitable_task( [&ans]( ) { ans = fib( 30 ); } );
 	ts.wait( );
 	BOOST_REQUIRE_EQUAL( ans, 832040U );
 }
