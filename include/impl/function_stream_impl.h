@@ -63,10 +63,10 @@ namespace daw {
 		                       function_tag, last_function_tag>::type;
 
 		template<size_t pos, typename Package>
-		void call_task( Package, last_function_tag );
+		void call_task( Package &&, last_function_tag );
 
 		template<size_t pos, typename Package>
-		void call_task( Package, function_tag );
+		void call_task( Package &&, function_tag );
 
 		template<size_t pos, typename Package>
 		void call( Package package ) {
@@ -78,7 +78,7 @@ namespace daw {
 		}
 
 		template<size_t pos, typename Package>
-		void call_task( Package package, last_function_tag ) {
+		void call_task( Package &&package, last_function_tag ) {
 			if( !package->continue_processing( ) ) {
 				return;
 			}
@@ -94,14 +94,13 @@ namespace daw {
 		}
 
 		template<size_t pos, typename Package>
-		void call_task( Package package, function_tag ) {
+		void call_task( Package &&package, function_tag ) {
 			if( !package->continue_processing( ) ) {
 				return;
 			}
 			auto func = std::get<pos>( package->function_list( ) );
 			try {
-				size_t const new_pos = pos + 1;
-				call<new_pos>( package->next_package(
+				call<pos + 1>( package->next_package(
 				  daw::apply( func, std::move( package->targs( ) ) ) ) );
 			} catch( ... ) {
 				auto result = package->result( ).lock( );
@@ -117,7 +116,7 @@ namespace daw {
 			static_assert(
 			  pos == std::tuple_size<TFunctions>::value - 1,
 			  "last_function_tag should only be retuned for last item in tuple" );
-			auto func = std::get<pos>( funcs );
+			auto func = std::get<pos>( std::forward<TFunctions>( funcs ) );
 			return func( std::forward<Arg>( arg ) );
 		}
 
