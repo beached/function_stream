@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 
 #define BOOST_TEST_MODULE function_composition
 #include <daw/boost_test.h>

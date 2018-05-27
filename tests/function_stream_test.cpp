@@ -30,6 +30,7 @@
 #include <daw/daw_size_literals.h>
 
 #include "function_stream.h"
+#include "future_result.h"
 
 using namespace daw::size_literals;
 
@@ -144,7 +145,7 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 
 	std::cout << "operator|\n";
 
-	auto const u = daw::make_future_result( []( ) {
+	auto const u = daw::make_future_result( []( ) -> int {
 		std::cout << "part1\n";
 		std::cout << std::endl;
 		return 2;

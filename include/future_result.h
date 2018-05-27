@@ -143,12 +143,12 @@ namespace daw {
 		}
 
 		template<typename Function>
-		decltype( auto ) next( Function &&func ) {
+		decltype( auto ) next( Function &&func ) const {
 			return m_data->next( std::forward<Function>( func ) );
 		}
 
 		template<typename... Functions>
-		decltype( auto ) split( Functions &&... funcs ) {
+		decltype( auto ) split( Functions &&... funcs ) const {
 			return m_data->split( std::forward<Functions>( funcs )... );
 		}
 	};
@@ -204,18 +204,26 @@ namespace daw {
 		}
 
 		template<typename Function>
-		decltype( auto ) next( Function &&function ) {
+		decltype( auto ) next( Function &&function ) const {
 			return m_data->next( std::forward<Function>( function ) );
 		}
 
 		template<typename... Functions>
-		decltype( auto ) split( Functions &&... funcs ) {
+		decltype( auto ) split( Functions &&... funcs ) const {
 			return m_data->split( std::forward<Functions>( funcs )... );
 		}
 	}; // future_result_t<void>
 
 	template<typename result_t, typename Function>
 	constexpr decltype( auto ) operator|( future_result_t<result_t> &lhs,
+	                                      Function &&rhs ) {
+		static_assert( daw::is_callable_v<Function, result_t>,
+		               "Supplied function must be callable with result of future" );
+		return lhs.next( std::forward<Function>( rhs ) );
+	}
+
+	template<typename result_t, typename Function>
+	constexpr decltype( auto ) operator|( future_result_t<result_t> const &lhs,
 	                                      Function &&rhs ) {
 		static_assert( daw::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );

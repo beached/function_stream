@@ -300,7 +300,7 @@ namespace daw {
 				using result_t = std::tuple<future_result_t<decltype(
 				  funcs( std::declval<expected_result_t>( ).get( ) ) )>...>;
 
-				result_t result{m_task_scheduler};
+				auto result = result_t( m_task_scheduler );
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 
 				m_next = [ts = m_task_scheduler, result = std::move( result ),
@@ -381,6 +381,7 @@ namespace daw {
 
 			template<typename Function, typename... Args>
 			void from_code( Function &&func, Args &&... args ) {
+				static_assert( daw::is_callable_v<Function, Args...>, "Cannot call func with args provided" );
 				try {
 					func( std::forward<Args>( args )... );
 					set_value( );
@@ -472,7 +473,8 @@ namespace daw {
 						               std::get<N>( results ) =
 						                 daw::apply( std::get<N>( callables ), *tp_args );
 					               } catch( ... ) {
-						               std::get<N>( results ) = std::current_exception;
+						               std::get<N>( results ).set_exception(
+						                 std::current_exception( ) );
 					               }
 				               },
 				               ts );

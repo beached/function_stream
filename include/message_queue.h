@@ -38,7 +38,7 @@ namespace daw {
 		template<typename T, typename base_queue_t>
 		class basic_msg_queue_t {
 			struct members_t {
-				std::atomic<bool> m_completed{ };
+				std::atomic<bool> m_completed{};
 				base_queue_t m_queue;
 
 				members_t( )
@@ -111,7 +111,7 @@ namespace daw {
 			using const_reference = value_t const &;
 
 		private:
-			mutable pointer m_ptr{ };
+			mutable pointer m_ptr{};
 
 		public:
 			template<typename... Args,

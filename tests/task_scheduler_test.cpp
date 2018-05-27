@@ -37,14 +37,14 @@ using real_t =
   boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
 
 real_t fib( uintmax_t n ) noexcept {
-	if( 0 == n ) {
-		return 0;
+	if( n <= 1 ) {
+		return n;
 	}
-	real_t last = 0;
+	real_t last = 1;
 	real_t result = 1;
-	for( uintmax_t m = 1; m < n; ++m ) {
+	for( uintmax_t m = 2; m < n; ++m ) {
 		auto new_last = result;
-		result += result + last;
+		result += last;
 		last = new_last;
 	}
 	return result;
@@ -102,4 +102,14 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 	          << daw::utility::format_seconds( par_avg, 2 ) << '\n';
 
 	std::cout << "diff-> " << ( seq_avg / par_avg ) << '\n';
+	ts.stop( );
+}
+
+BOOST_AUTO_TEST_CASE( create_waitable_task_test_001 ) {
+	real_t ans = 0;
+	auto ts = daw::create_waitable_task( [&ans]( ) {
+		ans = fib( 30 );
+	});
+	ts.wait( );
+	BOOST_REQUIRE_EQUAL( ans, 832040U );
 }

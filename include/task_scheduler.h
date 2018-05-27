@@ -112,8 +112,8 @@ namespace daw {
 		               "Task task passed to create_waitable_task must be callable "
 		               "without an arugment. "
 		               "e.g. task( )" );
-		daw::shared_semaphore sem;
-		schedule_task( sem, ts, std::forward<Task>( task ) );
+		auto sem = daw::shared_semaphore( );
+		schedule_task( sem, std::forward<Task>( task ), ts );
 		return sem;
 	}
 

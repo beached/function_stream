@@ -82,13 +82,15 @@ namespace daw {
 	}
 
 	template<typename FunctionStream>
-	void wait_for_function_streams( FunctionStream &function_stream ) {
+	void wait_for_function_streams( FunctionStream &&function_stream ) {
 		function_stream.wait( );
 	}
 
 	template<typename... FunctionStreams>
 	void wait_for_function_streams( FunctionStreams &&... function_streams ) {
-		[]( ... ) {}( ( wait_for_function_streams( function_streams ), 0 )... );
+		[]( ... ) {}( ( wait_for_function_streams(
+		                  std::forward<FunctionStreams>( function_streams ) ),
+		                0 )... );
 	}
 
 	template<typename... Funcs>
@@ -143,7 +145,7 @@ namespace daw {
 			auto tp_next_funcs = std::tuple_cat(
 			  m_funcs,
 			  std::make_tuple( std::forward<NextFunctions>( next_functions )... ) );
-			return make_future_generator( tp_next_funcs );
+			return make_future_generator( std::move( tp_next_funcs ) );
 		}
 	};
 

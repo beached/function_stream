@@ -39,7 +39,6 @@ link_directories( ${Boost_LIBRARY_DIRS} )
 
 set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/algorithms.h
-	${HEADER_FOLDER}/bitonic_sort.h
 	${HEADER_FOLDER}/function_stream.h
 	${HEADER_FOLDER}/future_result.h
 	${HEADER_FOLDER}/iterator_range.h
