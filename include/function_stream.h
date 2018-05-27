@@ -95,6 +95,9 @@ namespace daw {
 
 	template<typename... Funcs>
 	class future_generator_t {
+		template<typename...>
+		friend class future_generator_t;
+
 		std::tuple<Funcs...> m_funcs;
 
 		template<typename... Functions>
@@ -140,11 +143,16 @@ namespace daw {
 		}
 
 		template<typename... NextFunctions>
-		constexpr decltype( auto )
-		next( NextFunctions &&... next_functions ) const {
+		constexpr auto next( NextFunctions &&... next_functions ) const {
 			return make_future_generator( std::tuple_cat(
 			  m_funcs,
 			  std::make_tuple( std::forward<NextFunctions>( next_functions )... ) ) );
+		}
+
+		template<typename... NextFuncs>
+		constexpr decltype( auto )
+		join( future_generator_t<NextFuncs...> const &fut2 ) const {
+			return make_future_generator( std::tuple_cat( m_funcs, fut2.m_funcs ) );
 		}
 	};
 
@@ -155,32 +163,62 @@ namespace daw {
 		  std::forward<Functions>( functions )...};
 	}
 
-	template<typename NextFunction, typename... Functions>
+	namespace impl {
+		template<typename T, typename U>
+		using detect_can_next =
+		  decltype( std::declval<T>( ).next( std::declval<U>( ) ) );
+
+		template<typename T, typename Us>
+		constexpr bool can_next = daw::is_detected_v<detect_can_next, T, Us>;
+	} // namespace impl
+
+	template<typename NextFunction, typename... Functions,
+	         std::enable_if_t<
+	           impl::can_next<future_generator_t<Functions...>, NextFunction>,
+	           std::nullptr_t> = nullptr>
 	constexpr decltype( auto )
 	operator|( future_generator_t<Functions...> const &lhs,
 	           NextFunction &&next_func ) {
-		return lhs.next( std::forward<NextFunction>( next_func ) );
+		return lhs.next(
+		  std::forward<std::remove_cv_t<NextFunction>>( next_func ) );
+	}
+
+	namespace impl {
+		template<typename T, typename U>
+		using detect_can_join =
+		  decltype( std::declval<T>( ).join( std::declval<U>( ) ) );
+
+		template<typename T, typename Us>
+		constexpr bool can_join = daw::is_detected_v<detect_can_join, T, Us>;
+	} // namespace impl
+
+	template<typename... Functions, typename... Functions2,
+	         std::enable_if_t<impl::can_join<future_generator_t<Functions...>,
+	                                         future_generator_t<Functions2...>>,
+	                          std::nullptr_t> = nullptr>
+	constexpr decltype( auto )
+	operator|( future_generator_t<Functions...> const &lhs,
+	           future_generator_t<Functions2...> const &rhs ) {
+		return lhs.join( rhs );
 	}
 
 	template<typename... Functions>
-	constexpr impl::function_composer_t<Functions...>
-	compose_functions( Functions &&... functions ) {
-		return impl::function_composer_t<Functions...>{
+	constexpr auto compose_functions( Functions &&... functions ) {
+		return impl::function_composer_t<std::remove_cv_t<Functions>...>{
 		  std::forward<Functions>( functions )...};
 	}
 
 	template<typename... Functions>
-	constexpr impl::function_composer_t<Functions...>
-	compose( Functions &&... funcs ) noexcept {
-		return impl::function_composer_t<Functions...>(
+	constexpr auto compose( Functions &&... funcs ) noexcept {
+		return impl::function_composer_t<std::remove_cv_t<Functions>...>(
 		  std::forward<Functions>( funcs )... );
 	}
 
 	template<typename... Functions>
-	constexpr future_generator_t<Functions...>
-	compose_future( Functions &&... funcs ) noexcept {
-		return future_generator_t<Functions...>(
-		  std::tuple<Functions...>( std::forward<Functions>( funcs )... ) );
+	constexpr auto compose_future( Functions &&... funcs ) noexcept {
+		return future_generator_t<std::remove_cv_t<Functions>...>(
+		  std::tuple<std::remove_cv_t<Functions>...>(
+		    std::forward<Functions>( funcs )... ) );
 	}
 
 } // namespace daw
