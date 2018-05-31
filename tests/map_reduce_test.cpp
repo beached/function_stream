@@ -121,7 +121,7 @@ constexpr void parse_int( daw::string_view str, Function on_number ) {
 	if( is_negative ) {
 		result *= -1;
 	}
-	on_number( std::move( result ) );
+	on_number( result );
 }
 
 template<typename Function>
@@ -143,7 +143,7 @@ daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 
 		find_newlines( str, [str_lines_result = std::move( str_lines_result )](
 		                      daw::string_view line ) mutable {
-			while( !str_lines_result.send( std::move( line ) ) ) {
+			while( !str_lines_result.send( line ) ) {
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for( 1ns );
 			}
@@ -164,7 +164,7 @@ daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 				std::this_thread::sleep_for( 1ns );
 			}
 			parse_line( cur_line, [&parsed_lines_result]( intmax_t v ) {
-				parsed_lines_result.send( std::move( v ) );
+				parsed_lines_result.send( v );
 			} );
 		}
 	} );

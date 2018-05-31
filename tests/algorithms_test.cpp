@@ -807,11 +807,8 @@ namespace {
 		auto b = a;
 
 		auto const pred = []( value_t const &lhs, value_t const &rhs ) noexcept {
-			auto const result = lhs == rhs;
-			if( result ) {
-				return true;
-			}
-			return false;
+			bool result = lhs == rhs;
+			return result;
 		};
 
 		bool b1 = false;
