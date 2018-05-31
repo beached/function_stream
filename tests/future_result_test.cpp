@@ -157,3 +157,19 @@ BOOST_AUTO_TEST_CASE( future_result_test_009 ) {
 
 	BOOST_REQUIRE( f5.get( ) == 5 );
 }
+
+BOOST_AUTO_TEST_CASE( future_result_test_010 ) {
+	auto const f5 =
+	  daw::async(
+	    []( int i ) {
+		    std::cout << i << '\n';
+		    return i * 6;
+	    },
+	    6 )
+	    .split( []( int i ) { return i / 6; }, []( int i ) { return i; } );
+
+	std::get<0>( f5 ).wait( );
+	std::get<1>( f5 ).wait( );
+	BOOST_REQUIRE( std::get<0>( f5 ).get( ) == 6 );
+	BOOST_REQUIRE( std::get<1>( f5 ).get( ) == 36 );
+}

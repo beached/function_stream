@@ -32,6 +32,7 @@
 #include <daw/daw_expected.h>
 #include <daw/daw_semaphore.h>
 #include <daw/daw_traits.h>
+#include <daw/daw_tuple_helper.h>
 #include <daw/daw_utility.h>
 
 #include "task_scheduler.h"
@@ -99,29 +100,46 @@ namespace daw {
 		};
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_split_task( task_scheduler &ts, std::tuple<Results...> &results,
-		                     std::tuple<Functions...> &funcs, Arg &&arg )
+		auto add_split_task_impl( daw::shared_semaphore sem, task_scheduler &ts,
+		                          std::tuple<Results...> &results,
+		                          std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N == sizeof...( Functions ) - 1 ), void> {
 
-			ts.add_task( [result = std::get<N>( results ),
-			              func = std::get<N>( funcs ),
-			              arg = std::forward<Arg>( arg )]( ) mutable {
-				result.from_code( std::move( func ), std::move( arg ) );
-			} );
+			daw::schedule_task(
+			  std::move( sem ),
+			  [result = std::get<N>( results ), func = std::get<N>( funcs ),
+			   arg = std::forward<Arg>( arg )]( ) mutable {
+				  result.from_code( std::move( func ), std::move( arg ) );
+			  },
+			  ts );
 		}
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_split_task( task_scheduler &ts, std::tuple<Results...> &results,
-		                     std::tuple<Functions...> &funcs, Arg &&arg )
+		auto add_split_task_impl( daw::shared_semaphore sem, task_scheduler &ts,
+		                          std::tuple<Results...> &results,
+		                          std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N < sizeof...( Functions ) - 1 ), void> {
 
-			ts.add_task( [result = std::get<N>( results ),
-			              func = std::get<N>( funcs ),
-			              arg = std::forward<Arg>( arg )]( ) mutable {
+			daw::schedule_task( sem, [result = std::get<N>( results ),
+			                          func = std::get<N>( funcs ),
+			                          arg]( ) mutable {
 				result.from_code( std::move( func ), std::move( arg ) );
-			} );
+			}, ts );
 
-			add_split_task<N + 1>( ts, results, funcs, std::forward<Arg>( arg ) );
+			add_split_task_impl<N + 1>( sem, ts, results, funcs,
+			                            std::forward<Arg>( arg ) );
+		}
+
+		template<typename... Functions, typename... Results, typename Arg>
+		decltype( auto )
+		add_split_task( task_scheduler &ts, std::tuple<Results...> &results,
+		                std::tuple<Functions...> &funcs, Arg &&arg ) {
+
+			auto sem =
+			  daw::shared_semaphore( 1 - static_cast<int>( sizeof...( Functions ) ) );
+			add_split_task_impl<0>( sem, ts, results, funcs,
+			                        std::forward<Arg>( arg ) );
+			return std::move( sem );
 		}
 
 		template<typename Result>
@@ -300,21 +318,33 @@ namespace daw {
 				using result_t = std::tuple<future_result_t<decltype(
 				  funcs( std::declval<expected_result_t>( ).get( ) ) )>...>;
 
-				auto result = result_t( m_task_scheduler );
-				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
+				auto const construct_future = [&]( auto &&f ) {
+					using fut_t = future_result_t<decltype(
+					  f( std::declval<expected_result_t>( ).get( ) ) )>;
 
-				m_next = [ts = m_task_scheduler, result = std::move( result ),
-				          tpfuncs = std::move( tpfuncs ),
-				          self = this->shared_from_this( )](
-				           expected_result_t e_result ) mutable -> void {
-					e_result.visit( daw::overload(
-					  [&]( base_result_t &&value ) {
-						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
+					return fut_t( m_task_scheduler );
+				};
+				auto result = result_t{construct_future( funcs )...};
+				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
+				m_next = [result, tpfuncs = std::move( tpfuncs ), ts = m_task_scheduler,
+				          self = this->shared_from_this( )]( auto &&value ) mutable
+				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
+				                                     std::decay_t<decltype( value )>>> {
+					value.visit( daw::overload(
+					  [&]( auto &&val )
+					    -> std::enable_if_t<
+					      daw::is_same_v<base_result_t, std::decay_t<decltype( val )>>> {
+						  ts.add_task(
+						    [result, tpfuncs = std::move( tpfuncs ), ts,
+						     val = std::forward<decltype( val )>( val )]( ) mutable {
+							    ts.wait_for( impl::add_split_task( ts, result, tpfuncs,
+							                                       std::move( val ) ) );
+						    } );
 					  },
-					  [&]( base_result_t const &value ) {
-						  impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
-					  },
-					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
+					  [&]( std::exception_ptr ptr ) {
+						  daw::tuple::apply(
+						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
+					  } ) );
 				};
 
 				if( future_status::ready == status( ) ) {
@@ -361,7 +391,7 @@ namespace daw {
 				daw::exception::dbg_throw_on_true(
 				  value.has_exception( ), "Unexpected exception in expected_t" );
 
-				m_next( value );
+				m_next( std::move( value ) );
 			}
 
 			void pass_next( expected_result_t const &value ) {
@@ -422,18 +452,28 @@ namespace daw {
 			auto split( Functions &&... funcs ) {
 				using result_t = std::tuple<future_result_t<decltype( funcs( ) )>...>;
 
-				auto result = result_t( m_task_scheduler );
-				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
+				auto const construct_future = [&]( auto &&f ) {
+					using fut_t = future_result_t<decltype( f( ) )>;
+					return fut_t( m_task_scheduler );
+				};
+				auto result = result_t{construct_future( funcs )...};
 
-				m_next = [ts = m_task_scheduler, result = std::move( result ),
-				          tpfuncs = std::move( tpfuncs ),
-				          self = this->shared_from_this( )](
-				           expected_result_t e_result ) mutable -> void {
-					if( e_result.has_exception( ) ) {
-						result.set_exception( e_result.get_exception_ptr( ) );
-						return;
-					}
-					impl::add_split_task<0>( ts, result, tpfuncs, e_result.get( ) );
+				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
+				m_next = [result, tpfuncs = std::move( tpfuncs ), ts = m_task_scheduler,
+				          self = this->shared_from_this( )]( auto &&value ) mutable
+				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
+				                                     std::decay_t<decltype( value )>>> {
+					value.visit( daw::overload(
+					  [&]( ) {
+						  ts.add_task(
+						    [result, tpfuncs = std::move( tpfuncs ), ts]( ) mutable {
+							    ts.wait_for( impl::add_split_task( ts, result, tpfuncs ) );
+						    } );
+					  },
+					  [&]( std::exception_ptr ptr ) {
+						  daw::tuple::apply(
+						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
+					  } ) );
 				};
 
 				if( future_status::ready == status( ) ) {

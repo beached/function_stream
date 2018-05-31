@@ -221,4 +221,32 @@ namespace daw {
 		    std::forward<Functions>( funcs )... ) );
 	}
 
+	/*
+	template<typename... Funcs>
+	class future_generator_split_t {
+	  std::tuple<Funcs...> m_funcs;
+
+	public:
+	  constexpr future_generator_split_t( ) noexcept
+	    : m_funcs{} {}
+
+	  template<typename... Functions,
+	           std::enable_if_t<
+	             (sizeof...( Functions ) > 1 &&
+	              sizeof...( Functions ) == sizeof...( Funcs ) &&
+	              !daw::is_same_v<std::tuple<Funcs...>,
+	                              std::tuple<Functions...>>),
+	             std::nullptr_t> = nullptr>
+	  constexpr explicit future_generator_split_t( Functions &&... funcs )
+	    : m_funcs( std::forward<Functions>( funcs )... ) {}
+
+	  constexpr explicit future_generator_split_t(
+	    std::tuple<ator_t<Funcs>...> const &tp_funcs )
+	    : m_funcs( tp_funcs ) {}
+
+	  constexpr explicit future_generator_split_t(
+	    std::tuple<future_generator_t<Funcs>...> &&tp_funcs )
+	    : m_funcs( std::move( tp_funcs ) ) {}
+	};
+	*/
 } // namespace daw
