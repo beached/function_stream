@@ -120,11 +120,13 @@ namespace daw {
 		                          std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N < sizeof...( Functions ) - 1 ), void> {
 
-			daw::schedule_task( sem, [result = std::get<N>( results ),
-			                          func = std::get<N>( funcs ),
-			                          arg]( ) mutable {
-				result.from_code( std::move( func ), std::move( arg ) );
-			}, ts );
+			daw::schedule_task( sem,
+			                    [result = std::get<N>( results ),
+			                     func = std::get<N>( funcs ), arg]( ) mutable {
+				                    result.from_code( std::move( func ),
+				                                      std::move( arg ) );
+			                    },
+			                    ts );
 
 			add_split_task_impl<N + 1>( sem, ts, results, funcs,
 			                            std::forward<Arg>( arg ) );
@@ -290,13 +292,9 @@ namespace daw {
 				          ts = m_task_scheduler, self = this->shared_from_this( )](
 				           expected_result_t value ) mutable -> void {
 					value.visit( daw::overload(
-					  [&]( base_result_t const &v ) {
-						  ts.add_task( [result = std::move( result ),
-						                func = std::move( func ), v]( ) mutable {
-							  result.from_code( std::move( func ), std::move( v ) );
-						  } );
-					  },
-					  [&]( base_result_t &&v ) {
+					  [&]( auto &&v ) mutable
+					  -> std::enable_if_t<
+					    daw::is_same_v<base_result_t, std::decay_t<decltype( v )>>> {
 						  ts.add_task( [result = std::move( result ),
 						                func = std::move( func ),
 						                v = std::move( v )]( ) mutable {
@@ -331,15 +329,15 @@ namespace daw {
 				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
 				                                     std::decay_t<decltype( value )>>> {
 					value.visit( daw::overload(
-					  [&]( auto &&val )
-					    -> std::enable_if_t<
-					      daw::is_same_v<base_result_t, std::decay_t<decltype( val )>>> {
-						  ts.add_task(
-						    [result, tpfuncs = std::move( tpfuncs ), ts,
-						     val = std::forward<decltype( val )>( val )]( ) mutable {
-							    ts.wait_for( impl::add_split_task( ts, result, tpfuncs,
-							                                       std::move( val ) ) );
-						    } );
+					  [&, ts]( auto &&val ) mutable
+					  -> std::enable_if_t<
+					    daw::is_same_v<base_result_t, std::decay_t<decltype( val )>>> {
+						  ts.add_task( [result, tpfuncs = std::move( tpfuncs ), ts,
+						                val = std::forward<decltype( val )>( val ),
+						                self]( ) mutable {
+							  ts.wait_for( impl::add_split_task( ts, result, tpfuncs,
+							                                     std::move( val ) ) );
+						  } );
 					  },
 					  [&]( std::exception_ptr ptr ) {
 						  daw::tuple::apply(
@@ -464,9 +462,9 @@ namespace daw {
 				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
 				                                     std::decay_t<decltype( value )>>> {
 					value.visit( daw::overload(
-					  [&]( ) {
+					  [&, ts]( ) mutable {
 						  ts.add_task(
-						    [result, tpfuncs = std::move( tpfuncs ), ts]( ) mutable {
+						    [result, tpfuncs = std::move( tpfuncs ), ts, self]( ) mutable {
 							    ts.wait_for( impl::add_split_task( ts, result, tpfuncs ) );
 						    } );
 					  },
