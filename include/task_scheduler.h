@@ -78,8 +78,11 @@ namespace daw {
 			  impl::is_waitable_v<Waitable>,
 			  "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 
-			wait_for_scope( [waitable = std::forward<Waitable>(
-			                   waitable )]( ) mutable { waitable.wait( ); } );
+			wait_for_scope( [&]( ) { waitable.wait( ); } );
+		}
+
+		explicit operator bool( ) const noexcept {
+			return static_cast<bool>( m_impl );
 		}
 	}; // task_scheduler
 

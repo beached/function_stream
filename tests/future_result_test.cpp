@@ -166,10 +166,14 @@ BOOST_AUTO_TEST_CASE( future_result_test_010 ) {
 		    return i * 6;
 	    },
 	    6 )
-	    .split( []( int i ) { return i / 6; }, []( int i ) { return i; } );
+	    .fork( []( int i ) { return i / 6; }, []( int i ) { return i; } );
 
 	std::get<0>( f5 ).wait( );
 	std::get<1>( f5 ).wait( );
 	BOOST_REQUIRE( std::get<0>( f5 ).get( ) == 6 );
 	BOOST_REQUIRE( std::get<1>( f5 ).get( ) == 36 );
+
+	auto f6 = join( f5, []( int lhs, int rhs ) { return lhs + rhs; } );
+	auto result = f6.get( );
+	BOOST_REQUIRE_EQUAL( result, 42 );
 }

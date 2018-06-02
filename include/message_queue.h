@@ -145,28 +145,31 @@ namespace daw {
 			}
 
 			constexpr reference operator*( ) noexcept {
+				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
+				                             "Message cannot be null" );
 				return *m_ptr;
 			}
 
 			constexpr const_reference operator*( ) const noexcept {
+				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
+				                             "Message cannot be null" );
 				return *m_ptr;
 			}
 
 			constexpr pointer operator->( ) noexcept {
+				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
+				                             "Message cannot be null" );
 				return m_ptr;
 			}
 
-			constexpr const_pointer operator->( ) const noexcept {
+			constexpr pointer operator->( ) const noexcept {
+				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
+				                             "Message cannot be null" );
 				return m_ptr;
 			}
 
 			constexpr explicit operator bool( ) const {
 				return static_cast<bool>( m_ptr );
-			}
-
-			constexpr value_t &&move_out( ) noexcept {
-				auto tmp = std::exchange( m_ptr, nullptr );
-				return std::move( *tmp );
 			}
 		};
 	} // namespace parallel

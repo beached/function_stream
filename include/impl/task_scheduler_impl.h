@@ -99,15 +99,18 @@ namespace daw {
 
 			template<typename Task>
 			void add_task( Task &&task ) {
+				static_assert(
+				  daw::is_callable_v<Task>,
+				  "Task must be callable without arguments (e.g. task( );)" );
 				auto id = ( m_task_count++ ) % m_num_threads;
 				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
 				            id]( ) mutable {
 					if( wself.expired( ) ) {
 						return;
 					}
-					task( );
 					auto self = wself.lock( );
 					if( self ) {
+						task( );
 						while( self->run_next_task( id ) ) {}
 					}
 				};

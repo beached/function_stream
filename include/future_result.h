@@ -148,8 +148,15 @@ namespace daw {
 		}
 
 		template<typename... Functions>
-		decltype( auto ) split( Functions &&... funcs ) const {
-			return m_data->split( std::forward<Functions>( funcs )... );
+		decltype( auto ) fork( Functions &&... funcs ) const {
+			return m_data->fork( std::forward<Functions>( funcs )... );
+		}
+
+		template<typename Function, typename... Functions>
+		decltype( auto ) fork_join( Function &&joiner,
+		                            Functions &&... funcs ) const {
+			return m_data->fork_join( std::forward<Function>( joiner ),
+			                          std::forward<Functions>( funcs )... );
 		}
 	};
 	// future_result_t
@@ -209,8 +216,8 @@ namespace daw {
 		}
 
 		template<typename... Functions>
-		decltype( auto ) split( Functions &&... funcs ) const {
-			return m_data->split( std::forward<Functions>( funcs )... );
+		decltype( auto ) fork( Functions &&... funcs ) const {
+			return m_data->fork( std::forward<Functions>( funcs )... );
 		}
 	}; // future_result_t<void>
 
@@ -373,5 +380,33 @@ namespace daw {
 			std::swap( results, tmp );
 		}
 		return results.front( );
+	}
+
+	namespace impl {
+		template<typename F, typename Tuple, std::size_t... I>
+		constexpr decltype( auto ) future_apply_impl( F &&f, Tuple &&t,
+		                                              std::index_sequence<I...> ) {
+			return invoke( std::forward<F>( f ),
+			               std::get<I>( std::forward<Tuple>( t ) ).get( )... );
+		}
+	} // namespace impl
+
+	template<typename F, typename Tuple>
+	decltype( auto ) future_apply( F &&f, Tuple &&t ) {
+		return impl::future_apply_impl(
+		  std::forward<F>( f ), std::forward<Tuple>( t ),
+		  std::make_index_sequence<daw::tuple_size_v<std::decay_t<Tuple>>>{} );
+	}
+
+	template<typename TPFutureResults, typename Function,
+	         std::enable_if_t<daw::traits::is_tuple_v<TPFutureResults>,
+	                          std::nullptr_t> = nullptr>
+	decltype( auto ) join( TPFutureResults &&results, Function &&next_function ) {
+		auto result = make_future_result(
+		  [results = std::forward<TPFutureResults>( results ),
+		   next_function = std::forward<Function>( next_function )]( ) mutable {
+			  return future_apply( next_function, results );
+		  } );
+		return result;
 	}
 } // namespace daw

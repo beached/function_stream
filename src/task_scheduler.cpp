@@ -35,7 +35,7 @@ namespace daw {
 			template<typename... Args>
 			auto create_thread( Args &&... args ) noexcept {
 				try {
-					return std::thread{std::forward<Args>( args )...};
+					return std::thread( std::forward<Args>( args )... );
 				} catch( std::system_error const &e ) {
 					std::cerr << "Error creating thread, aborting.\n Error code: "
 					          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
@@ -90,9 +90,8 @@ namespace daw {
 		}
 
 		void run_task( daw::impl::task_ptr_t &&tsk ) noexcept {
-			task_t task{tsk.move_out( )};
 			try {
-				task( );
+				( *tsk )( );
 			} catch( ... ) {
 				// Don't let a task take down thread
 				// TODO: add callback to task_scheduler for handling
@@ -101,7 +100,7 @@ namespace daw {
 		}
 
 		bool task_scheduler_impl::run_next_task( size_t id ) {
-			daw::impl::task_ptr_t tsk;
+			auto tsk = daw::impl::task_ptr_t( );
 			if( m_tasks[id].receive( tsk ) ) {
 				run_task( std::move( tsk ) );
 				return true;
