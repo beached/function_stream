@@ -265,6 +265,36 @@ namespace daw {
 		return result;
 	}
 
+	namespace impl {
+		template<typename Result, typename Function, typename... Args>
+		struct future_task_t {
+			Result result;
+			Function func;
+			std::tuple<Args...> args;
+
+			template<typename R, typename F, typename... A>
+			constexpr future_task_t( R &&r, F &&f, A &&... a )
+			  : result( std::forward<R>( r ) )
+			  , func( std::forward<F>( f ) )
+			  , args( std::forward<A>( a )... ) {}
+
+			void operator( )( ) {
+				try {
+					result.set_value(
+					  daw::apply( std::move( func ), std::move( args ) ) );
+				} catch( ... ) { result.set_exception( ); }
+			}
+		};
+
+		template<typename Result, typename Function, typename... Args>
+		future_task_t<Result, Function, Args...> constexpr make_future_task(
+		  Result &&result, Function &&func, Args &&... args ) {
+			return future_task_t<Result, Function, Args...>(
+			  std::forward<Result>( result ), std::forward<Function>( func ),
+			  std::forward<Args>( args )... );
+		}
+	} // namespace impl
+
 	template<typename Function, typename... Args,
 	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
 	                          std::nullptr_t> = nullptr>
@@ -273,13 +303,9 @@ namespace daw {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>( std::move( sem ) );
-		ts.add_task( [result, func = std::forward<Function>( func ),
-		              args = std::make_tuple(
-		                std::forward<Args>( args )... )]( ) mutable {
-			try {
-				result.set_value( daw::apply( std::move( func ), std::move( args ) ) );
-			} catch( ... ) { result.set_exception( ); }
-		} );
+		ts.add_task( impl::make_future_task( result, std::forward<Function>( func ),
+		                                     std::forward<Args>( args )... ) );
+
 		return result;
 	} // namespace daw
 

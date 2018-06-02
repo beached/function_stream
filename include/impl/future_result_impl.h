@@ -100,14 +100,14 @@ namespace daw {
 		};
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_semaphore sem, task_scheduler &ts,
+		auto add_fork_task_impl( daw::shared_semaphore &sem, task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N == sizeof...( Functions ) - 1 ), void> {
 
-			daw::exception::Assert( ts, "ts should never be null" );
+			daw::exception::DebugAssert( ts, "ts should never be null" );
 			daw::schedule_task(
-			  std::move( sem ),
+			  sem,
 			  [result = std::get<N>( results ), func = std::get<N>( funcs ),
 			   arg = std::forward<Arg>( arg )]( ) mutable {
 				  result.from_code( std::move( func ), std::move( arg ) );
@@ -116,12 +116,12 @@ namespace daw {
 		}
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_semaphore sem, task_scheduler &ts,
+		auto add_fork_task_impl( daw::shared_semaphore &sem, task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N < sizeof...( Functions ) - 1 ), void> {
 
-			daw::exception::Assert( ts, "ts should never be null" );
+			daw::exception::DebugAssert( ts, "ts should never be null" );
 			daw::schedule_task( sem,
 			                    [result = std::get<N>( results ),
 			                     func = std::get<N>( funcs ), arg]( ) mutable {
@@ -135,16 +135,16 @@ namespace daw {
 		}
 
 		template<typename... Functions, typename... Results, typename Arg>
-		decltype( auto )
+		daw::shared_semaphore
 		add_fork_task( task_scheduler &ts, std::tuple<Results...> &results,
 		               std::tuple<Functions...> &funcs, Arg &&arg ) {
 
-			daw::exception::Assert( ts, "ts should never be null" );
+			daw::exception::DebugAssert( ts, "ts should never be null" );
 			auto sem =
 			  daw::shared_semaphore( 1 - static_cast<int>( sizeof...( Functions ) ) );
 			add_fork_task_impl<0>( sem, ts, results, funcs,
 			                       std::forward<Arg>( arg ) );
-			return std::move( sem );
+			return sem;
 		}
 
 		template<typename Result>
@@ -325,14 +325,14 @@ namespace daw {
 
 					return fut_t( m_task_scheduler );
 				};
-				auto result = result_t{construct_future( funcs )...};
+				auto result = result_t( construct_future( funcs )... );
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 				m_next = [result, tpfuncs = std::move( tpfuncs ), ts = m_task_scheduler,
 				          self = this->shared_from_this( )]( auto &&value ) mutable
 				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
 				                                     std::decay_t<decltype( value )>>> {
 					value.visit( daw::overload(
-					  [&, ts]( auto &&val ) mutable
+					  [&]( auto &&val ) mutable
 					  -> std::enable_if_t<
 					    daw::is_same_v<base_result_t, std::decay_t<decltype( val )>>> {
 						  ts.add_task( [result, tpfuncs = std::move( tpfuncs ), ts,

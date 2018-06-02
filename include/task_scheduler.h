@@ -67,8 +67,10 @@ namespace daw {
 			               "Function passed to wait_for_scope must be callable "
 			               "without an arugment. e.g. func( )" );
 
-			auto sem = m_impl->start_temp_task_runners( );
-			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
+			auto const at_exit = daw::on_scope_exit(
+			  [sem = m_impl->start_temp_task_runners( )]( ) mutable {
+				  sem.notify( );
+			  } );
 			return func( );
 		}
 
@@ -78,7 +80,7 @@ namespace daw {
 			  impl::is_waitable_v<Waitable>,
 			  "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 
-			wait_for_scope( [&]( ) { waitable.wait( ); } );
+			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
 		}
 
 		explicit operator bool( ) const noexcept {
