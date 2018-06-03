@@ -30,11 +30,11 @@
 
 #include <daw/cpp_17.h>
 #include <daw/daw_expected.h>
-#include <daw/daw_semaphore.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
 #include <daw/daw_utility.h>
 
+#include "counting_semaphore.h"
 #include "task_scheduler.h"
 
 namespace daw {
@@ -48,13 +48,14 @@ namespace daw {
 
 	namespace impl {
 		class member_data_base_t {
-			mutable daw::shared_semaphore m_semaphore;
+			mutable daw::shared_counting_semaphore m_semaphore;
 			future_status m_status;
 
 		protected:
 			task_scheduler m_task_scheduler;
 			explicit member_data_base_t( task_scheduler ts );
-			member_data_base_t( daw::shared_semaphore sem, task_scheduler ts );
+			member_data_base_t( daw::shared_counting_semaphore sem,
+			                    task_scheduler ts );
 
 		public:
 			member_data_base_t( ) = delete;
@@ -100,7 +101,8 @@ namespace daw {
 		};
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_semaphore &sem, task_scheduler &ts,
+		auto add_fork_task_impl( daw::shared_counting_semaphore &sem,
+		                         task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N == sizeof...( Functions ) - 1 ), void> {
@@ -116,7 +118,8 @@ namespace daw {
 		}
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_semaphore &sem, task_scheduler &ts,
+		auto add_fork_task_impl( daw::shared_counting_semaphore &sem,
+		                         task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N < sizeof...( Functions ) - 1 ), void> {
@@ -135,13 +138,12 @@ namespace daw {
 		}
 
 		template<typename... Functions, typename... Results, typename Arg>
-		daw::shared_semaphore
+		daw::shared_counting_semaphore
 		add_fork_task( task_scheduler &ts, std::tuple<Results...> &results,
 		               std::tuple<Functions...> &funcs, Arg &&arg ) {
 
 			daw::exception::DebugAssert( ts, "ts should never be null" );
-			auto sem =
-			  daw::shared_semaphore( 1 - static_cast<int>( sizeof...( Functions ) ) );
+			auto sem = daw::shared_counting_semaphore( sizeof...( Functions ) );
 			add_fork_task_impl<0>( sem, ts, results, funcs,
 			                       std::forward<Arg>( arg ) );
 			return sem;
@@ -161,7 +163,7 @@ namespace daw {
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
-			member_data_t( daw::shared_semaphore sem, task_scheduler ts )
+			member_data_t( daw::shared_counting_semaphore sem, task_scheduler ts )
 			  : member_data_base_t( std::move( sem ), std::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
@@ -374,7 +376,8 @@ namespace daw {
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
-			explicit member_data_t( daw::shared_semaphore sem, task_scheduler ts )
+			explicit member_data_t( daw::shared_counting_semaphore sem,
+			                        task_scheduler ts )
 			  : member_data_base_t( std::move( sem ), std::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
@@ -535,8 +538,8 @@ namespace daw {
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
 			template<typename Results, typename... Args>
-			void operator( )( daw::task_scheduler &ts, daw::shared_semaphore sem,
-			                  Results &results,
+			void operator( )( daw::task_scheduler &ts,
+			                  daw::shared_counting_semaphore sem, Results &results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
@@ -561,14 +564,16 @@ namespace daw {
 		struct apply_many_t<SZ, SZ, Functions...> {
 			template<typename Results, typename... Args>
 			constexpr void
-			operator( )( daw::task_scheduler const &, daw::shared_semaphore const &,
-			             Results const &, std::tuple<Functions...> const &,
+			operator( )( daw::task_scheduler const &,
+			             daw::shared_counting_semaphore const &, Results const &,
+			             std::tuple<Functions...> const &,
 			             std::shared_ptr<std::tuple<Args...>> const & ) {}
 		}; // apply_many_t<SZ, SZ, Functions..>
 
 		template<typename Result, typename... Functions, typename... Args>
-		void apply_many( daw::task_scheduler &ts, daw::shared_semaphore sem,
-		                 Result &result, std::tuple<Functions...> const &callables,
+		void apply_many( daw::task_scheduler &ts,
+		                 daw::shared_counting_semaphore sem, Result &result,
+		                 std::tuple<Functions...> const &callables,
 		                 std::shared_ptr<std::tuple<Args...>> tp_args ) {
 
 			apply_many_t<0, sizeof...( Functions ), Functions...>{}(
@@ -596,8 +601,7 @@ namespace daw {
 
 				auto result = future_result_t<result_tp_t>( );
 
-				auto sem = daw::shared_semaphore{
-				  1 - static_cast<intmax_t>( sizeof...( Functions ) )};
+				auto sem = daw::shared_counting_semaphore( sizeof...( Functions ) );
 
 				auto th_worker = [result, sem, tp_functions = std::move( tp_functions ),
 				                  tp_args = std::move( tp_args )]( ) mutable {

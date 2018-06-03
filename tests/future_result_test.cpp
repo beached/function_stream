@@ -23,7 +23,6 @@
 #include <cmath>
 #include <exception>
 #include <iostream>
-#include <string>
 
 #define BOOST_TEST_MODULE future_result
 #include <daw/boost_test.h>

@@ -33,9 +33,9 @@
 #include <daw/cpp_17.h>
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_locked_value.h>
-#include <daw/daw_semaphore.h>
 #include <daw/daw_utility.h>
 
+#include "counting_semaphore.h"
 #include "message_queue.h"
 
 namespace daw {
@@ -60,7 +60,7 @@ namespace daw {
 		class task_scheduler_impl;
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_semaphore> sem );
+		                  boost::optional<daw::shared_counting_semaphore> sem );
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
@@ -82,7 +82,7 @@ namespace daw {
 
 			friend void
 			impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-			                   boost::optional<daw::shared_semaphore> sem );
+			                   boost::optional<daw::shared_counting_semaphore> sem );
 
 			daw::impl::task_ptr_t wait_for_task_from_pool( size_t id );
 
@@ -131,7 +131,8 @@ namespace daw {
 			}
 			bool am_i_in_pool( ) const noexcept;
 
-			daw::shared_semaphore start_temp_task_runners( size_t task_count = 1 );
+			daw::shared_counting_semaphore
+			start_temp_task_runners( size_t task_count = 1 );
 		}; // task_scheduler_impl
 
 	} // namespace impl
