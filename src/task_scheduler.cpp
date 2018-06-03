@@ -25,7 +25,8 @@
 #include <iostream>
 #include <thread>
 
-#include "impl/counting_semaphore.h"
+#include <daw/daw_counting_semaphore.h>
+
 #include "task_scheduler.h"
 
 namespace daw {
@@ -126,7 +127,6 @@ namespace daw {
 			while( !sem || !sem->try_wait( ) ) {
 				auto self = wself.lock( );
 				if( !self || !self->m_continue ) {
-					// Either we have destructed already or stop has been called
 					return;
 				}
 				run_task( self->wait_for_task_from_pool( id ) );

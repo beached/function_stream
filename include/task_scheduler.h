@@ -30,12 +30,12 @@
 #include <thread>
 #include <vector>
 
+#include <daw/daw_counting_semaphore.h>
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_locked_value.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
 
-#include "impl/counting_semaphore.h"
 #include "impl/task_scheduler_impl.h"
 
 namespace daw {

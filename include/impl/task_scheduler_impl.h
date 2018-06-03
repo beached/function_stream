@@ -31,11 +31,11 @@
 #include <vector>
 
 #include <daw/cpp_17.h>
+#include <daw/daw_counting_semaphore.h>
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_locked_value.h>
 #include <daw/daw_utility.h>
 
-#include "impl/counting_semaphore.h"
 #include "message_queue.h"
 
 namespace daw {

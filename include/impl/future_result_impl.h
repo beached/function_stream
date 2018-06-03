@@ -29,12 +29,12 @@
 #include <utility>
 
 #include <daw/cpp_17.h>
+#include <daw/daw_counting_semaphore.h>
 #include <daw/daw_expected.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
 #include <daw/daw_utility.h>
 
-#include "impl/counting_semaphore.h"
 #include "task_scheduler.h"
 
 namespace daw {
