@@ -47,6 +47,7 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/task_scheduler.h
 	${HEADER_FOLDER}/impl/algorithms_impl.h
 	${HEADER_FOLDER}/impl/concept_checks.h
+	${HEADER_FOLDER}/impl/counting_semaphore.h
 	${HEADER_FOLDER}/impl/function_stream_impl.h
 	${HEADER_FOLDER}/impl/future_result_impl.h
 	${HEADER_FOLDER}/impl/task_scheduler_impl.h

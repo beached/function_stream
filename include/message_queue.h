@@ -111,9 +111,12 @@ namespace daw {
 			using const_reference = value_t const &;
 
 		private:
-			mutable pointer m_ptr{};
+			mutable pointer m_ptr;
 
 		public:
+			constexpr msg_ptr_t( ) noexcept
+			  : m_ptr( nullptr ) {}
+
 			template<typename... Args,
 			         std::enable_if_t<(!daw::traits::is_type_v<msg_ptr_t, Args...> &&
 			                           !daw::traits::is_type_v<pointer, Args...>),

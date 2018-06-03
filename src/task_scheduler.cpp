@@ -25,7 +25,7 @@
 #include <iostream>
 #include <thread>
 
-#include "counting_semaphore.h"
+#include "impl/counting_semaphore.h"
 #include "task_scheduler.h"
 
 namespace daw {
@@ -89,6 +89,9 @@ namespace daw {
 		}
 
 		void run_task( daw::impl::task_ptr_t &&tsk ) noexcept {
+			if( !tsk ) {
+				return;
+			}
 			try {
 				( *tsk )( );
 			} catch( ... ) {
@@ -146,18 +149,24 @@ namespace daw {
 
 		void task_scheduler_impl::stop( bool block ) noexcept {
 			m_continue = false;
-			auto threads = m_threads.get( );
-			for( auto &th : *threads ) {
-				try {
-					if( th.joinable( ) ) {
-						if( block ) {
-							th.join( );
-						} else {
-							th.detach( );
+			try {
+				for( size_t n = 0; n < m_tasks.size( ); ++n ) {
+					add_task( []( ) {}, n );
+				}
+				auto threads = m_threads.get( );
+				for( auto &th : *threads ) {
+					try {
+						if( th.joinable( ) ) {
+							if( block ) {
+								th.join( );
+							} else {
+								th.detach( );
+							}
 						}
-					}
-				} catch( std::exception const & ) {}
-			}
+					} catch( std::exception const & ) {}
+				}
+				threads->clear( );
+			} catch( ... ) {}
 		}
 
 		std::weak_ptr<task_scheduler_impl> task_scheduler_impl::get_weak_this( ) {
@@ -245,6 +254,9 @@ namespace daw {
 			result.start( );
 			return result;
 		}( );
+		if( !ts ) {
+			ts.start( );
+		}
 		return ts;
 	}
 } // namespace daw

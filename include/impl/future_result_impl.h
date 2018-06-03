@@ -34,7 +34,7 @@
 #include <daw/daw_tuple_helper.h>
 #include <daw/daw_utility.h>
 
-#include "counting_semaphore.h"
+#include "impl/counting_semaphore.h"
 #include "task_scheduler.h"
 
 namespace daw {

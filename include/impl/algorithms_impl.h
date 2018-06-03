@@ -31,8 +31,8 @@
 #include <daw/daw_algorithm.h>
 #include <daw/daw_spin_lock.h>
 
-#include "counting_semaphore.h"
 #include "future_result.h"
+#include "impl/counting_semaphore.h"
 #include "iterator_range.h"
 #include "task_scheduler.h"
 
@@ -96,7 +96,7 @@ namespace daw {
 				template<typename Ranges, typename Func>
 				daw::shared_counting_semaphore
 				partition_range( Ranges ranges, Func func, task_scheduler ts ) {
-					auto sem = daw::shared_counting_semaphore( ranges.size( ) ) );
+					auto sem = daw::shared_counting_semaphore( ranges.size( ) );
 					for( auto const &rng : ranges ) {
 						schedule_task( sem, [func, rng]( ) mutable { func( rng ); }, ts );
 					}
@@ -189,7 +189,7 @@ namespace daw {
 						  ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
 						std::vector<iterator_range_t<Iterator>> next_ranges;
 						next_ranges.reserve( count );
-						auto sem = daw::counting_semaphore( count / 2 );
+						daw::counting_semaphore sem{count / 2};
 						for( size_t n = 1; n < count; n += 2 ) {
 							next_ranges.push_back( {ranges[n - 1].first, ranges[n].last} );
 						}

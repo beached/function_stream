@@ -35,7 +35,7 @@
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
 
-#include "counting_semaphore.h"
+#include "impl/counting_semaphore.h"
 #include "impl/task_scheduler_impl.h"
 
 namespace daw {
@@ -84,7 +84,7 @@ namespace daw {
 		}
 
 		explicit operator bool( ) const noexcept {
-			return static_cast<bool>( m_impl );
+			return static_cast<bool>( m_impl ) && m_impl->started( );
 		}
 	}; // task_scheduler
 
@@ -104,7 +104,7 @@ namespace daw {
 		               "an arugment. e.g. task( )" );
 		ts.add_task(
 		  [task = std::forward<Task>( task ), sem = std::move( sem )]( ) mutable {
-			  auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
+			  auto const at_exit = daw::on_scope_exit( [&]( ) { sem.notify( ); } );
 			  task( );
 		  } );
 	}

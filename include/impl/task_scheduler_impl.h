@@ -35,7 +35,7 @@
 #include <daw/daw_locked_value.h>
 #include <daw/daw_utility.h>
 
-#include "counting_semaphore.h"
+#include "impl/counting_semaphore.h"
 #include "message_queue.h"
 
 namespace daw {
@@ -97,12 +97,9 @@ namespace daw {
 			task_scheduler_impl( task_scheduler_impl const & ) = delete;
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
 
+		private:
 			template<typename Task>
-			void add_task( Task &&task ) {
-				static_assert(
-				  daw::is_callable_v<Task>,
-				  "Task must be callable without arguments (e.g. task( );)" );
-				auto id = ( m_task_count++ ) % m_num_threads;
+			void add_task( Task &&task, size_t id ) {
 				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
 				            id]( ) mutable {
 					if( wself.expired( ) ) {
@@ -111,14 +108,24 @@ namespace daw {
 					auto self = wself.lock( );
 					if( self ) {
 						task( );
-						while( self->run_next_task( id ) ) {}
+						while( self->m_continue && self->run_next_task( id ) ) {}
 					}
 				};
-				task_ptr_t tmp{std::move( tsk )};
+				auto tmp = task_ptr_t( std::move( tsk ) );
 				while( !m_tasks[id].send( tmp ) ) {
 					using namespace std::chrono_literals;
 					std::this_thread::sleep_for( 1ns );
 				}
+			}
+
+		public:
+			template<typename Task>
+			void add_task( Task &&task ) {
+				static_assert(
+				  daw::is_callable_v<Task>,
+				  "Task must be callable without arguments (e.g. task( );)" );
+				size_t id = ( m_task_count++ ) % m_num_threads;
+				add_task( std::forward<Task>( task ), id );
 			}
 
 			bool run_next_task( size_t id );

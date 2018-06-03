@@ -35,9 +35,7 @@ namespace daw {
 		intmax_t m_count;
 
 		auto stop_waiting( ) const {
-			return [&]( ) {
-				return m_count <= 0;
-			};
+			return [&]( ) { return m_count <= 0; };
 		}
 
 	public:
@@ -61,6 +59,13 @@ namespace daw {
 		void notify( ) {
 			auto lock = std::unique_lock<Mutex>( m_mutex );
 			--m_count;
+			m_condition.notify_all( );
+		}
+
+		void notify_one( ) {
+			auto lock = std::unique_lock<Mutex>( m_mutex );
+			--m_count;
+			m_condition.notify_one( );
 		}
 
 		void wait( ) {
