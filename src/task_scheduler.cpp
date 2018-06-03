@@ -127,14 +127,20 @@ namespace daw {
 				auto self = wself.lock( );
 				if( !self || !self->m_continue ) {
 					// Either we have destructed already or stop has been called
-					break;
+					return;
 				}
 				run_task( self->wait_for_task_from_pool( id ) );
 			}
 		}
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself ) {
-			task_runner( id, std::move( wself ), boost::none );
+			auto self = wself.lock( );
+			if( !self ) {
+				return;
+			}
+			while( self->m_continue ) {
+				run_task( self->wait_for_task_from_pool( id ) );
+			}
 		}
 
 		void task_scheduler_impl::start( ) {

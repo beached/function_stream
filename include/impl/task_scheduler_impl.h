@@ -84,6 +84,9 @@ namespace daw {
 			impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 			                   boost::optional<daw::shared_counting_semaphore> sem );
 
+			friend void task_runner( size_t id,
+			                         std::weak_ptr<task_scheduler_impl> wself );
+
 			daw::impl::task_ptr_t wait_for_task_from_pool( size_t id );
 
 		public:
