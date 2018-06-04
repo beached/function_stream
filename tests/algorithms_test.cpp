@@ -641,7 +641,7 @@ namespace {
 	}
 
 	template<typename value_t>
-	void map_reduce_test2( size_t SZ ) {
+	void map_reduce_test3( size_t SZ ) {
 		auto ts = daw::get_task_scheduler( );
 		auto a = daw::make_random_data<value_t>( SZ, 1, 10'000 );
 
@@ -701,11 +701,11 @@ namespace {
 
 		auto const par_max = std::max( result_1, result_3 );
 		auto const seq_max = std::max( result_2, result_4 );
-		display_info( seq_max, par_max, SZ, sizeof( value_t ), "map_reduce2" );
+		display_info( seq_max, par_max, SZ, sizeof( value_t ), "map_reduce3" );
 	}
 
 	template<typename value_t>
-	void map_reduce_test3( size_t SZ ) {
+	void map_reduce_test2( size_t SZ ) {
 		auto ts = daw::get_task_scheduler( );
 		auto a = daw::make_random_data<value_t>( SZ, 1, 10'000 );
 
@@ -1138,16 +1138,16 @@ BOOST_AUTO_TEST_CASE( test_map_reduce_int64_t ) {
 }
 
 BOOST_AUTO_TEST_CASE( test_map_reduce2_int64_t ) {
-	std::cout << "map_reduce2 tests - int64_t\n";
-	for( size_t n = 100'000; n >= 100; n /= 10 ) {
+	std::cout << "map_reduce3 tests - int64_t\n";
+	map_reduce_test2<int64_t>( LARGE_TEST_SZ * 10 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		map_reduce_test2<int64_t>( n );
 	}
 }
 
 BOOST_AUTO_TEST_CASE( test_map_reduce3_int64_t ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
-	map_reduce_test3<int64_t>( LARGE_TEST_SZ * 10 );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 100'000; n >= 100; n /= 10 ) {
 		map_reduce_test3<int64_t>( n );
 	}
 }
