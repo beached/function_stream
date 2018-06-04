@@ -39,11 +39,48 @@
 #include "message_queue.h"
 
 namespace daw {
-	using task_t = std::function<void( )>;
-	namespace impl {
-		template<typename Task>
-		constexpr bool is_task_v = daw::is_callable_v<Task>;
+	struct task_t {
+		std::function<void( )> m_function;
+		std::unique_ptr<daw::shared_counting_semaphore> m_semaphore;
 
+		template<typename Callable, std::enable_if_t<daw::is_callable_v<Callable>,
+		                                             std::nullptr_t> = nullptr>
+		task_t( Callable &&c )
+		  : m_function( std::forward<Callable>( c ) )
+		  , m_semaphore( nullptr ) {
+
+			daw::exception::Assert( static_cast<bool>( m_function ),
+			                        "Callable must be valid" );
+		}
+
+		template<typename Callable, std::enable_if_t<daw::is_callable_v<Callable>,
+		                                             std::nullptr_t> = nullptr>
+		task_t( Callable &&c, daw::shared_counting_semaphore sem )
+		  : m_function( std::forward<Callable>( c ) )
+		  , m_semaphore( std::make_unique<daw::shared_counting_semaphore>(
+		      std::move( sem ) ) ) {
+
+			daw::exception::Assert( static_cast<bool>( m_function ),
+			                        "Callable must be valid" );
+		}
+
+		void operator( )( ) noexcept( noexcept( m_function( ) ) ) {
+			m_function( );
+		}
+
+		void operator( )( ) const noexcept( noexcept( m_function( ) ) ) {
+			m_function( );
+		}
+
+		bool is_ready( ) const {
+			if( m_semaphore ) {
+				return m_semaphore->try_wait( );
+			}
+			return true;
+		}
+	};
+
+	namespace impl {
 		template<typename... Tasks>
 		constexpr bool are_tasks_v = daw::all_true_v<daw::is_callable_v<Tasks>...>;
 
@@ -80,13 +117,6 @@ namespace daw {
 
 			std::weak_ptr<task_scheduler_impl> get_weak_this( );
 
-			friend void
-			impl::task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-			                   boost::optional<daw::shared_counting_semaphore> sem );
-
-			friend void task_runner( size_t id,
-			                         std::weak_ptr<task_scheduler_impl> wself );
-
 			daw::impl::task_ptr_t wait_for_task_from_pool( size_t id );
 
 		public:
@@ -101,6 +131,8 @@ namespace daw {
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
 
 		private:
+			void send_task( task_ptr_t tsk, size_t id );
+
 			template<typename Task>
 			void add_task( Task &&task, size_t id ) {
 				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
@@ -114,12 +146,31 @@ namespace daw {
 						while( self->m_continue && self->run_next_task( id ) ) {}
 					}
 				};
-				auto tmp = task_ptr_t( std::move( tsk ) );
-				while( !m_tasks[id].send( tmp ) ) {
-					using namespace std::chrono_literals;
-					std::this_thread::sleep_for( 1ns );
-				}
+				send_task( task_ptr_t( std::move( tsk ) ), id );
 			}
+
+			template<typename Task>
+			void add_task( Task &&task, daw::shared_counting_semaphore sem,
+			               size_t id ) {
+				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
+				            id]( ) mutable {
+					if( wself.expired( ) ) {
+						return;
+					}
+					auto self = wself.lock( );
+					if( self ) {
+						task( );
+						while( self->m_continue && self->run_next_task( id ) ) {}
+					}
+				};
+				send_task( task_ptr_t( std::move( tsk ), std::move( sem ) ), id );
+			}
+
+			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
+			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
+			                  boost::optional<daw::shared_counting_semaphore> sem );
+
+			void run_task( task_ptr_t &&tsk ) noexcept;
 
 		public:
 			template<typename Task>
@@ -131,11 +182,21 @@ namespace daw {
 				add_task( std::forward<Task>( task ), id );
 			}
 
+			template<typename Task>
+			void add_task( Task &&task, daw::shared_counting_semaphore sem ) {
+				static_assert(
+				  daw::is_callable_v<Task>,
+				  "Task must be callable without arguments (e.g. task( );)" );
+				size_t id = ( m_task_count++ ) % m_num_threads;
+				add_task( std::forward<Task>( task ), std::move( sem ), id );
+			}
+
 			bool run_next_task( size_t id );
 
 			void start( );
 			void stop( bool block = true ) noexcept;
 			bool started( ) const;
+
 			size_t size( ) const {
 				return m_tasks.size( );
 			}

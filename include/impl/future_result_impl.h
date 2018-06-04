@@ -310,9 +310,11 @@ namespace daw {
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
+					status( ) = future_status::continued;
+				} else {
+					status( ) = future_status::continued;
+					notify( );
 				}
-				status( ) = future_status::continued;
-				notify( );
 				return result;
 			}
 
@@ -337,25 +339,21 @@ namespace daw {
 					  [&]( auto &&val ) mutable
 					  -> std::enable_if_t<
 					    daw::is_same_v<base_result_t, std::decay_t<decltype( val )>>> {
-						  ts.add_task( [result, tpfuncs = std::move( tpfuncs ), ts,
-						                val = std::forward<decltype( val )>( val ),
-						                self]( ) mutable {
-							  daw::exception::Assert( ts, "ts should never be null" );
-							  ts.wait_for( impl::add_fork_task( ts, result, tpfuncs,
-							                                    std::move( val ) ) );
-						  } );
+						  ts.add_task( impl::add_fork_task(
+						    ts, result, tpfuncs, std::forward<decltype( val )>( val ) ) );
 					  },
 					  [&]( std::exception_ptr ptr ) {
 						  daw::tuple::apply(
 						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
 					  } ) );
 				};
-
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
+					status( ) = future_status::continued;
+				} else {
+					status( ) = future_status::continued;
+					notify( );
 				}
-				status( ) = future_status::continued;
-				notify( );
 				return result;
 			}
 		}; // namespace impl
@@ -444,12 +442,13 @@ namespace daw {
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
-
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
+					status( ) = future_status::continued;
+				} else {
+					status( ) = future_status::continued;
+					notify( );
 				}
-				status( ) = future_status::continued;
-				notify( );
 				return result;
 			}
 
@@ -470,19 +469,20 @@ namespace daw {
 				                                     std::decay_t<decltype( value )>>> {
 					value.visit( daw::overload(
 					  [&]( ) {
-						  ts.wait_for( impl::add_fork_task( ts, result, tpfuncs ) );
+						  ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
 					  },
 					  [&]( std::exception_ptr ptr ) {
 						  daw::tuple::apply(
 						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
 					  } ) );
 				};
-
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
+					status( ) = future_status::continued;
+				} else {
+					status( ) = future_status::continued;
+					notify( );
 				}
-				status( ) = future_status::continued;
-				notify( );
 				return result;
 			}
 
@@ -503,19 +503,20 @@ namespace daw {
 				                                     std::decay_t<decltype( value )>>> {
 					value.visit( daw::overload(
 					  [&]( ) {
-						  ts.wait_for( impl::add_fork_task( ts, result, tpfuncs ) );
+						  ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
 					  },
 					  [&]( std::exception_ptr ptr ) {
 						  daw::tuple::apply(
 						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
 					  } ) );
 				};
-
 				if( future_status::ready == status( ) ) {
 					pass_next( std::move( m_result ) );
+					status( ) = future_status::continued;
+				} else {
+					status( ) = future_status::continued;
+					notify( );
 				}
-				status( ) = future_status::continued;
-				notify( );
 				return result;
 			}
 		};

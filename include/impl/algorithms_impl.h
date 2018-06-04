@@ -28,8 +28,8 @@
 #include <numeric>
 
 #include <daw/cpp_17.h>
-#include <daw/daw_counting_semaphore.h>
 #include <daw/daw_algorithm.h>
+#include <daw/daw_counting_semaphore.h>
 #include <daw/daw_spin_lock.h>
 
 #include "future_result.h"

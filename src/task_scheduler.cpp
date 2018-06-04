@@ -89,12 +89,17 @@ namespace daw {
 			return tsk;
 		}
 
-		void run_task( daw::impl::task_ptr_t &&tsk ) noexcept {
+		void task_scheduler_impl::run_task( daw::impl::task_ptr_t &&tsk ) noexcept {
 			if( !tsk ) {
 				return;
 			}
 			try {
-				( *tsk )( );
+				if( !tsk->is_ready( ) ) {
+					add_task( std::move( tsk->m_function ),
+					          std::move( *( tsk->m_semaphore.release( ) ) ) );
+				} else {
+					( *tsk )( );
+				}
 			} catch( ... ) {
 				// Don't let a task take down thread
 				// TODO: add callback to task_scheduler for handling
@@ -119,8 +124,10 @@ namespace daw {
 			return false;
 		}
 
-		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_counting_semaphore> sem ) {
+		void task_scheduler_impl::task_runner(
+		  size_t id, std::weak_ptr<task_scheduler_impl> wself,
+		  boost::optional<daw::shared_counting_semaphore> sem ) {
+
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
@@ -133,7 +140,9 @@ namespace daw {
 			}
 		}
 
-		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself ) {
+		void task_scheduler_impl::task_runner(
+		  size_t id, std::weak_ptr<task_scheduler_impl> wself ) {
+
 			auto self = wself.lock( );
 			if( !self ) {
 				return;
@@ -148,8 +157,14 @@ namespace daw {
 			auto threads = m_threads.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
 				threads->push_back( create_thread(
-				  []( size_t id, auto wself ) { impl::task_runner( id, wself ); }, n,
-				  get_weak_this( ) ) );
+				  []( size_t id, auto wself ) {
+					  auto self = wself.lock( );
+					  if( !self ) {
+						  return;
+					  }
+					  self->task_runner( id, wself );
+				  },
+				  n, get_weak_this( ) ) );
 			}
 		}
 
@@ -218,18 +233,26 @@ namespace daw {
 
 				auto const thread_worker = [it, id, wself = get_weak_this( ),
 				                            sem]( ) mutable {
-					auto const at_exit = daw::on_scope_exit( [&wself, it]( ) {
-						auto self = wself.lock( );
-						if( self ) {
-							self->m_other_threads.get( )->erase( it );
-						}
-					} );
-					task_runner( id, wself, sem );
+					auto self = wself.lock( );
+					if( !self ) {
+						return;
+					}
+					auto const at_exit = daw::on_scope_exit(
+					  [&self, it]( ) { self->m_other_threads.get( )->erase( it ); } );
+
+					self->task_runner( id, wself, sem );
 				};
 				*it = create_thread( thread_worker );
 				( *it )->detach( );
 			}
 			return sem;
+		}
+
+		void task_scheduler_impl::send_task( task_ptr_t tsk, size_t id ) {
+			while( !m_tasks[id].send( tsk ) ) {
+				using namespace std::chrono_literals;
+				std::this_thread::sleep_for( 1ns );
+			}
 		}
 	} // namespace impl
 
