@@ -26,10 +26,11 @@
 #include <tuple>
 #include <utility>
 
+#include <daw/cpp_17.h>
+#include <daw/daw_value_ptr.h>
+
 #include "future_result.h"
 #include "task_scheduler.h"
-
-#include <daw/cpp_17.h>
 
 namespace daw {
 	template<typename Result, typename Functions, typename... Args>
@@ -41,7 +42,7 @@ namespace daw {
 	                     Functions &&functions, Args &&... args );
 
 	template<typename R>
-	constexpr R *weak_ptr_test( std::weak_ptr<R> wp ) {
+	constexpr R *weak_ptr_test( std::weak_ptr<R> ) {
 		return static_cast<R *>( nullptr );
 	}
 
@@ -74,7 +75,7 @@ namespace daw {
 			  , m_result( result )
 			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
 		}; // members_t
-		std::unique_ptr<members_t> members;
+		daw::value_ptr<members_t> members;
 
 	public:
 		package_t( ) = delete;
@@ -88,9 +89,8 @@ namespace daw {
 
 		package_t( bool continueonclientdestruction, result_t result,
 		           functions_t functions, Args &&... args )
-		  : members( std::make_unique<members_t>(
-		      continueonclientdestruction, std::move( result ),
-		      std::move( functions ), std::forward<Args>( args )... ) ) {}
+		  : members( continueonclientdestruction, std::move( result ),
+		             std::move( functions ), std::forward<Args>( args )... ) {}
 
 		functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;

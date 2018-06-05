@@ -24,7 +24,6 @@
 
 #include <algorithm>
 #include <iterator>
-#include <memory>
 #include <numeric>
 
 #include <daw/cpp_17.h>
@@ -189,7 +188,7 @@ namespace daw {
 						  ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
 						std::vector<iterator_range_t<Iterator>> next_ranges;
 						next_ranges.reserve( count );
-						daw::counting_semaphore sem{count / 2};
+						auto sem = daw::counting_semaphore( count / 2 );
 						for( size_t n = 1; n < count; n += 2 ) {
 							next_ranges.push_back( {ranges[n - 1].first, ranges[n].last} );
 						}
@@ -286,14 +285,14 @@ namespace daw {
 						}
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<std::unique_ptr<T>> results{ranges.size( )};
+					auto results = std::vector<boost::optional<T>>( ranges.size( ) );
 					auto sem = partition_range_pos(
 					  ranges,
 					  [&results, binary_op]( iterator_range_t<Iterator> range,
 					                         size_t n ) {
-						  results[n] = std::make_unique<T>(
+						  results[n] =
 						    std::accumulate( std::next( range.cbegin( ) ), range.cend( ),
-						                     range.front( ), binary_op ) );
+						                     range.front( ), binary_op );
 					  },
 					  ts );
 					ts.wait_for( sem );
@@ -403,7 +402,8 @@ namespace daw {
 					                   map_function( *std::declval<Iterator>( ) ) ) )>;
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<std::unique_ptr<result_t>> results{ranges.size( )};
+					auto results =
+					  std::vector<boost::optional<result_t>>( ranges.size( ) );
 
 					auto sem = partition_range_pos(
 					  ranges,
@@ -414,7 +414,7 @@ namespace daw {
 							  result =
 							    reduce_function( result, map_function( range.pop_front( ) ) );
 						  }
-						  results[n] = std::make_unique<result_t>( std::move( result ) );
+						  results[n] = std::move( result );
 					  },
 					  ts );
 
@@ -444,15 +444,17 @@ namespace daw {
 					using value_t = std::decay_t<decltype( binary_op( *first, *first ) )>;
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<std::unique_ptr<value_t>> p1_results{ranges.size( )};
-					std::vector<daw::spin_lock> mut_p1_results{ranges.size( )};
+					auto p1_results =
+					  std::vector<boost::optional<value_t>>( ranges.size( ) );
+					auto mut_p1_results = std::vector<daw::spin_lock>( ranges.size( ) );
+
 					auto const add_result = [&]( size_t pos, value_t const &value ) {
 						for( size_t n = pos + 1; n < p1_results.size( ); ++n ) {
-							std::lock_guard<daw::spin_lock> lck{mut_p1_results[n]};
+							std::lock_guard<daw::spin_lock> lck( mut_p1_results[n] );
 							if( p1_results[n] ) {
-								*p1_results[n] = binary_op( *p1_results[n], value );
+								p1_results[n] = binary_op( *p1_results[n], value );
 							} else {
-								p1_results[n] = std::make_unique<value_t>( value );
+								p1_results[n] = value;
 							}
 						}
 					};
@@ -483,8 +485,9 @@ namespace daw {
 					   binary_op]( iterator_range_t<Iterator> cur_range, size_t n ) {
 						  auto out_pos = std::next(
 						    first_out, std::distance( first, cur_range.begin( ) ) );
-						  auto const &cur_value = *p1_results[n];
-						  auto sum = binary_op( cur_value, cur_range.pop_front( ) );
+
+						  auto sum = binary_op( *p1_results[n], cur_range.pop_front( ) );
+
 						  *( out_pos++ ) = sum;
 						  while( !cur_range.empty( ) ) {
 							  sum = binary_op( sum, cur_range.pop_front( ) );
@@ -499,8 +502,9 @@ namespace daw {
 				         typename UnaryPredicate>
 				Iterator parallel_find_if( Iterator first, Iterator last,
 				                           UnaryPredicate pred, task_scheduler ts ) {
+
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					std::vector<std::unique_ptr<Iterator>> results{ranges.size( )};
+					auto results = std::vector<boost::optional<Iterator>>( ranges.size( ) );
 
 					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
 					daw::spin_lock mut_found;
@@ -515,9 +519,9 @@ namespace daw {
 							    ( n + stride < range.size( ) ) ? n + stride : range.size( );
 							  for( m = n; m < last_val; ++m ) {
 								  if( pred( range[m] ) ) {
-									  results[pos] = std::make_unique<Iterator>( std::next(
+									  results[pos] = std::next(
 									    range.begin( ), static_cast<typename std::iterator_traits<
-									                      Iterator>::difference_type>( m ) ) );
+									                      Iterator>::difference_type>( m ) );
 									  std::lock_guard<daw::spin_lock> has_found_lck{mut_found};
 									  // TODO: why is this atomic?
 									  if( pos < has_found.load( std::memory_order_relaxed ) ) {

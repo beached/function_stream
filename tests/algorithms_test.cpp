@@ -1010,49 +1010,49 @@ namespace {
 	// static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 } // namespace
 
-BOOST_AUTO_TEST_CASE( test_for_each_double ) {
+BOOST_AUTO_TEST_CASE( for_each_double ) {
 	std::cout << "for_each tests - double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<double>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_for_each_int64_t ) {
+BOOST_AUTO_TEST_CASE( for_each_int64_t ) {
 	std::cout << "for_each tests - int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<int64_t>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_for_each_int32_t ) {
+BOOST_AUTO_TEST_CASE( for_each_int32_t ) {
 	std::cout << "for_each tests - int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<int32_t>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_fill_double ) {
+BOOST_AUTO_TEST_CASE( fill_double ) {
 	std::cout << "fill tests - double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<double>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_fill_int64_t ) {
+BOOST_AUTO_TEST_CASE( fill_int64_t ) {
 	std::cout << "fill tests - int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int64_t>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_fill_int32_t ) {
+BOOST_AUTO_TEST_CASE( fill_int32_t ) {
 	std::cout << "fill tests - int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int32_t>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
+BOOST_AUTO_TEST_CASE( sort_int64_t ) {
 	std::cout << "sort tests - int64_t\n";
 	sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
@@ -1061,7 +1061,7 @@ BOOST_AUTO_TEST_CASE( test_sort_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_stable_sort_int64_t ) {
+BOOST_AUTO_TEST_CASE( stable_sort_int64_t ) {
 	std::cout << "stable_sort tests - int64_t\n";
 	stable_sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
@@ -1070,7 +1070,7 @@ BOOST_AUTO_TEST_CASE( test_stable_sort_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_reduce_double ) {
+BOOST_AUTO_TEST_CASE( reduce_double ) {
 	std::cout << "reduce tests - double\n";
 	reduce_test<double>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1078,7 +1078,7 @@ BOOST_AUTO_TEST_CASE( test_reduce_double ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_reduce_int64_t ) {
+BOOST_AUTO_TEST_CASE( reduce_int64_t ) {
 	std::cout << "reduce tests - int64_t\n";
 	reduce_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1086,7 +1086,7 @@ BOOST_AUTO_TEST_CASE( test_reduce_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_reduce2_int64_t ) {
+BOOST_AUTO_TEST_CASE( reduce2_int64_t ) {
 	std::cout << "reduce2 tests - uint64_t\n";
 	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
 		return lhs * rhs;
@@ -1097,7 +1097,7 @@ BOOST_AUTO_TEST_CASE( test_reduce2_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_min_element_int64_t ) {
+BOOST_AUTO_TEST_CASE( min_element_int64_t ) {
 	std::cout << "min_element tests - int64_t\n";
 	min_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1105,7 +1105,7 @@ BOOST_AUTO_TEST_CASE( test_min_element_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_max_element_int64_t ) {
+BOOST_AUTO_TEST_CASE( max_element_int64_t ) {
 	std::cout << "max_element tests - int64_t\n";
 	max_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1113,7 +1113,7 @@ BOOST_AUTO_TEST_CASE( test_max_element_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_transform_int64_t ) {
+BOOST_AUTO_TEST_CASE( transform_int64_t ) {
 	std::cout << "transform tests - int64_t\n";
 	transform_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1121,7 +1121,7 @@ BOOST_AUTO_TEST_CASE( test_transform_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_transform2_int64_t ) {
+BOOST_AUTO_TEST_CASE( transform2_int64_t ) {
 	std::cout << "transform2 tests - int64_t\n";
 	transform_test2<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1129,7 +1129,7 @@ BOOST_AUTO_TEST_CASE( test_transform2_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_map_reduce_int64_t ) {
+BOOST_AUTO_TEST_CASE( map_reduce_int64_t ) {
 	std::cout << "map_reduce tests - int64_t\n";
 	map_reduce_test<int64_t>( LARGE_TEST_SZ * 10 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1137,7 +1137,7 @@ BOOST_AUTO_TEST_CASE( test_map_reduce_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_map_reduce2_int64_t ) {
+BOOST_AUTO_TEST_CASE( map_reduce2_int64_t ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
 	map_reduce_test2<int64_t>( LARGE_TEST_SZ * 10 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1145,14 +1145,14 @@ BOOST_AUTO_TEST_CASE( test_map_reduce2_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_map_reduce3_int64_t ) {
+BOOST_AUTO_TEST_CASE( map_reduce3_int64_t ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
 	for( size_t n = 100'000; n >= 100; n /= 10 ) {
 		map_reduce_test3<int64_t>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_scan_int64_t ) {
+BOOST_AUTO_TEST_CASE( scan_int64_t ) {
 	std::cout << "scan tests - int64_t\n";
 	scan_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1160,7 +1160,7 @@ BOOST_AUTO_TEST_CASE( test_scan_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_find_if_int64_t ) {
+BOOST_AUTO_TEST_CASE( find_if_int64_t ) {
 	std::cout << "find_if tests - int64_t\n";
 	find_if_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1168,7 +1168,7 @@ BOOST_AUTO_TEST_CASE( test_find_if_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_equal_int64_t ) {
+BOOST_AUTO_TEST_CASE( equal_int64_t ) {
 	std::cout << "equal tests - int64_t\n";
 	equal_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1176,7 +1176,7 @@ BOOST_AUTO_TEST_CASE( test_equal_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_equal_string ) {
+BOOST_AUTO_TEST_CASE( equal_string ) {
 	std::cout << "equal tests - std::string\n";
 	equal_test_str( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -1184,7 +1184,7 @@ BOOST_AUTO_TEST_CASE( test_equal_string ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( test_count_int64_t ) {
+BOOST_AUTO_TEST_CASE( count_int64_t ) {
 	std::cout << "count tests - int64_t\n";
 	count_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
