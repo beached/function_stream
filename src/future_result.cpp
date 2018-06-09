@@ -60,7 +60,7 @@ namespace daw {
 		  , m_status( future_status::deferred )
 		  , m_task_scheduler( std::move( ts ) ) {}
 
-		member_data_base_t::member_data_base_t( daw::shared_counting_semaphore sem,
+		member_data_base_t::member_data_base_t( daw::shared_latch sem,
 		                                        task_scheduler ts )
 		  : m_semaphore( std::move( sem ) )
 		  , m_status( future_status::deferred )
@@ -101,7 +101,7 @@ namespace daw {
 		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 	}
 
-	future_result_t<void>::future_result_t( daw::shared_counting_semaphore sem,
+	future_result_t<void>::future_result_t( daw::shared_latch sem,
 	                                        task_scheduler ts )
 	  : m_data(
 	      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) ) ) {

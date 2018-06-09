@@ -29,7 +29,7 @@
 #include <utility>
 
 #include <daw/cpp_17.h>
-#include <daw/daw_counting_semaphore.h>
+#include <daw/daw_latch.h>
 #include <daw/daw_exception.h>
 #include <daw/daw_expected.h>
 #include <daw/daw_traits.h>
@@ -60,7 +60,7 @@ namespace daw {
 			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 		}
 
-		explicit future_result_t( daw::shared_counting_semaphore sem,
+		explicit future_result_t( daw::shared_latch sem,
 		                          task_scheduler ts = get_task_scheduler( ) )
 		  : m_data(
 		      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) ) ) {
@@ -171,7 +171,7 @@ namespace daw {
 	public:
 		future_result_t( );
 		explicit future_result_t( task_scheduler ts );
-		explicit future_result_t( daw::shared_counting_semaphore sem,
+		explicit future_result_t( daw::shared_latch sem,
 		                          task_scheduler ts = get_task_scheduler( ) );
 
 		std::weak_ptr<m_data_t> weak_ptr( );
@@ -299,7 +299,7 @@ namespace daw {
 	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
 	                          std::nullptr_t> = nullptr>
 	auto make_future_result( task_scheduler ts,
-	                         daw::shared_counting_semaphore sem, Function &&func,
+	                         daw::shared_latch sem, Function &&func,
 	                         Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
@@ -413,7 +413,7 @@ namespace daw {
 		template<typename F, typename Tuple, std::size_t... I>
 		constexpr decltype( auto ) future_apply_impl( F &&f, Tuple &&t,
 		                                              std::index_sequence<I...> ) {
-			return invoke( std::forward<F>( f ),
+			return daw::invoke( std::forward<F>( f ),
 			               std::get<I>( std::forward<Tuple>( t ) ).get( )... );
 		}
 	} // namespace impl

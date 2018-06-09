@@ -31,7 +31,7 @@
 #include <vector>
 
 #include <daw/cpp_17.h>
-#include <daw/daw_counting_semaphore.h>
+#include <daw/daw_latch.h>
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_locked_value.h>
 #include <daw/daw_utility.h>
@@ -41,7 +41,7 @@
 namespace daw {
 	struct task_t {
 		std::function<void( )> m_function;
-		std::unique_ptr<daw::shared_counting_semaphore> m_semaphore;
+		std::unique_ptr<daw::shared_latch> m_semaphore;
 
 		template<typename Callable, std::enable_if_t<daw::is_callable_v<Callable>,
 		                                             std::nullptr_t> = nullptr>
@@ -55,9 +55,9 @@ namespace daw {
 
 		template<typename Callable, std::enable_if_t<daw::is_callable_v<Callable>,
 		                                             std::nullptr_t> = nullptr>
-		task_t( Callable &&c, daw::shared_counting_semaphore sem )
+		task_t( Callable &&c, daw::shared_latch sem )
 		  : m_function( std::forward<Callable>( c ) )
-		  , m_semaphore( std::make_unique<daw::shared_counting_semaphore>(
+		  , m_semaphore( std::make_unique<daw::shared_latch>(
 		      std::move( sem ) ) ) {
 
 			daw::exception::Assert( static_cast<bool>( m_function ),
@@ -97,7 +97,7 @@ namespace daw {
 		class task_scheduler_impl;
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_counting_semaphore> sem );
+		                  boost::optional<daw::shared_latch> sem );
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
@@ -150,7 +150,7 @@ namespace daw {
 			}
 
 			template<typename Task>
-			void add_task( Task &&task, daw::shared_counting_semaphore sem,
+			void add_task( Task &&task, daw::shared_latch sem,
 			               size_t id ) {
 				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
 				            id]( ) mutable {
@@ -168,7 +168,7 @@ namespace daw {
 
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-			                  boost::optional<daw::shared_counting_semaphore> sem );
+			                  boost::optional<daw::shared_latch> sem );
 
 			void run_task( task_ptr_t &&tsk ) noexcept;
 
@@ -183,7 +183,7 @@ namespace daw {
 			}
 
 			template<typename Task>
-			void add_task( Task &&task, daw::shared_counting_semaphore sem ) {
+			void add_task( Task &&task, daw::shared_latch sem ) {
 				static_assert(
 				  daw::is_callable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
@@ -202,7 +202,7 @@ namespace daw {
 			}
 			bool am_i_in_pool( ) const noexcept;
 
-			daw::shared_counting_semaphore
+			daw::shared_latch
 			start_temp_task_runners( size_t task_count = 1 );
 		}; // task_scheduler_impl
 

@@ -25,7 +25,7 @@
 #include <iostream>
 #include <thread>
 
-#include <daw/daw_counting_semaphore.h>
+#include <daw/daw_latch.h>
 
 #include "task_scheduler.h"
 
@@ -126,7 +126,7 @@ namespace daw {
 
 		void task_scheduler_impl::task_runner(
 		  size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		  boost::optional<daw::shared_counting_semaphore> sem ) {
+		  boost::optional<daw::shared_latch> sem ) {
 
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
@@ -215,9 +215,9 @@ namespace daw {
 			return false;
 		}
 
-		daw::shared_counting_semaphore
+		daw::shared_latch
 		task_scheduler_impl::start_temp_task_runners( size_t task_count ) {
-			auto sem = daw::shared_counting_semaphore( task_count );
+			auto sem = daw::shared_latch( task_count );
 			for( size_t n = 0; n < task_count; ++n ) {
 				auto const id = [&]( ) {
 					auto const current_epoch =

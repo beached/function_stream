@@ -29,7 +29,7 @@
 #include <utility>
 
 #include <daw/cpp_17.h>
-#include <daw/daw_counting_semaphore.h>
+#include <daw/daw_latch.h>
 #include <daw/daw_expected.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
@@ -48,13 +48,13 @@ namespace daw {
 
 	namespace impl {
 		class member_data_base_t {
-			mutable daw::shared_counting_semaphore m_semaphore;
+			mutable daw::shared_latch m_semaphore;
 			future_status m_status;
 
 		protected:
 			task_scheduler m_task_scheduler;
 			explicit member_data_base_t( task_scheduler ts );
-			member_data_base_t( daw::shared_counting_semaphore sem,
+			member_data_base_t( daw::shared_latch sem,
 			                    task_scheduler ts );
 
 		public:
@@ -101,7 +101,7 @@ namespace daw {
 		};
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_counting_semaphore &sem,
+		auto add_fork_task_impl( daw::shared_latch &sem,
 		                         task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
@@ -118,7 +118,7 @@ namespace daw {
 		}
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_counting_semaphore &sem,
+		auto add_fork_task_impl( daw::shared_latch &sem,
 		                         task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
@@ -138,12 +138,12 @@ namespace daw {
 		}
 
 		template<typename... Functions, typename... Results, typename Arg>
-		daw::shared_counting_semaphore
+		daw::shared_latch
 		add_fork_task( task_scheduler &ts, std::tuple<Results...> &results,
 		               std::tuple<Functions...> &funcs, Arg &&arg ) {
 
 			daw::exception::DebugAssert( ts, "ts should never be null" );
-			auto sem = daw::shared_counting_semaphore( sizeof...( Functions ) );
+			auto sem = daw::shared_latch( sizeof...( Functions ) );
 			add_fork_task_impl<0>( sem, ts, results, funcs,
 			                       std::forward<Arg>( arg ) );
 			return sem;
@@ -163,7 +163,7 @@ namespace daw {
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
-			member_data_t( daw::shared_counting_semaphore sem, task_scheduler ts )
+			member_data_t( daw::shared_latch sem, task_scheduler ts )
 			  : member_data_base_t( std::move( sem ), std::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
@@ -374,7 +374,7 @@ namespace daw {
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
-			explicit member_data_t( daw::shared_counting_semaphore sem,
+			explicit member_data_t( daw::shared_latch sem,
 			                        task_scheduler ts )
 			  : member_data_base_t( std::move( sem ), std::move( ts ) )
 			  , m_next( nullptr )
@@ -540,7 +540,7 @@ namespace daw {
 		struct apply_many_t {
 			template<typename Results, typename... Args>
 			void operator( )( daw::task_scheduler &ts,
-			                  daw::shared_counting_semaphore sem, Results &results,
+			                  daw::shared_latch sem, Results &results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
@@ -566,14 +566,14 @@ namespace daw {
 			template<typename Results, typename... Args>
 			constexpr void
 			operator( )( daw::task_scheduler const &,
-			             daw::shared_counting_semaphore const &, Results const &,
+			             daw::shared_latch const &, Results const &,
 			             std::tuple<Functions...> const &,
 			             std::shared_ptr<std::tuple<Args...>> const & ) {}
 		}; // apply_many_t<SZ, SZ, Functions..>
 
 		template<typename Result, typename... Functions, typename... Args>
 		void apply_many( daw::task_scheduler &ts,
-		                 daw::shared_counting_semaphore sem, Result &result,
+		                 daw::shared_latch sem, Result &result,
 		                 std::tuple<Functions...> const &callables,
 		                 std::shared_ptr<std::tuple<Args...>> tp_args ) {
 
@@ -602,7 +602,7 @@ namespace daw {
 
 				auto result = future_result_t<result_tp_t>( );
 
-				auto sem = daw::shared_counting_semaphore( sizeof...( Functions ) );
+				auto sem = daw::shared_latch( sizeof...( Functions ) );
 
 				auto th_worker = [result, sem, tp_functions = std::move( tp_functions ),
 				                  tp_args = std::move( tp_args )]( ) mutable {

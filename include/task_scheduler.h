@@ -30,7 +30,7 @@
 #include <thread>
 #include <vector>
 
-#include <daw/daw_counting_semaphore.h>
+#include <daw/daw_latch.h>
 #include <daw/daw_locked_stack.h>
 #include <daw/daw_locked_value.h>
 #include <daw/daw_scope_guard.h>
@@ -55,11 +55,11 @@ namespace daw {
 
 		template<typename Task, std::enable_if_t<daw::is_callable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
-		void add_task( Task &&task, daw::shared_counting_semaphore sem ) noexcept {
+		void add_task( Task &&task, daw::shared_latch sem ) noexcept {
 			m_impl->add_task( std::forward<Task>( task ), std::move( sem ) );
 		}
 
-		void add_task( daw::shared_counting_semaphore sem ) {
+		void add_task( daw::shared_latch sem ) {
 			m_impl->add_task( []( ) {}, std::move( sem ) );
 		}
 
@@ -104,7 +104,7 @@ namespace daw {
 	/// @param task Task of form void( ) to run
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	void schedule_task( daw::shared_counting_semaphore sem, Task &&task,
+	void schedule_task( daw::shared_latch sem, Task &&task,
 	                    task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( daw::is_callable_v<Task>,
 		               "Task task passed to schedule_task must be callable without "
@@ -117,14 +117,14 @@ namespace daw {
 	}
 
 	template<typename Task>
-	daw::shared_counting_semaphore
+	daw::shared_latch
 	create_waitable_task( Task &&task,
 	                      task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( daw::is_callable_v<Task>,
 		               "Task task passed to create_waitable_task must be callable "
 		               "without an arugment. "
 		               "e.g. task( )" );
-		auto sem = daw::shared_counting_semaphore( );
+		auto sem = daw::shared_latch( );
 		schedule_task( sem, std::forward<Task>( task ), ts );
 		return sem;
 	}
@@ -134,12 +134,12 @@ namespace daw {
 	/// @param tasks callable items of the form void( )
 	/// @returns a semaphore that will stop waiting when all tasks complete
 	template<typename... Tasks>
-	daw::shared_counting_semaphore create_task_group( Tasks &&... tasks ) {
+	daw::shared_latch create_task_group( Tasks &&... tasks ) {
 		static_assert( impl::are_tasks_v<Tasks...>,
 		               "Tasks passed to create_task_group must be callable without "
 		               "an arugment. e.g. task( )" );
 		auto ts = get_task_scheduler( );
-		auto sem = daw::shared_counting_semaphore( sizeof...( tasks ) );
+		auto sem = daw::shared_latch( sizeof...( tasks ) );
 
 		auto const st = [&]( auto &&task ) {
 			schedule_task( sem, std::forward<decltype( task )>( task ), ts );

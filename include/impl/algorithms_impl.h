@@ -28,7 +28,7 @@
 
 #include <daw/cpp_17.h>
 #include <daw/daw_algorithm.h>
-#include <daw/daw_counting_semaphore.h>
+#include <daw/daw_latch.h>
 #include <daw/daw_spin_lock.h>
 
 #include "future_result.h"
@@ -93,9 +93,9 @@ namespace daw {
 				};
 
 				template<typename Ranges, typename Func>
-				daw::shared_counting_semaphore
+				daw::shared_latch
 				partition_range( Ranges ranges, Func func, task_scheduler ts ) {
-					auto sem = daw::shared_counting_semaphore( ranges.size( ) );
+					auto sem = daw::shared_latch( ranges.size( ) );
 					for( auto const &rng : ranges ) {
 						schedule_task( sem, [func, rng]( ) mutable { func( rng ); }, ts );
 					}
@@ -103,11 +103,11 @@ namespace daw {
 				}
 
 				template<typename Ranges, typename Func>
-				daw::shared_counting_semaphore
+				daw::shared_latch
 				partition_range_pos( Ranges ranges, Func func, task_scheduler ts,
 				                     size_t const start_pos = 0 ) {
 					auto sem =
-					  daw::shared_counting_semaphore( ranges.size( ) - start_pos );
+					  daw::shared_latch( ranges.size( ) - start_pos );
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
 						schedule_task(
 						  sem, [func, rng = ranges[n], n]( ) mutable { func( rng, n ); },
@@ -117,14 +117,14 @@ namespace daw {
 				}
 
 				template<typename PartitionPolicy, typename Iterator, typename Func>
-				daw::shared_counting_semaphore
+				daw::shared_latch
 				partition_range( Iterator first, Iterator const last, Func func,
 				                 task_scheduler ts ) {
 					if( std::distance( first, last ) == 0 ) {
-						return daw::shared_counting_semaphore( );
+						return daw::shared_latch( );
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					auto sem = daw::shared_counting_semaphore( ranges.size( ) );
+					auto sem = daw::shared_latch( ranges.size( ) );
 					for( auto const &rng : ranges ) {
 						schedule_task(
 						  sem, [func, rng]( ) mutable { func( rng.first, rng.last ); },
@@ -165,7 +165,7 @@ namespace daw {
 				void parallel_for_each_index( RandomIterator first, RandomIterator last,
 				                              Func func, task_scheduler ts ) {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					auto sem = daw::shared_counting_semaphore( ranges.size( ) );
+					auto sem = daw::shared_latch( ranges.size( ) );
 					partition_range( ranges,
 					                 [func, first]( auto rng ) {
 						                 auto const start_pos = static_cast<size_t>(
@@ -188,7 +188,7 @@ namespace daw {
 						  ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
 						std::vector<iterator_range_t<Iterator>> next_ranges;
 						next_ranges.reserve( count );
-						auto sem = daw::counting_semaphore( count / 2 );
+						auto sem = daw::latch( count / 2 );
 						for( size_t n = 1; n < count; n += 2 ) {
 							next_ranges.push_back( {ranges[n - 1].first, ranges[n].last} );
 						}
