@@ -118,8 +118,8 @@ namespace daw {
 			  : m_ptr( nullptr ) {}
 
 			template<typename... Args,
-			         std::enable_if_t<(!daw::traits::is_type_v<msg_ptr_t, Args...> &&
-			                           !daw::traits::is_type_v<pointer, Args...>),
+			         std::enable_if_t<(!daw::traits::is_first_type_v<msg_ptr_t, Args...> &&
+			                           !daw::traits::is_first_type_v<pointer, Args...>),
 			                          std::nullptr_t> = nullptr>
 			explicit msg_ptr_t( Args &&... args )
 			  : m_ptr( new value_t( std::forward<Args>( args )... ) ) {}

@@ -93,8 +93,8 @@ namespace daw {
 				};
 
 				template<typename Ranges, typename Func>
-				daw::shared_latch
-				partition_range( Ranges ranges, Func func, task_scheduler ts ) {
+				daw::shared_latch partition_range( Ranges ranges, Func func,
+				                                   task_scheduler ts ) {
 					auto sem = daw::shared_latch( ranges.size( ) );
 					for( auto const &rng : ranges ) {
 						schedule_task( sem, [func, rng]( ) mutable { func( rng ); }, ts );
@@ -103,11 +103,10 @@ namespace daw {
 				}
 
 				template<typename Ranges, typename Func>
-				daw::shared_latch
-				partition_range_pos( Ranges ranges, Func func, task_scheduler ts,
-				                     size_t const start_pos = 0 ) {
-					auto sem =
-					  daw::shared_latch( ranges.size( ) - start_pos );
+				daw::shared_latch partition_range_pos( Ranges ranges, Func func,
+				                                       task_scheduler ts,
+				                                       size_t const start_pos = 0 ) {
+					auto sem = daw::shared_latch( ranges.size( ) - start_pos );
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
 						schedule_task(
 						  sem, [func, rng = ranges[n], n]( ) mutable { func( rng, n ); },
@@ -117,9 +116,8 @@ namespace daw {
 				}
 
 				template<typename PartitionPolicy, typename Iterator, typename Func>
-				daw::shared_latch
-				partition_range( Iterator first, Iterator const last, Func func,
-				                 task_scheduler ts ) {
+				daw::shared_latch partition_range( Iterator first, Iterator const last,
+				                                   Func func, task_scheduler ts ) {
 					if( std::distance( first, last ) == 0 ) {
 						return daw::shared_latch( );
 					}
@@ -504,7 +502,8 @@ namespace daw {
 				                           UnaryPredicate pred, task_scheduler ts ) {
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					auto results = std::vector<boost::optional<Iterator>>( ranges.size( ) );
+					auto results =
+					  std::vector<boost::optional<Iterator>>( ranges.size( ) );
 
 					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
 					daw::spin_lock mut_found;

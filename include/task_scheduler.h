@@ -31,8 +31,6 @@
 #include <vector>
 
 #include <daw/daw_latch.h>
-#include <daw/daw_locked_stack.h>
-#include <daw/daw_locked_value.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
 

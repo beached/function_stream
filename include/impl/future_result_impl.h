@@ -29,8 +29,8 @@
 #include <utility>
 
 #include <daw/cpp_17.h>
-#include <daw/daw_latch.h>
 #include <daw/daw_expected.h>
+#include <daw/daw_latch.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
 #include <daw/daw_utility.h>
@@ -54,8 +54,7 @@ namespace daw {
 		protected:
 			task_scheduler m_task_scheduler;
 			explicit member_data_base_t( task_scheduler ts );
-			member_data_base_t( daw::shared_latch sem,
-			                    task_scheduler ts );
+			member_data_base_t( daw::shared_latch sem, task_scheduler ts );
 
 		public:
 			member_data_base_t( ) = delete;
@@ -101,8 +100,7 @@ namespace daw {
 		};
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_latch &sem,
-		                         task_scheduler &ts,
+		auto add_fork_task_impl( daw::shared_latch &sem, task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N == sizeof...( Functions ) - 1 ), void> {
@@ -118,8 +116,7 @@ namespace daw {
 		}
 
 		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		auto add_fork_task_impl( daw::shared_latch &sem,
-		                         task_scheduler &ts,
+		auto add_fork_task_impl( daw::shared_latch &sem, task_scheduler &ts,
 		                         std::tuple<Results...> &results,
 		                         std::tuple<Functions...> &funcs, Arg &&arg )
 		  -> std::enable_if_t<( N < sizeof...( Functions ) - 1 ), void> {
@@ -374,8 +371,7 @@ namespace daw {
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
-			explicit member_data_t( daw::shared_latch sem,
-			                        task_scheduler ts )
+			explicit member_data_t( daw::shared_latch sem, task_scheduler ts )
 			  : member_data_base_t( std::move( sem ), std::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
@@ -539,8 +535,8 @@ namespace daw {
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
 			template<typename Results, typename... Args>
-			void operator( )( daw::task_scheduler &ts,
-			                  daw::shared_latch sem, Results &results,
+			void operator( )( daw::task_scheduler &ts, daw::shared_latch sem,
+			                  Results &results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
@@ -565,16 +561,14 @@ namespace daw {
 		struct apply_many_t<SZ, SZ, Functions...> {
 			template<typename Results, typename... Args>
 			constexpr void
-			operator( )( daw::task_scheduler const &,
-			             daw::shared_latch const &, Results const &,
-			             std::tuple<Functions...> const &,
+			operator( )( daw::task_scheduler const &, daw::shared_latch const &,
+			             Results const &, std::tuple<Functions...> const &,
 			             std::shared_ptr<std::tuple<Args...>> const & ) {}
 		}; // apply_many_t<SZ, SZ, Functions..>
 
 		template<typename Result, typename... Functions, typename... Args>
-		void apply_many( daw::task_scheduler &ts,
-		                 daw::shared_latch sem, Result &result,
-		                 std::tuple<Functions...> const &callables,
+		void apply_many( daw::task_scheduler &ts, daw::shared_latch sem,
+		                 Result &result, std::tuple<Functions...> const &callables,
 		                 std::shared_ptr<std::tuple<Args...>> tp_args ) {
 
 			apply_many_t<0, sizeof...( Functions ), Functions...>{}(

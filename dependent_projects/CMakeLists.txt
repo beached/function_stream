@@ -46,5 +46,5 @@ include_directories( "./include" )
 include_directories( SYSTEM ${Boost_INCLUDE_DIRS} )
 
 add_library( dependency_stub STATIC stub.cpp )
-add_dependencies( dependency_stub header_libraries_prj )
+add_dependencies( dependency_stub header_libraries_prj date_prj )
 

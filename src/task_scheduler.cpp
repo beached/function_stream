@@ -124,9 +124,10 @@ namespace daw {
 			return false;
 		}
 
-		void task_scheduler_impl::task_runner(
-		  size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		  boost::optional<daw::shared_latch> sem ) {
+		void
+		task_scheduler_impl::task_runner( size_t id,
+		                                  std::weak_ptr<task_scheduler_impl> wself,
+		                                  boost::optional<daw::shared_latch> sem ) {
 
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while

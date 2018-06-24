@@ -29,9 +29,9 @@
 #include <utility>
 
 #include <daw/cpp_17.h>
-#include <daw/daw_latch.h>
 #include <daw/daw_exception.h>
 #include <daw/daw_expected.h>
+#include <daw/daw_latch.h>
 #include <daw/daw_traits.h>
 
 #include "impl/future_result_impl.h"
@@ -298,9 +298,8 @@ namespace daw {
 	template<typename Function, typename... Args,
 	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
 	                          std::nullptr_t> = nullptr>
-	auto make_future_result( task_scheduler ts,
-	                         daw::shared_latch sem, Function &&func,
-	                         Args &&... args ) {
+	auto make_future_result( task_scheduler ts, daw::shared_latch sem,
+	                         Function &&func, Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>( std::move( sem ) );
@@ -414,7 +413,7 @@ namespace daw {
 		constexpr decltype( auto ) future_apply_impl( F &&f, Tuple &&t,
 		                                              std::index_sequence<I...> ) {
 			return daw::invoke( std::forward<F>( f ),
-			               std::get<I>( std::forward<Tuple>( t ) ).get( )... );
+			                    std::get<I>( std::forward<Tuple>( t ) ).get( )... );
 		}
 	} // namespace impl
 

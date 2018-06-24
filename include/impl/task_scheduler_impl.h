@@ -57,8 +57,7 @@ namespace daw {
 		                                             std::nullptr_t> = nullptr>
 		task_t( Callable &&c, daw::shared_latch sem )
 		  : m_function( std::forward<Callable>( c ) )
-		  , m_semaphore( std::make_unique<daw::shared_latch>(
-		      std::move( sem ) ) ) {
+		  , m_semaphore( std::make_unique<daw::shared_latch>( std::move( sem ) ) ) {
 
 			daw::exception::Assert( static_cast<bool>( m_function ),
 			                        "Callable must be valid" );
@@ -150,8 +149,7 @@ namespace daw {
 			}
 
 			template<typename Task>
-			void add_task( Task &&task, daw::shared_latch sem,
-			               size_t id ) {
+			void add_task( Task &&task, daw::shared_latch sem, size_t id ) {
 				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
 				            id]( ) mutable {
 					if( wself.expired( ) ) {
@@ -202,8 +200,7 @@ namespace daw {
 			}
 			bool am_i_in_pool( ) const noexcept;
 
-			daw::shared_latch
-			start_temp_task_runners( size_t task_count = 1 );
+			daw::shared_latch start_temp_task_runners( size_t task_count = 1 );
 		}; // task_scheduler_impl
 
 	} // namespace impl
