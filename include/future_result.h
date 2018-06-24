@@ -31,7 +31,7 @@
 #include <daw/cpp_17.h>
 #include <daw/daw_exception.h>
 #include <daw/daw_expected.h>
-#include <daw/daw_latch.h>
+#include <daw/parallel/daw_latch.h>
 #include <daw/daw_traits.h>
 
 #include "impl/future_result_impl.h"

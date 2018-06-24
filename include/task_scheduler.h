@@ -30,7 +30,7 @@
 #include <thread>
 #include <vector>
 
-#include <daw/daw_latch.h>
+#include <daw/parallel/daw_latch.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
 

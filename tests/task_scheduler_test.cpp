@@ -27,9 +27,9 @@
 #define BOOST_TEST_MODULE task_scheduler
 #include <daw/boost_test.h>
 #include <daw/daw_benchmark.h>
-#include <daw/daw_locked_stack.h>
 #include <daw/daw_random.h>
-#include <daw/daw_semaphore.h>
+#include <daw/parallel/daw_locked_stack.h>
+#include <daw/parallel/daw_semaphore.h>
 
 #include "task_scheduler.h"
 

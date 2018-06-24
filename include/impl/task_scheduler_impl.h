@@ -31,10 +31,10 @@
 #include <vector>
 
 #include <daw/cpp_17.h>
-#include <daw/daw_latch.h>
-#include <daw/daw_locked_stack.h>
-#include <daw/daw_locked_value.h>
 #include <daw/daw_utility.h>
+#include <daw/parallel/daw_latch.h>
+#include <daw/parallel/daw_locked_stack.h>
+#include <daw/parallel/daw_locked_value.h>
 
 #include "message_queue.h"
 

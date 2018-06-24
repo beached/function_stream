@@ -28,8 +28,8 @@
 
 #include <daw/cpp_17.h>
 #include <daw/daw_algorithm.h>
-#include <daw/daw_latch.h>
-#include <daw/daw_spin_lock.h>
+#include <daw/parallel/daw_latch.h>
+#include <daw/parallel/daw_spin_lock.h>
 
 #include "future_result.h"
 #include "iterator_range.h"

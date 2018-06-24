@@ -25,7 +25,7 @@
 #include <iostream>
 #include <thread>
 
-#include <daw/daw_latch.h>
+#include <daw/parallel/daw_latch.h>
 
 #include "task_scheduler.h"
 

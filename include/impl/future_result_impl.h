@@ -30,10 +30,10 @@
 
 #include <daw/cpp_17.h>
 #include <daw/daw_expected.h>
-#include <daw/daw_latch.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
 #include <daw/daw_utility.h>
+#include <daw/parallel/daw_latch.h>
 
 #include "task_scheduler.h"
 

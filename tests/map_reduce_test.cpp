@@ -32,8 +32,8 @@
 #include <daw/daw_array_view.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_memory_mapped_file.h>
-#include <daw/daw_semaphore.h>
 #include <daw/daw_string_view.h>
+#include <daw/parallel/daw_semaphore.h>
 
 #include "algorithms.h"
 #include "function_stream.h"
