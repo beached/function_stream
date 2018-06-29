@@ -201,14 +201,8 @@ namespace daw {
 			T reduce( RandomIterator first, RandomIterator last, T init,
 			          task_scheduler ts = get_task_scheduler( ) ) {
 
-				using value_type =
-				  typename std::iterator_traits<RandomIterator>::value_type;
 				return ::daw::algorithm::parallel::reduce(
-				  first, last, std::move( init ),
-				  []( auto const &lhs, auto const &rhs ) -> value_type {
-					  return lhs + rhs;
-				  },
-				  std::move( ts ) );
+				  first, last, std::move( init ), std::plus<>{}, std::move( ts ) );
 			}
 
 			template<typename RandomIterator>

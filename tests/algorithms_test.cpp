@@ -1087,13 +1087,22 @@ BOOST_AUTO_TEST_CASE( reduce_int64_t ) {
 }
 
 BOOST_AUTO_TEST_CASE( reduce2_int64_t ) {
-	std::cout << "reduce2 tests - uint64_t\n";
+	std::cout << "reduce 2 tests - uint64_t\n";
 	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
 		return lhs * rhs;
 	};
 	reduce_test2<uint64_t>( LARGE_TEST_SZ, 1, bin_op );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		reduce_test2<uint64_t>( n, 1, bin_op );
+	}
+}
+
+BOOST_AUTO_TEST_CASE( reduce3_double ) {
+	std::cout << "reduce 3 tests - double\n";
+	reduce_test<double>( LARGE_TEST_SZ );
+	reduce_test<double>( 6'000'000 );
+	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+		reduce_test<double>( n );
 	}
 }
 
