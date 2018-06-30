@@ -1099,7 +1099,7 @@ BOOST_AUTO_TEST_CASE( reduce2_int64_t ) {
 
 BOOST_AUTO_TEST_CASE( reduce3_double ) {
 	std::cout << "reduce 3 tests - double\n";
-	reduce_test<double>( LARGE_TEST_SZ );
+	reduce_test<double>( LARGE_TEST_SZ*10 );
 	reduce_test<double>( 6'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		reduce_test<double>( n );

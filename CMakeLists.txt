@@ -23,8 +23,15 @@ else( )
 	endif( )
 endif( )
 
-include_directories( SYSTEM "${CMAKE_SOURCE_DIR}/dependent_projects/build/install/include" )
-link_directories( "${CMAKE_SOURCE_DIR}/dependent_projects/build/install/lib" )
+if( EXISTS "${CMAKE_SOURCE_DIR}/dependent_projects/build" )
+	include_directories( SYSTEM "${CMAKE_SOURCE_DIR}/dependent_projects/build/install/include" )
+	link_directories( "${CMAKE_SOURCE_DIR}/dependent_projects/build/install/lib" )
+else( )
+	include( "${CMAKE_SOURCE_DIR}/dependent_projects/dependencies.txt" )
+
+	add_library( dependency_stub STATIC "${CMAKE_SOURCE_DIR}/dependent_projects/stub.cpp" )
+	add_dependencies( dependency_stub header_libraries_prj date_prj )
+endif( )
 
 set( HEADER_FOLDER "include" )
 set( SOURCE_FOLDER "src" )
@@ -71,9 +78,11 @@ add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} )
 
 add_library( task_scheduler_lib ${TASK_SCHEDULER_HEADER_FILES} ${TASK_SCHEDULER_SOURCE_FILES} )
 target_link_libraries( task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_dependencies( task_scheduler_lib dependency_stub )
 
 add_library( function_stream_lib ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${FUNCTION_STREAM_SOURCE_FILES} )
 target_link_libraries( function_stream_lib task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_dependencies( function_stream_lib dependency_stub )
 
 add_executable( task_scheduler_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/task_scheduler_test.cpp )
 target_link_libraries( task_scheduler_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
