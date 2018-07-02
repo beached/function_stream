@@ -36,7 +36,7 @@
 #include <daw/parallel/daw_locked_stack.h>
 #include <daw/parallel/daw_locked_value.h>
 
-#include "message_queue.h"
+#include "../message_queue.h"
 
 namespace daw {
 	struct task_t {

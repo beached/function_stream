@@ -31,9 +31,9 @@
 #include <daw/parallel/daw_latch.h>
 #include <daw/parallel/daw_spin_lock.h>
 
-#include "future_result.h"
-#include "iterator_range.h"
-#include "task_scheduler.h"
+#include "../future_result.h"
+#include "../iterator_range.h"
+#include "../task_scheduler.h"
 
 namespace daw {
 	namespace algorithm {
