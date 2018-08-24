@@ -107,6 +107,11 @@ namespace daw {
 			}
 		}
 
+		size_t task_scheduler_impl::get_task_id( ) {
+			auto const tc = m_task_count++;
+			return tc % m_num_threads;
+		}
+
 		bool task_scheduler_impl::run_next_task( size_t id ) {
 			auto tsk = daw::impl::task_ptr_t( );
 			if( m_tasks[id].receive( tsk ) ) {
@@ -144,7 +149,7 @@ namespace daw {
 		void task_scheduler_impl::task_runner(
 		  size_t id, std::weak_ptr<task_scheduler_impl> wself ) {
 
-			auto self = wself.lock( );
+			auto const self = wself.lock( );
 			if( !self ) {
 				return;
 			}
@@ -156,8 +161,9 @@ namespace daw {
 		void task_scheduler_impl::start( ) {
 			m_continue = true;
 			auto threads = m_threads.get( );
+			auto thread_map = m_thread_map.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
-				threads->push_back( create_thread(
+				auto thr = create_thread(
 				  []( size_t id, auto wself ) {
 					  auto self = wself.lock( );
 					  if( !self ) {
@@ -165,7 +171,10 @@ namespace daw {
 					  }
 					  self->task_runner( id, wself );
 				  },
-				  n, get_weak_this( ) ) );
+				  n, get_weak_this( ) );
+				auto id = thr.get_id();
+				threads->push_back( std::move( thr ) );
+				(*thread_map)[id] = n;
 			}
 		}
 

@@ -106,6 +106,7 @@ namespace daw {
 			  daw::parallel::mpmc_msg_queue_t<daw::impl::task_ptr_t>;
 
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;
+			daw::lockable_value_t<std::unordered_map<std::thread::id, size_t>> m_thread_map;
 			std::atomic_bool m_continue;
 			bool m_block_on_destruction;
 			size_t const m_num_threads;
@@ -170,14 +171,15 @@ namespace daw {
 
 			void run_task( task_ptr_t &&tsk ) noexcept;
 
+			size_t get_task_id( );
 		public:
 			template<typename Task>
 			void add_task( Task &&task ) {
 				static_assert(
 				  daw::is_callable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
-				size_t id = ( m_task_count++ ) % m_num_threads;
-				add_task( std::forward<Task>( task ), id );
+
+				add_task( std::forward<Task>( task ), get_task_id( ) );
 			}
 
 			template<typename Task>
@@ -185,8 +187,8 @@ namespace daw {
 				static_assert(
 				  daw::is_callable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
-				size_t id = ( m_task_count++ ) % m_num_threads;
-				add_task( std::forward<Task>( task ), std::move( sem ), id );
+
+				add_task( std::forward<Task>( task ), std::move( sem ), get_task_id( ) );
 			}
 
 			bool run_next_task( size_t id );
