@@ -127,24 +127,22 @@ namespace daw {
 			constexpr explicit msg_ptr_t( pointer p ) noexcept
 			  : m_ptr( p ) {}
 
-			constexpr msg_ptr_t( msg_ptr_t const &other ) noexcept
-			  : m_ptr( std::exchange( other.m_ptr, nullptr ) ) {}
-
-			constexpr msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept {
-				if( this != &rhs ) {
-					m_ptr = std::exchange( rhs.m_ptr, nullptr );
-				}
-				return *this;
-			}
-
+			constexpr msg_ptr_t( msg_ptr_t const &other ) noexcept = default;
+			constexpr msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept = default;
 			constexpr msg_ptr_t( msg_ptr_t && ) noexcept = default;
 			constexpr msg_ptr_t &operator=( msg_ptr_t && ) noexcept = default;
 
-			~msg_ptr_t( ) noexcept {
+			~msg_ptr_t( ) noexcept = default;
+
+			void dispose( ) {
 				auto tmp = std::exchange( m_ptr, nullptr );
 				if( tmp ) {
 					delete tmp;
 				}
+			}
+
+			constexpr pointer transfer( ) noexcept {
+				return std::exchange( m_ptr, nullptr );
 			}
 
 			constexpr reference operator*( ) noexcept {
