@@ -24,7 +24,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
-#include <date/chrono_io.h>
 #include <date/date.h>
 #include <iostream>
 #include <numeric>

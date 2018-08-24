@@ -24,7 +24,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
-#include <date/chrono_io.h>
 #include <date/date.h>
 #include <iostream>
 #include <numeric>
@@ -42,8 +41,6 @@
 #include <daw/boost_test.h>
 
 #include "algorithms.h"
-
-#define USE_SORT_FJ
 
 BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
 	// Prime task scheduler so we don't pay to start it up in first test
