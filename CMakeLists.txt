@@ -116,6 +116,26 @@ target_link_libraries( algorithms_test_bin task_scheduler_lib function_stream_li
 add_test( algorithms_test algorithms_test_bin )
 add_dependencies( check algorithms_test_bin )
 
+add_executable( algorithms_for_each_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_for_each_test.cpp )
+target_link_libraries( algorithms_for_each_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_test( algorithms_for_each_test algorithms_for_each_test_bin )
+add_dependencies( check algorithms_for_each_test_bin )
+
+add_executable( algorithms_fill_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_fill_test.cpp )
+target_link_libraries( algorithms_fill_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_test( algorithms_fill_test algorithms_fill_test_bin )
+add_dependencies( check algorithms_fill_test_bin )
+
+add_executable( algorithms_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_sort_test.cpp )
+target_link_libraries( algorithms_sort_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_test( algorithms_sort_test algorithms_sort_test_bin )
+add_dependencies( check algorithms_sort_test_bin )
+
+add_executable( algorithms_stable_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_stable_sort_test.cpp )
+target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_test( algorithms_stable_sort_test algorithms_stable_sort_test_bin )
+add_dependencies( check algorithms_stable_sort_test_bin )
+
 add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
 target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_test( map_reduce_test map_reduce_test_bin )
