@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <condition_variable>
-#include <functional>
 #include <iostream>
 #include <thread>
 
@@ -93,12 +92,13 @@ namespace daw {
 			if( !tsk ) {
 				return;
 			}
+			std::unique_ptr<task_t> uptr( tsk.transfer( ) );
 			try {
-				if( !tsk->is_ready( ) ) {
-					add_task( std::move( tsk->m_function ),
-					          std::move( *( tsk->m_semaphore.release( ) ) ) );
+				if( !uptr->is_ready( ) ) {
+					add_task( std::move( uptr->m_function ),
+					          std::move( *( uptr->m_semaphore.release( ) ) ) );
 				} else {
-					( *tsk )( );
+					( *uptr )( );
 				}
 			} catch( ... ) {
 				// Don't let a task take down thread
@@ -172,9 +172,9 @@ namespace daw {
 					  self->task_runner( id, wself );
 				  },
 				  n, get_weak_this( ) );
-				auto id = thr.get_id();
+				auto id = thr.get_id( );
 				threads->push_back( std::move( thr ) );
-				(*thread_map)[id] = n;
+				( *thread_map )[id] = n;
 			}
 		}
 

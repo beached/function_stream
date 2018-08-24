@@ -26,11 +26,7 @@
 #include <tuple>
 #include <utility>
 
-#include <daw/cpp_17.h>
 #include <daw/daw_value_ptr.h>
-
-#include "future_result.h"
-#include "task_scheduler.h"
 
 namespace daw {
 	template<typename Result, typename Functions, typename... Args>
@@ -41,8 +37,8 @@ namespace daw {
 	make_shared_package( bool continue_on_result_destruction, Result &&result,
 	                     Functions &&functions, Args &&... args );
 
-	template<typename R>
-	constexpr R *weak_ptr_test( std::weak_ptr<R> ) {
+	template<typename R, template<typename> class WeakPtr>
+	constexpr R *weak_ptr_test( WeakPtr<R> ) {
 		return static_cast<R *>( nullptr );
 	}
 
@@ -54,14 +50,8 @@ namespace daw {
 	template<typename T>
 	using weak_ptr_type_t = typename weak_ptr_type_impl<T>::type;
 
-	template<typename Result, typename Functions, typename... Args>
-	struct package_t {
-		using functions_t = Functions;
-		using arguments_t = std::tuple<std::decay_t<Args>...>;
-		using result_t = Result;
-		using result_value_t = weak_ptr_type_t<result_t>;
-
-	private:
+	namespace impl {
+		template<typename functions_t, typename arguments_t, typename result_t, typename... Args>
 		struct members_t {
 			functions_t m_function_list;
 			arguments_t m_targs;
@@ -75,7 +65,17 @@ namespace daw {
 			  , m_result( result )
 			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
 		}; // members_t
-		daw::value_ptr<members_t> members;
+	} // namespace impl
+
+	template<typename Result, typename Functions, typename... Args>
+	struct package_t {
+		using functions_t = Functions;
+		using arguments_t = std::tuple<std::decay_t<Args>...>;
+		using result_t = Result;
+		using result_value_t = weak_ptr_type_t<result_t>;
+
+	private:
+		daw::value_ptr<impl::members_t<functions_t, arguments_t, result_t, Args...>> members;
 
 	public:
 		package_t( ) = delete;
@@ -84,31 +84,31 @@ namespace daw {
 
 		~package_t( ) noexcept = default;
 
-		package_t( package_t && ) noexcept = default;
-		package_t &operator=( package_t && ) noexcept = default;
+		constexpr package_t( package_t && ) noexcept = default;
+		constexpr package_t &operator=( package_t && ) noexcept = default;
 
-		package_t( bool continueonclientdestruction, result_t result,
+		constexpr package_t( bool continueonclientdestruction, result_t result,
 		           functions_t functions, Args &&... args )
 		  : members( continueonclientdestruction, std::move( result ),
 		             std::move( functions ), std::forward<Args>( args )... ) {}
 
-		functions_t const &function_list( ) const noexcept {
+		constexpr functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;
 		}
 
-		functions_t &function_list( ) noexcept {
+		constexpr functions_t &function_list( ) noexcept {
 			return members->m_function_list;
 		}
 
-		result_t const &result( ) const noexcept {
+		constexpr result_t const &result( ) const noexcept {
 			return members->m_result;
 		}
 
-		result_t &result( ) noexcept {
+		constexpr result_t &result( ) noexcept {
 			return members->m_result;
 		}
 
-		bool continue_processing( ) const {
+		constexpr bool continue_processing( ) const {
 			return !destination_expired( ) || continue_on_result_destruction( );
 		}
 
@@ -120,24 +120,24 @@ namespace daw {
 			                            std::forward<NewArgs>( nargs )... );
 		}
 
-		bool destination_expired( ) const {
+		constexpr bool destination_expired( ) const {
 			return result( ).expired( );
 		}
 
-		arguments_t const &targs( ) const noexcept {
+		constexpr arguments_t const &targs( ) const noexcept {
 			return members->m_targs;
 		}
 
-		arguments_t &targs( ) noexcept {
+		constexpr arguments_t &targs( ) noexcept {
 			return members->m_targs;
 		}
 
 	private:
-		bool const &continue_on_result_destruction( ) const noexcept {
+		constexpr bool const &continue_on_result_destruction( ) const noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 
-		bool &continue_on_result_destruction( ) noexcept {
+		constexpr bool &continue_on_result_destruction( ) noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 	}; // package_t
