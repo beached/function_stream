@@ -56,7 +56,8 @@ namespace {
 		return 100.0 * ( ( seq_time / N ) / par_time );
 	}
 
-	void display_info( double seq_time, double par_time, double count,
+	template<typename T, typename U, typename V>
+	void display_info( T seq_time, U par_time, V count,
 	                   size_t bytes, daw::string_view label ) {
 		using namespace std::chrono;
 		using namespace date;
@@ -87,7 +88,7 @@ namespace {
 			using result_t = double;
 			std::stringstream ss;
 			ss << std::setprecision( 1 ) << std::fixed;
-			auto val = ( count * static_cast<double>( bytes ) ) / t;
+			auto val = ( static_cast<double>( count ) * static_cast<double>( bytes ) ) / t;
 			if( val < 1024 ) {
 				ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "bytes";
 				return ss.str( );
@@ -109,15 +110,15 @@ namespace {
 
 		std::cout << std::setprecision( 1 ) << std::fixed << label << ": size->"
 		          << static_cast<uint64_t>( count ) << " " << mbs( 1 ) << " %max->"
-		          << calc_speedup( seq_time, par_time ) << "("
-		          << ( seq_time / par_time ) << "/"
+		          << calc_speedup( static_cast<double>( seq_time ), static_cast<double>( par_time ) ) << "("
+		          << ( static_cast<double>( seq_time ) / static_cast<double>( par_time ) ) << "/"
 		          << std::thread::hardware_concurrency( ) << "X) par_total->"
-		          << make_seconds( par_time, 1 ) << " par_item->"
-		          << make_seconds( par_time, count ) << " throughput->"
-		          << mbs( par_time ) << "/s seq_total->"
-		          << make_seconds( seq_time, 1 ) << " seq_item->"
-		          << make_seconds( seq_time, count ) << " throughput->"
-		          << mbs( seq_time ) << "/s \n";
+		          << make_seconds( static_cast<double>( par_time ), 1 ) << " par_item->"
+		          << make_seconds( static_cast<double>( par_time ), static_cast<double>( count ) ) << " throughput->"
+		          << mbs( static_cast<double>( par_time ) ) << "/s seq_total->"
+		          << make_seconds( static_cast<double>( seq_time ), 1 ) << " seq_item->"
+		          << make_seconds( static_cast<double>( seq_time ), static_cast<double>( count ) ) << " throughput->"
+		          << mbs( static_cast<double>( seq_time ) ) << "/s \n";
 	}
 
 	template<typename T>
@@ -715,9 +716,9 @@ namespace {
 		} );
 		BOOST_REQUIRE_MESSAGE( b1 == b2, "Wrong return value" );
 
-		auto const par_max = std::max( result_1, result_3 );
-		auto const seq_max = std::max( result_2, result_4 );
-		display_info( seq_max, par_max, SZ, blah.size( ), "equal" );
+		auto const par_max = static_cast<double>( std::max( result_1, result_3 ) );
+		auto const seq_max = static_cast<double>( std::max( result_2, result_4 ) );
+		display_info( seq_max, par_max, static_cast<double>( SZ ), blah.size( ), "equal" );
 	}
 
 	template<typename value_t>

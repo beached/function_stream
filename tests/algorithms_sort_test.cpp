@@ -32,7 +32,6 @@
 #include <vector>
 
 #include <daw/daw_benchmark.h>
-#include <daw/daw_math.h>
 #include <daw/daw_random.h>
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>

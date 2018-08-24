@@ -141,9 +141,9 @@ namespace {
 			std::fill( a.begin( ), a.end( ), 4 );
 			daw::do_not_optimize( a );
 		} );
-		auto const par_min = ( result_1 + result_3 ) / 2;
-		auto const seq_min = ( result_2 + result_4 ) / 2;
-		display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
+		auto const par_min = static_cast<double>( ( result_1 + result_3 ) / 2 );
+		auto const seq_min = static_cast<double>( ( result_2 + result_4 ) / 2 );
+		display_info( seq_min, par_min, static_cast<double>( SZ ), sizeof( T ), "fill" );
 	}
 
 	// static size_t const MAX_ITEMS = 134'217'728;
