@@ -38,20 +38,16 @@ namespace daw {
 		template<typename T, typename base_queue_t>
 		class basic_msg_queue_t {
 			struct members_t {
-				std::atomic<bool> m_completed{};
-				base_queue_t m_queue;
+				std::atomic<bool> m_completed = false;
+				base_queue_t m_queue{ };
 
-				members_t( )
-				  : m_completed( false )
-				  , m_queue( ) {}
+				members_t( ) noexcept = default;
 
 				explicit members_t( unsigned long max_size )
-				  : m_completed( false )
-				  , m_queue( max_size ) {}
+				  : m_queue( max_size ) {}
 
 				explicit members_t( use_autosize )
-				  : m_completed( false )
-				  , m_queue( size_msg_queue_to_cache_size<T>( ) ) {}
+				  : m_queue( size_msg_queue_to_cache_size<T>( ) ) {}
 			};
 			std::shared_ptr<members_t> members;
 
@@ -111,11 +107,10 @@ namespace daw {
 			using const_reference = value_t const &;
 
 		private:
-			mutable pointer m_ptr;
+			mutable pointer m_ptr = nullptr;
 
 		public:
-			constexpr msg_ptr_t( ) noexcept
-			  : m_ptr( nullptr ) {}
+			constexpr msg_ptr_t( ) noexcept = default;
 
 			template<
 			  typename... Args,
@@ -127,13 +122,6 @@ namespace daw {
 
 			constexpr explicit msg_ptr_t( pointer p ) noexcept
 			  : m_ptr( p ) {}
-
-			constexpr msg_ptr_t( msg_ptr_t const &other ) noexcept = default;
-			constexpr msg_ptr_t &operator=( msg_ptr_t const &rhs ) noexcept = default;
-			constexpr msg_ptr_t( msg_ptr_t && ) noexcept = default;
-			constexpr msg_ptr_t &operator=( msg_ptr_t && ) noexcept = default;
-
-			~msg_ptr_t( ) noexcept = default;
 
 			void dispose( ) {
 				auto tmp = std::exchange( m_ptr, nullptr );

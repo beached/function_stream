@@ -32,7 +32,6 @@
 #include <daw/daw_expected.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
-#include <daw/daw_utility.h>
 #include <daw/parallel/daw_latch.h>
 
 #include "../task_scheduler.h"
@@ -299,7 +298,7 @@ namespace daw {
 					    daw::is_same_v<base_result_t, std::decay_t<decltype( v )>>> {
 						  ts.add_task( [result = std::move( result ),
 						                func = std::move( func ),
-						                v = std::move( v )]( ) mutable {
+						                v = std::forward<decltype( v )>( v )]( ) mutable {
 							  result.from_code( std::move( func ), std::move( v ) );
 						  } );
 					  },
@@ -321,6 +320,7 @@ namespace daw {
 				  funcs( std::declval<expected_result_t>( ).get( ) ) )>...>;
 
 				auto const construct_future = [&]( auto &&f ) {
+					Unused( f );
 					using fut_t = future_result_t<decltype(
 					  f( std::declval<expected_result_t>( ).get( ) ) )>;
 
@@ -453,6 +453,7 @@ namespace daw {
 				using result_t = std::tuple<future_result_t<decltype( funcs( ) )>...>;
 
 				auto const construct_future = [&]( auto &&f ) {
+					Unused( f );
 					using fut_t = future_result_t<decltype( f( ) )>;
 					return fut_t( m_task_scheduler );
 				};
@@ -487,6 +488,7 @@ namespace daw {
 				using result_t = std::tuple<future_result_t<decltype( funcs( ) )>...>;
 
 				auto const construct_future = [&]( auto &&f ) {
+					Unused( f );
 					using fut_t = future_result_t<decltype( f( ) )>;
 					return fut_t( m_task_scheduler );
 				};

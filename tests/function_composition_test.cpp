@@ -82,10 +82,10 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 	auto t2 = daw::benchmark( [&]( ) {
 		auto const seq_comp =
 		  daw::compose( ) | sort_values | odd_values | sum_values | show_value;
-		seq_comp( values );
-		seq_comp( values );
-		seq_comp( values );
-		seq_comp( values );
+		daw::do_not_optimize( seq_comp( values ) );
+		daw::do_not_optimize( seq_comp( values ) );
+		daw::do_not_optimize( seq_comp( values ) );
+		daw::do_not_optimize( seq_comp( values ) );
 	} );
 
 	std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 )

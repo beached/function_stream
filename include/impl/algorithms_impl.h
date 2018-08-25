@@ -26,7 +26,6 @@
 #include <iterator>
 #include <numeric>
 
-#include <daw/cpp_17.h>
 #include <daw/daw_algorithm.h>
 #include <daw/parallel/daw_latch.h>
 #include <daw/parallel/daw_spin_lock.h>
@@ -45,9 +44,9 @@ namespace daw {
 					static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
 					auto const sz = static_cast<size_t>( std::distance( first, last ) );
 					struct {
-						size_t size;
-						size_t count;
-					} result;
+						size_t size = 0;
+						size_t count = 0;
+					} result{};
 					result.size = [&]( ) {
 						auto r = sz / max_parts;
 						if( r < MinRangeSize ) {
@@ -164,6 +163,7 @@ namespace daw {
 				                              Func func, task_scheduler ts ) {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					auto sem = daw::shared_latch( ranges.size( ) );
+					Unused( sem );
 					partition_range( ranges,
 					                 [func, first]( auto rng ) {
 						                 auto const start_pos = static_cast<size_t>(

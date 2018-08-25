@@ -28,12 +28,11 @@
 #include <list>
 #include <memory>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
-#include <daw/cpp_17.h>
-#include <daw/daw_utility.h>
+#include <daw/daw_traits.h>
 #include <daw/parallel/daw_latch.h>
-#include <daw/parallel/daw_locked_stack.h>
 #include <daw/parallel/daw_locked_value.h>
 
 #include "../message_queue.h"
@@ -43,9 +42,12 @@ namespace daw {
 		std::function<void( )> m_function;
 		std::unique_ptr<daw::shared_latch> m_semaphore;
 
-		template<typename Callable, std::enable_if_t<daw::is_callable_v<Callable>,
-		                                             std::nullptr_t> = nullptr>
-		task_t( Callable &&c )
+		template<
+		  typename Callable,
+		  std::enable_if_t<(!daw::is_same_v<task_t, std::decay_t<Callable>> &&
+		                    daw::is_callable_v<Callable>),
+		                   std::nullptr_t> = nullptr>
+		explicit task_t( Callable &&c )
 		  : m_function( std::forward<Callable>( c ) )
 		  , m_semaphore( nullptr ) {
 

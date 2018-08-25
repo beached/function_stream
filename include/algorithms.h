@@ -22,8 +22,6 @@
 
 #pragma once
 
-#include <daw/cpp_17.h>
-
 #include "impl/algorithms_impl.h"
 #include "impl/concept_checks.h"
 
