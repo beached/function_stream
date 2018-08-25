@@ -38,16 +38,20 @@ namespace daw {
 		template<typename T, typename base_queue_t>
 		class basic_msg_queue_t {
 			struct members_t {
-				std::atomic<bool> m_completed = false;
-				base_queue_t m_queue{ };
+				std::atomic<bool> m_completed;
+				base_queue_t m_queue;
 
-				members_t( ) noexcept = default;
+				members_t( ) noexcept(  daw::is_nothrow_constructible_v<base_queue_t> )
+				  : m_completed( false )
+				  , m_queue( ) {}
 
-				explicit members_t( unsigned long max_size )
-				  : m_queue( max_size ) {}
+				explicit members_t( unsigned long max_size ) noexcept(  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
+				  : m_completed( false )
+				  , m_queue( max_size ) {}
 
-				explicit members_t( use_autosize )
-				  : m_queue( size_msg_queue_to_cache_size<T>( ) ) {}
+				explicit members_t( use_autosize ) noexcept(  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
+				  : m_completed( false )
+				  , m_queue( size_msg_queue_to_cache_size<T>( ) ) {}
 			};
 			std::shared_ptr<members_t> members;
 
