@@ -37,65 +37,58 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_for_each
+#define BOOST_TEST_MODULE parallel_algorithms_find_if
 #include <daw/boost_test.h>
 
 #include "algorithms.h"
 
 #include "common.h"
 
-template<typename T>
-void for_each_test( size_t SZ ) {
+template<typename value_t>
+void find_if_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	bool found = false;
-	std::vector<T> a;
-	a.resize( SZ );
-	std::fill( a.begin( ), a.end( ), 1 );
-	a[SZ / 2] = 4;
-	auto const find_even = [&]( T const &x ) {
-		if( static_cast<intmax_t>( x ) % 2 == 0 ) {
-			found = true;
-		}
-		daw::do_not_optimize( found );
+	auto a = daw::make_random_data<value_t>( SZ, -50, 50 );
+
+	auto const pos =
+	  a.size( ) - 1; // daw::randint( static_cast<size_t>( 0 ), a.size( ) );
+	a[pos] = 100;
+	auto const pred = []( auto const &value ) noexcept {
+		return value == 100;
 	};
+
+	auto it1 = a.cend( );
+	auto it2 = a.cend( );
 	auto const result_1 = daw::benchmark( [&]( ) {
-		daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts );
+		it1 = daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
+		daw::do_not_optimize( it1 );
 	} );
 	auto const result_2 = daw::benchmark( [&]( ) {
-		for( auto const &item : a ) {
-			find_even( item );
-		}
+		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
+		daw::do_not_optimize( it2 );
 	} );
+	BOOST_REQUIRE_MESSAGE( it1 == it2, "Wrong return value" );
+
+	it1 = a.cend( );
+	it2 = a.cend( );
 	auto const result_3 = daw::benchmark( [&]( ) {
-		daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts );
+		it1 = daw::algorithm::parallel::find_if( a.cbegin( ), a.cend( ), pred, ts );
+		daw::do_not_optimize( it1 );
 	} );
 	auto const result_4 = daw::benchmark( [&]( ) {
-		for( auto const &item : a ) {
-			find_even( item );
-		}
+		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
+		daw::do_not_optimize( it2 );
 	} );
-	auto const par_min = ( result_1 + result_3 ) / 2;
-	auto const seq_min = ( result_2 + result_4 ) / 2;
-	display_info( seq_min, par_min, SZ, sizeof( T ), "for_each" );
+	BOOST_REQUIRE_MESSAGE( it1 == it2, "Wrong return value" );
+
+	auto const par_max = std::max( result_1, result_3 );
+	auto const seq_max = std::max( result_2, result_4 );
+	display_info( seq_max, par_max, SZ, sizeof( value_t ), "find_if" );
 }
 
-BOOST_AUTO_TEST_CASE( for_each_double ) {
-	std::cout << "for_each tests - double\n";
+BOOST_AUTO_TEST_CASE( find_if_int64_t ) {
+	std::cout << "find_if tests - int64_t\n";
+	find_if_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<double>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( for_each_int64_t ) {
-	std::cout << "for_each tests - int64_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int64_t>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( for_each_int32_t ) {
-	std::cout << "for_each tests - int32_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int32_t>( n );
+		find_if_test<int64_t>( n );
 	}
 }

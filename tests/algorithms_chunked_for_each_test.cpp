@@ -37,65 +37,42 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_for_each
+#define BOOST_TEST_MODULE parallel_algorithms_chunked_for_each
 #include <daw/boost_test.h>
 
 #include "algorithms.h"
 
 #include "common.h"
 
-template<typename T>
-void for_each_test( size_t SZ ) {
-	auto ts = daw::get_task_scheduler( );
-	bool found = false;
-	std::vector<T> a;
-	a.resize( SZ );
-	std::fill( a.begin( ), a.end( ), 1 );
-	a[SZ / 2] = 4;
-	auto const find_even = [&]( T const &x ) {
-		if( static_cast<intmax_t>( x ) % 2 == 0 ) {
-			found = true;
+namespace chunked_for_each_001_ns {
+	struct call_t {
+		template<typename Range>
+		constexpr void operator( )( Range rng ) const noexcept {
+			auto first = rng.begin( );
+			auto const last = rng.end( );
+			while( first != last ) {
+				( *first++ ) *= 2;
+			}
 		}
-		daw::do_not_optimize( found );
 	};
-	auto const result_1 = daw::benchmark( [&]( ) {
-		daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts );
-	} );
-	auto const result_2 = daw::benchmark( [&]( ) {
-		for( auto const &item : a ) {
-			find_even( item );
-		}
-	} );
-	auto const result_3 = daw::benchmark( [&]( ) {
-		daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even, ts );
-	} );
-	auto const result_4 = daw::benchmark( [&]( ) {
-		for( auto const &item : a ) {
-			find_even( item );
-		}
-	} );
-	auto const par_min = ( result_1 + result_3 ) / 2;
-	auto const seq_min = ( result_2 + result_4 ) / 2;
-	display_info( seq_min, par_min, SZ, sizeof( T ), "for_each" );
-}
-
-BOOST_AUTO_TEST_CASE( for_each_double ) {
-	std::cout << "for_each tests - double\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<double>( n );
+	BOOST_AUTO_TEST_CASE( chunked_for_each_001 ) {
+		auto a = daw::make_random_data<int64_t>( 100'000 );
+		daw::algorithm::parallel::chunked_for_each(
+		  a.data( ), a.data( ) + a.size( ), call_t{} );
+		daw::do_not_optimize( a );
 	}
-}
+} // namespace chunked_for_each_001_ns
 
-BOOST_AUTO_TEST_CASE( for_each_int64_t ) {
-	std::cout << "for_each tests - int64_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int64_t>( n );
-	}
-}
+BOOST_AUTO_TEST_CASE( chunked_for_each_pos_001 ) {
+	auto a = daw::make_random_data<int64_t>( 100'000 );
 
-BOOST_AUTO_TEST_CASE( for_each_int32_t ) {
-	std::cout << "for_each tests - int32_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int32_t>( n );
-	}
+	std::vector<int64_t> b{};
+	b.resize( a.size( ) );
+	daw::algorithm::parallel::chunked_for_each_pos(
+	  a.cbegin( ), a.cend( ), [&b]( auto rng, size_t start_pos ) mutable {
+		  for( size_t n = 0; n < rng.size( ); ++n ) {
+			  b[start_pos + n] = rng[n] * 2;
+		  }
+	  } );
+	daw::do_not_optimize( b );
 }

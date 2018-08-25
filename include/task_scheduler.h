@@ -30,9 +30,9 @@
 #include <thread>
 #include <vector>
 
-#include <daw/parallel/daw_latch.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
+#include <daw/parallel/daw_latch.h>
 
 #include "impl/task_scheduler_impl.h"
 

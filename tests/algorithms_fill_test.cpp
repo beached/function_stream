@@ -42,119 +42,33 @@
 
 #include "algorithms.h"
 
-BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
-	// Prime task scheduler so we don't pay to start it up in first test
+#include "common.h"
+
+template<typename T>
+void fill_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	BOOST_REQUIRE( ts.started( ) );
-	daw::do_not_optimize( ts );
+	std::vector<T> a;
+	a.resize( SZ );
+	auto const result_1 = daw::benchmark( [&]( ) {
+		daw::algorithm::parallel::fill( a.begin( ), a.end( ), 1, ts );
+		daw::do_not_optimize( a );
+	} );
+	auto const result_2 = daw::benchmark( [&]( ) {
+		std::fill( a.begin( ), a.end( ), 2 );
+		daw::do_not_optimize( a );
+	} );
+	auto const result_3 = daw::benchmark( [&]( ) {
+		daw::algorithm::parallel::fill( a.begin( ), a.end( ), 3, ts );
+		daw::do_not_optimize( a );
+	} );
+	auto const result_4 = daw::benchmark( [&]( ) {
+		std::fill( a.begin( ), a.end( ), 4 );
+		daw::do_not_optimize( a );
+	} );
+	auto const par_min = ( result_1 + result_3 ) / 2;
+	auto const seq_min = ( result_2 + result_4 ) / 2;
+	display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
 }
-
-namespace {
-	template<typename T>
-	double calc_speedup( T seq_time, T par_time ) {
-		static double const N = std::thread::hardware_concurrency( );
-		return 100.0 * ( ( seq_time / N ) / par_time );
-	}
-
-	void display_info( double seq_time, double par_time, double count,
-	                   size_t bytes, daw::string_view label ) {
-		using namespace std::chrono;
-		using namespace date;
-
-		auto const make_seconds = []( double t, double c ) {
-			auto val = ( t / c ) * 1000000000000.0;
-
-			if( val < 1000 ) {
-				return std::to_string( static_cast<uint64_t>( val ) ) + "ps";
-			}
-			val /= 1000.0;
-			if( val < 1000 ) {
-				return std::to_string( static_cast<uint64_t>( val ) ) + "ns";
-			}
-			val /= 1000.0;
-			if( val < 1000 ) {
-				return std::to_string( static_cast<uint64_t>( val ) ) + "µs";
-			}
-			val /= 1000.0;
-			if( val < 1000 ) {
-				return std::to_string( static_cast<uint64_t>( val ) ) + "ms";
-			}
-			val /= 1000.0;
-			return std::to_string( static_cast<uint64_t>( val ) ) + "s";
-		};
-
-		auto const mbs = [count, bytes]( double t ) {
-			using result_t = double;
-			std::stringstream ss;
-			ss << std::setprecision( 1 ) << std::fixed;
-			auto val = ( count * static_cast<double>( bytes ) ) / t;
-			if( val < 1024 ) {
-				ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "bytes";
-				return ss.str( );
-			}
-			val /= 1024.0;
-			if( val < 1024 ) {
-				ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "KB";
-				return ss.str( );
-			}
-			val /= 1024.0;
-			if( val < 1024 ) {
-				ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "MB";
-				return ss.str( );
-			}
-			val /= 1024.0;
-			ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "GB";
-			return ss.str( );
-		};
-
-		std::cout << std::setprecision( 1 ) << std::fixed << label << ": size->"
-		          << static_cast<uint64_t>( count ) << " " << mbs( 1 ) << " %max->"
-		          << calc_speedup( seq_time, par_time ) << "("
-		          << ( seq_time / par_time ) << "/"
-		          << std::thread::hardware_concurrency( ) << "X) par_total->"
-		          << make_seconds( par_time, 1 ) << " par_item->"
-		          << make_seconds( par_time, count ) << " throughput->"
-		          << mbs( par_time ) << "/s seq_total->"
-		          << make_seconds( seq_time, 1 ) << " seq_item->"
-		          << make_seconds( seq_time, count ) << " throughput->"
-		          << mbs( seq_time ) << "/s \n";
-	}
-
-	template<typename T>
-	void fill_test( size_t SZ ) {
-		auto ts = daw::get_task_scheduler( );
-		std::vector<T> a;
-		a.resize( SZ );
-		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::fill( a.begin( ), a.end( ), 1, ts );
-			daw::do_not_optimize( a );
-		} );
-		auto const result_2 = daw::benchmark( [&]( ) {
-			std::fill( a.begin( ), a.end( ), 2 );
-			daw::do_not_optimize( a );
-		} );
-		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::fill( a.begin( ), a.end( ), 3, ts );
-			daw::do_not_optimize( a );
-		} );
-		auto const result_4 = daw::benchmark( [&]( ) {
-			std::fill( a.begin( ), a.end( ), 4 );
-			daw::do_not_optimize( a );
-		} );
-		auto const par_min = ( result_1 + result_3 ) / 2;
-		auto const seq_min = ( result_2 + result_4 ) / 2;
-		display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
-	}
-
-	// static size_t const MAX_ITEMS = 134'217'728;
-	// static size_t const LARGE_TEST_SZ = 268'435'456;
-
-	size_t const MAX_ITEMS = 14'217'728;
-	size_t const LARGE_TEST_SZ = 28'435'456;
-
-	// static size_t const MAX_ITEMS = 4'217'728;
-	// static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
-} // namespace
 
 BOOST_AUTO_TEST_CASE( fill_double ) {
 	std::cout << "fill tests - double\n";
@@ -176,4 +90,3 @@ BOOST_AUTO_TEST_CASE( fill_int32_t ) {
 		fill_test<int32_t>( n );
 	}
 }
-
