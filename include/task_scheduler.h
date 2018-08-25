@@ -22,13 +22,9 @@
 
 #pragma once
 
-#include <atomic>
 #include <boost/optional.hpp>
-#include <functional>
-#include <list>
 #include <memory>
 #include <thread>
-#include <vector>
 
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
