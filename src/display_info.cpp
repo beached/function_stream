@@ -39,7 +39,7 @@ namespace {
 	}
 } // namespace
 
-void display_info( double seq_time, double par_time, double count, size_t bytes,
+void display_info_impl( double seq_time, double par_time, double count, size_t bytes,
                    daw::string_view label ) {
 	using namespace std::chrono;
 	using namespace date;

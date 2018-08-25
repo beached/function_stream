@@ -26,5 +26,14 @@
 
 #include <daw/daw_string_view.h>
 
-void display_info( double seq_time, double par_time, double count, size_t bytes,
-                   daw::string_view label );
+void display_info_impl( double seq_time, double par_time, double count,
+                        size_t bytes, daw::string_view label );
+
+template<typename SeqTime, typename ParTime, typename Count>
+void display_info( SeqTime seq_time, ParTime par_time, Count count,
+                   size_t bytes, daw::string_view label ) {
+
+	display_info_impl( static_cast<double>( seq_time ),
+	                   static_cast<double>( par_time ),
+	                   static_cast<double>( count ), bytes, label );
+}
