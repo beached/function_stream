@@ -51,7 +51,8 @@ namespace daw {
 	using weak_ptr_type_t = typename weak_ptr_type_impl<T>::type;
 
 	namespace impl {
-		template<typename functions_t, typename arguments_t, typename result_t, typename... Args>
+		template<typename functions_t, typename arguments_t, typename result_t,
+		         typename... Args>
 		struct members_t {
 			functions_t m_function_list;
 			arguments_t m_targs;
@@ -65,7 +66,7 @@ namespace daw {
 			  , m_result( result )
 			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
 		}; // members_t
-	} // namespace impl
+	}    // namespace impl
 
 	template<typename Result, typename Functions, typename... Args>
 	struct package_t {
@@ -75,7 +76,8 @@ namespace daw {
 		using result_value_t = weak_ptr_type_t<result_t>;
 
 	private:
-		daw::value_ptr<impl::members_t<functions_t, arguments_t, result_t, Args...>> members;
+		daw::value_ptr<impl::members_t<functions_t, arguments_t, result_t, Args...>>
+		  members;
 
 	public:
 		package_t( ) = delete;
@@ -88,7 +90,7 @@ namespace daw {
 		constexpr package_t &operator=( package_t && ) noexcept = default;
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
-		           functions_t functions, Args &&... args )
+		                     functions_t functions, Args &&... args )
 		  : members( continueonclientdestruction, std::move( result ),
 		             std::move( functions ), std::forward<Args>( args )... ) {}
 

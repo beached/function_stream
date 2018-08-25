@@ -24,7 +24,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
-#include <date/chrono_io.h>
 #include <date/date.h>
 #include <iostream>
 #include <numeric>
@@ -43,8 +42,6 @@
 
 #include "algorithms.h"
 
-#define USE_SORT_FJ
-
 BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
 	// Prime task scheduler so we don't pay to start it up in first test
 	auto ts = daw::get_task_scheduler( );
@@ -59,7 +56,8 @@ namespace {
 		return 100.0 * ( ( seq_time / N ) / par_time );
 	}
 
-	void display_info( double seq_time, double par_time, double count,
+	template<typename T, typename U, typename V>
+	void display_info( T seq_time, U par_time, V count,
 	                   size_t bytes, daw::string_view label ) {
 		using namespace std::chrono;
 		using namespace date;
@@ -90,7 +88,7 @@ namespace {
 			using result_t = double;
 			std::stringstream ss;
 			ss << std::setprecision( 1 ) << std::fixed;
-			auto val = ( count * static_cast<double>( bytes ) ) / t;
+			auto val = ( static_cast<double>( count ) * static_cast<double>( bytes ) ) / t;
 			if( val < 1024 ) {
 				ss << ( static_cast<result_t>( val * 100.0 ) / 100 ) << "bytes";
 				return ss.str( );
@@ -112,244 +110,15 @@ namespace {
 
 		std::cout << std::setprecision( 1 ) << std::fixed << label << ": size->"
 		          << static_cast<uint64_t>( count ) << " " << mbs( 1 ) << " %max->"
-		          << calc_speedup( seq_time, par_time ) << "("
-		          << ( seq_time / par_time ) << "/"
+		          << calc_speedup( static_cast<double>( seq_time ), static_cast<double>( par_time ) ) << "("
+		          << ( static_cast<double>( seq_time ) / static_cast<double>( par_time ) ) << "/"
 		          << std::thread::hardware_concurrency( ) << "X) par_total->"
-		          << make_seconds( par_time, 1 ) << " par_item->"
-		          << make_seconds( par_time, count ) << " throughput->"
-		          << mbs( par_time ) << "/s seq_total->"
-		          << make_seconds( seq_time, 1 ) << " seq_item->"
-		          << make_seconds( seq_time, count ) << " throughput->"
-		          << mbs( seq_time ) << "/s \n";
-	}
-
-	template<typename T>
-	void for_each_test( size_t SZ ) {
-		auto ts = daw::get_task_scheduler( );
-		bool found = false;
-		std::vector<T> a;
-		a.resize( SZ );
-		std::fill( a.begin( ), a.end( ), 1 );
-		a[SZ / 2] = 4;
-		auto const find_even = [&]( T const &x ) {
-			if( static_cast<intmax_t>( x ) % 2 == 0 ) {
-				found = true;
-			}
-			daw::do_not_optimize( found );
-		};
-		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even,
-			                                    ts );
-		} );
-		auto const result_2 = daw::benchmark( [&]( ) {
-			for( auto const &item : a ) {
-				find_even( item );
-			}
-		} );
-		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::for_each( a.cbegin( ), a.cend( ), find_even,
-			                                    ts );
-		} );
-		auto const result_4 = daw::benchmark( [&]( ) {
-			for( auto const &item : a ) {
-				find_even( item );
-			}
-		} );
-		auto const par_min = ( result_1 + result_3 ) / 2;
-		auto const seq_min = ( result_2 + result_4 ) / 2;
-		display_info( seq_min, par_min, SZ, sizeof( T ), "for_each" );
-	}
-
-	template<typename T>
-	void fill_test( size_t SZ ) {
-		auto ts = daw::get_task_scheduler( );
-		std::vector<T> a;
-		a.resize( SZ );
-		auto const result_1 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::fill( a.begin( ), a.end( ), 1, ts );
-			daw::do_not_optimize( a );
-		} );
-		auto const result_2 = daw::benchmark( [&]( ) {
-			std::fill( a.begin( ), a.end( ), 2 );
-			daw::do_not_optimize( a );
-		} );
-		auto const result_3 = daw::benchmark( [&]( ) {
-			daw::algorithm::parallel::fill( a.begin( ), a.end( ), 3, ts );
-			daw::do_not_optimize( a );
-		} );
-		auto const result_4 = daw::benchmark( [&]( ) {
-			std::fill( a.begin( ), a.end( ), 4 );
-			daw::do_not_optimize( a );
-		} );
-		auto const par_min = ( result_1 + result_3 ) / 2;
-		auto const seq_min = ( result_2 + result_4 ) / 2;
-		display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
-	}
-
-	template<typename Iterator>
-	void test_sort( Iterator const first, Iterator const last,
-	                daw::string_view label ) {
-		if( first == last ) {
-			return;
-		}
-		auto it = first;
-		auto last_val = *it;
-		++it;
-		for( ; it != last; ++it ) {
-			if( *it < last_val ) {
-				auto const pos = std::distance( first, it );
-				std::cerr << "Sequence '" << label << "' not sorted at position ("
-				          << std::distance( first, it ) << '/'
-				          << std::distance( first, last ) << ")\n";
-
-				auto start = pos > 10 ? std::next( first, pos - 10 ) : first;
-				auto const end =
-				  std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
-				if( std::distance( start, end ) > 0 ) {
-					std::cerr << '[' << *start;
-					++start;
-					for( ; start != end; ++start ) {
-						std::cerr << ", " << *start;
-					}
-					std::cerr << " ]\n";
-				}
-				break;
-			}
-			last_val = *it;
-		}
-	}
-	void sort_test( size_t SZ ) {
-		auto ts = daw::get_task_scheduler( );
-		auto a = daw::make_random_data<int64_t>( SZ );
-
-		/*
-		    std::vector<int> a;
-		    a.resize( SZ );
-		    std::iota( a.begin( ), a.end( ), 0 );
-		*/
-
-		auto b = a;
-		auto const par_test = [&]( ) {
-			daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts );
-			daw::do_not_optimize( a );
-		};
-
-#ifdef USE_SORT_FJ
-		auto const fj_test = [&]( ) {
-			daw::algorithm::parallel::fork_join_sort(
-			  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
-			daw::do_not_optimize( a );
-		};
-#endif
-
-		auto const ser_test = [&]( ) {
-			std::sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		};
-
-		auto const par_result_1 = daw::benchmark( par_test );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-
-#ifdef USE_SORT_FJ
-		auto const fj_result_1 = daw::benchmark( fj_test );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-#endif
-
-		auto const ser_result_1 = daw::benchmark( ser_test );
-		test_sort( a.begin( ), a.end( ), "s_result_1" );
-		a = b;
-		auto const par_result_2 = daw::benchmark( par_test );
-		test_sort( a.begin( ), a.end( ), "p_result2" );
-		a = b;
-
-#ifdef USE_SORT_FJ
-		auto const fj_result_2 = daw::benchmark( fj_test );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-#endif
-
-		auto const ser_result_2 = daw::benchmark( ser_test );
-		test_sort( a.begin( ), a.end( ), "s_result2" );
-
-		auto const par_min = std::min( par_result_1, par_result_2 );
-		auto const seq_min = std::min( ser_result_1, ser_result_2 );
-#ifdef USE_SORT_FJ
-		auto const fj_min = std::min( fj_result_1, fj_result_2 );
-#endif
-
-		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
-#ifdef USE_SORT_FJ
-		display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "sort_fj" );
-#endif
-	}
-
-	void stable_sort_test( size_t SZ ) {
-		auto ts = daw::get_task_scheduler( );
-		auto a = daw::make_random_data<int64_t>( SZ );
-
-		/*
-		    std::vector<int> a;
-		    a.resize( SZ );
-		    std::iota( a.begin( ), a.end( ), 0 );
-		*/
-
-		auto b = a;
-		auto const par_test = [&]( ) {
-			daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts );
-			daw::do_not_optimize( a );
-		};
-
-#ifdef USE_SORT_FJ
-		auto const fj_test = [&]( ) {
-			daw::algorithm::parallel::stable_fork_join_sort(
-			  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
-			daw::do_not_optimize( a );
-		};
-#endif
-
-		auto const ser_test = [&]( ) {
-			std::stable_sort( a.begin( ), a.end( ) );
-			daw::do_not_optimize( a );
-		};
-
-		auto const par_result_1 = daw::benchmark( par_test );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-
-#ifdef USE_SORT_FJ
-		auto const fj_result_1 = daw::benchmark( fj_test );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-#endif
-
-		auto const ser_result_1 = daw::benchmark( ser_test );
-		test_sort( a.begin( ), a.end( ), "s_result_1" );
-		a = b;
-		auto const par_result_2 = daw::benchmark( par_test );
-		test_sort( a.begin( ), a.end( ), "p_result2" );
-		a = b;
-
-#ifdef USE_SORT_FJ
-		auto const fj_result_2 = daw::benchmark( fj_test );
-		test_sort( a.begin( ), a.end( ), "p_result_1" );
-		a = b;
-#endif
-
-		auto const ser_result_2 = daw::benchmark( ser_test );
-		test_sort( a.begin( ), a.end( ), "s_result2" );
-
-		auto const par_min = std::min( par_result_1, par_result_2 );
-		auto const seq_min = std::min( ser_result_1, ser_result_2 );
-#ifdef USE_SORT_FJ
-		auto const fj_min = std::min( fj_result_1, fj_result_2 );
-#endif
-
-		display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort" );
-#ifdef USE_SORT_FJ
-		display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "stable_sort_fj" );
-#endif
+		          << make_seconds( static_cast<double>( par_time ), 1 ) << " par_item->"
+		          << make_seconds( static_cast<double>( par_time ), static_cast<double>( count ) ) << " throughput->"
+		          << mbs( static_cast<double>( par_time ) ) << "/s seq_total->"
+		          << make_seconds( static_cast<double>( seq_time ), 1 ) << " seq_item->"
+		          << make_seconds( static_cast<double>( seq_time ), static_cast<double>( count ) ) << " throughput->"
+		          << mbs( static_cast<double>( seq_time ) ) << "/s \n";
 	}
 
 	template<typename T>
@@ -947,9 +716,9 @@ namespace {
 		} );
 		BOOST_REQUIRE_MESSAGE( b1 == b2, "Wrong return value" );
 
-		auto const par_max = std::max( result_1, result_3 );
-		auto const seq_max = std::max( result_2, result_4 );
-		display_info( seq_max, par_max, SZ, blah.size( ), "equal" );
+		auto const par_max = static_cast<double>( std::max( result_1, result_3 ) );
+		auto const seq_max = static_cast<double>( std::max( result_2, result_4 ) );
+		display_info( seq_max, par_max, static_cast<double>( SZ ), blah.size( ), "equal" );
 	}
 
 	template<typename value_t>
@@ -1009,66 +778,6 @@ namespace {
 	// static size_t const MAX_ITEMS = 4'217'728;
 	// static size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 } // namespace
-
-BOOST_AUTO_TEST_CASE( for_each_double ) {
-	std::cout << "for_each tests - double\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<double>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( for_each_int64_t ) {
-	std::cout << "for_each tests - int64_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int64_t>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( for_each_int32_t ) {
-	std::cout << "for_each tests - int32_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		for_each_test<int32_t>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( fill_double ) {
-	std::cout << "fill tests - double\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		fill_test<double>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( fill_int64_t ) {
-	std::cout << "fill tests - int64_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		fill_test<int64_t>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( fill_int32_t ) {
-	std::cout << "fill tests - int32_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
-		fill_test<int32_t>( n );
-	}
-}
-
-BOOST_AUTO_TEST_CASE( sort_int64_t ) {
-	std::cout << "sort tests - int64_t\n";
-	sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
-		sort_test( n );
-		std::cout << '\n';
-	}
-}
-
-BOOST_AUTO_TEST_CASE( stable_sort_int64_t ) {
-	std::cout << "stable_sort tests - int64_t\n";
-	stable_sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
-		stable_sort_test( n );
-		std::cout << '\n';
-	}
-}
 
 BOOST_AUTO_TEST_CASE( reduce_double ) {
 	std::cout << "reduce tests - double\n";
