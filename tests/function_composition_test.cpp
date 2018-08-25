@@ -34,7 +34,7 @@
 using namespace daw::size_literals;
 
 BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
-	daw::get_task_scheduler( );
+	{ auto const ts = daw::get_task_scheduler( ); }
 
 	auto const make_values = []( size_t howmany ) {
 		std::vector<int> vs( howmany );

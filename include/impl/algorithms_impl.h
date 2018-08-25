@@ -564,8 +564,8 @@ namespace daw {
 						  auto range2 = ranges2[pos];
 
 						  size_t const stride = std::max(
-						    static_cast<size_t>( std::thread::hardware_concurrency( ) *
-						                         100 ),
+						    static_cast<size_t>( std::thread::hardware_concurrency( ) ) *
+						                         100ULL,
 						    static_cast<size_t>( PartitionPolicy::min_range_size ) );
 						  size_t m = 0;
 						  for( size_t n = 0; n < range1.size( ) &&
