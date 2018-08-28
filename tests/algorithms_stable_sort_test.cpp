@@ -40,7 +40,7 @@
 #define BOOST_TEST_MODULE parallel_algorithms_stable_sort
 #include <daw/boost_test.h>
 
-#include "algorithms.h"
+#include "daw/fs/algorithms.h"
 
 #include "common.h"
 

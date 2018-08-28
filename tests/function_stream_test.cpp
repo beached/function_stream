@@ -29,8 +29,8 @@
 #include <daw/daw_random.h>
 #include <daw/daw_size_literals.h>
 
-#include "function_stream.h"
-#include "future_result.h"
+#include "daw/fs/function_stream.h"
+#include "daw/fs/future_result.h"
 
 using namespace daw::size_literals;
 

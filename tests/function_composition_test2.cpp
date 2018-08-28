@@ -26,7 +26,7 @@
 #include <daw/daw_benchmark.h>
 #include <daw/daw_size_literals.h>
 
-#include "function_stream.h"
+#include "daw/fs/function_stream.h"
 
 constexpr int a( int x ) noexcept {
 	return x * 2;

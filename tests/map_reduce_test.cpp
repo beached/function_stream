@@ -35,9 +35,9 @@
 #include <daw/daw_string_view.h>
 #include <daw/parallel/daw_semaphore.h>
 
-#include "algorithms.h"
-#include "function_stream.h"
-#include "message_queue.h"
+#include "daw/fs/algorithms.h"
+#include "daw/fs/function_stream.h"
+#include "daw/fs/message_queue.h"
 
 template<size_t max_find, typename Function>
 constexpr void find_commas( daw::string_view line, Function on_commas ) {

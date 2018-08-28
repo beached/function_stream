@@ -40,7 +40,7 @@
 #define BOOST_TEST_MODULE parallel_algorithm_fill
 #include <daw/boost_test.h>
 
-#include "algorithms.h"
+#include "daw/fs/algorithms.h"
 
 #include "common.h"
 
