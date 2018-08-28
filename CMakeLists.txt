@@ -47,18 +47,18 @@ include_directories( SYSTEM ${Boost_INCLUDE_DIRS} )
 link_directories( ${Boost_LIBRARY_DIRS} )
 
 set( FUNCTION_STREAM_HEADER_FILES
-	${HEADER_FOLDER}/algorithms.h
-	${HEADER_FOLDER}/function_stream.h
-	${HEADER_FOLDER}/future_result.h
-	${HEADER_FOLDER}/iterator_range.h
-	${HEADER_FOLDER}/package.h
-	${HEADER_FOLDER}/message_queue.h
-	${HEADER_FOLDER}/task_scheduler.h
-	${HEADER_FOLDER}/impl/algorithms_impl.h
-	${HEADER_FOLDER}/impl/concept_checks.h
-	${HEADER_FOLDER}/impl/function_stream_impl.h
-	${HEADER_FOLDER}/impl/future_result_impl.h
-	${HEADER_FOLDER}/impl/task_scheduler_impl.h
+	${HEADER_FOLDER}/daw/fs/algorithms.h
+	${HEADER_FOLDER}/daw/fs/function_stream.h
+	${HEADER_FOLDER}/daw/fs/future_result.h
+	${HEADER_FOLDER}/daw/fs/iterator_range.h
+	${HEADER_FOLDER}/daw/fs/package.h
+	${HEADER_FOLDER}/daw/fs/message_queue.h
+	${HEADER_FOLDER}/daw/fs/task_scheduler.h
+	${HEADER_FOLDER}/daw/fs/impl/algorithms_impl.h
+	${HEADER_FOLDER}/daw/fs/impl/concept_checks.h
+	${HEADER_FOLDER}/daw/fs/impl/function_stream_impl.h
+	${HEADER_FOLDER}/daw/fs/impl/future_result_impl.h
+	${HEADER_FOLDER}/daw/fs/impl/task_scheduler_impl.h
 )
 
 set( FUNCTION_STREAM_SOURCE_FILES
@@ -66,7 +66,7 @@ set( FUNCTION_STREAM_SOURCE_FILES
 )
 
 set( TASK_SCHEDULER_HEADER_FILES
-	${HEADER_FOLDER}/task_scheduler.h
+	${HEADER_FOLDER}/daw/fs/task_scheduler.h
 )
 
 set( TASK_SCHEDULER_SOURCE_FILES
@@ -181,5 +181,5 @@ add_test( map_reduce_test map_reduce_test_bin )
 add_dependencies( check map_reduce_test_bin )
 
 install( TARGETS function_stream_lib task_scheduler_lib DESTINATION lib )
-install( DIRECTORY ${HEADER_FOLDER}/ DESTINATION include/daw/fs )
+install( DIRECTORY ${HEADER_FOLDER}/daw DESTINATION include )
 

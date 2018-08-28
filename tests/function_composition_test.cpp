@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -147,4 +148,38 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_004 ) {
 
 	std::cout << fut1.get( ) << ", " << fut2.get( ) << ", " << fut3.get( )
 	          << '\n';
+}
+
+struct Person {
+	std::string name;
+	std::string city;
+	std::chrono::system_clock::time_point dob;
+	std::string country;
+	std::string region;
+	std::string city;
+	std::string address;
+
+	Person( ) noexcept = default;
+};
+
+struct FilterPerson {
+	template<typename PersonCollection>
+	std::vector<int> operator( )( PersonCollection const & pc ) {
+		std::vector<int> result{};
+		
+
+		return result;
+	}
+};
+template<typename Collection>
+constexpr auto stream_average( Collection const & c ) noexcept {
+	using std::begin;
+	static_assert( std::is_same_v<Person, std::decay_t<decltype( *begin( c ) )>>,
+	               "Collection must hold Person's" );
+
+	constexpr auto fs2( 
+}
+
+BOOST_AUTO_TEST_CASE( averaging_of_data ) {
+
 }
