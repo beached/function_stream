@@ -41,11 +41,9 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_sort
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
+#define NOBOOST
 #include "common.h"
 
 #define USE_SORT_FJ
@@ -153,11 +151,12 @@ void sort_test( size_t SZ ) {
 #endif
 }
 
-BOOST_AUTO_TEST_CASE( sort_int64_t ) {
+int main( ) {
 	std::cout << "sort tests - int64_t\n";
 	sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
 		sort_test( n );
 		std::cout << '\n';
 	}
+	return 0;
 }

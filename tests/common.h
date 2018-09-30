@@ -34,10 +34,12 @@ namespace {
 	// static constexpr size_t const MAX_ITEMS = 4'217'728;
 	// static constexpr size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 
+#ifndef NOBOOST	
 	BOOST_AUTO_TEST_CASE( start_task_scheduler ) {
 		// Prime task scheduler so we don't pay to start it up in first test
 		auto ts = daw::get_task_scheduler( );
 		BOOST_REQUIRE( ts.started( ) );
 		daw::do_not_optimize( ts );
 	}
+#endif
 } // namespace

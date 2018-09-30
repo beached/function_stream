@@ -33,8 +33,9 @@ namespace daw {
 			               UnaryOperation unary_op,
 			               task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
+				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
 				  "UnaryOperation passed to for_each must accept the value referenced "
 				  "by first. e.g "
 				  "unary_op( *first ) must be valid" );
@@ -46,8 +47,9 @@ namespace daw {
 			void for_each_n( RandomIterator first, size_t N, UnaryOperation unary_op,
 			                 task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
+				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
 				  "UnaryOperation passed to for_each_n must accept the value "
 				  "referenced by first. e.g "
 				  "unary_op( *first ) must be valid" );
@@ -61,7 +63,8 @@ namespace daw {
 			                     UnaryOperation indexed_op,
 			                     task_scheduler ts = get_task_scheduler( ) ) {
 
-				static_assert( daw::is_callable_v<UnaryOperation, size_t>,
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				static_assert( traits::is_callable_v<UnaryOperation, size_t>,
 				               "UnaryOperation passed to "
 				               "for_each_index must a size_t argument "
 				               "unary_op( (size_t)5 ) must be valid" );
@@ -74,7 +77,8 @@ namespace daw {
 			void fill( RandomIterator first, RandomIterator last, T const &value,
 			           task_scheduler ts = get_task_scheduler( ) ) {
 
-				static_assert( daw::is_assignable_iterator_v<RandomIterator, T>,
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				static_assert( traits::is_assignable_iterator_v<RandomIterator, T>,
 				               "T value must be assignable to the "
 				               "dereferenced RandomIterator first. "
 				               "e.g. *first = value is valid" );
@@ -90,12 +94,9 @@ namespace daw {
 			           task_scheduler ts = get_task_scheduler( ),
 			           Compare comp = Compare{} ) {
 
-				static_assert(
-				  daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator,
-				                                             RandomIterator>,
-				  "Supplied Compare does not satisfy the concept of BinaryPredicate.  "
-				  "See "
-				  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				daw::concept_checks::is_binary_predicate_test<Compare, RandomIterator,
+				                                              RandomIterator>( );
 
 				impl::parallel_sort( first, last,
 				                     []( RandomIterator f, RandomIterator l,
@@ -110,12 +111,8 @@ namespace daw {
 			                     task_scheduler ts = get_task_scheduler( ),
 			                     Compare &&comp = Compare{} ) {
 
-				static_assert(
-				  daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator,
-				                                             RandomIterator>,
-				  "Supplied Compare does not satisfy the concept of BinaryPredicate.  "
-				  "See "
-				  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
 
 				impl::fork_join_sort( first, last,
 				                      []( RandomIterator f, RandomIterator l,
@@ -130,12 +127,8 @@ namespace daw {
 			                            task_scheduler ts = get_task_scheduler( ),
 			                            Compare &&comp = Compare{} ) {
 
-				static_assert(
-				  daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator,
-				                                             RandomIterator>,
-				  "Supplied Compare does not satisfy the concept of BinaryPredicate.  "
-				  "See "
-				  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
 
 				impl::fork_join_sort(
 				  first, last,
@@ -152,12 +145,8 @@ namespace daw {
 			                  task_scheduler ts = get_task_scheduler( ),
 			                  Compare comp = Compare{} ) {
 
-				static_assert(
-				  daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator,
-				                                             RandomIterator>,
-				  "Supplied Compare does not satisfy the concept of BinaryPredicate.  "
-				  "See "
-				  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
 
 				impl::parallel_sort(
 				  first, last,
@@ -172,9 +161,10 @@ namespace daw {
 			          BinaryOperation binary_op,
 			          task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<BinaryOperation, RandomIterator,
-				                                     RandomIterator>,
+				  concept_checks::is_callable_v<BinaryOperation, RandomIterator,
+				                                RandomIterator>,
 				  "BinaryOperation passed to reduce must take two values referenced by "
 				  "first. e.g "
 				  "binary_op( "
@@ -183,8 +173,8 @@ namespace daw {
 
 				static_assert(
 				  std::is_convertible<
-				    daw::concept_checks::is_callable_t<BinaryOperation, RandomIterator,
-				                                       RandomIterator>,
+				    concept_checks::is_callable_t<BinaryOperation, RandomIterator,
+				                                  RandomIterator>,
 				    typename std::iterator_traits<RandomIterator>::value_type>::value,
 				  "Result of BinaryOperation must be convertable to type of value "
 				  "referenced by "
@@ -199,6 +189,7 @@ namespace daw {
 			T reduce( RandomIterator first, RandomIterator last, T init,
 			          task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				return ::daw::algorithm::parallel::reduce(
 				  first, last, std::move( init ), std::plus<>{}, std::move( ts ) );
 			}
@@ -206,6 +197,8 @@ namespace daw {
 			template<typename RandomIterator>
 			decltype( auto ) reduce( RandomIterator first, RandomIterator last,
 			                         task_scheduler ts = get_task_scheduler( ) ) {
+
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				using value_type =
 				  typename std::iterator_traits<RandomIterator>::value_type;
 				return ::daw::algorithm::parallel::reduce( first, last, value_type{},
@@ -219,12 +212,9 @@ namespace daw {
 			                              task_scheduler ts = get_task_scheduler( ),
 			                              Compare comp = Compare{} ) {
 
-				static_assert(
-				  daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator,
-				                                             RandomIterator>,
-				  "Supplied Compare does not satisfy the concept of BinaryPredicate.  "
-				  "See "
-				  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				traits::is_input_iterator_test<RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
 
 				return impl::parallel_min_element( first, last, comp, std::move( ts ) );
 			}
@@ -237,12 +227,8 @@ namespace daw {
 			                              task_scheduler ts = get_task_scheduler( ),
 			                              Compare comp = Compare{} ) {
 
-				static_assert(
-				  daw::concept_checks::is_binary_predicate_v<Compare, RandomIterator,
-				                                             RandomIterator>,
-				  "Supplied Compare does not satisfy the concept of BinaryPredicate.  "
-				  "See "
-				  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
 
 				return impl::parallel_max_element( first, last, comp, std::move( ts ) );
 			}
@@ -253,15 +239,16 @@ namespace daw {
 			                RandomOutputIterator first_out, UnaryOperation unary_op,
 			                task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
+				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
 				  "UnaryOperation passed to transform must accept the value referenced "
 				  "by first. e.g "
 				  "unary_op( *first ) must be valid" );
 				static_assert(
-				  daw::is_assignable_iterator_v<
+				  traits::is_assignable_iterator_v<
 				    RandomOutputIterator,
-				    daw::concept_checks::is_callable_t<UnaryOperation, RandomIterator>>,
+				    concept_checks::is_callable_t<UnaryOperation, RandomIterator>>,
 				  "The result of the UnaryOperation must be assignable to the "
 				  "dereferenced "
 				  "RandomOutputIterator. e.g. *first_out = unary_op( *first ) must be "
@@ -275,15 +262,16 @@ namespace daw {
 			                UnaryOperation unary_op,
 			                task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
+				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
 				  "UnaryOperation passed to transform must accept the value referenced "
 				  "by first. e.g "
 				  "unary_op( *first ) must be valid" );
 				static_assert(
-				  daw::is_assignable_iterator_v<
+				  traits::is_assignable_iterator_v<
 				    RandomIterator,
-				    daw::concept_checks::is_callable_t<UnaryOperation, RandomIterator>>,
+				    concept_checks::is_callable_t<UnaryOperation, RandomIterator>>,
 				  "The result of the UnaryOperation must be assignable to the "
 				  "dereferenced "
 				  "RandomIterator. e.g. *first_out = unary_op( *first ) must be "
@@ -292,30 +280,36 @@ namespace daw {
 				impl::parallel_map( first, last, first, unary_op, std::move( ts ) );
 			}
 
-			template<typename RandomIterator, typename UnaryOperation,
-			         typename BinaryOperation>
+			template<
+			  typename RandomIterator, typename UnaryOperation,
+			  typename BinaryOperation,
+			  std::enable_if_t<traits::is_random_access_iterator_v<RandomIterator>,
+			                   std::nullptr_t> = nullptr>
 			decltype( auto ) map_reduce( RandomIterator first, RandomIterator last,
 			                             UnaryOperation map_function,
 			                             BinaryOperation reduce_function,
 			                             task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
+				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
 				  "UnaryOperation map_function passed to map_reduce must accept the "
 				  "value "
 				  "referenced by first. e.g "
 				  "map_function( *first ) must be valid" );
 
 				using transform_result_t =
-				  daw::concept_checks::is_callable_t<UnaryOperation, RandomIterator>;
-				static_assert( daw::is_callable_v<BinaryOperation, transform_result_t,
-				                                  transform_result_t>,
-				               "BinaryOperation reduce_function passed to map_reduce "
-				               "must accept the result of the "
-				               "transform_function for each arg. e.g "
-				               "reduce_function( tranfom_function( *first ), "
-				               "transform_function( *(first + 1) ) ) must "
-				               "be valid" );
+				  concept_checks::is_callable_t<UnaryOperation, RandomIterator>;
+
+				static_assert(
+				  traits::is_callable_v<BinaryOperation, transform_result_t,
+				                        transform_result_t>,
+				  "BinaryOperation reduce_function passed to map_reduce "
+				  "must accept the result of the "
+				  "transform_function for each arg. e.g "
+				  "reduce_function( tranfom_function( *first ), "
+				  "transform_function( *(first + 1) ) ) must "
+				  "be valid" );
 
 				auto it_init = first;
 				std::advance( first, 1 );
@@ -344,24 +338,25 @@ namespace daw {
 			                             BinaryOperation reduce_function,
 			                             task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
+				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
 				  "UnaryOperation map_function passed to map_reduce must accept the "
 				  "value "
 				  "referenced by first. e.g "
 				  "map_function( *first ) must be valid" );
 
-				static_assert( daw::concept_checks::is_callable_v<UnaryOperation, T>,
+				static_assert( traits::is_callable_v<UnaryOperation, T>,
 				               "UnaryOperation map_function passed to map_reduce must "
 				               "accept the init "
 				               "value of type T. e.g "
 				               "map_function( value ) must be valid" );
 
 				using transform_result_t =
-				  daw::concept_checks::is_callable_t<UnaryOperation, RandomIterator>;
+				  concept_checks::is_callable_t<UnaryOperation, RandomIterator>;
 				static_assert(
-				  daw::concept_checks::is_callable_v<
-				    BinaryOperation, transform_result_t, transform_result_t>,
+				  concept_checks::is_callable_v<BinaryOperation, transform_result_t,
+				                                transform_result_t>,
 				  "BinaryOperation reduce_function passed to map_reduce must accept "
 				  "the result of the "
 				  "transform_function for each arg. e.g "
@@ -382,22 +377,20 @@ namespace daw {
 			           BinaryOperation binary_op,
 			           task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				traits::is_input_iterator_test<RandomIterator>( );
+				traits::is_random_access_iterator_test<RandomOutputIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<BinaryOperation, RandomIterator,
-				                                     RandomIterator>,
+				  concept_checks::is_callable_v<BinaryOperation, RandomIterator,
+				                                RandomIterator>,
 				  "BinaryOperation passed to scan must take two values referenced by "
 				  "first. e.g "
 				  "binary_op( *first, *(first+1) ) must be valid" );
 
-				static_assert(
-				  daw::is_assignable_iterator_v<
-				    RandomOutputIterator,
-				    daw::concept_checks::is_callable_t<BinaryOperation, RandomIterator,
-				                                       RandomIterator>>,
-				  "The result of the BinaryOperation must be assignable to the "
-				  "dereferenced "
-				  "RandomOutputIterator. e.g. *first_out = unary_op( *first, *(fist + "
-				  "1) ) must be valid" );
+				traits::is_output_iterator_test<
+				  RandomOutputIterator,
+				  concept_checks::is_callable_t<BinaryOperation, RandomIterator,
+				                                RandomIterator>>( );
 
 				impl::parallel_scan( first, last, first_out, last_out, binary_op,
 				                     std::move( ts ) );
@@ -409,21 +402,20 @@ namespace daw {
 			           BinaryOperation binary_op,
 			           task_scheduler ts = get_task_scheduler( ) ) {
 
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
-				  daw::concept_checks::is_callable_v<BinaryOperation, RandomIterator,
-				                                     RandomIterator>,
+				  concept_checks::is_callable_v<BinaryOperation, RandomIterator,
+				                                RandomIterator>,
 				  "BinaryOperation passed to scan must take two values referenced by "
 				  "first. e.g "
 				  "binary_op( *first, *(first+1) ) must be valid" );
 
-				static_assert(
-				  daw::is_assignable_iterator_v<
-				    RandomIterator, daw::concept_checks::is_callable_t<
-				                      BinaryOperation, RandomIterator, RandomIterator>>,
-				  "The result of the BinaryOperation must be assignable to the "
-				  "dereferenced "
-				  "RandomIterator. e.g. *first = unary_op( *first, *(fist + 1) ) must "
-				  "be valid" );
+				// Ensure that the result of binary operation can be assigned to the
+				// iterator
+				traits::is_output_iterator_test<
+				  RandomIterator,
+				  concept_checks::is_callable_t<BinaryOperation, RandomIterator,
+				                                RandomIterator>>( );
 
 				impl::parallel_scan( first, last, first, last, binary_op,
 				                     std::move( ts ) );
@@ -434,12 +426,9 @@ namespace daw {
 			                        UnaryPredicate pred,
 			                        task_scheduler ts = get_task_scheduler( ) ) {
 
-				static_assert(
-				  daw::concept_checks::is_unary_predicate_v<UnaryPredicate,
-				                                            RandomIterator>,
-				  "Supplied UnaryPredicate pred does not satisfy the concept of "
-				  "UnaryPredicate.  See "
-				  "http://en.cppreference.com/w/cpp/concept/Predicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				concept_checks::is_unary_predicate_test<UnaryPredicate,
+				                                        RandomIterator>( );
 
 				return impl::parallel_find_if( first, last, pred, std::move( ts ) );
 			}
@@ -451,12 +440,13 @@ namespace daw {
 			            BinaryPredicate pred,
 			            task_scheduler ts = get_task_scheduler( ) ) {
 
-				static_assert(
-				  daw::concept_checks::is_binary_predicate_v<
-				    BinaryPredicate, RandomIterator1, RandomIterator2>,
-				  "Supplied BinaryPredicate does not satisfy the concept of "
-				  "BinaryPredicate.  See "
-				  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+				traits::is_random_access_iterator_test<RandomIterator1>( );
+				traits::is_input_iterator_test<RandomIterator1>( );
+				traits::is_random_access_iterator_test<RandomIterator2>( );
+				traits::is_input_iterator_test<RandomIterator2>( );
+				concept_checks::is_binary_predicate_test<
+				  BinaryPredicate, RandomIterator1, RandomIterator2>( );
+
 				return impl::parallel_equal( first1, last1, first2, last2, pred,
 				                             std::move( ts ) );
 			}
@@ -466,12 +456,12 @@ namespace daw {
 			            RandomIterator2 first2, RandomIterator2 last2,
 			            task_scheduler ts = get_task_scheduler( ) ) {
 
-				static_assert(
-				  daw::concept_checks::is_equality_comparable_v<RandomIterator1,
-				                                                RandomIterator2>,
-				  "Dereferenced RandomIterator1 and RandomIterator2 must be equality "
-				  "comparable e.g. "
-				  "*first1 == *first2 must be valid" );
+				traits::is_random_access_iterator_test<RandomIterator1>( );
+				traits::is_input_iterator_test<RandomIterator1>( );
+				traits::is_random_access_iterator_test<RandomIterator2>( );
+				traits::is_input_iterator_test<RandomIterator2>( );
+				concept_checks::is_equality_comparable_test<RandomIterator1,
+				                                            RandomIterator2>( );
 
 				auto const pred = []( auto const &lhs, auto const &rhs ) {
 					return lhs == rhs;
@@ -485,12 +475,9 @@ namespace daw {
 			                           UnaryPredicate pred,
 			                           task_scheduler ts = get_task_scheduler( ) ) {
 
-				static_assert(
-				  daw::concept_checks::is_unary_predicate_v<UnaryPredicate,
-				                                            RandomIterator>,
-				  "Supplied UnaryPredicate pred does not satisfy the concept of "
-				  "UnaryPredicate.  See "
-				  "http://en.cppreference.com/w/cpp/concept/Predicate" );
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				concept_checks::is_unary_predicate_test<UnaryPredicate,
+				                                        RandomIterator>( );
 
 				return impl::parallel_count( first, last, pred, std::move( ts ) );
 			}
@@ -499,6 +486,9 @@ namespace daw {
 			decltype( auto ) count( RandomIterator first, RandomIterator last,
 			                        T const &value,
 			                        task_scheduler ts = get_task_scheduler( ) ) {
+
+				traits::is_random_access_iterator_test<RandomIterator>( );
+				traits::is_input_iterator_test<RandomIterator>( );
 
 				return impl::parallel_count(
 				  first, last, [&value]( auto const &rhs ) { return value == rhs; },
@@ -513,6 +503,8 @@ namespace daw {
 			void chunked_for_each( RandomIterator first, RandomIterator last,
 			                       Function func,
 			                       task_scheduler ts = get_task_scheduler( ) ) {
+
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
 				impl::partition_range( ranges, std::move( func ), std::move( ts ) )
 				  .wait( );
@@ -523,6 +515,8 @@ namespace daw {
 			void chunked_for_each_pos( RandomIterator first, RandomIterator last,
 			                           Function func,
 			                           task_scheduler ts = get_task_scheduler( ) ) {
+
+				traits::is_random_access_iterator_test<RandomIterator>( );
 				auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
 				impl::partition_range_pos( ranges, std::move( func ), std::move( ts ) )
 				  .wait( );

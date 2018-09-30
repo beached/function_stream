@@ -40,13 +40,13 @@ namespace daw {
 		  std::size_t num_threads = std::thread::hardware_concurrency( ),
 		  bool block_on_destruction = true );
 
-		template<typename Task, std::enable_if_t<daw::is_callable_v<Task>,
+		template<typename Task, std::enable_if_t<traits::is_callable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
 		void add_task( Task &&task ) noexcept {
 			m_impl->add_task( std::forward<Task>( task ) );
 		}
 
-		template<typename Task, std::enable_if_t<daw::is_callable_v<Task>,
+		template<typename Task, std::enable_if_t<traits::is_callable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
 		void add_task( Task &&task, daw::shared_latch sem ) noexcept {
 			m_impl->add_task( std::forward<Task>( task ), std::move( sem ) );
@@ -63,7 +63,7 @@ namespace daw {
 
 		template<typename Function>
 		decltype( auto ) wait_for_scope( Function &&func ) {
-			static_assert( daw::is_callable_v<Function>,
+			static_assert( traits::is_callable_v<Function>,
 			               "Function passed to wait_for_scope must be callable "
 			               "without an arugment. e.g. func( )" );
 
@@ -99,7 +99,7 @@ namespace daw {
 	template<typename Task>
 	void schedule_task( daw::shared_latch sem, Task &&task,
 	                    task_scheduler ts = get_task_scheduler( ) ) {
-		static_assert( daw::is_callable_v<Task>,
+		static_assert( traits::is_callable_v<Task>,
 		               "Task task passed to schedule_task must be callable without "
 		               "an arugment. e.g. task( )" );
 		ts.add_task(
@@ -113,7 +113,7 @@ namespace daw {
 	daw::shared_latch
 	create_waitable_task( Task &&task,
 	                      task_scheduler ts = get_task_scheduler( ) ) {
-		static_assert( daw::is_callable_v<Task>,
+		static_assert( traits::is_callable_v<Task>,
 		               "Task task passed to create_waitable_task must be callable "
 		               "without an arugment. "
 		               "e.g. task( )" );
@@ -163,7 +163,7 @@ namespace daw {
 	template<typename Function>
 	decltype( auto ) wait_for_scope( Function &&func,
 	                                 task_scheduler ts = get_task_scheduler( ) ) {
-		static_assert( daw::is_callable_v<Function>,
+		static_assert( traits::is_callable_v<Function>,
 		               "Function passed to wait_for_scope must be callable without "
 		               "an arugment. e.g. func( )" );
 		return ts.wait_for_scope( std::forward<Function>( func ) );

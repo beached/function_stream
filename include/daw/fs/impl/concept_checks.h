@@ -29,25 +29,56 @@
 namespace daw {
 	namespace concept_checks {
 		template<typename BinaryPredicate, typename Iterator1, typename Iterator2>
-		constexpr bool is_binary_predicate_v = daw::is_binary_predicate_v<
+		CXINLINE bool is_binary_predicate_v = traits::is_binary_predicate<
 		  BinaryPredicate, typename std::iterator_traits<Iterator1>::value_type,
 		  typename std::iterator_traits<Iterator2>::value_type>;
 
+		template<typename BinaryPredicate, typename Iterator1, typename Iterator2>
+		constexpr bool is_binary_predicate_test( ) noexcept {
+			static_assert(
+			  is_binary_predicate_v<BinaryPredicate, Iterator1, Iterator2>,
+			  "Supplied BinaryPredicate does not satisfy the concept of "
+			  "BinaryPredicate.  See "
+			  "http://en.cppreference.com/w/cpp/concept/BinaryPredicate" );
+			return true;
+		}
+
 		template<typename UnaryPredicate, typename Iterator1>
-		constexpr bool is_unary_predicate_v = daw::is_unary_predicate_v<
+		CXINLINE bool is_unary_predicate_v = traits::is_unary_predicate_v<
 		  UnaryPredicate, typename std::iterator_traits<Iterator1>::value_type>;
 
+		template<typename UnaryPredicate, typename Iterator1>
+		constexpr bool is_unary_predicate_test( ) noexcept {
+			static_assert( is_unary_predicate_v<UnaryPredicate, Iterator1>,
+			               "Supplied UnaryPredicate does not satisfy the concept of "
+			               "UnaryPredicate.  See "
+			               "http://en.cppreference.com/w/cpp/concept/Predicate" );
+			return true;
+		}
+
 		template<typename Iterator1, typename Iterator2>
-		constexpr bool is_equality_comparable_v = daw::is_equality_comparable_v<
+		CXINLINE bool is_equality_comparable_v = traits::is_equality_comparable_v<
 		  typename std::iterator_traits<Iterator1>::value_type,
 		  typename std::iterator_traits<Iterator2>::value_type>;
 
-		template<typename Operator, typename... Iterators>
-		constexpr bool is_callable_v = daw::is_callable_v<
-		  Operator, typename std::iterator_traits<Iterators>::value_type...>;
+		template<typename Iterator1, typename Iterator2>
+		constexpr bool is_equality_comparable_test( ) noexcept {
+			static_assert( is_equality_comparable_v<Iterator1, Iterator2>,
+			               "Dereferenced Iterator1 and Iterator2 must be equality "
+			               "comparable e.g. "
+			               "*first1 == *first2 must be valid" );
+			return true;
+		}
 
 		template<typename Operator, typename... Iterators>
-		using is_callable_t = daw::is_callable_t<
+		CXINLINE std::enable_if_t<all_true_v<traits::is_iterator_v<Iterators>...>,
+		                          bool>
+		  is_callable_v =
+		    traits::is_callable_v<Operator,
+		                  typename std::iterator_traits<Iterators>::value_type...>;
+
+		template<typename Operator, typename... Iterators>
+		using is_callable_t = traits::is_callable_t<
 		  Operator, typename std::iterator_traits<Iterators>::value_type...>;
 	} // namespace concept_checks
 } // namespace daw

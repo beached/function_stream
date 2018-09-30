@@ -45,7 +45,7 @@ namespace daw {
 		template<
 		  typename Callable,
 		  std::enable_if_t<(!daw::is_same_v<task_t, std::decay_t<Callable>> &&
-		                    daw::is_callable_v<Callable>),
+		                    traits::is_callable_v<Callable>),
 		                   std::nullptr_t> = nullptr>
 		explicit task_t( Callable &&c )
 		  : m_function( std::forward<Callable>( c ) )
@@ -55,7 +55,7 @@ namespace daw {
 			                        "Callable must be valid" );
 		}
 
-		template<typename Callable, std::enable_if_t<daw::is_callable_v<Callable>,
+		template<typename Callable, std::enable_if_t<traits::is_callable_v<Callable>,
 		                                             std::nullptr_t> = nullptr>
 		task_t( Callable &&c, daw::shared_latch sem )
 		  : m_function( std::forward<Callable>( c ) )
@@ -83,7 +83,7 @@ namespace daw {
 
 	namespace impl {
 		template<typename... Tasks>
-		constexpr bool are_tasks_v = daw::all_true_v<daw::is_callable_v<Tasks>...>;
+		constexpr bool are_tasks_v = daw::all_true_v<traits::is_callable_v<Tasks>...>;
 
 		template<typename Waitable>
 		using is_waitable_detector =
@@ -180,7 +180,7 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task &&task ) {
 				static_assert(
-				  daw::is_callable_v<Task>,
+				  traits::is_callable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
 
 				add_task( std::forward<Task>( task ), get_task_id( ) );
@@ -189,7 +189,7 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task &&task, daw::shared_latch sem ) {
 				static_assert(
-				  daw::is_callable_v<Task>,
+				  traits::is_callable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
 
 				add_task( std::forward<Task>( task ), std::move( sem ),

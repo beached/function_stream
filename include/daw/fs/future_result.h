@@ -224,7 +224,7 @@ namespace daw {
 	template<typename result_t, typename Function>
 	constexpr decltype( auto ) operator|( future_result_t<result_t> &lhs,
 	                                      Function &&rhs ) {
-		static_assert( daw::is_callable_v<Function, result_t>,
+		static_assert( traits::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );
 		return lhs.next( std::forward<Function>( rhs ) );
 	}
@@ -232,7 +232,7 @@ namespace daw {
 	template<typename result_t, typename Function>
 	constexpr decltype( auto ) operator|( future_result_t<result_t> const &lhs,
 	                                      Function &&rhs ) {
-		static_assert( daw::is_callable_v<Function, result_t>,
+		static_assert( traits::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );
 		return lhs.next( std::forward<Function>( rhs ) );
 	}
@@ -240,13 +240,13 @@ namespace daw {
 	template<typename result_t, typename Function>
 	constexpr decltype( auto ) operator|( future_result_t<result_t> &&lhs,
 	                                      Function &&rhs ) {
-		static_assert( daw::is_callable_v<Function, result_t>,
+		static_assert( traits::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );
 		return lhs.next( std::forward<Function>( rhs ) );
 	}
 
 	template<typename Function, typename... Args,
-	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
+	         std::enable_if_t<traits::is_callable_v<Function, Args...>,
 	                          std::nullptr_t> = nullptr>
 	auto make_future_result( task_scheduler ts, Function &&func,
 	                         Args &&... args ) {
@@ -296,7 +296,7 @@ namespace daw {
 	} // namespace impl
 
 	template<typename Function, typename... Args,
-	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
+	         std::enable_if_t<traits::is_callable_v<Function, Args...>,
 	                          std::nullptr_t> = nullptr>
 	auto make_future_result( task_scheduler ts, daw::shared_latch sem,
 	                         Function &&func, Args &&... args ) {
@@ -310,7 +310,7 @@ namespace daw {
 	} // namespace daw
 
 	template<typename Function, typename... Args,
-	         std::enable_if_t<daw::is_callable_v<Function, Args...>,
+	         std::enable_if_t<traits::is_callable_v<Function, Args...>,
 	                          std::nullptr_t> = nullptr>
 	decltype( auto ) make_future_result( Function &&func, Args &&... args ) {
 		return make_future_result( get_task_scheduler( ),
