@@ -23,10 +23,10 @@
 #pragma once
 
 #include <atomic>
-#include <boost/optional.hpp>
 #include <functional>
 #include <list>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -98,7 +98,7 @@ namespace daw {
 		class task_scheduler_impl;
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-		                  boost::optional<daw::shared_latch> sem );
+		                  std::optional<daw::shared_latch> sem );
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
@@ -115,7 +115,7 @@ namespace daw {
 			size_t const m_num_threads;
 			std::vector<task_queue_t> m_tasks;
 			std::atomic<size_t> m_task_count;
-			daw::lockable_value_t<std::list<boost::optional<std::thread>>>
+			daw::lockable_value_t<std::list<std::optional<std::thread>>>
 			  m_other_threads;
 
 			std::weak_ptr<task_scheduler_impl> get_weak_this( );
@@ -170,7 +170,7 @@ namespace daw {
 
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
-			                  boost::optional<daw::shared_latch> sem );
+			                  std::optional<daw::shared_latch> sem );
 
 			void run_task( task_ptr_t &&tsk ) noexcept;
 

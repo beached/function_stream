@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <iterator>
 #include <numeric>
+#include <optional>
 
 #include <daw/daw_algorithm.h>
 #include <daw/parallel/daw_latch.h>
@@ -283,7 +284,7 @@ namespace daw {
 						}
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
-					auto results = std::vector<boost::optional<T>>( ranges.size( ) );
+					auto results = std::vector<std::optional<T>>( ranges.size( ) );
 					auto sem = partition_range_pos(
 					  ranges,
 					  [&results, binary_op]( iterator_range_t<Iterator> range,
@@ -401,7 +402,7 @@ namespace daw {
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					auto results =
-					  std::vector<boost::optional<result_t>>( ranges.size( ) );
+					  std::vector<std::optional<result_t>>( ranges.size( ) );
 
 					auto sem = partition_range_pos(
 					  ranges,
@@ -443,7 +444,7 @@ namespace daw {
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					auto p1_results =
-					  std::vector<boost::optional<value_t>>( ranges.size( ) );
+					  std::vector<std::optional<value_t>>( ranges.size( ) );
 					auto mut_p1_results = std::vector<daw::spin_lock>( ranges.size( ) );
 
 					auto const add_result = [&]( size_t pos, value_t const &value ) {
@@ -503,7 +504,7 @@ namespace daw {
 
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					auto results =
-					  std::vector<boost::optional<Iterator>>( ranges.size( ) );
+					  std::vector<std::optional<Iterator>>( ranges.size( ) );
 
 					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
 					daw::spin_lock mut_found;

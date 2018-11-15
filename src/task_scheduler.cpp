@@ -131,7 +131,7 @@ namespace daw {
 		void
 		task_scheduler_impl::task_runner( size_t id,
 		                                  std::weak_ptr<task_scheduler_impl> wself,
-		                                  boost::optional<daw::shared_latch> sem ) {
+		                                  std::optional<daw::shared_latch> sem ) {
 
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
@@ -237,7 +237,7 @@ namespace daw {
 				}( );
 
 				auto other_threads = m_other_threads.get( );
-				auto it = other_threads->emplace( other_threads->end( ), boost::none );
+				auto it = other_threads->emplace( other_threads->end( ), std::nullopt );
 				other_threads.release( );
 
 				auto const thread_worker = [it, id, wself = get_weak_this( ),
