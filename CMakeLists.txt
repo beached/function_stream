@@ -15,9 +15,9 @@ add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK )
 include( "${CMAKE_SOURCE_DIR}/dependent_projects/CMakeListsCompiler.txt" )
 
 set( DEP_ROOT_DIR_BASE "${CMAKE_SOURCE_DIR}/dependent_projects/build" )
-if( CMAKE_BUILD_TYPE EQUAL "Debug" )
+if( "${CMAKE_BUILD_TYPE}" EQUAL "Debug" )
 	set( DEP_ROOT_DIR "${DEP_ROOT_DIR_BASE}/debug" )
-elseif( CMAKE_BUILD_TYPE EQUAL "Release" )
+elseif( "${CMAKE_BUILD_TYPE}" STREQUAL "Release" )
 	set( DEP_ROOT_DIR "${DEP_ROOT_DIR_BASE}/release" )
 endif( )
 
