@@ -384,6 +384,29 @@ namespace daw {
 					  .wait( );
 				}
 
+								template<typename PartitionPolicy = split_range_t<512>,
+				         typename Iterator1, typename Iterator2, typename OutputIterator,
+				         typename BinaryOperation>
+				void parallel_map( Iterator1 first_in1, Iterator1 const last_in1, Iterator2 first_in2,
+				                   OutputIterator first_out, BinaryOperation binary_op,
+				                   task_scheduler ts ) {
+
+					partition_range<PartitionPolicy>(
+					  first_in1, last_in1,
+					  [first_in1, first_out, first_in2, binary_op]( Iterator1 first1,
+					                                   Iterator1 const last1 ) {
+
+					  	auto const d = std::distance( first_in1, first1 );
+						  auto out_it = std::next( first_out, d );
+						  auto in_it2 = std::next( first_in2, d );
+
+						  daw::algorithm::map( first1, last1, in_it2, out_it, binary_op );
+					  },
+					  ts )
+					  .wait( );
+				}
+
+
 				template<typename PartitionPolicy = split_range_t<512>,
 				         typename Iterator, typename T, typename MapFunction,
 				         typename ReduceFunction>

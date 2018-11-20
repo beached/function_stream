@@ -257,6 +257,32 @@ namespace daw {
 				impl::parallel_map( first, last, first_out, unary_op, std::move( ts ) );
 			}
 
+			template<typename RandomIterator1, typename RandomIterator2,
+			         typename RandomOutputIterator, typename BinaryOperation>
+			void transform( RandomIterator1 first1, RandomIterator1 const last1,
+			                RandomIterator2 first2, RandomOutputIterator first_out,
+			                BinaryOperation binary_op,
+			                task_scheduler ts = get_task_scheduler( ) ) {
+
+				traits::is_random_access_iterator_test<RandomIterator1>( );
+				traits::is_random_access_iterator_test<RandomIterator2>( );
+				static_assert(
+				  concept_checks::is_callable_v<BinaryOperation, RandomIterator1, RandomIterator2>,
+				  "BinaryOperation passed to transform must accept the value referenced "
+				  "by first1 and first2. e.g "
+				  "unary_op( *first1, *first2 ) must be valid" );
+				static_assert(
+				  traits::is_assignable_iterator_v<
+				    RandomOutputIterator,
+				    concept_checks::is_callable_t<BinaryOperation, RandomIterator1, RandomIterator2>>,
+				  "The result of the BinaryOperation must be assignable to the "
+				  "dereferenced "
+				  "RandomOutputIterator. e.g. *first_out = binary_op( *first1, *first2 ) must be "
+				  "valid" );
+
+				impl::parallel_map( first1, last1, first2, first_out, binary_op, std::move( ts ) );
+			}
+
 			template<typename RandomIterator, typename UnaryOperation>
 			void transform( RandomIterator first, RandomIterator last,
 			                UnaryOperation unary_op,

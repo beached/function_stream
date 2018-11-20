@@ -37,7 +37,7 @@ namespace daw {
 
 	public:
 		explicit task_scheduler(
-		  std::size_t num_threads = std::thread::hardware_concurrency( ),
+		  std::size_t num_threads = std::thread::hardware_concurrency( )*4,
 		  bool block_on_destruction = true );
 
 		template<typename Task, std::enable_if_t<traits::is_callable_v<Task>,
