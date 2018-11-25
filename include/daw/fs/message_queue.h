@@ -22,9 +22,9 @@
 
 #pragma once
 
-#include <boost/next_prior.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 #include <boost/lockfree/stack.hpp>
+#include <boost/next_prior.hpp>
 
 namespace daw {
 	namespace parallel {
@@ -42,15 +42,17 @@ namespace daw {
 				std::atomic<bool> m_completed;
 				base_queue_t m_queue;
 
-				members_t( ) noexcept(  daw::is_nothrow_constructible_v<base_queue_t> )
+				members_t( ) noexcept( daw::is_nothrow_constructible_v<base_queue_t> )
 				  : m_completed( false )
 				  , m_queue( ) {}
 
-				explicit members_t( unsigned long max_size ) noexcept(  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
+				explicit members_t( unsigned long max_size ) noexcept(
+				  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
 				  : m_completed( false )
 				  , m_queue( max_size ) {}
 
-				explicit members_t( use_autosize ) noexcept(  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
+				explicit members_t( use_autosize ) noexcept(
+				  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
 				  : m_completed( false )
 				  , m_queue( size_msg_queue_to_cache_size<T>( ) ) {}
 			};

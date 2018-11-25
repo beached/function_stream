@@ -50,7 +50,6 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/daw/fs/algorithms.h
 	${HEADER_FOLDER}/daw/fs/function_stream.h
 	${HEADER_FOLDER}/daw/fs/future_result.h
-	${HEADER_FOLDER}/daw/fs/iterator_range.h
 	${HEADER_FOLDER}/daw/fs/package.h
 	${HEADER_FOLDER}/daw/fs/message_queue.h
 	${HEADER_FOLDER}/daw/fs/task_scheduler.h

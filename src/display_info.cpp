@@ -23,8 +23,8 @@
 #include <chrono>
 #include <cstdint>
 #include <date/date.h>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <thread>
 
 #include <daw/daw_string_view.h>
@@ -39,8 +39,8 @@ namespace {
 	}
 } // namespace
 
-void display_info_impl( double seq_time, double par_time, double count, size_t bytes,
-                   daw::string_view label ) {
+void display_info_impl( double seq_time, double par_time, double count,
+                        size_t bytes, daw::string_view label ) {
 	using namespace std::chrono;
 	using namespace date;
 

@@ -71,11 +71,10 @@ namespace daw {
 		}
 
 		template<typename Operator, typename... Iterators>
-		CXINLINE std::enable_if_t<all_true_v<traits::is_iterator_v<Iterators>...>,
-		                          bool>
-		  is_callable_v =
-		    traits::is_callable_v<Operator,
-		                  typename std::iterator_traits<Iterators>::value_type...>;
+		CXINLINE
+		  std::enable_if_t<all_true_v<traits::is_iterator_v<Iterators>...>, bool>
+		    is_callable_v = traits::is_callable_v<
+		      Operator, typename std::iterator_traits<Iterators>::value_type...>;
 
 		template<typename Operator, typename... Iterators>
 		using is_callable_t = traits::is_callable_t<

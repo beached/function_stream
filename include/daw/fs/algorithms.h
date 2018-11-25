@@ -112,7 +112,8 @@ namespace daw {
 			                     Compare &&comp = Compare{} ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
-				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
+				                                         RandomIterator>( );
 
 				impl::fork_join_sort( first, last,
 				                      []( RandomIterator f, RandomIterator l,
@@ -128,7 +129,8 @@ namespace daw {
 			                            Compare &&comp = Compare{} ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
-				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
+				                                         RandomIterator>( );
 
 				impl::fork_join_sort(
 				  first, last,
@@ -146,7 +148,8 @@ namespace daw {
 			                  Compare comp = Compare{} ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
-				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
+				                                         RandomIterator>( );
 
 				impl::parallel_sort(
 				  first, last,
@@ -214,7 +217,8 @@ namespace daw {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				traits::is_input_iterator_test<RandomIterator>( );
-				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
+				                                         RandomIterator>( );
 
 				return impl::parallel_min_element( first, last, comp, std::move( ts ) );
 			}
@@ -228,7 +232,8 @@ namespace daw {
 			                              Compare comp = Compare{} ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
-				concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
+				                                         RandomIterator>( );
 
 				return impl::parallel_max_element( first, last, comp, std::move( ts ) );
 			}
@@ -267,20 +272,25 @@ namespace daw {
 				traits::is_random_access_iterator_test<RandomIterator1>( );
 				traits::is_random_access_iterator_test<RandomIterator2>( );
 				static_assert(
-				  concept_checks::is_callable_v<BinaryOperation, RandomIterator1, RandomIterator2>,
-				  "BinaryOperation passed to transform must accept the value referenced "
+				  concept_checks::is_callable_v<BinaryOperation, RandomIterator1,
+				                                RandomIterator2>,
+				  "BinaryOperation passed to transform must accept the value "
+				  "referenced "
 				  "by first1 and first2. e.g "
 				  "unary_op( *first1, *first2 ) must be valid" );
 				static_assert(
 				  traits::is_assignable_iterator_v<
 				    RandomOutputIterator,
-				    concept_checks::is_callable_t<BinaryOperation, RandomIterator1, RandomIterator2>>,
+				    concept_checks::is_callable_t<BinaryOperation, RandomIterator1,
+				                                  RandomIterator2>>,
 				  "The result of the BinaryOperation must be assignable to the "
 				  "dereferenced "
-				  "RandomOutputIterator. e.g. *first_out = binary_op( *first1, *first2 ) must be "
+				  "RandomOutputIterator. e.g. *first_out = binary_op( *first1, *first2 "
+				  ") must be "
 				  "valid" );
 
-				impl::parallel_map( first1, last1, first2, first_out, binary_op, std::move( ts ) );
+				impl::parallel_map( first1, last1, first2, first_out, binary_op,
+				                    std::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename UnaryOperation>

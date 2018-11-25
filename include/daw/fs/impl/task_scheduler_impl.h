@@ -55,8 +55,9 @@ namespace daw {
 			                        "Callable must be valid" );
 		}
 
-		template<typename Callable, std::enable_if_t<traits::is_callable_v<Callable>,
-		                                             std::nullptr_t> = nullptr>
+		template<typename Callable,
+		         std::enable_if_t<traits::is_callable_v<Callable>, std::nullptr_t> =
+		           nullptr>
 		task_t( Callable &&c, daw::shared_latch sem )
 		  : m_function( std::forward<Callable>( c ) )
 		  , m_semaphore( std::make_unique<daw::shared_latch>( std::move( sem ) ) ) {
@@ -83,7 +84,8 @@ namespace daw {
 
 	namespace impl {
 		template<typename... Tasks>
-		constexpr bool are_tasks_v = daw::all_true_v<traits::is_callable_v<Tasks>...>;
+		constexpr bool are_tasks_v =
+		  daw::all_true_v<traits::is_callable_v<Tasks>...>;
 
 		template<typename Waitable>
 		using is_waitable_detector =
@@ -110,13 +112,13 @@ namespace daw {
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;
 			daw::lockable_value_t<std::unordered_map<std::thread::id, size_t>>
 			  m_thread_map;
-			std::atomic_bool m_continue;
+			std::atomic_bool m_continue{ false };
 			bool m_block_on_destruction;
 			size_t const m_num_threads;
 			std::vector<task_queue_t> m_tasks;
-			std::atomic<size_t> m_task_count;
+			std::atomic<size_t> m_task_count{ 0 };
 			daw::lockable_value_t<std::list<std::optional<std::thread>>>
-			  m_other_threads;
+			  m_other_threads{};
 
 			std::weak_ptr<task_scheduler_impl> get_weak_this( );
 

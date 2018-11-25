@@ -44,18 +44,9 @@ namespace daw {
 
 		task_scheduler_impl::task_scheduler_impl( std::size_t num_threads,
 		                                          bool block_on_destruction )
-		  : m_continue{false}
-		  , m_block_on_destruction{block_on_destruction}
-		  , m_num_threads{num_threads}
-		  , m_tasks{}
-		  , m_task_count{0}
-		  , m_other_threads{} {
-
-			for( size_t n = 0; n < m_num_threads; ++n ) {
-				// TODO: right size the task queue
-				m_tasks.emplace_back( 1024 );
-			}
-		}
+		  : m_block_on_destruction( block_on_destruction )
+		  , m_num_threads( num_threads )
+		  , m_tasks( num_threads, task_queue_t(1024) ) { }
 
 		task_scheduler_impl::~task_scheduler_impl( ) {
 			stop( m_block_on_destruction );
