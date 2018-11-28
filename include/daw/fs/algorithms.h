@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <daw/daw_view.h>
+
 #include "impl/algorithms_impl.h"
 #include "impl/concept_checks.h"
 
@@ -40,7 +42,8 @@ namespace daw {
 				  "by first. e.g "
 				  "unary_op( *first ) must be valid" );
 
-				impl::parallel_for_each( first, last, unary_op, std::move( ts ) );
+				impl::parallel_for_each( daw::view( first, last ), unary_op,
+				                         std::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename UnaryOperation>

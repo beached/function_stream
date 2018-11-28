@@ -112,11 +112,11 @@ namespace daw {
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;
 			daw::lockable_value_t<std::unordered_map<std::thread::id, size_t>>
 			  m_thread_map;
-			std::atomic_bool m_continue{ false };
+			std::atomic_bool m_continue{false};
 			bool m_block_on_destruction;
 			size_t const m_num_threads;
 			std::vector<task_queue_t> m_tasks;
-			std::atomic<size_t> m_task_count{ 0 };
+			std::atomic<size_t> m_task_count{0};
 			daw::lockable_value_t<std::list<std::optional<std::thread>>>
 			  m_other_threads{};
 

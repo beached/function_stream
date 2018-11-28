@@ -100,18 +100,17 @@ void sort_test( size_t SZ ) {
 #endif
 
 #ifdef HAS_PAR_STL
-	auto const par_stl_test =
-	  [&]( ) {
-		  std::sort( std::execution::par, a.data( ),
-		             a.data( ) + static_cast<ptrdiff_t>( a.size( ) ) );
-		  daw::do_not_optimize( a );
+	auto const par_stl_test = [&]( ) {
+		std::sort( std::execution::par, a.data( ),
+		           a.data( ) + static_cast<ptrdiff_t>( a.size( ) ) );
+		daw::do_not_optimize( a );
 	};
 #endif
 
-	  auto const ser_test = [&]( ) {
-		  std::sort( a.begin( ), a.end( ) );
-		  daw::do_not_optimize( a );
-	  };
+	auto const ser_test = [&]( ) {
+		std::sort( a.begin( ), a.end( ) );
+		daw::do_not_optimize( a );
+	};
 
 	auto const par_result_1 = daw::benchmark( par_test );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );

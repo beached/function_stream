@@ -46,7 +46,7 @@ namespace daw {
 		                                          bool block_on_destruction )
 		  : m_block_on_destruction( block_on_destruction )
 		  , m_num_threads( num_threads )
-		  , m_tasks( num_threads, task_queue_t(1024) ) { }
+		  , m_tasks( num_threads, task_queue_t( 1024 ) ) {}
 
 		task_scheduler_impl::~task_scheduler_impl( ) {
 			stop( m_block_on_destruction );
