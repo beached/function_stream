@@ -383,7 +383,7 @@ namespace daw {
 
 					partition_range<PartitionPolicy>(
 					  range_in,
-					  [first_in = range.begin( ), first_out, unary_op]( Iterator first,
+					  [first_in = range_in.begin( ), first_out, unary_op]( Iterator first,
 					                                                    Iterator last ) {
 						  auto const step = std::distance( first_in, first );
 						  daw::exception::dbg_precondition_check( step >= 0 );
