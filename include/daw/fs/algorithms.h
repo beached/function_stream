@@ -385,12 +385,6 @@ namespace daw {
 				  "referenced by first. e.g "
 				  "map_function( *first ) must be valid" );
 
-				static_assert( traits::is_callable_v<UnaryOperation, T>,
-				               "UnaryOperation map_function passed to map_reduce must "
-				               "accept the init "
-				               "value of type T. e.g "
-				               "map_function( value ) must be valid" );
-
 				using transform_result_t =
 				  concept_checks::is_callable_t<UnaryOperation, RandomIterator>;
 				static_assert(
