@@ -70,11 +70,13 @@ namespace daw {
 			return true;
 		}
 
+		template<typename T>
+		using value_of_deref_t = daw::remove_cvref_t<decltype( *std::declval<T>( ) )>;
+
 		template<typename Operator, typename... Iterators>
-		CXINLINE
-		  std::enable_if_t<all_true_v<traits::is_iterator_v<Iterators>...>, bool>
-		    is_callable_v = traits::is_callable_v<
-		      Operator, typename std::iterator_traits<Iterators>::value_type...>;
+		CXINLINE bool const
+		    is_callable_v = std::is_invocable_v<
+		      Operator, value_of_deref_t<Iterators>...>;
 
 		template<typename Operator, typename... Iterators>
 		using is_callable_t = traits::is_callable_t<
