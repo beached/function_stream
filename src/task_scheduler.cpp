@@ -24,6 +24,7 @@
 #include <thread>
 
 #include <daw/parallel/daw_latch.h>
+#include <boost/next_prior.hpp>
 
 #include "daw/fs/task_scheduler.h"
 
