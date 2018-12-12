@@ -80,6 +80,6 @@ namespace daw {
 
 		template<typename Operator, typename... Iterators>
 		using is_callable_t = traits::is_callable_t<
-		  Operator, typename std::iterator_traits<Iterators>::value_type...>;
+		  Operator, value_of_deref_t<Iterators>...>;
 	} // namespace concept_checks
 } // namespace daw

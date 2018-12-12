@@ -352,7 +352,7 @@ namespace daw {
 
 				auto it_init = first;
 				std::advance( first, 1 );
-				return impl::parallel_map_reduce( first, last, *it_init, map_function,
+				return impl::parallel_map_reduce( daw::view( first, last ), *it_init, map_function,
 				                                  reduce_function, std::move( ts ) );
 			}
 
@@ -376,7 +376,7 @@ namespace daw {
 			                             T const &init, UnaryOperation map_function,
 			                             BinaryOperation reduce_function,
 			                             task_scheduler ts = get_task_scheduler( ) ) {
-
+/*
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				static_assert(
 				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
@@ -396,10 +396,8 @@ namespace daw {
 				  "reduce_function( tranfom_function( *first ), transform_function( "
 				  "*(first + 1) ) ) must "
 				  "be valid" );
-
-				auto it_init = first;
-				std::advance( first, 1 );
-				return impl::parallel_map_reduce( first, last, *it_init, map_function,
+*/
+				return impl::parallel_map_reduce( daw::view( first, last ), init, map_function,
 				                                  reduce_function, std::move( ts ) );
 			}
 
