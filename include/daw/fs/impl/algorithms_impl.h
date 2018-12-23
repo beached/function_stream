@@ -100,7 +100,7 @@ namespace daw {
 					for( auto rng : ranges ) {
 						schedule_task( sem,
 						               [func = daw::mutable_capture( func ), rng]( ) {
-							               ( *func )( rng );
+							               daw::invoke( *func, rng );
 						               },
 						               ts );
 					}
@@ -116,7 +116,7 @@ namespace daw {
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
 						schedule_task( sem,
 						               [func = daw::mutable_capture( func ),
-						                rng = ranges[n], n]( ) { ( *func )( rng, n ); },
+						                rng = ranges[n], n]( ) { daw::invoke( *func, rng, n ); },
 						               ts );
 					}
 					return sem;
@@ -134,7 +134,7 @@ namespace daw {
 					for( auto rng : ranges ) {
 						schedule_task( sem,
 						               [func = daw::mutable_capture( func ), rng]( ) {
-							               ( *func )( rng.begin( ), rng.end( ) );
+							               daw::invoke( *func, rng.begin( ), rng.end( ) );
 						               },
 						               ts );
 					}
@@ -149,7 +149,7 @@ namespace daw {
 					  rng,
 					  [func]( daw::view<RandomIterator> r ) mutable {
 						  for( auto &&item : r ) {
-							  func( std::forward<decltype( item )>( item ) );
+							  daw::invoke( func, std::forward<decltype( item )>( item ) );
 						  }
 					  },
 					  ts )
@@ -161,7 +161,7 @@ namespace daw {
 					partition_range( ranges,
 					                 [func]( auto f, auto l ) mutable {
 						                 for( auto it = f; it != l; ++it ) {
-							                 func( *it );
+							                 daw::invoke( func, *it );
 						                 }
 					                 },
 					                 ts )
@@ -182,7 +182,7 @@ namespace daw {
 						                 auto const end_pos = static_cast<size_t>(
 						                   std::distance( first, rng.end( ) ) );
 						                 for( size_t n = start_pos; n < end_pos; ++n ) {
-							                 func( n );
+							                 daw::invoke( func, n );
 						                 }
 					                 },
 					                 ts )
@@ -206,8 +206,8 @@ namespace daw {
 							next_ranges.push_back( ranges.back( ) );
 						}
 						for( size_t n = 1; n < count; n += 2 ) {
-							ts.add_task( [func, &ranges, n, &sem]( ) {
-								func( ranges[n - 1].begin( ), ranges[n].begin( ),
+							ts.add_task( [func=mutable_capture(func), &ranges, n, &sem]( ) {
+								daw::invoke( *func, ranges[n - 1].begin( ), ranges[n].begin( ),
 								      ranges[n].end( ) );
 								sem.notify( );
 							} );
@@ -219,24 +219,24 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename Sort, typename Compare>
-				void parallel_sort( Iterator first, Iterator last, Sort srt,
-				                    Compare cmp, task_scheduler ts ) {
+				void parallel_sort( Iterator first, Iterator last, Sort&& srt,
+				                    Compare&& cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size >
 					    static_cast<size_t>( std::distance( first, last ) ) ) {
-						srt( first, last, cmp );
+						daw::invoke( std::forward<Sort>( srt ), first, last, std::forward<Compare>( cmp ) );
 						return;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) * 4U );
 					partition_range( ranges,
-					                 [srt, cmp]( auto const &range ) {
-						                 srt( range.begin( ), range.end( ), cmp );
+					                 [srt=mutable_capture(std::forward<Sort>(srt)), cmp=mutable_capture(cmp)]( auto const &range ) {
+						                 daw::invoke( *srt,  range.begin( ), range.end( ), *cmp );
 					                 },
 					                 ts )
 					  .wait( );
 
 					merge_reduce_range( ranges,
-					                    [cmp]( Iterator f, Iterator m, Iterator l ) {
-						                    std::inplace_merge( f, m, l, cmp );
+					                    [cmp=mutable_capture(std::forward<Compare>(cmp))]( Iterator f, Iterator m, Iterator l ) {
+						                    std::inplace_merge( f, m, l, *cmp );
 					                    },
 					                    ts );
 				}
@@ -246,7 +246,7 @@ namespace daw {
 				void fork_join_sort( daw::view<Iterator> range, Sort &&srt,
 				                     Compare &&cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size > range.size( ) ) {
-						srt( range.begin( ), range.end( ), cmp );
+						daw::invoke( srt, range.begin( ), range.end( ), cmp );
 						return;
 					}
 					auto ranges = PartitionPolicy( )( range, ts.size( ) );
@@ -255,8 +255,8 @@ namespace daw {
 					sorters.reserve( ranges.size( ) );
 
 					auto const sort_fn =
-					  [cmp, srt = std::forward<Sort>( srt )]( daw::view<Iterator> r ) {
-						  srt( r.begin( ), r.end( ), cmp );
+					  [cmp=mutable_capture(cmp), srt = mutable_capture( std::forward<Sort>( srt ))]( daw::view<Iterator> r ) {
+						  daw::invoke( *srt, r.begin( ), r.end( ), *cmp );
 						  return r;
 					  };
 
@@ -383,7 +383,7 @@ namespace daw {
 
 					partition_range<PartitionPolicy>(
 					  range_in,
-					  [first_in = range.begin( ), first_out, unary_op]( Iterator first,
+					  [first_in = range_in.begin( ), first_out, unary_op]( Iterator first,
 					                                                    Iterator last ) {
 						  auto const step = std::distance( first_in, first );
 						  daw::exception::dbg_precondition_check( step >= 0 );

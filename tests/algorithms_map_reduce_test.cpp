@@ -66,7 +66,7 @@ void map_reduce_test( size_t SZ ) {
 
 	auto const result_1 = daw::benchmark( [&]( ) {
 		mr_value1 = daw::algorithm::parallel::map_reduce(
-		  a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
+				a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
 		daw::do_not_optimize( mr_value1 );
 	} );
 	auto const result_2 = daw::benchmark( [&]( ) {

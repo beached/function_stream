@@ -352,7 +352,7 @@ namespace daw {
 
 				auto it_init = first;
 				std::advance( first, 1 );
-				return impl::parallel_map_reduce( first, last, *it_init, map_function,
+				return impl::parallel_map_reduce( daw::view<RandomIterator>( first, last ), *it_init, map_function,
 				                                  reduce_function, std::move( ts ) );
 			}
 

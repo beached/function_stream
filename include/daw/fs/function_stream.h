@@ -66,7 +66,7 @@ namespace daw {
 		auto operator( )( Args &&... args ) const {
 			using func_result_t =
 			  decltype( std::declval<func_comp_t>( ).apply( args... ) );
-			future_result_t<func_result_t> result;
+			future_result_t<func_result_t> result{};
 			impl::call<0>( make_shared_package( continue_on_result_destruction,
 			                                    result.weak_ptr( ), m_funcs,
 			                                    std::forward<Args>( args )... ) );
@@ -97,7 +97,7 @@ namespace daw {
 		template<typename...>
 		friend class future_generator_t;
 
-		std::tuple<Funcs...> m_funcs;
+		std::tuple<Funcs...> m_funcs{};
 
 		template<typename... Functions>
 		constexpr static future_generator_t<Functions...>
@@ -112,8 +112,7 @@ namespace daw {
 		}
 
 	public:
-		constexpr future_generator_t( ) noexcept
-		  : m_funcs{} {}
+		constexpr future_generator_t( ) noexcept = default;
 
 		template<typename... Functions,
 		         std::enable_if_t<(sizeof...( Functions ) > 1 &&
@@ -249,3 +248,4 @@ namespace daw {
 	};
 	*/
 } // namespace daw
+
