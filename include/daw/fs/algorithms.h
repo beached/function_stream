@@ -352,8 +352,9 @@ namespace daw {
 
 				auto it_init = first;
 				std::advance( first, 1 );
-				return impl::parallel_map_reduce( daw::view<RandomIterator>( first, last ), *it_init, map_function,
-				                                  reduce_function, std::move( ts ) );
+				return impl::parallel_map_reduce( daw::view( first, last ), *it_init,
+				                                  map_function, reduce_function,
+				                                  std::move( ts ) );
 			}
 
 			/// @brief Perform MapReduce on range and return result
@@ -376,37 +377,28 @@ namespace daw {
 			                             T const &init, UnaryOperation map_function,
 			                             BinaryOperation reduce_function,
 			                             task_scheduler ts = get_task_scheduler( ) ) {
+				/*
+				        traits::is_random_access_iterator_test<RandomIterator>( );
+				        static_assert(
+				          concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
+				          "UnaryOperation map_function passed to map_reduce must accept
+				   the " "value " "referenced by first. e.g " "map_function( *first )
+				   must be valid" );
 
-				traits::is_random_access_iterator_test<RandomIterator>( );
-				static_assert(
-				  concept_checks::is_callable_v<UnaryOperation, RandomIterator>,
-				  "UnaryOperation map_function passed to map_reduce must accept the "
-				  "value "
-				  "referenced by first. e.g "
-				  "map_function( *first ) must be valid" );
-
-				static_assert( traits::is_callable_v<UnaryOperation, T>,
-				               "UnaryOperation map_function passed to map_reduce must "
-				               "accept the init "
-				               "value of type T. e.g "
-				               "map_function( value ) must be valid" );
-
-				using transform_result_t =
-				  concept_checks::is_callable_t<UnaryOperation, RandomIterator>;
-				static_assert(
-				  concept_checks::is_callable_v<BinaryOperation, transform_result_t,
-				                                transform_result_t>,
-				  "BinaryOperation reduce_function passed to map_reduce must accept "
-				  "the result of the "
-				  "transform_function for each arg. e.g "
-				  "reduce_function( tranfom_function( *first ), transform_function( "
-				  "*(first + 1) ) ) must "
-				  "be valid" );
-
-				auto it_init = first;
-				std::advance( first, 1 );
-				return impl::parallel_map_reduce( first, last, *it_init, map_function,
-				                                  reduce_function, std::move( ts ) );
+				        using transform_result_t =
+				          concept_checks::is_callable_t<UnaryOperation, RandomIterator>;
+				        static_assert(
+				          concept_checks::is_callable_v<BinaryOperation,
+				   transform_result_t, transform_result_t>, "BinaryOperation
+				   reduce_function passed to map_reduce must accept " "the result of the
+				   " "transform_function for each arg. e.g " "reduce_function(
+				   tranfom_function( *first ), transform_function( "
+				          "*(first + 1) ) ) must "
+				          "be valid" );
+				*/
+				return impl::parallel_map_reduce( daw::view( first, last ), init,
+				                                  map_function, reduce_function,
+				                                  std::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename RandomOutputIterator,

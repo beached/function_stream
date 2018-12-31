@@ -90,6 +90,10 @@ namespace daw {
 						}
 						return results;
 					}
+					template<typename Iterator>
+					std::vector<daw::view<Iterator>> operator( )( daw::view<Iterator> rng, size_t const max_parts ) const {
+						return operator( )( rng.begin( ), rng.end( ), max_parts );
+					}
 				};
 
 				template<typename RandomIterator, typename Func>

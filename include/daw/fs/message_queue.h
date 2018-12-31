@@ -22,9 +22,9 @@
 
 #pragma once
 
+#include <boost/next_prior.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 #include <boost/lockfree/stack.hpp>
-#include <boost/next_prior.hpp>
 
 namespace daw {
 	namespace parallel {
