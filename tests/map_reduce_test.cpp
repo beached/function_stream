@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include <daw/daw_array_view.h>
+#include <daw/daw_span.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_memory_mapped_file.h>
 #include <daw/daw_string_view.h>
@@ -66,7 +66,7 @@ constexpr void find_commas( daw::string_view line, Function on_commas ) {
 }
 
 template<typename T, typename Emitter>
-constexpr void find_newlines( daw::array_view<T> str, Emitter emitter ) {
+constexpr void find_newlines( daw::span<T> str, Emitter emitter ) {
 	auto const last = str.cend( );
 	auto last_pos = str.cbegin( );
 	str.remove_prefix( );
@@ -137,7 +137,7 @@ daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 	daw::parallel::spsc_msg_queue_t<daw::string_view> str_lines_result{
 	  daw::parallel::use_autosize{}};
 
-	ts.add_task( [str, str_lines_result]( ) mutable {
+	ts.add_task( [str=daw::move(str), str_lines_result]( ) mutable {
 		auto const at_exit = daw::on_scope_exit(
 		  [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
 
@@ -199,7 +199,7 @@ int main( int argc, char **argv ) {
 	auto time2 = std::numeric_limits<double>::max( );
 	auto const sz = mmf.size( );
 	{
-		auto view = daw::make_array_view( mmf.data( ), sz );
+		auto view = daw::span( mmf.data( ), sz );
 		auto result = parse_file( view, daw::get_task_scheduler( ) );
 		time1 = daw::benchmark( [&result]( ) { result.wait( ); } );
 
@@ -218,7 +218,7 @@ int main( int argc, char **argv ) {
 		mem_data.reserve( sz );
 		std::copy( mmf.cbegin( ), mmf.cend( ), std::back_inserter( mem_data ) );
 		mmf.close( );
-		auto view = daw::make_array_view( mem_data.data( ), mem_data.size( ) );
+		auto view = daw::span( mem_data.data( ), mem_data.size( ) );
 		auto result = parse_file( view, daw::get_task_scheduler( ) );
 		time2 = daw::benchmark( [&result]( ) { result.wait( ); } );
 

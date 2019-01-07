@@ -69,8 +69,8 @@ namespace daw {
 
 		template<size_t pos, typename Package>
 		void call( Package package ) {
-			get_task_scheduler( ).add_task( [p = std::move( package )]( ) mutable {
-				call_task<pos>( std::move( p ),
+			get_task_scheduler( ).add_task( [p = daw::move( package )]( ) mutable {
+				call_task<pos>( daw::move( p ),
 				                typename impl::which_type_t<
 				                  pos, decltype( p->function_list( ) )>::category{} );
 			} );
@@ -85,10 +85,10 @@ namespace daw {
 			auto client_data = package->result( ).lock( );
 			if( client_data ) {
 				client_data->from_code( [&]( ) mutable {
-					return daw::apply( func, std::move( package->targs( ) ) );
+					return daw::apply( func, daw::move( package->targs( ) ) );
 				} );
 			} else {
-				daw::apply( func, std::move( package->targs( ) ) );
+				daw::apply( func, daw::move( package->targs( ) ) );
 			}
 		}
 
@@ -100,7 +100,7 @@ namespace daw {
 			auto func = std::get<pos>( package->function_list( ) );
 			try {
 				call<pos + 1>( package->next_package(
-				  daw::apply( func, std::move( package->targs( ) ) ) ) );
+				  daw::apply( func, daw::move( package->targs( ) ) ) ) );
 			} catch( ... ) {
 				auto result = package->result( ).lock( );
 				if( result ) {
@@ -149,13 +149,13 @@ namespace daw {
 			constexpr explicit function_composer_t( Functions &&... fs ) noexcept
 			  : funcs{std::make_tuple( fs... )} {}
 			constexpr explicit function_composer_t( tfunction_t functions ) noexcept
-			  : funcs{std::move( functions )} {}
+			  : funcs{daw::move( functions )} {}
 
 		private:
 			template<typename... Fs>
 			static constexpr function_composer_t<Fs...>
 			make_function_composer_t( std::tuple<Fs...> tpfuncs ) noexcept {
-				return function_composer_t<Fs...>{std::move( tpfuncs )};
+				return function_composer_t<Fs...>{daw::move( tpfuncs )};
 			}
 
 		public:

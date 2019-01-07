@@ -55,7 +55,7 @@ namespace daw {
 		}
 
 		explicit future_result_t( task_scheduler ts )
-		  : m_data( std::make_shared<m_data_t>( std::move( ts ) ) ) {
+		  : m_data( std::make_shared<m_data_t>( daw::move( ts ) ) ) {
 
 			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 		}
@@ -63,7 +63,7 @@ namespace daw {
 		explicit future_result_t( daw::shared_latch sem,
 		                          task_scheduler ts = get_task_scheduler( ) )
 		  : m_data(
-		      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) ) ) {
+		      std::make_shared<m_data_t>( daw::move( sem ), daw::move( ts ) ) ) {
 
 			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 		}
@@ -258,8 +258,8 @@ namespace daw {
 		              args = std::make_tuple(
 		                std::forward<Args>( args )... )]( ) mutable -> void {
 			result.from_code(
-			  [func = std::move( func ), args = std::move( args )]( ) mutable {
-				  return daw::apply( std::move( func ), std::move( args ) );
+			  [func = daw::move( func ), args = daw::move( args )]( ) mutable {
+				  return daw::apply( daw::move( func ), daw::move( args ) );
 			  } );
 		} );
 		return result;
@@ -281,7 +281,7 @@ namespace daw {
 			void operator( )( ) {
 				try {
 					result.set_value(
-					  daw::apply( std::move( func ), std::move( args ) ) );
+					  daw::apply( daw::move( func ), daw::move( args ) ) );
 				} catch( ... ) { result.set_exception( ); }
 			}
 		};
@@ -302,7 +302,7 @@ namespace daw {
 	                         Function &&func, Args &&... args ) {
 		using result_t =
 		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
-		auto result = future_result_t<result_t>( std::move( sem ) );
+		auto result = future_result_t<result_t>( daw::move( sem ) );
 		ts.add_task( impl::make_future_task( result, std::forward<Function>( func ),
 		                                     std::forward<Args>( args )... ) );
 

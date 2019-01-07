@@ -60,7 +60,7 @@ namespace daw {
 		           nullptr>
 		task_t( Callable &&c, daw::shared_latch sem )
 		  : m_function( std::forward<Callable>( c ) )
-		  , m_semaphore( std::make_unique<daw::shared_latch>( std::move( sem ) ) ) {
+		  , m_semaphore( std::make_unique<daw::shared_latch>( daw::move( sem ) ) ) {
 
 			daw::exception::Assert( static_cast<bool>( m_function ),
 			                        "Callable must be valid" );
@@ -140,18 +140,16 @@ namespace daw {
 
 			template<typename Task>
 			void add_task( Task &&task, size_t id ) {
-				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
-				            id]( ) mutable {
-					if( wself.expired( ) ) {
-						return;
-					}
-					auto self = wself.lock( );
-					if( self ) {
-						task( );
-						while( self->m_continue && self->run_next_task( id ) ) {}
-					}
-				};
-				send_task( task_ptr_t( std::move( tsk ) ), id );
+				send_task(
+				  task_ptr_t(
+				    [wself = get_weak_this( ),
+				     task = daw::mutable_capture( std::forward<Task>( task ) ), id]( ) {
+					    if( auto self = wself.lock( ); self ) {
+						    std::invoke( *std::move( task ) );
+						    while( self->m_continue && self->run_next_task( id ) ) {}
+					    }
+				    } ),
+				  id );
 			}
 
 			template<typename Task>
@@ -167,7 +165,7 @@ namespace daw {
 						while( self->m_continue && self->run_next_task( id ) ) {}
 					}
 				};
-				send_task( task_ptr_t( std::move( tsk ), std::move( sem ) ), id );
+				send_task( task_ptr_t( daw::move( tsk ), std::move( sem ) ), id );
 			}
 
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
@@ -194,7 +192,7 @@ namespace daw {
 				  traits::is_callable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
 
-				add_task( std::forward<Task>( task ), std::move( sem ),
+				add_task( std::forward<Task>( task ), daw::move( sem ),
 				          get_task_id( ) );
 			}
 

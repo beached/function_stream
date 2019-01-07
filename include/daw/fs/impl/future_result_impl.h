@@ -109,7 +109,7 @@ namespace daw {
 			  sem,
 			  [result = std::get<N>( results ), func = std::get<N>( funcs ),
 			   arg = std::forward<Arg>( arg )]( ) mutable {
-				  result.from_code( std::move( func ), std::move( arg ) );
+				  result.from_code( daw::move( func ), std::move( arg ) );
 			  },
 			  ts );
 		}
@@ -124,8 +124,8 @@ namespace daw {
 			daw::schedule_task( sem,
 			                    [result = std::get<N>( results ),
 			                     func = std::get<N>( funcs ), arg]( ) mutable {
-				                    result.from_code( std::move( func ),
-				                                      std::move( arg ) );
+				                    result.from_code( daw::move( func ),
+				                                      daw::move( arg ) );
 			                    },
 			                    ts );
 
@@ -155,12 +155,12 @@ namespace daw {
 			expected_result_t m_result;
 
 			explicit member_data_t( task_scheduler ts )
-			  : member_data_base_t( std::move( ts ) )
+			  : member_data_base_t( daw::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
 			member_data_t( daw::shared_latch sem, task_scheduler ts )
-			  : member_data_base_t( std::move( sem ), std::move( ts ) )
+			  : member_data_base_t( daw::move( sem ), std::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
@@ -176,7 +176,7 @@ namespace daw {
 				daw::exception::daw_throw_on_false(
 				  m_next, "Attempt to call next function on empty function" );
 
-				return m_next( std::move( value ) );
+				return m_next( daw::move( value ) );
 			}
 
 			decltype( auto ) pass_next( expected_result_t const &value ) {
@@ -190,10 +190,10 @@ namespace daw {
 			void set_value( expected_result_t &&value ) {
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
-					pass_next( std::move( value ) );
+					pass_next( daw::move( value ) );
 					return;
 				}
-				m_result = std::move( value );
+				m_result = daw::move( value );
 				status( ) = future_status::ready;
 				notify( );
 			}
@@ -212,10 +212,10 @@ namespace daw {
 			void set_value( base_result_t &&value ) {
 				auto const has_next = static_cast<bool>( m_next );
 				if( has_next ) {
-					pass_next( expected_result_t{std::move( value )} );
+					pass_next( expected_result_t{daw::move( value )} );
 					return;
 				}
-				m_result = std::move( value );
+				m_result = daw::move( value );
 				status( ) = future_status::ready;
 				notify( );
 			}
@@ -296,16 +296,16 @@ namespace daw {
 					  [&]( auto &&v ) mutable
 					  -> std::enable_if_t<
 					    daw::is_same_v<base_result_t, std::decay_t<decltype( v )>>> {
-						  ts.add_task( [result = std::move( result ),
-						                func = std::move( func ),
+						  ts.add_task( [result = daw::move( result ),
+						                func = daw::move( func ),
 						                v = std::forward<decltype( v )>( v )]( ) mutable {
-							  result.from_code( std::move( func ), std::move( v ) );
+							  result.from_code( daw::move( func ), std::move( v ) );
 						  } );
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
 				if( future_status::ready == status( ) ) {
-					pass_next( std::move( m_result ) );
+					pass_next( daw::move( m_result ) );
 					status( ) = future_status::continued;
 				} else {
 					status( ) = future_status::continued;
@@ -328,7 +328,7 @@ namespace daw {
 				};
 				auto result = result_t( construct_future( funcs )... );
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
-				m_next = [result, tpfuncs = std::move( tpfuncs ), ts = m_task_scheduler,
+				m_next = [result, tpfuncs = daw::move( tpfuncs ), ts = m_task_scheduler,
 				          self = this->shared_from_this( )]( auto &&value ) mutable
 				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
 				                                     std::decay_t<decltype( value )>>> {
@@ -345,7 +345,7 @@ namespace daw {
 					  } ) );
 				};
 				if( future_status::ready == status( ) ) {
-					pass_next( std::move( m_result ) );
+					pass_next( daw::move( m_result ) );
 					status( ) = future_status::continued;
 				} else {
 					status( ) = future_status::continued;
@@ -367,12 +367,12 @@ namespace daw {
 			expected_result_t m_result;
 
 			explicit member_data_t( task_scheduler ts )
-			  : member_data_base_t( std::move( ts ) )
+			  : member_data_base_t( daw::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
 			explicit member_data_t( daw::shared_latch sem, task_scheduler ts )
-			  : member_data_base_t( std::move( sem ), std::move( ts ) )
+			  : member_data_base_t( daw::move( sem ), std::move( ts ) )
 			  , m_next( nullptr )
 			  , m_result( ) {}
 
@@ -390,7 +390,7 @@ namespace daw {
 				daw::exception::dbg_throw_on_true(
 				  value.has_exception( ), "Unexpected exception in expected_t" );
 
-				m_next( std::move( value ) );
+				m_next( daw::move( value ) );
 			}
 
 			void pass_next( expected_result_t const &value ) {
@@ -431,15 +431,15 @@ namespace daw {
 				           expected_result_t value ) mutable -> void {
 					value.visit( daw::overload(
 					  [&]( ) {
-						  ts.add_task( [result = std::move( result ),
-						                func = std::move( func )]( ) mutable {
-							  result.from_code( std::move( func ) );
+						  ts.add_task( [result = daw::move( result ),
+						                func = daw::move( func )]( ) mutable {
+							  result.from_code( daw::move( func ) );
 						  } );
 					  },
 					  [&]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
 				};
 				if( future_status::ready == status( ) ) {
-					pass_next( std::move( m_result ) );
+					pass_next( daw::move( m_result ) );
 					status( ) = future_status::continued;
 				} else {
 					status( ) = future_status::continued;
@@ -460,7 +460,7 @@ namespace daw {
 				auto result = result_t{construct_future( funcs )...};
 
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
-				m_next = [result, tpfuncs = std::move( tpfuncs ), ts = m_task_scheduler,
+				m_next = [result, tpfuncs = daw::move( tpfuncs ), ts = m_task_scheduler,
 				          self = this->shared_from_this( )]( auto &&value ) mutable
 				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
 				                                     std::decay_t<decltype( value )>>> {
@@ -474,7 +474,7 @@ namespace daw {
 					  } ) );
 				};
 				if( future_status::ready == status( ) ) {
-					pass_next( std::move( m_result ) );
+					pass_next( daw::move( m_result ) );
 					status( ) = future_status::continued;
 				} else {
 					status( ) = future_status::continued;
@@ -495,7 +495,7 @@ namespace daw {
 				auto result = result_t{construct_future( funcs )...};
 
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
-				m_next = [result, tpfuncs = std::move( tpfuncs ), ts = m_task_scheduler,
+				m_next = [result, tpfuncs = daw::move( tpfuncs ), ts = m_task_scheduler,
 				          self = this->shared_from_this( )]( auto &&value ) mutable
 				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
 				                                     std::decay_t<decltype( value )>>> {
@@ -509,7 +509,7 @@ namespace daw {
 					  } ) );
 				};
 				if( future_status::ready == status( ) ) {
-					pass_next( std::move( m_result ) );
+					pass_next( daw::move( m_result ) );
 					status( ) = future_status::continued;
 				} else {
 					status( ) = future_status::continued;
@@ -600,16 +600,16 @@ namespace daw {
 
 				auto sem = daw::shared_latch( sizeof...( Functions ) );
 
-				auto th_worker = [result, sem, tp_functions = std::move( tp_functions ),
-				                  tp_args = std::move( tp_args )]( ) mutable {
+				auto th_worker = [result, sem, tp_functions = daw::move( tp_functions ),
+				                  tp_args = daw::move( tp_args )]( ) mutable {
 					auto ts = get_task_scheduler( );
 					result_tp_t tp_result;
 					impl::apply_many( ts, sem, tp_result, tp_functions,
-					                  std::move( tp_args ) );
+					                  daw::move( tp_args ) );
 
 					sem.wait( );
 
-					result.set_value( std::move( tp_result ) );
+					result.set_value( daw::move( tp_result ) );
 				};
 				try {
 					std::thread{th_worker}.detach( );

@@ -49,11 +49,11 @@ namespace daw {
 		template<typename Task, std::enable_if_t<traits::is_callable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
 		void add_task( Task &&task, daw::shared_latch sem ) noexcept {
-			m_impl->add_task( std::forward<Task>( task ), std::move( sem ) );
+			m_impl->add_task( std::forward<Task>( task ), daw::move( sem ) );
 		}
 
 		void add_task( daw::shared_latch sem ) {
-			m_impl->add_task( []( ) {}, std::move( sem ) );
+			m_impl->add_task( []( ) {}, daw::move( sem ) );
 		}
 
 		void start( );
@@ -103,7 +103,7 @@ namespace daw {
 		               "Task task passed to schedule_task must be callable without "
 		               "an arugment. e.g. task( )" );
 		ts.add_task(
-		  [task = std::forward<Task>( task ), sem = std::move( sem )]( ) mutable {
+		  [task = std::forward<Task>( task ), sem = daw::move( sem )]( ) mutable {
 			  auto const at_exit = daw::on_scope_exit( [&]( ) { sem.notify( ); } );
 			  task( );
 		  } );

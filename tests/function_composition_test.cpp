@@ -45,14 +45,14 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 
 	auto const sort_values = []( auto values ) {
 		std::sort( values.begin( ), values.end( ) );
-		return std::move( values );
+		return daw::move( values );
 	};
 
 	auto const odd_values = []( auto values ) {
 		values.erase( std::remove_if( values.begin( ), values.end( ),
 		                              []( auto const &i ) { return i % 2 == 0; } ),
 		              values.end( ) );
-		return std::move( values );
+		return daw::move( values );
 	};
 
 	auto const sum_values = []( auto values ) {
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
 
 	auto const show_value = []( auto value ) {
 		std::cout << value << '\n';
-		return std::move( value );
+		return daw::move( value );
 	};
 
 	auto const values = make_values( 75_MB );

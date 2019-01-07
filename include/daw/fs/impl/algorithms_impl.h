@@ -283,7 +283,7 @@ namespace daw {
 						return daw::view<Iterator>( rng_left.begin( ), rng_right.end( ) );
 					};
 					ts.wait_for( reduce_futures( sorters.begin( ), sorters.end( ),
-					                             std::move( merger ) ) );
+					                             daw::move( merger ) ) );
 				}
 
 				template<typename PartitionPolicy = split_range_t<>, typename T,
@@ -335,7 +335,7 @@ namespace daw {
 						return range.end( );
 					}
 					auto const ranges = PartitionPolicy{}( range, ts.size( ) );
-					std::vector<Iterator> results( ranges.size( ), ranges.end( ) );
+					auto results = std::vector<Iterator>( ranges.size( ), ranges.end( ) );
 					auto sem = partition_range_pos(
 					  ranges,
 					  [&results, cmp]( daw::view<Iterator> rng, size_t n ) {
@@ -448,7 +448,7 @@ namespace daw {
 							  result =
 							    reduce_function( result, map_function( rng.pop_front( ) ) );
 						  }
-						  results[n] = std::move( result );
+						  results[n] = daw::move( result );
 					  },
 					  ts );
 

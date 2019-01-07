@@ -33,9 +33,9 @@ namespace daw {
 
 		void member_data_t<void>::set_value(
 		  member_data_t<void>::expected_result_t result ) {
-			m_result = std::move( result );
+			m_result = daw::move( result );
 			if( m_next ) {
-				pass_next( std::move( m_result ) );
+				pass_next( daw::move( m_result ) );
 				return;
 			}
 			status( ) = future_status::ready;
@@ -45,7 +45,7 @@ namespace daw {
 		void member_data_t<void>::set_value( ) {
 			expected_result_t result;
 			result = true;
-			set_value( std::move( result ) );
+			set_value( daw::move( result ) );
 		}
 
 		void member_data_t<void>::set_exception( ) {
@@ -59,13 +59,13 @@ namespace daw {
 		member_data_base_t::member_data_base_t( task_scheduler ts )
 		  : m_semaphore( )
 		  , m_status( future_status::deferred )
-		  , m_task_scheduler( std::move( ts ) ) {}
+		  , m_task_scheduler( daw::move( ts ) ) {}
 
 		member_data_base_t::member_data_base_t( daw::shared_latch sem,
 		                                        task_scheduler ts )
-		  : m_semaphore( std::move( sem ) )
+		  : m_semaphore( daw::move( sem ) )
 		  , m_status( future_status::deferred )
-		  , m_task_scheduler( std::move( ts ) ) {}
+		  , m_task_scheduler( daw::move( ts ) ) {}
 
 		void member_data_base_t::wait( ) const {
 			if( m_status != future_status::ready ) {
@@ -97,7 +97,7 @@ namespace daw {
 	}
 
 	future_result_t<void>::future_result_t( task_scheduler ts )
-	  : m_data( std::make_shared<m_data_t>( std::move( ts ) ) ) {
+	  : m_data( std::make_shared<m_data_t>( daw::move( ts ) ) ) {
 
 		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 	}
@@ -105,7 +105,7 @@ namespace daw {
 	future_result_t<void>::future_result_t( daw::shared_latch sem,
 	                                        task_scheduler ts )
 	  : m_data(
-	      std::make_shared<m_data_t>( std::move( sem ), std::move( ts ) ) ) {
+	      std::make_shared<m_data_t>( daw::move( sem ), std::move( ts ) ) ) {
 
 		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 	}

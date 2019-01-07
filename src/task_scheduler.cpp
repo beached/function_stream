@@ -23,8 +23,8 @@
 #include <iostream>
 #include <thread>
 
-#include <daw/parallel/daw_latch.h>
 #include <boost/next_prior.hpp>
+#include <daw/parallel/daw_latch.h>
 
 #include "daw/fs/task_scheduler.h"
 
@@ -86,8 +86,8 @@ namespace daw {
 			std::unique_ptr<task_t> uptr( tsk.transfer( ) );
 			try {
 				if( !uptr->is_ready( ) ) {
-					add_task( std::move( uptr->m_function ),
-					          std::move( *( uptr->m_semaphore.release( ) ) ) );
+					add_task( daw::move( uptr->m_function ),
+					          daw::move( *( uptr->m_semaphore.release( ) ) ) );
 				} else {
 					( *uptr )( );
 				}
@@ -106,14 +106,14 @@ namespace daw {
 		bool task_scheduler_impl::run_next_task( size_t id ) {
 			auto tsk = daw::impl::task_ptr_t( );
 			if( m_tasks[id].receive( tsk ) ) {
-				run_task( std::move( tsk ) );
+				run_task( daw::move( tsk ) );
 				return true;
 			}
 			for( auto m = ( id + 1 ) % m_num_threads; m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
 				if( m_tasks[m].receive( tsk ) ) {
-					run_task( std::move( tsk ) );
+					run_task( daw::move( tsk ) );
 					return true;
 				}
 			}
@@ -164,7 +164,7 @@ namespace daw {
 				  },
 				  n, get_weak_this( ) );
 				auto id = thr.get_id( );
-				threads->push_back( std::move( thr ) );
+				threads->push_back( daw::move( thr ) );
 				( *thread_map )[id] = n;
 			}
 		}
@@ -192,9 +192,8 @@ namespace daw {
 		}
 
 		std::weak_ptr<task_scheduler_impl> task_scheduler_impl::get_weak_this( ) {
-			std::shared_ptr<task_scheduler_impl> sp = this->shared_from_this( );
-			std::weak_ptr<task_scheduler_impl> wp = sp;
-			return wp;
+			return static_cast<std::weak_ptr<task_scheduler_impl>>(
+			  this->shared_from_this( ) );
 		}
 
 		bool task_scheduler_impl::am_i_in_pool( ) const noexcept {

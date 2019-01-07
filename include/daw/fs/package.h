@@ -26,6 +26,7 @@
 #include <tuple>
 #include <utility>
 
+#include <daw/daw_move.h>
 #include <daw/daw_value_ptr.h>
 
 namespace daw {
@@ -61,8 +62,8 @@ namespace daw {
 
 			constexpr members_t( bool continueonclientdestruction, result_t result,
 			                     functions_t functions, Args... args )
-			  : m_function_list( std::move( functions ) )
-			  , m_targs( std::make_tuple( std::move( args )... ) )
+			  : m_function_list( daw::move( functions ) )
+			  , m_targs( std::make_tuple( daw::move( args )... ) )
 			  , m_result( result )
 			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
 		}; // members_t
@@ -91,8 +92,8 @@ namespace daw {
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
 		                     functions_t functions, Args &&... args )
-		  : members( continueonclientdestruction, std::move( result ),
-		             std::move( functions ), std::forward<Args>( args )... ) {}
+		  : members( continueonclientdestruction, daw::move( result ),
+		             daw::move( functions ), std::forward<Args>( args )... ) {}
 
 		constexpr functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;
@@ -117,8 +118,8 @@ namespace daw {
 		template<typename... NewArgs>
 		decltype( auto ) next_package( NewArgs &&... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ),
-			                            std::move( members->m_result ),
-			                            std::move( members->m_function_list ),
+			                            daw::move( members->m_result ),
+			                            daw::move( members->m_function_list ),
 			                            std::forward<NewArgs>( nargs )... );
 		}
 

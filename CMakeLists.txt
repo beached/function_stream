@@ -174,10 +174,10 @@ target_link_libraries( algorithms_chunked_for_each_test_bin task_scheduler_lib d
 add_test( algorithms_chunked_for_each_test algorithms_chunked_for_each_test_bin )
 add_dependencies( check algorithms_chunked_for_each_test_bin )
 
-add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
-target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
-add_test( map_reduce_test map_reduce_test_bin )
-add_dependencies( check map_reduce_test_bin )
+#add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
+#target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+#add_test( map_reduce_test map_reduce_test_bin )
+#add_dependencies( check map_reduce_test_bin )
 
 install( TARGETS function_stream_lib task_scheduler_lib DESTINATION lib )
 install( DIRECTORY ${HEADER_FOLDER}/daw DESTINATION include )

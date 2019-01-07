@@ -46,7 +46,7 @@ namespace daw {
 		bool continue_on_result_destruction;
 
 		constexpr explicit function_stream( Functions &&... funcs )
-		  : m_funcs{std::make_tuple( std::move( funcs )... )}
+		  : m_funcs{std::make_tuple( daw::move( funcs )... )}
 		  , continue_on_result_destruction{true} {}
 
 		constexpr explicit function_stream( Functions const &... funcs )
@@ -54,7 +54,7 @@ namespace daw {
 		  , continue_on_result_destruction{true} {}
 
 		constexpr explicit function_stream( std::tuple<Functions...> &&tpfuncs )
-		  : m_funcs{std::move( tpfuncs )}
+		  : m_funcs{daw::move( tpfuncs )}
 		  , continue_on_result_destruction{true} {}
 
 		constexpr explicit function_stream(
@@ -102,7 +102,7 @@ namespace daw {
 		template<typename... Functions>
 		constexpr static future_generator_t<Functions...>
 		make_future_generator( std::tuple<Functions...> &&tp_funcs ) {
-			return future_generator_t<Functions...>{std::move( tp_funcs )};
+			return future_generator_t<Functions...>{daw::move( tp_funcs )};
 		}
 
 		template<typename... Functions>
@@ -129,7 +129,7 @@ namespace daw {
 		  : m_funcs{tp_funcs} {}
 
 		constexpr explicit future_generator_t( std::tuple<Funcs...> &&tp_funcs )
-		  : m_funcs{std::move( tp_funcs )} {}
+		  : m_funcs{daw::move( tp_funcs )} {}
 
 		template<typename... Args>
 		constexpr decltype( auto ) operator( )( Args &&... args ) const {
@@ -244,7 +244,7 @@ namespace daw {
 
 	  constexpr explicit future_generator_split_t(
 	    std::tuple<future_generator_t<Funcs>...> &&tp_funcs )
-	    : m_funcs( std::move( tp_funcs ) ) {}
+	    : m_funcs( daw::move( tp_funcs ) ) {}
 	};
 	*/
 } // namespace daw

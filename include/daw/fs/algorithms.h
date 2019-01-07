@@ -43,7 +43,7 @@ namespace daw {
 				  "unary_op( *first ) must be valid" );
 
 				impl::parallel_for_each( daw::view( first, last ), unary_op,
-				                         std::move( ts ) );
+				                         daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename UnaryOperation>
@@ -58,7 +58,7 @@ namespace daw {
 				  "unary_op( *first ) must be valid" );
 
 				auto const last = std::next( first, static_cast<intmax_t>( N ) );
-				impl::parallel_for_each( first, last, unary_op, std::move( ts ) );
+				impl::parallel_for_each( first, last, unary_op, daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename UnaryOperation>
@@ -73,7 +73,7 @@ namespace daw {
 				               "unary_op( (size_t)5 ) must be valid" );
 
 				impl::parallel_for_each_index( first, last, indexed_op,
-				                               std::move( ts ) );
+				                               daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename T>
@@ -87,12 +87,10 @@ namespace daw {
 				               "e.g. *first = value is valid" );
 				impl::parallel_for_each( first, last,
 				                         [&value]( auto &item ) { item = value; },
-				                         std::move( ts ) );
+				                         daw::move( ts ) );
 			}
 
-			template<typename RandomIterator,
-			         typename Compare = std::less<
-			           typename std::iterator_traits<RandomIterator>::value_type>>
+			template<typename RandomIterator, typename Compare = std::less<>>
 			void sort( RandomIterator first, RandomIterator last,
 			           task_scheduler ts = get_task_scheduler( ),
 			           Compare comp = Compare{} ) {
@@ -104,12 +102,10 @@ namespace daw {
 				impl::parallel_sort( first, last,
 				                     []( RandomIterator f, RandomIterator l,
 				                         Compare cmp ) { std::sort( f, l, cmp ); },
-				                     std::move( comp ), std::move( ts ) );
+				                     daw::move( comp ), std::move( ts ) );
 			}
 
-			template<typename RandomIterator,
-			         typename Compare = std::less<
-			           typename std::iterator_traits<RandomIterator>::value_type>>
+			template<typename RandomIterator, typename Compare = std::less<>>
 			void fork_join_sort( RandomIterator first, RandomIterator last,
 			                     task_scheduler ts = get_task_scheduler( ),
 			                     Compare &&comp = Compare{} ) {
@@ -121,12 +117,10 @@ namespace daw {
 				impl::fork_join_sort( first, last,
 				                      []( RandomIterator f, RandomIterator l,
 				                          Compare cmp ) { std::sort( f, l, cmp ); },
-				                      std::forward<Compare>( comp ), std::move( ts ) );
+				                      std::forward<Compare>( comp ), daw::move( ts ) );
 			}
 
-			template<typename RandomIterator,
-			         typename Compare = std::less<
-			           typename std::iterator_traits<RandomIterator>::value_type>>
+			template<typename RandomIterator, typename Compare = std::less<>>
 			void stable_fork_join_sort( RandomIterator first, RandomIterator last,
 			                            task_scheduler ts = get_task_scheduler( ),
 			                            Compare &&comp = Compare{} ) {
@@ -140,12 +134,10 @@ namespace daw {
 				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
 					  std::stable_sort( f, l, cmp );
 				  },
-				  std::forward<Compare>( comp ), std::move( ts ) );
+				  std::forward<Compare>( comp ), daw::move( ts ) );
 			}
 
-			template<typename RandomIterator,
-			         typename Compare = std::less<
-			           typename std::iterator_traits<RandomIterator>::value_type>>
+			template<typename RandomIterator, typename Compare = std::less<>>
 			void stable_sort( RandomIterator first, RandomIterator last,
 			                  task_scheduler ts = get_task_scheduler( ),
 			                  Compare comp = Compare{} ) {
@@ -159,7 +151,7 @@ namespace daw {
 				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
 					  std::stable_sort( f, l, cmp );
 				  },
-				  std::move( comp ), std::move( ts ) );
+				  daw::move( comp ), std::move( ts ) );
 			}
 
 			template<typename T, typename RandomIterator, typename BinaryOperation>
@@ -187,8 +179,8 @@ namespace daw {
 				  "RandomIterator. "
 				  "e.g. *first = binary_op( *first, *(first + 1) ) must be valid." );
 
-				return impl::parallel_reduce( first, last, std::move( init ), binary_op,
-				                              std::move( ts ) );
+				return impl::parallel_reduce( first, last, daw::move( init ), binary_op,
+				                              daw::move( ts ) );
 			}
 
 			template<typename T, typename RandomIterator>
@@ -197,7 +189,7 @@ namespace daw {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				return ::daw::algorithm::parallel::reduce(
-				  first, last, std::move( init ), std::plus<>{}, std::move( ts ) );
+				  first, last, daw::move( init ), std::plus<>{}, std::move( ts ) );
 			}
 
 			template<typename RandomIterator>
@@ -208,12 +200,10 @@ namespace daw {
 				using value_type =
 				  typename std::iterator_traits<RandomIterator>::value_type;
 				return ::daw::algorithm::parallel::reduce( first, last, value_type{},
-				                                           std::move( ts ) );
+				                                           daw::move( ts ) );
 			}
 
-			template<typename RandomIterator,
-			         typename Compare = std::less<
-			           std::decay_t<decltype( *std::declval<RandomIterator>( ) )>>>
+			template<typename RandomIterator, typename Compare = std::less<>>
 			decltype( auto ) min_element( RandomIterator first, RandomIterator last,
 			                              task_scheduler ts = get_task_scheduler( ),
 			                              Compare comp = Compare{} ) {
@@ -223,12 +213,11 @@ namespace daw {
 				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
 				                                         RandomIterator>( );
 
-				return impl::parallel_min_element( first, last, comp, std::move( ts ) );
+				return impl::parallel_min_element( daw::view( first, last ), comp,
+				                                   daw::move( ts ) );
 			}
 
-			template<typename RandomIterator,
-			         typename Compare = std::less<
-			           std::decay_t<decltype( *std::declval<RandomIterator>( ) )>>>
+			template<typename RandomIterator, typename Compare = std::less<>>
 			decltype( auto ) max_element( RandomIterator first,
 			                              RandomIterator const last,
 			                              task_scheduler ts = get_task_scheduler( ),
@@ -238,7 +227,7 @@ namespace daw {
 				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
 				                                         RandomIterator>( );
 
-				return impl::parallel_max_element( first, last, comp, std::move( ts ) );
+				return impl::parallel_max_element( first, last, comp, daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename RandomOutputIterator,
@@ -262,7 +251,7 @@ namespace daw {
 				  "RandomOutputIterator. e.g. *first_out = unary_op( *first ) must be "
 				  "valid" );
 
-				impl::parallel_map( first, last, first_out, unary_op, std::move( ts ) );
+				impl::parallel_map( first, last, first_out, unary_op, daw::move( ts ) );
 			}
 
 			template<typename RandomIterator1, typename RandomIterator2,
@@ -293,7 +282,7 @@ namespace daw {
 				  "valid" );
 
 				impl::parallel_map( first1, last1, first2, first_out, binary_op,
-				                    std::move( ts ) );
+				                    daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename UnaryOperation>
@@ -316,7 +305,7 @@ namespace daw {
 				  "RandomIterator. e.g. *first_out = unary_op( *first ) must be "
 				  "valid" );
 
-				impl::parallel_map( first, last, first, unary_op, std::move( ts ) );
+				impl::parallel_map( first, last, first, unary_op, daw::move( ts ) );
 			}
 
 			template<
@@ -354,7 +343,7 @@ namespace daw {
 				std::advance( first, 1 );
 				return impl::parallel_map_reduce( daw::view( first, last ), *it_init,
 				                                  map_function, reduce_function,
-				                                  std::move( ts ) );
+				                                  daw::move( ts ) );
 			}
 
 			/// @brief Perform MapReduce on range and return result
@@ -398,7 +387,7 @@ namespace daw {
 				*/
 				return impl::parallel_map_reduce( daw::view( first, last ), init,
 				                                  map_function, reduce_function,
-				                                  std::move( ts ) );
+				                                  daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename RandomOutputIterator,
@@ -424,7 +413,7 @@ namespace daw {
 				                                RandomIterator>>( );
 
 				impl::parallel_scan( first, last, first_out, last_out, binary_op,
-				                     std::move( ts ) );
+				                     daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename RandomOutputIterator,
@@ -449,7 +438,7 @@ namespace daw {
 				                                RandomIterator>>( );
 
 				impl::parallel_scan( first, last, first, last, binary_op,
-				                     std::move( ts ) );
+				                     daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename UnaryPredicate>
@@ -461,7 +450,7 @@ namespace daw {
 				concept_checks::is_unary_predicate_test<UnaryPredicate,
 				                                        RandomIterator>( );
 
-				return impl::parallel_find_if( first, last, pred, std::move( ts ) );
+				return impl::parallel_find_if( first, last, pred, daw::move( ts ) );
 			}
 
 			template<typename RandomIterator1, typename RandomIterator2,
@@ -479,7 +468,7 @@ namespace daw {
 				  BinaryPredicate, RandomIterator1, RandomIterator2>( );
 
 				return impl::parallel_equal( first1, last1, first2, last2, pred,
-				                             std::move( ts ) );
+				                             daw::move( ts ) );
 			}
 
 			template<typename RandomIterator1, typename RandomIterator2>
@@ -498,7 +487,7 @@ namespace daw {
 					return lhs == rhs;
 				};
 				return impl::parallel_equal( first1, last1, first2, last2, pred,
-				                             std::move( ts ) );
+				                             daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename UnaryPredicate>
@@ -510,7 +499,7 @@ namespace daw {
 				concept_checks::is_unary_predicate_test<UnaryPredicate,
 				                                        RandomIterator>( );
 
-				return impl::parallel_count( first, last, pred, std::move( ts ) );
+				return impl::parallel_count( first, last, pred, daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename T>
@@ -523,7 +512,7 @@ namespace daw {
 
 				return impl::parallel_count(
 				  first, last, [&value]( auto const &rhs ) { return value == rhs; },
-				  std::move( ts ) );
+				  daw::move( ts ) );
 			}
 
 			template<size_t minimum_size = 1>
@@ -537,7 +526,7 @@ namespace daw {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
-				impl::partition_range( ranges, std::move( func ), std::move( ts ) )
+				impl::partition_range( ranges, daw::move( func ), std::move( ts ) )
 				  .wait( );
 			}
 
@@ -549,7 +538,7 @@ namespace daw {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
-				impl::partition_range_pos( ranges, std::move( func ), std::move( ts ) )
+				impl::partition_range_pos( ranges, daw::move( func ), std::move( ts ) )
 				  .wait( );
 			}
 		} // namespace parallel
