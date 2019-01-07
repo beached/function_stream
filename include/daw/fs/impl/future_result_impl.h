@@ -291,22 +291,25 @@ namespace daw {
 				auto result = future_result_t<next_result_t>( m_task_scheduler );
 
 				m_next = [result = daw::mutable_capture( result ),
-				          func = daw::mutable_capture( daw::overload( std::forward<Function>( func ) ) ),
+				          func = daw::mutable_capture(
+				            daw::overload( std::forward<Function>( func ) ) ),
 				          ts = daw::mutable_capture( m_task_scheduler ),
 				          self = this->shared_from_this( )](
 				           expected_result_t value ) -> void {
-					value.visit( daw::overload(
+					value.visit(
 					  [&]( auto &&v )
-					    -> std::enable_if_t<
-					      daw::is_same_v<base_result_t, daw::remove_cvref_t<decltype( v )>>> {
+					    -> std::enable_if_t<daw::is_same_v<
+					      base_result_t, daw::remove_cvref_t<decltype( v )>>> {
 						  ts->add_task( [result = std::move( result ),
-						                func = daw::move( func ),
-						                v = daw::mutable_capture(
-						                  std::forward<decltype( v )>( v ) )]( ) {
+						                 func = daw::move( func ),
+						                 v = daw::mutable_capture(
+						                   std::forward<decltype( v )>( v ) )]( ) {
 							  result->from_code( daw::move( *func ), daw::move( *v ) );
 						  } );
 					  },
-					  [&result]( std::exception_ptr ptr ) { result->set_exception( ptr ); } ) );
+					  [&result]( std::exception_ptr ptr ) {
+						  result->set_exception( ptr );
+					  } );
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -336,9 +339,9 @@ namespace daw {
 				            std::make_tuple( std::forward<Functions>( funcs )... ) ),
 				          ts = daw::mutable_capture( m_task_scheduler ),
 				          self = this->shared_from_this( )]( auto &&value )
-				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
-				                                     daw::remove_cvref_t<decltype( value )>>> {
-					std::forward<decltype( value )>( value ).visit( daw::overload(
+				  -> std::enable_if_t<daw::is_same_v<
+				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
+					std::forward<decltype( value )>( value ).visit(
 					  [&]( auto &&val )
 					    -> std::enable_if_t<daw::is_same_v<
 					      base_result_t, daw::remove_cvref_t<decltype( val )>>> {
@@ -350,7 +353,7 @@ namespace daw {
 						  daw::tuple::apply( std::move( *result ), [ptr]( auto &&t ) {
 							  std::forward<decltype( t )>( t ).set_exception( ptr );
 						  } );
-					  } ) );
+					  } );
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -439,14 +442,16 @@ namespace daw {
 				          ts = daw::mutable_capture( m_task_scheduler ),
 				          self = this->shared_from_this( )](
 				           expected_result_t value ) -> void {
-					value.visit( daw::overload(
+					value.visit(
 					  [&]( ) {
-						  ts->add_task( [result = daw::move( result ),
-						                func = daw::move( func )]( ) {
-							  result->from_code( daw::move( *func ) );
-						  } );
+						  ts->add_task(
+						    [result = daw::move( result ), func = daw::move( func )]( ) {
+							    result->from_code( daw::move( *func ) );
+						    } );
 					  },
-					  [&result]( std::exception_ptr ptr ) { result.set_exception( ptr ); } ) );
+					  [&result]( std::exception_ptr ptr ) {
+						  result.set_exception( ptr );
+					  } );
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -472,16 +477,16 @@ namespace daw {
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 				m_next = [result, tpfuncs = daw::move( tpfuncs ), ts = m_task_scheduler,
 				          self = this->shared_from_this( )]( auto &&value ) mutable
-				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
-				                                     daw::remove_cvref_t<decltype( value )>>> {
-					value.visit( daw::overload(
+				  -> std::enable_if_t<daw::is_same_v<
+				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
+					value.visit(
 					  [&]( ) {
 						  ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
 					  },
 					  [&]( std::exception_ptr ptr ) {
 						  daw::tuple::apply(
 						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
-					  } ) );
+					  } );
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -507,16 +512,16 @@ namespace daw {
 				auto tpfuncs = std::make_tuple( std::forward<Functions>( funcs )... );
 				m_next = [result, tpfuncs = daw::move( tpfuncs ), ts = m_task_scheduler,
 				          self = this->shared_from_this( )]( auto &&value ) mutable
-				  -> std::enable_if_t<daw::is_same_v<expected_result_t,
-				                                     daw::remove_cvref_t<decltype( value )>>> {
-					value.visit( daw::overload(
+				  -> std::enable_if_t<daw::is_same_v<
+				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
+					value.visit(
 					  [&]( ) {
 						  ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
 					  },
 					  [&]( std::exception_ptr ptr ) {
 						  daw::tuple::apply(
 						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
-					  } ) );
+					  } );
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -552,17 +557,17 @@ namespace daw {
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
-				schedule_task( sem,
-				               [&results, &callables, tp_args=mutable_capture(tp_args)]( ) {
-					               try {
-						               std::get<N>( results ) =
-						                 daw::apply( std::get<N>( callables ), **tp_args );
-					               } catch( ... ) {
-						               std::get<N>( results ).set_exception(
-						                 std::current_exception( ) );
-					               }
-				               },
-				               ts );
+				schedule_task(
+				  sem,
+				  [&results, &callables, tp_args = mutable_capture( tp_args )]( ) {
+					  try {
+						  std::get<N>( results ) =
+						    daw::apply( std::get<N>( callables ), **tp_args );
+					  } catch( ... ) {
+						  std::get<N>( results ).set_exception( std::current_exception( ) );
+					  }
+				  },
+				  ts );
 
 				apply_many_t<N + 1, SZ, Callables...>{}( ts, sem, results, callables,
 				                                         tp_args );
@@ -597,14 +602,15 @@ namespace daw {
 
 			template<typename... Args>
 			auto operator( )( Args &&... args ) {
-				using result_tp_t = std::tuple<daw::expected_t<daw::remove_cvref_t<decltype(
-				  std::declval<Functions>( )( std::forward<Args>( args )... ) )>>...>;
+				using result_tp_t =
+				  std::tuple<daw::expected_t<daw::remove_cvref_t<decltype(
+				    std::declval<Functions>( )( std::forward<Args>( args )... ) )>>...>;
 
 				// Copy arguments to const, non-ref, non-volatile versions in a
 				// shared_pointer so that only one copy is ever created
-				auto tp_args =
-				  std::make_shared<std::tuple<std::add_const_t<daw::remove_cvref_t<Args>>...>>(
-				    std::make_tuple( std::forward<Args>( args )... ) );
+				auto tp_args = std::make_shared<
+				  std::tuple<std::add_const_t<daw::remove_cvref_t<Args>>...>>(
+				  std::make_tuple( std::forward<Args>( args )... ) );
 
 				auto result = future_result_t<result_tp_t>( );
 

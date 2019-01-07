@@ -71,7 +71,7 @@ namespace daw {
 
 	template<typename Result, typename Functions, typename... Args>
 	struct package_t {
-		using functions_t = Functions;
+		using functions_t = daw::remove_cvref_t<Functions>;
 		using arguments_t = std::tuple<std::decay_t<Args>...>;
 		using result_t = Result;
 		using result_value_t = weak_ptr_type_t<result_t>;
@@ -86,14 +86,18 @@ namespace daw {
 		package_t &operator=( package_t const & ) = delete;
 
 		~package_t( ) noexcept = default;
-
 		constexpr package_t( package_t && ) noexcept = default;
 		constexpr package_t &operator=( package_t && ) noexcept = default;
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
-		                     functions_t functions, Args &&... args )
+		                     functions_t && functions, Args &&... args )
 		  : members( continueonclientdestruction, daw::move( result ),
 		             daw::move( functions ), std::forward<Args>( args )... ) {}
+
+		constexpr package_t( bool continueonclientdestruction, result_t result,
+		                     functions_t const & functions, Args &&... args )
+		  : members( continueonclientdestruction, daw::move( result ),
+		             functions, std::forward<Args>( args )... ) {}
 
 		constexpr functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;

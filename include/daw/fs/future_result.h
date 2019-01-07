@@ -258,8 +258,8 @@ namespace daw {
 		              args = std::make_tuple(
 		                std::forward<Args>( args )... )]( ) mutable -> void {
 			result.from_code(
-			  [func = daw::move( func ), args = daw::move( args )]( ) mutable {
-				  return daw::apply( daw::move( func ), daw::move( args ) );
+			  [func = daw::mutable_capture( daw::move( func ) ), args = daw::mutable_capture( daw::move( args ) )]( ) {
+				  return daw::apply( daw::move( *func ), daw::move( *args ) );
 			  } );
 		} );
 		return result;
@@ -368,9 +368,11 @@ namespace daw {
 			while( first != last ) {
 				auto l = *first++;
 				auto r_it = first++;
-				*out_first++ = l.next( [r = *r_it, binary_op]( auto &&result ) mutable {
-					return binary_op( std::forward<decltype( result )>( result ),
-					                  r.get( ) );
+				*out_first++ = l.next( [r = daw::mutable_capture( *r_it ),
+				                        binary_op = daw::mutable_capture( binary_op )](
+				                         auto &&result ) {
+					return daw::invoke(
+					  *binary_op, std::forward<decltype( result )>( result ), r->get( ) );
 				} );
 			}
 			if( odd_count ) {
