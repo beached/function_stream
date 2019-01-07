@@ -61,7 +61,7 @@ constexpr void find_commas( daw::string_view line, Function on_commas ) {
 		}
 	}
 	if( count > max_find ) {
-		on_commas( std::move( result ) );
+		on_commas( daw::move( result ) );
 	}
 }
 
@@ -141,7 +141,7 @@ daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 		auto const at_exit = daw::on_scope_exit(
 		  [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
 
-		find_newlines( str, [str_lines_result = std::move( str_lines_result )](
+		find_newlines( str, [str_lines_result = daw::move( str_lines_result )](
 		                      daw::string_view line ) mutable {
 			while( !str_lines_result.send( line ) ) {
 				using namespace std::chrono_literals;

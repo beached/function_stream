@@ -105,7 +105,7 @@ namespace daw {
 	future_result_t<void>::future_result_t( daw::shared_latch sem,
 	                                        task_scheduler ts )
 	  : m_data(
-	      std::make_shared<m_data_t>( daw::move( sem ), std::move( ts ) ) ) {
+	      std::make_shared<m_data_t>( daw::move( sem ), daw::move( ts ) ) ) {
 
 		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
 	}

@@ -145,7 +145,7 @@ namespace daw {
 				    [wself = get_weak_this( ),
 				     task = daw::mutable_capture( std::forward<Task>( task ) ), id]( ) {
 					    if( auto self = wself.lock( ); self ) {
-						    std::invoke( *std::move( task ) );
+						    std::invoke( daw::move( *task ) );
 						    while( self->m_continue && self->run_next_task( id ) ) {}
 					    }
 				    } ),
@@ -165,7 +165,7 @@ namespace daw {
 						while( self->m_continue && self->run_next_task( id ) ) {}
 					}
 				};
-				send_task( task_ptr_t( daw::move( tsk ), std::move( sem ) ), id );
+				send_task( task_ptr_t( daw::move( tsk ), daw::move( sem ) ), id );
 			}
 
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );

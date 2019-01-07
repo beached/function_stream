@@ -97,7 +97,7 @@ namespace daw {
 		template<typename...>
 		friend class future_generator_t;
 
-		std::tuple<Funcs...> m_funcs{};
+		std::tuple<Funcs...> m_funcs;
 
 		template<typename... Functions>
 		constexpr static future_generator_t<Functions...>

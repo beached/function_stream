@@ -91,7 +91,8 @@ namespace daw {
 						return results;
 					}
 					template<typename Iterator>
-					std::vector<daw::view<Iterator>> operator( )( daw::view<Iterator> rng, size_t const max_parts ) const {
+					std::vector<daw::view<Iterator>>
+					operator( )( daw::view<Iterator> rng, size_t const max_parts ) const {
 						return operator( )( rng.begin( ), rng.end( ), max_parts );
 					}
 				};
@@ -120,7 +121,8 @@ namespace daw {
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
 						schedule_task( sem,
 						               [func = daw::mutable_capture( func ),
-						                rng = ranges[n], n]( ) { daw::invoke( *func, rng, n ); },
+						                rng = ranges[n],
+						                n]( ) { daw::invoke( *func, rng, n ); },
 						               ts );
 					}
 					return sem;
@@ -129,31 +131,37 @@ namespace daw {
 				template<typename PartitionPolicy, typename RandomIterator,
 				         typename Func>
 				daw::shared_latch partition_range( daw::view<RandomIterator> range,
-				                                   Func func, task_scheduler ts ) {
+				                                   Func &&func, task_scheduler ts ) {
 					if( range.empty( ) ) {
-						return daw::shared_latch{};
+						return {};
 					}
 					auto const ranges = PartitionPolicy{}( range, ts.size( ) );
 					auto sem = daw::shared_latch( ranges.size( ) );
 					for( auto rng : ranges ) {
-						schedule_task( sem,
-						               [func = daw::mutable_capture( func ), rng]( ) {
-							               daw::invoke( *func, rng.begin( ), rng.end( ) );
-						               },
-						               ts );
+						schedule_task(
+						  sem,
+						  [func = daw::mutable_capture( std::forward<Func>( func ) ),
+						   rng]( ) { daw::invoke( *func, rng.begin( ), rng.end( ) ); },
+						  ts );
 					}
 					return sem;
 				}
 
 				template<typename PartitionPolicy = split_range_t<>,
 				         typename RandomIterator, typename Func>
-				void parallel_for_each( daw::view<RandomIterator> rng, Func func,
+				void parallel_for_each( daw::view<RandomIterator> rng, Func &&func,
 				                        task_scheduler ts ) {
+
+					static_assert( std::is_invocable_v<Func, decltype( rng.front( ) )> );
+
 					partition_range<PartitionPolicy>(
 					  rng,
-					  [func]( daw::view<RandomIterator> r ) mutable {
-						  for( auto &&item : r ) {
-							  daw::invoke( func, std::forward<decltype( item )>( item ) );
+					  [func = daw::mutable_capture( std::forward<Func>( func ) )](
+					    auto &&first, auto &&last ) {
+
+						  while( first != last ) {
+							  daw::invoke( *func, *first );
+							  ++first;
 						  }
 					  },
 					  ts )
@@ -210,11 +218,12 @@ namespace daw {
 							next_ranges.push_back( ranges.back( ) );
 						}
 						for( size_t n = 1; n < count; n += 2 ) {
-							ts.add_task( [func=mutable_capture(func), &ranges, n, &sem]( ) {
-								daw::invoke( *func, ranges[n - 1].begin( ), ranges[n].begin( ),
-								      ranges[n].end( ) );
-								sem.notify( );
-							} );
+							ts.add_task(
+							  [func = mutable_capture( func ), &ranges, n, &sem]( ) {
+								  daw::invoke( *func, ranges[n - 1].begin( ),
+								               ranges[n].begin( ), ranges[n].end( ) );
+								  sem.notify( );
+							  } );
 						}
 						sem.wait( );
 						std::swap( ranges, next_ranges );
@@ -223,26 +232,31 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename Sort, typename Compare>
-				void parallel_sort( Iterator first, Iterator last, Sort&& srt,
-				                    Compare&& cmp, task_scheduler ts ) {
+				void parallel_sort( Iterator first, Iterator last, Sort &&srt,
+				                    Compare &&cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size >
 					    static_cast<size_t>( std::distance( first, last ) ) ) {
-						daw::invoke( std::forward<Sort>( srt ), first, last, std::forward<Compare>( cmp ) );
+						daw::invoke( std::forward<Sort>( srt ), first, last,
+						             std::forward<Compare>( cmp ) );
 						return;
 					}
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) * 4U );
 					partition_range( ranges,
-					                 [srt=mutable_capture(std::forward<Sort>(srt)), cmp=mutable_capture(cmp)]( auto const &range ) {
-						                 daw::invoke( *srt,  range.begin( ), range.end( ), *cmp );
+					                 [srt = mutable_capture( std::forward<Sort>( srt ) ),
+					                  cmp = mutable_capture( cmp )]( auto const &range ) {
+						                 daw::invoke( *srt, range.begin( ), range.end( ),
+						                              *cmp );
 					                 },
 					                 ts )
 					  .wait( );
 
-					merge_reduce_range( ranges,
-					                    [cmp=mutable_capture(std::forward<Compare>(cmp))]( Iterator f, Iterator m, Iterator l ) {
-						                    std::inplace_merge( f, m, l, *cmp );
-					                    },
-					                    ts );
+					merge_reduce_range(
+					  ranges,
+					  [cmp = mutable_capture( std::forward<Compare>( cmp ) )](
+					    Iterator f, Iterator m, Iterator l ) {
+						  std::inplace_merge( f, m, l, *cmp );
+					  },
+					  ts );
 				}
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
@@ -258,11 +272,12 @@ namespace daw {
 					auto sorters = std::vector<future_result_t<daw::view<Iterator>>>( );
 					sorters.reserve( ranges.size( ) );
 
-					auto const sort_fn =
-					  [cmp=mutable_capture(cmp), srt = mutable_capture( std::forward<Sort>( srt ))]( daw::view<Iterator> r ) {
-						  daw::invoke( *srt, r.begin( ), r.end( ), *cmp );
-						  return r;
-					  };
+					auto const sort_fn = [cmp = mutable_capture( cmp ),
+					                      srt = mutable_capture( std::forward<Sort>(
+					                        srt ) )]( daw::view<Iterator> r ) {
+						daw::invoke( *srt, r.begin( ), r.end( ), *cmp );
+						return r;
+					};
 
 					std::transform( ranges.begin( ), ranges.end( ),
 					                std::back_inserter( sorters ),
@@ -387,8 +402,8 @@ namespace daw {
 
 					partition_range<PartitionPolicy>(
 					  range_in,
-					  [first_in = range_in.begin( ), first_out, unary_op]( Iterator first,
-					                                                    Iterator last ) {
+					  [first_in = range_in.begin( ), first_out,
+					   unary_op]( Iterator first, Iterator last ) {
 						  auto const step = std::distance( first_in, first );
 						  daw::exception::dbg_precondition_check( step >= 0 );
 
@@ -408,8 +423,9 @@ namespace daw {
 				                   task_scheduler ts ) {
 
 					partition_range<PartitionPolicy>(
-					 	range_in1,
-					  [first_in1 = range_in1.begin( ), first_out, first_in2 = range_in2.begin( ),
+					  range_in1,
+					  [first_in1 = range_in1.begin( ), first_out,
+					   first_in2 = range_in2.begin( ),
 					   binary_op]( Iterator1 first1, Iterator1 last1 ) {
 						  auto const step = std::distance( first_in1, first1 );
 						  daw::exception::dbg_precondition_check( step >= 0 );
@@ -432,17 +448,16 @@ namespace daw {
 					               "Minimum range size must be >= 2" );
 					daw::exception::precondition_check( range.size( ) >= 2 );
 
-					using result_t = daw::remove_cvref_t<decltype(
-					  reduce_function( map_function( range.front( ) ),
-					                   map_function( range.front( ) ) ) )>;
+					using result_t = daw::remove_cvref_t<decltype( reduce_function(
+					  map_function( range.front( ) ), map_function( range.front( ) ) ) )>;
 
 					auto const ranges = PartitionPolicy{}( range, ts.size( ) );
 					auto results = std::vector<std::optional<result_t>>( ranges.size( ) );
 
 					auto sem = partition_range_pos(
 					  ranges,
-					  [&results, map_function,
-					   reduce_function]( daw::view<Iterator> rng, size_t n ) {
+					  [&results, map_function, reduce_function]( daw::view<Iterator> rng,
+					                                             size_t n ) {
 						  result_t result = map_function( rng.pop_front( ) );
 						  while( !rng.empty( ) ) {
 							  result =

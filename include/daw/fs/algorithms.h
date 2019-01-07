@@ -22,7 +22,10 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include <daw/daw_view.h>
+#include <daw/daw_sort_n.h>
 
 #include "impl/algorithms_impl.h"
 #include "impl/concept_checks.h"
@@ -85,7 +88,7 @@ namespace daw {
 				               "T value must be assignable to the "
 				               "dereferenced RandomIterator first. "
 				               "e.g. *first = value is valid" );
-				impl::parallel_for_each( first, last,
+				impl::parallel_for_each( daw::view( first, last ),
 				                         [&value]( auto &item ) { item = value; },
 				                         daw::move( ts ) );
 			}
@@ -101,8 +104,8 @@ namespace daw {
 
 				impl::parallel_sort( first, last,
 				                     []( RandomIterator f, RandomIterator l,
-				                         Compare cmp ) { std::sort( f, l, cmp ); },
-				                     daw::move( comp ), std::move( ts ) );
+				                         Compare cmp ) { daw::sort( f, l, cmp ); },
+				                     daw::move( comp ), daw::move( ts ) );
 			}
 
 			template<typename RandomIterator, typename Compare = std::less<>>
@@ -114,9 +117,9 @@ namespace daw {
 				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
 				                                         RandomIterator>( );
 
-				impl::fork_join_sort( first, last,
+				impl::fork_join_sort( daw::view( first, last ),
 				                      []( RandomIterator f, RandomIterator l,
-				                          Compare cmp ) { std::sort( f, l, cmp ); },
+				                          Compare cmp ) { daw::sort( f, l, cmp ); },
 				                      std::forward<Compare>( comp ), daw::move( ts ) );
 			}
 
@@ -151,7 +154,7 @@ namespace daw {
 				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
 					  std::stable_sort( f, l, cmp );
 				  },
-				  daw::move( comp ), std::move( ts ) );
+				  daw::move( comp ), daw::move( ts ) );
 			}
 
 			template<typename T, typename RandomIterator, typename BinaryOperation>
@@ -189,7 +192,7 @@ namespace daw {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				return ::daw::algorithm::parallel::reduce(
-				  first, last, daw::move( init ), std::plus<>{}, std::move( ts ) );
+				  first, last, daw::move( init ), std::plus<>{}, daw::move( ts ) );
 			}
 
 			template<typename RandomIterator>
@@ -521,12 +524,12 @@ namespace daw {
 			template<typename PartitionPolicy = default_range_splitter<>,
 			         typename RandomIterator, typename Function>
 			void chunked_for_each( RandomIterator first, RandomIterator last,
-			                       Function func,
+			                       Function && func,
 			                       task_scheduler ts = get_task_scheduler( ) ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
-				auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
-				impl::partition_range( ranges, daw::move( func ), std::move( ts ) )
+				auto ranges = PartitionPolicy{}( daw::view( first, last ), ts.size( ) );
+				impl::partition_range( ranges, std::forward<Function>( func ), daw::move( ts ) )
 				  .wait( );
 			}
 
@@ -538,7 +541,7 @@ namespace daw {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				auto ranges = PartitionPolicy{}( first, last, ts.size( ) );
-				impl::partition_range_pos( ranges, daw::move( func ), std::move( ts ) )
+				impl::partition_range_pos( ranges, daw::move( func ), daw::move( ts ) )
 				  .wait( );
 			}
 		} // namespace parallel
