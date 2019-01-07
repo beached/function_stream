@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2018 Darrell Wright
+// Copyright (c) 2016-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -30,6 +30,7 @@
 
 #include <daw/cpp_17.h>
 #include <daw/daw_expected.h>
+#include <daw/daw_move.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
 #include <daw/parallel/daw_latch.h>
@@ -282,7 +283,10 @@ namespace daw {
 			}
 
 		public:
-			template<typename Function>
+			template<
+			  typename Function,
+			  std::enable_if_t<!std::is_function_v<std::remove_reference_t<Function>>,
+			                   std::nullptr_t> = nullptr>
 			auto next( Function &&func ) {
 				daw::exception::daw_throw_on_true( m_next,
 				                                   "Can only set next function once" );
@@ -291,8 +295,7 @@ namespace daw {
 				auto result = future_result_t<next_result_t>( m_task_scheduler );
 
 				m_next = [result = daw::mutable_capture( result ),
-				          func = daw::mutable_capture(
-				            daw::overload( std::forward<Function>( func ) ) ),
+				          func = daw::mutable_capture( std::forward<Function>( func ) ),
 				          ts = daw::mutable_capture( m_task_scheduler ),
 				          self = this->shared_from_this( )](
 				           expected_result_t value ) -> void {
@@ -300,12 +303,13 @@ namespace daw {
 					  [&]( auto &&v )
 					    -> std::enable_if_t<daw::is_same_v<
 					      base_result_t, daw::remove_cvref_t<decltype( v )>>> {
-						  ts->add_task( [result = std::move( result ),
-						                 func = daw::move( func ),
-						                 v = daw::mutable_capture(
-						                   std::forward<decltype( v )>( v ) )]( ) {
-							  result->from_code( daw::move( *func ), daw::move( *v ) );
-						  } );
+						  ts->add_task(
+						    [result = daw::mutable_capture( std::move( *result ) ),
+						     func = daw::mutable_capture( daw::move( *func ) ),
+						     v = daw::mutable_capture(
+						       std::forward<decltype( v )>( v ) )]( ) {
+							    result->from_code( daw::move( *func ), daw::move( *v ) );
+						    } );
 					  },
 					  [&result]( std::exception_ptr ptr ) {
 						  result->set_exception( ptr );
@@ -557,12 +561,15 @@ namespace daw {
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
+				// TODO this looks weird
 				schedule_task(
 				  sem,
-				  [&results, &callables, tp_args = mutable_capture( tp_args )]( ) {
+				  [results = daw::mutable_capture( results ),
+				   callables = daw::mutable_capture( callables ),
+				   tp_args = mutable_capture( tp_args )]( ) {
 					  try {
-						  std::get<N>( results ) =
-						    daw::apply( std::get<N>( callables ), **tp_args );
+						  std::get<N>( *results ) =
+						    daw::apply( std::get<N>( *callables ), *( *tp_args ) );
 					  } catch( ... ) {
 						  std::get<N>( results ).set_exception( std::current_exception( ) );
 					  }
