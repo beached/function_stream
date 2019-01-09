@@ -415,7 +415,7 @@ namespace daw {
 				  concept_checks::is_callable_t<BinaryOperation, RandomIterator,
 				                                RandomIterator>>( );
 
-				impl::parallel_scan( daw::view( first, last ), first_out, last_out, binary_op,
+				impl::parallel_scan( daw::view( first, last ), daw::view( first_out, last_out ), binary_op,
 				                     daw::move( ts ) );
 			}
 

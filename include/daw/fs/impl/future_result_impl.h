@@ -449,12 +449,13 @@ namespace daw {
 					value.visit(
 					  [&]( ) {
 						  ts->add_task(
-						    [result = daw::move( result ), func = daw::move( func )]( ) {
+						    [result = daw::mutable_capture( daw::move( *result ) ),
+						     func = daw::mutable_capture( daw::move( *func ) )]( ) {
 							    result->from_code( daw::move( *func ) );
 						    } );
 					  },
 					  [&result]( std::exception_ptr ptr ) {
-						  result.set_exception( ptr );
+						  result->set_exception( ptr );
 					  } );
 				};
 				if( future_status::ready == status( ) ) {
@@ -555,9 +556,9 @@ namespace daw {
 
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
-			template<typename Results, typename... Args>
+			template<typename...ResultTypes, typename... Args>
 			void operator( )( daw::task_scheduler &ts, daw::shared_latch sem,
-			                  Results &results,
+			                  std::tuple<ResultTypes...> & results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
@@ -565,13 +566,13 @@ namespace daw {
 				schedule_task(
 				  sem,
 				  [results = daw::mutable_capture( results ),
-				   callables = daw::mutable_capture( callables ),
-				   tp_args = mutable_capture( tp_args )]( ) {
+				   callables = daw::mutable_capture( std::cref( callables ) ),
+				   tp_args = mutable_capture( std::cref( tp_args ) )]( ) {
 					  try {
 						  std::get<N>( *results ) =
-						    daw::apply( std::get<N>( *callables ), *( *tp_args ) );
+							  std::apply( std::get<N>( callables->get( ) ), *(tp_args->get( )) );
 					  } catch( ... ) {
-						  std::get<N>( results ).set_exception( std::current_exception( ) );
+						  std::get<N>( *results ).set_exception( std::current_exception( ) );
 					  }
 				  },
 				  ts );

@@ -61,9 +61,9 @@ namespace daw {
 			bool m_continue_on_result_destruction;
 
 			constexpr members_t( bool continueonclientdestruction, result_t result,
-			                     functions_t functions, Args... args )
+			                     functions_t functions, Args&&... args )
 			  : m_function_list( daw::move( functions ) )
-			  , m_targs( std::make_tuple( daw::move( args )... ) )
+			  , m_targs( std::forward<Args>( args )... )
 			  , m_result( result )
 			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
 		}; // members_t

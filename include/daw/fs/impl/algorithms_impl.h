@@ -478,18 +478,19 @@ namespace daw {
 				         typename OutputIterator, typename BinaryOp>
 				void parallel_scan( daw::view<Iterator> range_in,
 				                    daw::view<OutputIterator> range_out,
-				                    BinaryOp binary_op, task_scheduler ts ) {
+				                    BinaryOp && binary_op, task_scheduler ts ) {
 					{
 						daw::exception::precondition_check(
 						  range_in.size( ) == range_out.size( ),
 						  "Output range must be the same size as input" );
 						if( range_in.size( ) == 2 ) {
-							*first_out = *first;
+							range_out.front( ) = range_in.front( );
 							return;
 						}
 					}
-					using value_t = daw::remove_cvref_t<decltype(
-					  binary_op( range_in.front( ), range_in.front( ) ) )>;
+					using value_t = daw::remove_cvref_t<
+					  std::invoke_result_t<BinaryOp, decltype( range_in.front( ) ),
+					                       decltype( range_in.front( ) )>>;
 
 					auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
 					auto p1_results =
@@ -500,7 +501,7 @@ namespace daw {
 						for( size_t n = pos + 1; n < p1_results.size( ); ++n ) {
 							std::lock_guard<daw::spin_lock> lck( mut_p1_results[n] );
 							if( p1_results[n] ) {
-								p1_results[n] = binary_op( *p1_results[n], value );
+								p1_results[n] = daw::invoke( binary_op, *p1_results[n], value );
 							} else {
 								p1_results[n] = value;
 							}
@@ -536,9 +537,11 @@ namespace daw {
 					   binary_op = daw::mutable_capture( binary_op )](
 					    daw::view<Iterator> cur_range, size_t n ) {
 						  auto out_pos = std::next(
-						    range_out->begin( ), std::distance( range_in->begin( ), cur_range.begin( ) ) );
+						    range_out->begin( ),
+						    std::distance( range_in->begin( ), cur_range.begin( ) ) );
 
-						  auto sum = daw::invoke( *binary_op, *p1_results[n], cur_range.pop_front( ) );
+						  auto sum = daw::invoke( *binary_op, *p1_results[n],
+						                          cur_range.pop_front( ) );
 
 						  *( out_pos++ ) = sum;
 						  while( !cur_range.empty( ) ) {
@@ -553,10 +556,11 @@ namespace daw {
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename UnaryPredicate>
 				Iterator parallel_find_if( daw::view<Iterator> range_in,
-				                           UnaryPredicate && pred, task_scheduler ts ) {
+				                           UnaryPredicate &&pred, task_scheduler ts ) {
 
 					auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
-					auto results = std::vector<std::optional<Iterator>>( ranges.size( ), range_in.end( ) );
+					auto results = std::vector<std::optional<Iterator>>(
+					  ranges.size( ), range_in.end( ) );
 
 					std::atomic<size_t> has_found{std::numeric_limits<size_t>::max( )};
 					daw::spin_lock mut_found;
@@ -594,7 +598,7 @@ namespace daw {
 							return *it;
 						}
 					}
-					return last;
+					return range_in.end( );
 				}
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator1,
