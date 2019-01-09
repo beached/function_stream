@@ -112,8 +112,6 @@ namespace daw {
 		}
 
 	public:
-		constexpr future_generator_t( ) noexcept = default;
-
 		template<typename... Functions,
 		         std::enable_if_t<(sizeof...( Functions ) > 1 &&
 		                           sizeof...( Functions ) == sizeof...( Funcs ) &&
@@ -248,4 +246,3 @@ namespace daw {
 	};
 	*/
 } // namespace daw
-

@@ -141,7 +141,6 @@ namespace daw {
 		add_fork_task( task_scheduler &ts, std::tuple<Results...> &results,
 		               std::tuple<Functions...> &funcs, Arg &&arg ) {
 
-			daw::exception::DebugAssert( ts, "ts should never be null" );
 			auto sem = daw::shared_latch( sizeof...( Functions ) );
 			add_fork_task_impl<0>( sem, ts, results, funcs,
 			                       std::forward<Arg>( arg ) );
@@ -350,13 +349,12 @@ namespace daw {
 					    -> std::enable_if_t<daw::is_same_v<
 					      base_result_t, daw::remove_cvref_t<decltype( val )>>> {
 						  ts->add_task( impl::add_fork_task(
-						    *ts, daw::move( *result ), daw::move( *tpfuncs ),
+						    *ts, *result, *tpfuncs,
 						    std::forward<decltype( val )>( val ) ) );
 					  },
 					  [&]( std::exception_ptr ptr ) {
-						  daw::tuple::apply( std::move( *result ), [ptr]( auto &&t ) {
-							  std::forward<decltype( t )>( t ).set_exception( ptr );
-						  } );
+						  daw::tuple::apply( *result,
+						                     [ptr]( auto &t ) { t.set_exception( ptr ); } );
 					  } );
 				};
 				if( future_status::ready == status( ) ) {
@@ -437,7 +435,8 @@ namespace daw {
 			auto next( Function &&func ) {
 				daw::exception::daw_throw_on_true( m_next,
 				                                   "Can only set next function once" );
-				using next_result_t = daw::remove_cvref_t<decltype( func( ) )>;
+				using next_result_t =
+				  daw::traits::invoke_result_t<std::remove_reference_t<Function>>;
 
 				auto result = future_result_t<next_result_t>( m_task_scheduler );
 
@@ -556,9 +555,9 @@ namespace daw {
 
 		template<size_t N, size_t SZ, typename... Callables>
 		struct apply_many_t {
-			template<typename...ResultTypes, typename... Args>
+			template<typename... ResultTypes, typename... Args>
 			void operator( )( daw::task_scheduler &ts, daw::shared_latch sem,
-			                  std::tuple<ResultTypes...> & results,
+			                  std::tuple<ResultTypes...> &results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
@@ -569,10 +568,11 @@ namespace daw {
 				   callables = daw::mutable_capture( std::cref( callables ) ),
 				   tp_args = mutable_capture( std::cref( tp_args ) )]( ) {
 					  try {
-						  std::get<N>( *results ) =
-							  std::apply( std::get<N>( callables->get( ) ), *(tp_args->get( )) );
+						  std::get<N>( *results ) = std::apply(
+						    std::get<N>( callables->get( ) ), *( tp_args->get( ) ) );
 					  } catch( ... ) {
-						  std::get<N>( *results ).set_exception( std::current_exception( ) );
+						  std::get<N>( *results )
+						    .set_exception( std::current_exception( ) );
 					  }
 				  },
 				  ts );

@@ -478,7 +478,7 @@ namespace daw {
 				         typename OutputIterator, typename BinaryOp>
 				void parallel_scan( daw::view<Iterator> range_in,
 				                    daw::view<OutputIterator> range_out,
-				                    BinaryOp && binary_op, task_scheduler ts ) {
+				                    BinaryOp &&binary_op, task_scheduler ts ) {
 					{
 						daw::exception::precondition_check(
 						  range_in.size( ) == range_out.size( ),
@@ -648,20 +648,20 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<2>,
 				         typename RandomIterator, typename UnaryPredicate>
-				auto parallel_count( RandomIterator first, RandomIterator last,
+				auto parallel_count( daw::view<RandomIterator> range_in,
 				                     UnaryPredicate pred, task_scheduler ts ) {
 					static_assert( PartitionPolicy::min_range_size >= 2,
 					               "Minimum range size must be >= 2" );
 					daw::exception::daw_throw_on_false(
-					  std::distance( first, last ) >= 2,
-					  "Must be at least 2 items in range" );
+					  range_in.size( ) >= 2, "Must be at least 2 items in range" );
 
-					using result_t = decltype( std::count_if( first, last, pred ) );
-					if( static_cast<size_t>( std::distance( first, last ) ) <
-					    PartitionPolicy::min_range_size ) {
-						return std::count_if( first, last, pred );
+					using result_t = decltype(
+					  std::count_if( range_in.begin( ), range_in.end( ), pred ) );
+
+					if( range_in.size( ) < PartitionPolicy::min_range_size ) {
+						return std::count_if( range_in.begin( ), range_in.end( ), pred );
 					}
-					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
+					auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
 					std::vector<result_t> results( ranges.size( ), 0 );
 
 					auto sem = partition_range_pos(
