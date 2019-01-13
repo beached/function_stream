@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2018 Darrell Wright
+// Copyright (c) 2016-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -115,7 +115,7 @@ namespace part1 {
 			std::cout << "'" << v.get( ) << "'\n";
 		}
 
-		auto const fib2 = []( ) { return fib( 20 ); };
+		auto const fib2 = []( ) { return fib( 10 ); };
 
 		auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
 		std::cout << "Function Group\n";

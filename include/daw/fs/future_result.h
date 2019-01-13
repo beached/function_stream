@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2018 Darrell Wright
+// Copyright (c) 2016-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -41,33 +41,27 @@
 namespace daw {
 	template<typename Result>
 	struct future_result_t : public impl::future_result_base_t {
-		using result_type_t = std::decay_t<Result>;
+		using result_type_t = daw::remove_cvref_t<Result>;
 		using result_t = daw::expected_t<result_type_t>;
 		using m_data_t = impl::member_data_t<result_type_t>;
 
 	private:
-		std::shared_ptr<m_data_t> m_data;
+		std::shared_ptr<m_data_t> m_data =
+		  std::make_shared<m_data_t>( get_task_scheduler( ) );
 
 	public:
-		future_result_t( )
-		  : m_data( std::make_shared<m_data_t>( get_task_scheduler( ) ) ) {
-
-			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
-		}
+		future_result_t( ) = default;
 
 		explicit future_result_t( task_scheduler ts )
-		  : m_data( std::make_shared<m_data_t>( daw::move( ts ) ) ) {
+		  : m_data( std::make_shared<m_data_t>( daw::move( ts ) ) ) {}
 
-			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
-		}
-
-		explicit future_result_t( daw::shared_latch sem,
-		                          task_scheduler ts = get_task_scheduler( ) )
+		future_result_t( daw::shared_latch sem, task_scheduler ts )
 		  : m_data(
-		      std::make_shared<m_data_t>( daw::move( sem ), daw::move( ts ) ) ) {
+		      std::make_shared<m_data_t>( daw::move( sem ), daw::move( ts ) ) ) {}
 
-			daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
-		}
+		explicit future_result_t( daw::shared_latch sem )
+		  : m_data( std::make_shared<m_data_t>( daw::move( sem ),
+		                                        get_task_scheduler( ) ) ) {}
 
 		std::weak_ptr<m_data_t> weak_ptr( ) {
 			return m_data;
@@ -99,14 +93,15 @@ namespace daw {
 
 		template<typename R>
 		void set_value( R &&value ) {
-			static_assert( daw::is_convertible_v<R, Result>,
+			static_assert( daw::is_convertible_v<daw::remove_cvref_t<R>, Result>,
 			               "Argument must convertible to a Result type" );
 			m_data->set_value( std::forward<R>( value ) );
 		}
 
 		template<typename Exception>
-		void set_exception( Exception const &ex ) {
-			m_data->set_exception( std::make_exception_ptr( ex ) );
+		void set_exception( Exception &&ex ) {
+			m_data->set_exception(
+			  std::make_exception_ptr( std::forward<Exception>( ex ) ) );
 		}
 
 		void set_exception( ) {
@@ -124,11 +119,10 @@ namespace daw {
 			  "Function func with Args does not return a value that is "
 			  "convertible to Result. e.g Result "
 			  "r = func( args... ) must be valid" );
-			daw::exception::dbg_throw_on_false( m_data,
-			                                    "Expected m_data to be valid" );
-			m_data->from_code(
-			  daw::make_callable( std::forward<Function>( func ) ),
-			  std::forward<Args>( args )... );
+			daw::exception::dbg_precondition_check( m_data,
+			                                        "Expected m_data to be valid" );
+			m_data->from_code( daw::make_callable( std::forward<Function>( func ) ),
+			                   std::forward<Args>( args )... );
 		}
 
 		bool is_exception( ) const {
@@ -151,8 +145,8 @@ namespace daw {
 
 		template<typename... Functions>
 		decltype( auto ) fork( Functions &&... funcs ) const {
-			return m_data->fork( daw::make_callable(
-			  std::forward<Functions>( funcs ) )... );
+			return m_data->fork(
+			  daw::make_callable( std::forward<Functions>( funcs ) )... );
 		}
 
 		template<typename Function, typename... Functions>
@@ -160,8 +154,7 @@ namespace daw {
 		                            Functions &&... funcs ) const {
 			return m_data->fork_join(
 			  daw::make_callable( std::forward<Function>( joiner ) ),
-			  daw::make_callable(
-			    std::forward<Functions>( funcs ) )... );
+			  daw::make_callable( std::forward<Functions>( funcs ) )... );
 		}
 	};
 	// future_result_t
@@ -204,28 +197,28 @@ namespace daw {
 		void set_exception( std::exception_ptr ptr );
 
 		template<typename Exception>
-		void set_exception( Exception const &ex ) {
-			m_data->set_exception( std::make_exception_ptr( ex ) );
+		void set_exception( Exception &&ex ) {
+			m_data->set_exception(
+			  std::make_exception_ptr( std::forward<Exception>( ex ) ) );
 		}
 
 		template<typename Function, typename... Args>
 		void from_code( Function &&func, Args &&... args ) {
-			m_data->from_code(
-			  daw::make_void_function(
-			    daw::make_callable( std::forward<Function>( func ) ) ),
-			  std::forward<Args>( args )... );
+			m_data->from_code( daw::make_void_function( daw::make_callable(
+			                     std::forward<Function>( func ) ) ),
+			                   std::forward<Args>( args )... );
 		}
 
 		template<typename Function>
 		decltype( auto ) next( Function &&function ) const {
-			return m_data->next( daw::make_callable(
-			  std::forward<Function>( function ) ) );
+			return m_data->next(
+			  daw::make_callable( std::forward<Function>( function ) ) );
 		}
 
-		template<typename... Functions>
-		decltype( auto ) fork( Functions &&... funcs ) const {
-			return m_data->fork( daw::make_callable(
-			  std::forward<Functions>( funcs ) )... );
+		template<typename Function, typename... Functions>
+		decltype( auto ) fork( Function&& func, Functions &&... funcs ) const {
+			return m_data->fork(
+			  daw::make_callable( std::forward<Function>( func ), std::forward<Functions>( funcs ) )... );
 		}
 	}; // future_result_t<void>
 
@@ -234,8 +227,7 @@ namespace daw {
 	                                      Function &&rhs ) {
 		static_assert( daw::traits::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );
-		return lhs.next(
-		  daw::make_callable( std::forward<Function>( rhs ) ) );
+		return lhs.next( daw::make_callable( std::forward<Function>( rhs ) ) );
 	}
 
 	template<typename result_t, typename Function>
@@ -243,17 +235,16 @@ namespace daw {
 	                                      Function &&rhs ) {
 		static_assert( daw::traits::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );
-		return lhs.next(
-		  daw::make_callable( std::forward<Function>( rhs ) ) );
+		return lhs.next( daw::make_callable( std::forward<Function>( rhs ) ) );
 	}
 
 	template<typename result_t, typename Function>
 	constexpr decltype( auto ) operator|( future_result_t<result_t> &&lhs,
 	                                      Function &&rhs ) {
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, result_t>,
-		               "Supplied function must be callable with result of future" );
-		return lhs.next(
-		  daw::make_callable( std::forward<Function>( rhs ) ) );
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, result_t>,
+		  "Supplied function must be callable with result of future" );
+		return lhs.next( daw::make_callable( std::forward<Function>( rhs ) ) );
 	}
 
 	template<typename Function, typename... Args,
@@ -262,22 +253,20 @@ namespace daw {
 	auto make_future_result( task_scheduler ts, Function &&func,
 	                         Args &&... args ) {
 		using result_t =
-		  std::decay_t<decltype( func( std::forward<Args>( args )... ) )>;
+		  daw::remove_cvref_t<decltype( func( std::forward<Args>( args )... ) )>;
 		auto result = future_result_t<result_t>( );
 
-		ts.add_task(
-		  [result = daw::mutable_capture( result ),
-		   func = daw::mutable_capture(
-		     daw::make_callable( std::forward<Function>( func ) ) ),
-		   args = daw::mutable_capture(
-		     std::make_tuple( std::forward<Args>( args )... ) )]( ) -> void {
-			  result->from_code(
-			    [func = daw::mutable_capture( daw::move( *func ) ),
-			     args = daw::mutable_capture( daw::move( *args ) )]( ) {
-
-				    return daw::apply( daw::move( *func ), daw::move( *args ) );
-			    } );
-		  } );
+		ts.add_task( [result = daw::mutable_capture( result ),
+		              func = daw::mutable_capture(
+		                daw::make_callable( std::forward<Function>( func ) ) ),
+		              args = daw::mutable_capture( std::make_tuple(
+		                std::forward<Args>( args )... ) )]( ) -> void {
+			result->from_code(
+			  [func = daw::mutable_capture( daw::move( *func ) ),
+			   args = daw::mutable_capture( daw::move( *args ) )]( ) {
+				  return daw::apply( daw::move( *func ), daw::move( *args ) );
+			  } );
+		} );
 		return result;
 	}
 
@@ -303,12 +292,11 @@ namespace daw {
 		};
 
 		template<typename Result, typename Function, typename... Args>
-		future_task_t<Result, Function, Args...> constexpr make_future_task(
-		  Result &&result, Function &&func, Args &&... args ) {
-			return future_task_t<Result, Function, Args...>(
-			  std::forward<Result>( result ),
-			  daw::make_callable( std::forward<Function>( func ) ),
-			  std::forward<Args>( args )... );
+		constexpr future_task_t<Result, Function, Args...>
+		make_future_task( Result &&result, Function &&func, Args &&... args ) {
+			return {std::forward<Result>( result ),
+			        daw::make_callable( std::forward<Function>( func ) ),
+			        std::forward<Args>( args )...};
 		}
 	} // namespace impl
 
@@ -316,12 +304,12 @@ namespace daw {
 	auto make_future_result( task_scheduler ts, daw::shared_latch sem,
 	                         Function &&func, Args &&... args ) {
 
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
 		using result_t = std::invoke_result_t<Function, Args...>;
 		auto result = future_result_t<result_t>( daw::move( sem ) );
 		ts.add_task( impl::make_future_task(
-		  result,
-		  daw::make_callable( std::forward<Function>( func ) ),
+		  result, daw::make_callable( std::forward<Function>( func ) ),
 		  std::forward<Args>( args )... ) );
 
 		return result;
@@ -329,7 +317,8 @@ namespace daw {
 
 	template<typename Function, typename... Args>
 	decltype( auto ) make_future_result( Function &&func, Args &&... args ) {
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
 		return make_future_result(
 		  get_task_scheduler( ),
 		  daw::make_callable( std::forward<Function>( func ) ),
@@ -337,17 +326,18 @@ namespace daw {
 	}
 
 	template<typename Function, typename... Args>
-	decltype( auto ) async( Function && func, Args &&... args ) {
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
-		return make_future_result( std::forward<Function>( func ), std::forward<Args>( args )... );
+	decltype( auto ) async( Function &&func, Args &&... args ) {
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
+		return make_future_result( std::forward<Function>( func ),
+		                           std::forward<Args>( args )... );
 	}
 
 	template<typename... Functions>
 	decltype( auto )
 	make_callable_future_result_group( Functions &&... functions ) {
 		return impl::future_group_result_t<Functions...>(
-		  daw::make_callable(
-		    std::forward<Functions>( functions ) )... );
+		  daw::make_callable( std::forward<Functions>( functions ) )... );
 	}
 
 	/// Create a group of functions that all return at the same time.  A tuple of
@@ -357,8 +347,8 @@ namespace daw {
 	template<typename... Functions>
 	constexpr decltype( auto )
 	make_future_result_group( Functions &&... functions ) {
-		return make_callable_future_result_group( daw::make_callable(
-		  std::forward<Functions>( functions ) )... )( );
+		return make_callable_future_result_group(
+		  daw::make_callable( std::forward<Functions>( functions ) )... )( );
 	}
 
 	std::false_type is_future_result_impl( ... );
@@ -404,7 +394,7 @@ namespace daw {
 	template<
 	  typename RandomIterator, typename RandomIterator2, typename BinaryOperation,
 	  typename ResultType = future_result_t<
-	    std::decay_t<decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
+	    daw::remove_cvref_t<decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
 	ResultType reduce_futures( RandomIterator first, RandomIterator2 last,
 	                           BinaryOperation &&binary_op ) {
 
@@ -443,7 +433,7 @@ namespace daw {
 	decltype( auto ) future_apply( F &&f, Tuple &&t ) {
 		return impl::future_apply_impl(
 		  std::forward<F>( f ), std::forward<Tuple>( t ),
-		  std::make_index_sequence<daw::tuple_size_v<std::decay_t<Tuple>>>{} );
+		  std::make_index_sequence<daw::tuple_size_v<daw::remove_cvref_t<Tuple>>>{} );
 	}
 
 	template<typename TPFutureResults, typename Function,
@@ -453,8 +443,8 @@ namespace daw {
 		auto result = make_future_result(
 		  [results =
 		     daw::mutable_capture( std::forward<TPFutureResults>( results ) ),
-		   next_function = daw::mutable_capture( daw::make_callable(
-		     std::forward<Function>( next_function ) ) )]( ) {
+		   next_function = daw::mutable_capture(
+		     daw::make_callable( std::forward<Function>( next_function ) ) )]( ) {
 			  return future_apply( daw::move( *next_function ),
 			                       daw::move( *results ) );
 		  } );

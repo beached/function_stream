@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2017-2018 Darrell Wright
+// Copyright (c) 2017-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -37,7 +37,7 @@ namespace daw {
 	template<typename... Functions>
 	class function_stream {
 		static_assert( sizeof...( Functions ) > 0, "Must pass more than 0 items" );
-		using function_t = std::tuple<std::decay_t<Functions>...>;
+		using function_t = std::tuple<daw::remove_cvref_t<Functions>...>;
 		using func_comp_t = impl::function_composer_t<Functions...>;
 
 		function_t m_funcs;

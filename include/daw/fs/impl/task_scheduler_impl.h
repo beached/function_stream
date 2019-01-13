@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2018 Darrell Wright
+// Copyright (c) 2016-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -44,7 +44,7 @@ namespace daw {
 
 		template<
 		  typename Callable,
-		  std::enable_if_t<(!daw::is_same_v<task_t, std::decay_t<Callable>> &&
+		  std::enable_if_t<(!daw::is_same_v<task_t, daw::remove_cvref_t<Callable>> &&
 		                    traits::is_callable_v<Callable>),
 		                   std::nullptr_t> = nullptr>
 		explicit task_t( Callable &&c )

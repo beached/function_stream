@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2018 Darrell Wright
+// Copyright (c) 2016-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -305,7 +305,7 @@ namespace daw {
 				auto parallel_reduce( daw::view<Iterator> range, T init,
 				                      BinaryOp binary_op, task_scheduler ts ) {
 					using result_t =
-					  std::decay_t<decltype( binary_op( init, range.front( ) ) )>;
+					  daw::remove_cvref_t<decltype( binary_op( init, range.front( ) ) )>;
 					{
 						if( range.size( ) < 2 ) {
 							if( range.empty( ) ) {

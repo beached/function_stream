@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2018 Darrell Wright
+// Copyright (c) 2016-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -72,7 +72,7 @@ namespace daw {
 	template<typename Result, typename Functions, typename... Args>
 	struct package_t {
 		using functions_t = daw::remove_cvref_t<Functions>;
-		using arguments_t = std::tuple<std::decay_t<Args>...>;
+		using arguments_t = std::tuple<daw::remove_cvref_t<Args>...>;
 		using result_t = Result;
 		using result_value_t = weak_ptr_type_t<result_t>;
 

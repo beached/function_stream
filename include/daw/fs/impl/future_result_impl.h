@@ -348,9 +348,9 @@ namespace daw {
 					  [&]( auto &&val )
 					    -> std::enable_if_t<daw::is_same_v<
 					      base_result_t, daw::remove_cvref_t<decltype( val )>>> {
-						  ts->add_task( impl::add_fork_task(
-						    *ts, *result, *tpfuncs,
-						    std::forward<decltype( val )>( val ) ) );
+						  ts->add_task(
+						    impl::add_fork_task( *ts, *result, *tpfuncs,
+						                         std::forward<decltype( val )>( val ) ) );
 					  },
 					  [&]( std::exception_ptr ptr ) {
 						  daw::tuple::apply( *result,
@@ -635,12 +635,17 @@ namespace daw {
 					                    daw::move( *tp_functions ),
 					                    daw::move( *tp_args ) );
 
-					  sem->wait( );
+					  if( !( *sem ) ) {
+						  return;
+					  }
+					  //sem->wait( );
 
 					  result->set_value( daw::move( tp_result ) );
+					  sem->notify( );
 				  };
 				try {
-					std::thread{th_worker}.detach( );
+					auto th = std::thread( th_worker );
+					th.detach( );
 				} catch( std::system_error const &e ) {
 					std::cerr << "Error creating thread, aborting.\n Error code: "
 					          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
