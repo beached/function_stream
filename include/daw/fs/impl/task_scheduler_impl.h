@@ -67,11 +67,11 @@ namespace daw {
 		}
 
 		void operator( )( ) noexcept( noexcept( m_function( ) ) ) {
-			m_function( );
+			daw::invoke( m_function );
 		}
 
 		void operator( )( ) const noexcept( noexcept( m_function( ) ) ) {
-			m_function( );
+			daw::invoke( m_function );
 		}
 
 		bool is_ready( ) const {

@@ -89,7 +89,8 @@ namespace daw {
 					add_task( daw::move( uptr->m_function ),
 					          daw::move( *( uptr->m_semaphore.release( ) ) ) );
 				} else {
-					( *uptr )( );
+					daw::exception::dbg_precondition_check( uptr, "Cannot deref a null ptr" );
+					daw::invoke( *uptr );
 				}
 			} catch( ... ) {
 				// Don't let a task take down thread

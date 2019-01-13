@@ -69,11 +69,12 @@ namespace daw {
 
 		template<size_t pos, typename Package>
 		void call( Package package ) {
-			get_task_scheduler( ).add_task( [p = daw::move( package )]( ) mutable {
-				call_task<pos>( daw::move( p ),
-				                typename impl::which_type_t<
-				                  pos, decltype( p->function_list( ) )>::category{} );
-			} );
+			get_task_scheduler( ).add_task(
+			  [p = daw::mutable_capture( daw::move( package ) )]( ) {
+				  using which_t = typename impl::which_type_t<
+				    pos, decltype( ( *p )->function_list( ) )>::category;
+				  call_task<pos>( daw::move( *p ), which_t{} );
+			  } );
 		}
 
 		template<size_t pos, typename Package>
@@ -84,7 +85,7 @@ namespace daw {
 			auto func = std::get<pos>( package->function_list( ) );
 			auto client_data = package->result( ).lock( );
 			if( client_data ) {
-				client_data->from_code( [&]( ) mutable {
+				client_data->from_code( [&]( ) {
 					return daw::apply( func, daw::move( package->targs( ) ) );
 				} );
 			} else {
