@@ -95,7 +95,7 @@ add_test( task_scheduler_test task_scheduler_test_bin )
 add_dependencies( check task_scheduler_test_bin )
 
 add_executable( function_stream_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILE} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_stream_test.cpp )
-target_link_libraries( function_stream_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( function_stream_test_bin task_scheduler_lib function_stream_lib ${CMAKE_THREAD_LIBS_INIT} )
 add_test( function_stream_test function_stream_test_bin )
 add_dependencies( check function_stream_test_bin )
 

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2017-2018 Darrell Wright
+// Copyright (c) 2017-2019 Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -36,31 +36,33 @@
 namespace daw {
 	template<typename... Functions>
 	class function_stream {
-		static_assert( sizeof...( Functions ) > 0, "Must pass more than 0 items" );
-		using function_t = std::tuple<std::decay_t<Functions>...>;
+		//		static_assert( sizeof...( Functions ) > 0, "Must pass more than 0
+		// items" );
+		using function_t = std::tuple<daw::remove_cvref_t<Functions>...>;
 		using func_comp_t = impl::function_composer_t<Functions...>;
 
 		function_t m_funcs;
 
 	public:
-		bool continue_on_result_destruction;
+		bool continue_on_result_destruction = true;
 
-		constexpr explicit function_stream( Functions &&... funcs )
-		  : m_funcs{std::make_tuple( daw::move( funcs )... )}
-		  , continue_on_result_destruction{true} {}
+		template<
+		  typename F, typename... Fs,
+		  std::enable_if_t<
+		    daw::all_true_v<
+		      !std::is_same_v<function_stream, daw::remove_cvref_t<F>>,
+		      !std::is_same_v<std::tuple<Functions...>, daw::remove_cvref_t<F>>,
+		      !daw::any_true_v<std::is_function_v<F>,
+		                               std::is_function_v<Fs>...>>,
+		    std::nullptr_t> = nullptr>
+		constexpr explicit function_stream( F &&f, Fs &&... funcs )
+		  : m_funcs( std::forward<F>( f ), std::forward<Fs>( funcs )... ) {}
 
-		constexpr explicit function_stream( Functions const &... funcs )
-		  : m_funcs{std::make_tuple( funcs... )}
-		  , continue_on_result_destruction{true} {}
+		constexpr explicit function_stream( std::tuple<Functions...> &&funcs )
+		  : m_funcs( daw::move( funcs ) ) {}
 
-		constexpr explicit function_stream( std::tuple<Functions...> &&tpfuncs )
-		  : m_funcs{daw::move( tpfuncs )}
-		  , continue_on_result_destruction{true} {}
-
-		constexpr explicit function_stream(
-		  std::tuple<Functions...> const &tpfuncs )
-		  : m_funcs{tpfuncs}
-		  , continue_on_result_destruction{true} {}
+		constexpr explicit function_stream( std::tuple<Functions...> const &funcs )
+		  : m_funcs( funcs ) {}
 
 		template<typename... Args>
 		auto operator( )( Args &&... args ) const {
@@ -75,9 +77,20 @@ namespace daw {
 	}; // function_stream
 
 	template<typename... Functions>
-	constexpr function_stream<Functions...>
-	make_function_stream( Functions &&... funcs ) {
-		return function_stream<Functions...>{std::forward<Functions>( funcs )...};
+	function_stream( Functions &&... )
+	  ->function_stream<daw::remove_cvref_t<Functions>...>;
+
+	template<typename... Functions>
+	function_stream( std::tuple<Functions> &&... )
+	  ->function_stream<daw::remove_cvref_t<Functions>...>;
+
+	template<typename... Functions>
+	function_stream( std::tuple<Functions> const &... )
+	  ->function_stream<daw::remove_cvref_t<Functions>...>;
+
+	template<typename... Functions>
+	constexpr auto make_function_stream( Functions&&... funcs ) noexcept {
+		return function_stream( std::make_tuple( daw::make_callable( funcs )... ) );
 	}
 
 	template<typename FunctionStream>
