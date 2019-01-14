@@ -23,8 +23,6 @@
 #include <iostream>
 #include <string>
 
-#define BOOST_TEST_MODULE function_stream
-#include <daw/boost_test.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_random.h>
 #include <daw/daw_size_literals.h>
@@ -39,9 +37,9 @@ namespace part1 {
 		return static_cast<double>( d );
 	}
 
-	constexpr double fib( double n ) noexcept {
-		double last = 0;
-		double result = 1;
+	constexpr uintmax_t fib( double n ) noexcept {
+		uintmax_t last = 0;
+		uintmax_t result = 1;
 		for( uintmax_t m = 1; m < n; ++m ) {
 			auto new_last = result;
 			result += result + last;
@@ -84,17 +82,21 @@ namespace part1 {
 		}
 	};
 
-	BOOST_AUTO_TEST_CASE( function_composer_test ) {
+	bool function_composer_test( ) {
 		daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
 		static_assert(
 		  std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
 		  "function_composer_t is not returning the correct type" );
-		std::cout << fc.apply( 4 ) << std::endl;
+		auto const result = fc.apply( 4 );
+		daw::expecting( result == "Hello" );
+		return true;
 	}
 
-	BOOST_AUTO_TEST_CASE( function_stream_test_001 ) {
+	bool function_stream_test_001( ) {
 		constexpr auto fs = daw::make_function_stream( &a, &b, &c );
-		std::cout << fs( 1 ).get( ) << std::endl;
+		auto result = fs( 1 ).get( );
+		daw::expecting( result, 24 );
+		return true;
 	}
 
 	template<typename T, typename... Ts>
@@ -103,24 +105,21 @@ namespace part1 {
 		  std::forward<T>( value ), std::forward<Ts>( values )...}};
 	}
 
-	BOOST_AUTO_TEST_CASE( function_stream_test_002 ) {
+	bool function_stream_test_002( ) {
 		constexpr auto fs2 = daw::make_function_stream( &fib, &fib );
-		auto results = create_vector( fs2( 3 ) );
-
-		for( size_t n = 1; n < 40000; ++n ) {
-			results.push_back( fs2( daw::randint( 5, 7 ) ) );
-		};
-
-		for( auto const &v : results ) {
-			std::cout << "'" << v.get( ) << "'\n";
-		}
+		auto result = fs2( 3 ).get( );
+		daw::expecting( result, 29 );
 
 		auto const fib2 = []( ) { return fib( 10 ); };
 
-		auto f_grp = daw::make_future_result_group( fib2, fib2 ).get( );
+		constexpr auto f_grp = daw::make_future_result_group( fib2, fib2 );
+		auto v = f_grp.get( );
+		static_assert( daw::tuple_size_v<decltype( v )> == 2 );
 		std::cout << "Function Group\n";
-		std::cout << *std::get<0>( f_grp ) << '\n';
-		std::cout << *std::get<1>( f_grp ) << '\n';
+		daw::expecting( *std::get<0>( v ) == *std::get<1>( v ) );
+		std::cout << *std::get<0>( v ) << '\n';
+		std::cout << *std::get<1>( v ) << '\n';
+		return true;
 	}
 } // namespace part1
 
@@ -128,7 +127,7 @@ std::string blah( int i ) {
 	return std::to_string( i );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
+void future_result_test_001( ) {
 	auto ts = daw::get_task_scheduler( );
 	auto const t = daw::make_future_result( []( ) {
 		               std::cout << "part1\n";
@@ -172,4 +171,11 @@ BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
 	} | blah | []( std::string s ) { std::cout << s << "\nfin\n"; };
 
 	result2( ).wait( );
+}
+
+int main( ) {
+	part1::function_composer_test( );
+	part1::function_stream_test_001( );
+	future_result_test_001( );
+	part1::function_stream_test_002( );
 }

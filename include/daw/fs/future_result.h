@@ -216,9 +216,9 @@ namespace daw {
 		}
 
 		template<typename Function, typename... Functions>
-		decltype( auto ) fork( Function&& func, Functions &&... funcs ) const {
-			return m_data->fork(
-			  daw::make_callable( std::forward<Function>( func ), std::forward<Functions>( funcs ) )... );
+		decltype( auto ) fork( Function &&func, Functions &&... funcs ) const {
+			return m_data->fork( daw::make_callable(
+			  std::forward<Function>( func ), std::forward<Functions>( funcs ) )... );
 		}
 	}; // future_result_t<void>
 
@@ -334,9 +334,9 @@ namespace daw {
 	}
 
 	template<typename... Functions>
-	decltype( auto )
+	constexpr decltype( auto )
 	make_callable_future_result_group( Functions &&... functions ) {
-		return impl::future_group_result_t<Functions...>(
+		return impl::future_group_result_t(
 		  daw::make_callable( std::forward<Functions>( functions ) )... );
 	}
 
@@ -391,10 +391,10 @@ namespace daw {
 		}
 	} // namespace impl
 
-	template<
-	  typename RandomIterator, typename RandomIterator2, typename BinaryOperation,
-	  typename ResultType = future_result_t<
-	    daw::remove_cvref_t<decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
+	template<typename RandomIterator, typename RandomIterator2,
+	         typename BinaryOperation,
+	         typename ResultType = future_result_t<daw::remove_cvref_t<
+	           decltype( ( *std::declval<RandomIterator>( ) ).get( ) )>>>
 	ResultType reduce_futures( RandomIterator first, RandomIterator2 last,
 	                           BinaryOperation &&binary_op ) {
 
@@ -433,7 +433,8 @@ namespace daw {
 	decltype( auto ) future_apply( F &&f, Tuple &&t ) {
 		return impl::future_apply_impl(
 		  std::forward<F>( f ), std::forward<Tuple>( t ),
-		  std::make_index_sequence<daw::tuple_size_v<daw::remove_cvref_t<Tuple>>>{} );
+		  std::make_index_sequence<
+		    daw::tuple_size_v<daw::remove_cvref_t<Tuple>>>{} );
 	}
 
 	template<typename TPFutureResults, typename Function,

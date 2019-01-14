@@ -88,6 +88,15 @@ namespace daw {
 		}
 	}; // task_scheduler
 
+	template<typename...>
+	struct is_task_scheduler : public std::false_type {};
+
+	template<>
+	struct is_task_scheduler<task_scheduler> : public std::true_type {};
+
+	template<typename...Args>
+	inline constexpr bool is_task_scheduler_v = is_task_scheduler<Args...>::value;
+
 	task_scheduler get_task_scheduler( );
 
 	/// Add a single task to the supplied task scheduler and notify supplied
@@ -139,8 +148,8 @@ namespace daw {
 			return 0;
 		};
 
-		auto const dummy = {st( std::forward<Tasks>( tasks ) )...};
-		Unused( dummy );
+		Unused( (daw::invoke( st, std::forward<Tasks>( tasks ) ) +... ) );
+
 		return sem;
 	}
 
