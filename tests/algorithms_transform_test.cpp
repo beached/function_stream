@@ -34,9 +34,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_transform
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -61,9 +58,9 @@ void transform_test( size_t SZ ) {
 		std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 		daw::do_not_optimize( c );
 	} );
-	BOOST_REQUIRE_MESSAGE(
-	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
-	  "Wrong return value" );
+	daw::expecting(
+	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ) );
+
 	auto const result_3 = daw::benchmark( [&]( ) {
 		daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ),
 		                                     unary_op, ts );
@@ -73,9 +70,9 @@ void transform_test( size_t SZ ) {
 		std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 		daw::do_not_optimize( c );
 	} );
-	BOOST_REQUIRE_MESSAGE(
-	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
-	  "Wrong return value" );
+	daw::expecting(
+	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ) );
+
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "transform" );
@@ -101,9 +98,9 @@ void transform_test2( size_t SZ ) {
 		std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 		daw::do_not_optimize( c );
 	} );
-	BOOST_REQUIRE_MESSAGE(
-	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
-	  "Wrong return value" );
+
+	daw::expecting(
+	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ) );
 
 	auto const result_3 = daw::benchmark( [&]( ) {
 		daw::algorithm::parallel::transform( a.cbegin( ), a.cend( ), b.begin( ),
@@ -114,16 +111,15 @@ void transform_test2( size_t SZ ) {
 		std::transform( a.cbegin( ), a.cend( ), c.begin( ), unary_op );
 		daw::do_not_optimize( c );
 	} );
-	BOOST_REQUIRE_MESSAGE(
-	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
-	  "Wrong return value" );
+	daw::expecting(
+	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ) );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "transform" );
 }
 
-BOOST_AUTO_TEST_CASE( transform_int64_t ) {
+void transform_int64_t( ) {
 	std::cout << "transform tests - int64_t\n";
 	transform_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -131,10 +127,15 @@ BOOST_AUTO_TEST_CASE( transform_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( transform2_int64_t ) {
+void transform2_int64_t( ) {
 	std::cout << "transform2 tests - int64_t\n";
 	transform_test2<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		transform_test2<int64_t>( n );
 	}
+}
+
+int main( ) {
+	transform_int64_t( );
+	transform2_int64_t( );
 }

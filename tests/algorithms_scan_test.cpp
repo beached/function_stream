@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_scan
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -70,9 +67,9 @@ void scan_test( size_t SZ ) {
 		std::partial_sum( a.cbegin( ), a.cend( ), c.begin( ), reduce_function );
 		daw::do_not_optimize( c );
 	} );
-	BOOST_REQUIRE_MESSAGE(
-	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
-	  "Wrong return value" );
+	daw::expecting(
+	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ) );
+
 	b = a;
 	c = a;
 	auto const result_3 = daw::benchmark( [&]( ) {
@@ -84,19 +81,22 @@ void scan_test( size_t SZ ) {
 		std::partial_sum( a.cbegin( ), a.cend( ), c.begin( ), reduce_function );
 		daw::do_not_optimize( c );
 	} );
-	BOOST_REQUIRE_MESSAGE(
-	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ),
-	  "Wrong return value" );
+	daw::expecting(
+	  std::equal( b.cbegin( ), b.cend( ), c.cbegin( ), c.cend( ) ) );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "scan" );
 }
 
-BOOST_AUTO_TEST_CASE( scan_int64_t ) {
+void scan_int64_t( ) {
 	std::cout << "scan tests - int64_t\n";
 	scan_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		scan_test<int64_t>( n );
 	}
+}
+
+int main( ) {
+	scan_int64_t( );
 }

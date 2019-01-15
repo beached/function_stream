@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_for_each
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -79,23 +76,29 @@ void for_each_test( size_t SZ ) {
 	display_info( seq_min, par_min, SZ, sizeof( T ), "for_each" );
 }
 
-BOOST_AUTO_TEST_CASE( for_each_double ) {
+void for_each_double( ) {
 	std::cout << "for_each tests - double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<double>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( for_each_int64_t ) {
+void for_each_int64_t( ) {
 	std::cout << "for_each tests - int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<int64_t>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( for_each_int32_t ) {
+void for_each_int32_t( ) {
 	std::cout << "for_each tests - int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		for_each_test<int32_t>( n );
 	}
+}
+
+int main( ) {
+	for_each_double( );
+	for_each_int64_t( );
+	for_each_int32_t( );
 }

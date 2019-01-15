@@ -24,8 +24,6 @@
 #include <exception>
 #include <iostream>
 
-#define BOOST_TEST_MODULE future_result
-#include <daw/boost_test.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_size_literals.h>
 
@@ -45,33 +43,33 @@ double fib( double n ) noexcept {
 	return result;
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_001 ) {
+void future_result_test_001( ) {
 	auto f1 = daw::async( fib, 500.0 );
 	double const expected_value =
 	  139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125.0;
 	double const actual_value = f1.get( );
-	BOOST_TEST( expected_value == actual_value,
-	            boost::test_tools::tolerance( 0.00000000000001 ) );
+	daw::expecting(
+	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_002 ) {
+void future_result_test_002( ) {
 	auto f1 = daw::async( fib, 6 );
 	auto f2 = f1.next( fib );
 	double const expected_value = 21;
 	double const actual_value = f2.get( );
-	BOOST_TEST( expected_value == actual_value,
-	            boost::test_tools::tolerance( 0.00000000000001 ) );
+	daw::expecting(
+	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_003 ) {
+void future_result_test_003( ) {
 	auto f2 = daw::async( fib, 6 ).next( fib ).next( fib );
 	double const expected_value = 10946;
 	double const actual_value = f2.get( );
-	BOOST_TEST( expected_value == actual_value,
-	            boost::test_tools::tolerance( 0.00000000000001 ) );
+	daw::expecting(
+	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
+void future_result_test_004( ) {
 	auto count = 0;
 	auto fib2 = [&count]( double d ) {
 		++count;
@@ -87,13 +85,12 @@ BOOST_AUTO_TEST_CASE( future_result_test_004 ) {
 	auto f3 =
 	  daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
 
-	BOOST_REQUIRE( f3.is_exception( ) );
-	BOOST_REQUIRE( count == 3 );
-	BOOST_REQUIRE_EXCEPTION( f3.get( ), std::exception,
-	                         []( auto && ) { return true; } );
+	daw::expecting( f3.is_exception( ) );
+	daw::expecting( 3, count );
+	daw::expecting_exception( [&f3]( ) { f3.get( ); } );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_005 ) {
+void future_result_test_005( ) {
 	auto count = 0;
 	auto fib2 = [&count]( double d ) {
 		++count;
@@ -109,13 +106,12 @@ BOOST_AUTO_TEST_CASE( future_result_test_005 ) {
 	auto const f4 =
 	  daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
 
-	BOOST_REQUIRE( f4.is_exception( ) );
-	BOOST_REQUIRE( count == 3 );
-	BOOST_REQUIRE_EXCEPTION( f4.get( ), std::exception,
-	                         []( auto && ) { return true; } );
+	daw::expecting( f4.is_exception( ) );
+	daw::expecting( 3, count );
+	daw::expecting_exception( [&f4]( ) { f4.get( ); } );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_006 ) {
+void future_result_test_006( ) {
 	auto f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 )
 	            .next( []( ) { return 5; } )
 	            .next( []( int i ) {
@@ -123,10 +119,10 @@ BOOST_AUTO_TEST_CASE( future_result_test_006 ) {
 		            return i;
 	            } );
 
-	BOOST_REQUIRE( f5.get( ) == 5 );
+	daw::expecting( 5, f5.get( ) );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_007 ) {
+void future_result_test_007( ) {
 	auto const f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 )
 	                  .next( []( ) { return 5; } )
 	                  .next( []( int i ) {
@@ -134,30 +130,30 @@ BOOST_AUTO_TEST_CASE( future_result_test_007 ) {
 		                  return i;
 	                  } );
 
-	BOOST_REQUIRE( f5.get( ) == 5 );
+	daw::expecting( 5, f5.get( ) );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_008 ) {
+void future_result_test_008( ) {
 	auto const f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) |
 	                []( ) { return 5; } | []( int i ) {
 		                std::cout << "done " << i << '\n';
 		                return i;
 	                };
 
-	BOOST_REQUIRE( f5.get( ) == 5 );
+	daw::expecting( 5, f5.get( ) );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_009 ) {
+void future_result_test_009( ) {
 	auto f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) |
 	          []( ) { return 5; } | []( int i ) {
 		          std::cout << "done " << i << '\n';
 		          return i;
 	          };
 
-	BOOST_REQUIRE( f5.get( ) == 5 );
+	daw::expecting( 5, f5.get( ) );
 }
 
-BOOST_AUTO_TEST_CASE( future_result_test_010 ) {
+void future_result_test_010( ) {
 	auto const f5 =
 	  daw::async(
 	    []( int i ) {
@@ -169,10 +165,23 @@ BOOST_AUTO_TEST_CASE( future_result_test_010 ) {
 
 	std::get<0>( f5 ).wait( );
 	std::get<1>( f5 ).wait( );
-	BOOST_REQUIRE( std::get<0>( f5 ).get( ) == 6 );
-	BOOST_REQUIRE( std::get<1>( f5 ).get( ) == 36 );
+	daw::expecting( 6, std::get<0>( f5 ).get( ) );
+	daw::expecting( 36, std::get<1>( f5 ).get( ) );
 
 	auto f6 = join( f5, []( int lhs, int rhs ) { return lhs + rhs; } );
 	auto result = f6.get( );
-	BOOST_REQUIRE_EQUAL( result, 42 );
+	daw::expecting( result, 42 );
+}
+
+int main( ) {
+	future_result_test_001( );
+	future_result_test_002( );
+	future_result_test_003( );
+	future_result_test_004( );
+	future_result_test_005( );
+	future_result_test_006( );
+	future_result_test_007( );
+	future_result_test_008( );
+	future_result_test_009( );
+	future_result_test_010( );
 }

@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_min_max
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -60,7 +57,7 @@ void min_element_test( size_t SZ ) {
 		min_result2 = *std::min_element( a.begin( ), a.end( ) );
 		daw::do_not_optimize( min_result2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( min_result1 == min_result2, "Wrong return value" );
+	daw::expecting( min_result1 == min_result2 );
 	auto const result_3 = daw::benchmark( [&]( ) {
 		min_result1 =
 		  *daw::algorithm::parallel::min_element( a.begin( ), a.end( ), ts );
@@ -70,7 +67,7 @@ void min_element_test( size_t SZ ) {
 		min_result2 = *std::min_element( a.begin( ), a.end( ) );
 		daw::do_not_optimize( min_result2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( min_result1 == min_result2, "Wrong return value" );
+	daw::expecting( min_result1 == min_result2 );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
 	display_info( seq_min, par_min, SZ, sizeof( value_t ), "min_element" );
@@ -92,7 +89,7 @@ void max_element_test( size_t SZ ) {
 		max_result2 = *std::max_element( a.begin( ), a.end( ) );
 		daw::do_not_optimize( max_result2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( max_result1 == max_result2, "Wrong return value" );
+	daw::expecting( max_result1, max_result2 );
 	auto const result_3 = daw::benchmark( [&]( ) {
 		max_result1 =
 		  *daw::algorithm::parallel::max_element( a.begin( ), a.end( ), ts );
@@ -102,13 +99,13 @@ void max_element_test( size_t SZ ) {
 		max_result2 = *std::max_element( a.begin( ), a.end( ) );
 		daw::do_not_optimize( max_result2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( max_result1 == max_result2, "Wrong return value" );
+	daw::expecting( max_result1, max_result2 );
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "max_element" );
 }
 
-BOOST_AUTO_TEST_CASE( min_element_int64_t ) {
+void min_element_int64_t( ) {
 	std::cout << "min_element tests - int64_t\n";
 	min_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -116,10 +113,15 @@ BOOST_AUTO_TEST_CASE( min_element_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( max_element_int64_t ) {
+void max_element_int64_t( ) {
 	std::cout << "max_element tests - int64_t\n";
 	max_element_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		max_element_test<int64_t>( n );
 	}
+}
+
+int main( ) {
+	min_element_int64_t( );
+	max_element_int64_t( );
 }

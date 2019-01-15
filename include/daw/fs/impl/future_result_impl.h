@@ -608,7 +608,7 @@ namespace daw {
 
 		template<typename... Functions>
 		class future_group_result_t {
-			std::tuple<daw::remove_cvref_t<Functions>...> tp_functions;
+			std::tuple<Functions...> tp_functions;
 
 		public:
 			template<
@@ -616,7 +616,7 @@ namespace daw {
 			  std::enable_if_t<(sizeof...( Fs ) != 1 or
 			                    !std::is_same_v<future_group_result_t,
 			                                    std::remove_reference_t<
-			                                      daw::traits::last_type_t<Fs...>>>),
+			                                      daw::traits::first_type<Fs...>>>),
 			                   std::nullptr_t> = nullptr>
 			explicit constexpr future_group_result_t( Fs &&... fs )
 			  : tp_functions( std::forward<Fs>( fs )... ) {}
@@ -662,9 +662,5 @@ namespace daw {
 				return result;
 			}
 		};
-
-		template<typename... Functions>
-		future_group_result_t( Functions &&... )
-		  ->future_group_result_t<std::remove_reference_t<Functions>...>;
 	} // namespace impl
 } // namespace daw

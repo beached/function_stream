@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_chunked_for_each
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -55,7 +52,7 @@ namespace chunked_for_each_001_ns {
 			}
 		}
 	};
-	BOOST_AUTO_TEST_CASE( chunked_for_each_001 ) {
+	void chunked_for_each_001( ) {
 		auto a = daw::make_random_data<int64_t>( 100'000 );
 		daw::algorithm::parallel::chunked_for_each(
 		  a.data( ), a.data( ) + a.size( ), call_t{} );
@@ -63,7 +60,7 @@ namespace chunked_for_each_001_ns {
 	}
 } // namespace chunked_for_each_001_ns
 
-BOOST_AUTO_TEST_CASE( chunked_for_each_pos_001 ) {
+void chunked_for_each_pos_001( ) {
 	auto a = daw::make_random_data<int64_t>( 100'000 );
 
 	std::vector<int64_t> b{};
@@ -75,4 +72,9 @@ BOOST_AUTO_TEST_CASE( chunked_for_each_pos_001 ) {
 		  }
 	  } );
 	daw::do_not_optimize( b );
+}
+
+int main( ) {
+	chunked_for_each_001_ns::chunked_for_each_001( );
+	chunked_for_each_pos_001( );
 }

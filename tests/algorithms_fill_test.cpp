@@ -36,9 +36,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithm_fill
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -69,23 +66,29 @@ void fill_test( size_t SZ ) {
 	display_info( seq_min, par_min, SZ, sizeof( T ), "fill" );
 }
 
-BOOST_AUTO_TEST_CASE( fill_double ) {
+void fill_double( ) {
 	std::cout << "fill tests - double\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<double>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( fill_int64_t ) {
+void fill_int64_t( ) {
 	std::cout << "fill tests - int64_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int64_t>( n );
 	}
 }
 
-BOOST_AUTO_TEST_CASE( fill_int32_t ) {
+void fill_int32_t( ) {
 	std::cout << "fill tests - int32_t\n";
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		fill_test<int32_t>( n );
 	}
+}
+
+int main( ) {
+	fill_double( );
+	fill_int64_t( );
+	fill_int32_t( );
 }

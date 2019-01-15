@@ -333,10 +333,18 @@ namespace daw {
 		                           std::forward<Args>( args )... );
 	}
 
+	namespace async_impl {
+		template<typename... Functions>
+		decltype( auto )
+		make_callable_future_result_group_impl( Functions &&... functions ) {
+			return impl::future_group_result_t<daw::remove_cvref_t<Functions>...>(
+			  std::forward<Functions>( functions )... );
+		}
+	} // namespace async_impl
 	template<typename... Functions>
-	constexpr decltype( auto )
+	decltype( auto )
 	make_callable_future_result_group( Functions &&... functions ) {
-		return impl::future_group_result_t(
+		return async_impl::make_callable_future_result_group_impl(
 		  daw::make_callable( std::forward<Functions>( functions ) )... );
 	}
 
@@ -345,7 +353,7 @@ namespace daw {
 	//
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
-	constexpr decltype( auto )
+	decltype( auto )
 	make_future_result_group( Functions &&... functions ) {
 		return make_callable_future_result_group(
 		  daw::make_callable( std::forward<Functions>( functions ) )... )( );
@@ -354,10 +362,10 @@ namespace daw {
 	std::false_type is_future_result_impl( ... );
 
 	template<typename T>
-	constexpr std::true_type is_future_result_impl( future_result_t<T> const & );
+	inline constexpr std::true_type is_future_result_impl( future_result_t<T> const & );
 
 	template<typename T>
-	constexpr bool is_future_result_v =
+	inline constexpr bool is_future_result_v =
 	  decltype( is_future_result_impl( std::declval<T>( ) ) )::value;
 
 	namespace impl {

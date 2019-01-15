@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_stable_sort
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -140,11 +137,15 @@ void stable_sort_test( size_t SZ ) {
 #endif
 }
 
-BOOST_AUTO_TEST_CASE( stable_sort_int64_t ) {
+void stable_sort_int64_t( ) {
 	std::cout << "stable_sort tests - int64_t\n";
 	stable_sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
 		stable_sort_test( n );
 		std::cout << '\n';
 	}
+}
+
+int main( ) {
+	stable_sort_int64_t( );
 }

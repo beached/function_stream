@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_find_if
-#include <daw/boost_test.h>
-
 #include "algorithms.h"
 
 #include "common.h"
@@ -66,7 +63,7 @@ void find_if_test( size_t SZ ) {
 		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
 		daw::do_not_optimize( it2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( it1 == it2, "Wrong return value" );
+	daw::expecting( it1, it2 );
 
 	it1 = a.cend( );
 	it2 = a.cend( );
@@ -78,17 +75,21 @@ void find_if_test( size_t SZ ) {
 		it2 = std::find_if( a.cbegin( ), a.cend( ), pred );
 		daw::do_not_optimize( it2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( it1 == it2, "Wrong return value" );
+	daw::expecting( it1, it2 );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "find_if" );
 }
 
-BOOST_AUTO_TEST_CASE( find_if_int64_t ) {
+void find_if_int64_t( ) {
 	std::cout << "find_if tests - int64_t\n";
 	find_if_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		find_if_test<int64_t>( n );
 	}
+}
+
+int main( ) {
+	find_if_int64_t( );
 }

@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_count
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -70,7 +67,7 @@ void count_test( size_t SZ ) {
 		daw::do_not_optimize( x2 );
 	} );
 
-	BOOST_REQUIRE_MESSAGE( x1 == x2, "Wrong return value" );
+	daw::expecting( x1, x2 );
 
 	x1 = 0;
 	x2 = 0;
@@ -85,17 +82,21 @@ void count_test( size_t SZ ) {
 		daw::do_not_optimize( x2 );
 	} );
 
-	BOOST_REQUIRE_MESSAGE( x1 == x2, "Wrong return value" );
+	daw::expecting( x1, x2 );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "count" );
 }
 
-BOOST_AUTO_TEST_CASE( count_int64_t ) {
+void count_int64_t( ) {
 	std::cout << "count tests - int64_t\n";
 	count_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		count_test<int64_t>( n );
 	}
+}
+
+int main( ) {
+	count_int64_t( );
 }

@@ -2,15 +2,14 @@ cmake_minimum_required( VERSION 2.8.12 )
 
 project( function_stream_prj )
 
-find_package( Boost 1.58.0 COMPONENTS system iostreams filesystem regex unit_test_framework REQUIRED )
+find_package( Boost 1.61.0 COMPONENTS system iostreams filesystem regex REQUIRED )
 
 enable_testing( )
-add_definitions( -DBOOST_ALL_NO_LIB )
+add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK )
 
 find_package( Threads REQUIRED )
 
 set( CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ standard whose features are requested.")
-add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK )
 
 include( "${CMAKE_SOURCE_DIR}/dependent_projects/CMakeListsCompiler.txt" )
 
@@ -72,8 +71,6 @@ set( TASK_SCHEDULER_SOURCE_FILES
 	${SOURCE_FOLDER}/task_scheduler.cpp
 )
 
-add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK )
-
 #set( CMAKE_CTEST_COMMAND ctest -V )
 add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} )
 
@@ -123,6 +120,11 @@ add_executable( algorithms_fill_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorit
 target_link_libraries( algorithms_fill_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_fill_test algorithms_fill_test_bin )
 add_dependencies( check algorithms_fill_test_bin )
+
+add_executable( algorithms_find_if_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_find_if_test.cpp )
+target_link_libraries( algorithms_find_if_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+add_test( algorithms_find_if_test algorithms_find_if_test_bin )
+add_dependencies( check algorithms_find_if_test_bin )
 
 add_executable( algorithms_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_sort_test.cpp )
 target_link_libraries( algorithms_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib ${CMAKE_THREAD_LIBS_INIT} )

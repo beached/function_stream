@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <algorithm>
-#include <boost/optional.hpp>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>

@@ -43,7 +43,6 @@
 
 #include "daw/fs/algorithms.h"
 
-#define NOBOOST
 #include "common.h"
 
 #define USE_SORT_FJ

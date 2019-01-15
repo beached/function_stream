@@ -24,8 +24,6 @@
 #include <iostream>
 #include <thread>
 
-#define BOOST_TEST_MODULE task_scheduler
-#include <daw/boost_test.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_random.h>
 #include <daw/parallel/daw_locked_stack.h>
@@ -50,7 +48,7 @@ real_t fib( uintmax_t n ) noexcept {
 	return result;
 }
 
-BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
+void test_task_scheduler( ) {
 	constexpr size_t const ITEMS = 100u;
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
@@ -64,6 +62,7 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 	}( );
 
 	auto ts = daw::get_task_scheduler( );
+	daw::expecting( ts.started( ) );
 	auto par_test = [&]( ) {
 		auto results = daw::locked_stack_t<real_t>{};
 		auto sem = daw::semaphore{1 - ITEMS};
@@ -105,9 +104,14 @@ BOOST_AUTO_TEST_CASE( test_task_scheduler ) {
 	ts.stop( );
 }
 
-BOOST_AUTO_TEST_CASE( create_waitable_task_test_001 ) {
+void create_waitable_task_test_001( ) {
 	real_t ans = 0;
 	auto ts = daw::create_waitable_task( [&ans]( ) { ans = fib( 30 ); } );
 	ts.wait( );
-	BOOST_REQUIRE_EQUAL( ans, 832040U );
+	daw::expecting( 832040U, ans );
+}
+
+int main( ) {
+	test_task_scheduler( );
+	create_waitable_task_test_001( );
 }

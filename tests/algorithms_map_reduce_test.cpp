@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_map_reduce
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -66,7 +63,7 @@ void map_reduce_test( size_t SZ ) {
 
 	auto const result_1 = daw::benchmark( [&]( ) {
 		mr_value1 = daw::algorithm::parallel::map_reduce(
-				a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
+		  a.cbegin( ), a.cend( ), map_function, reduce_function, ts );
 		daw::do_not_optimize( mr_value1 );
 	} );
 	auto const result_2 = daw::benchmark( [&]( ) {
@@ -76,7 +73,7 @@ void map_reduce_test( size_t SZ ) {
 		  std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
 		daw::do_not_optimize( mr_value2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
+	daw::expecting( mr_value1, mr_value2 );
 
 	b = a;
 	mr_value1 = 0;
@@ -94,7 +91,7 @@ void map_reduce_test( size_t SZ ) {
 		  std::accumulate( start_it, b.cend( ), *b.cbegin( ), reduce_function );
 		daw::do_not_optimize( mr_value2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
+	daw::expecting( mr_value1, mr_value2 );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
@@ -143,7 +140,7 @@ void map_reduce_test3( size_t SZ ) {
 		  map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
 		daw::do_not_optimize( mr_value2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
+	daw::expecting( mr_value1, mr_value2 );
 
 	mr_value1 = 0;
 	mr_value2 = 0;
@@ -158,7 +155,7 @@ void map_reduce_test3( size_t SZ ) {
 		  map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
 		daw::do_not_optimize( mr_value1 );
 	} );
-	BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
+	daw::expecting( mr_value1, mr_value2 );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
@@ -201,7 +198,7 @@ void map_reduce_test2( size_t SZ ) {
 		  map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
 		daw::do_not_optimize( mr_value2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
+	daw::expecting( mr_value1, mr_value2 );
 
 	mr_value1 = 0;
 	mr_value2 = 0;
@@ -216,14 +213,14 @@ void map_reduce_test2( size_t SZ ) {
 		  map_reduce( a.cbegin( ), a.cend( ), map_function, reduce_function );
 		daw::do_not_optimize( mr_value1 );
 	} );
-	BOOST_REQUIRE_MESSAGE( mr_value1 == mr_value2, "Wrong return value" );
+	daw::expecting( mr_value1, mr_value2 );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "map_reduce2" );
 }
 
-BOOST_AUTO_TEST_CASE( map_reduce_int64_t ) {
+void map_reduce_int64_t( ) {
 	std::cout << "map_reduce tests - int64_t\n";
 	map_reduce_test<int64_t>( LARGE_TEST_SZ * 10 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -231,7 +228,7 @@ BOOST_AUTO_TEST_CASE( map_reduce_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( map_reduce2_int64_t ) {
+void map_reduce2_int64_t( ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
 	map_reduce_test2<int64_t>( LARGE_TEST_SZ * 10 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -239,9 +236,15 @@ BOOST_AUTO_TEST_CASE( map_reduce2_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( map_reduce3_int64_t ) {
+void map_reduce3_int64_t( ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
 	for( size_t n = 100'000; n >= 100; n /= 10 ) {
 		map_reduce_test3<int64_t>( n );
 	}
+}
+
+int main( ) {
+	map_reduce_int64_t( );
+	map_reduce2_int64_t( );
+	map_reduce3_int64_t( );
 }

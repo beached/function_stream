@@ -25,8 +25,6 @@
 #include <string>
 #include <utility>
 
-#define BOOST_TEST_MODULE function_composition
-#include <daw/boost_test.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_size_literals.h>
 
@@ -34,7 +32,7 @@
 
 using namespace daw::size_literals;
 
-BOOST_AUTO_TEST_CASE( composable_function_stream_test_001 ) {
+void composable_function_stream_test_001( ) {
 	{ auto const ts = daw::get_task_scheduler( ); }
 
 	auto const make_values = []( size_t howmany ) {
@@ -119,14 +117,14 @@ struct C {
 	}
 };
 
-BOOST_AUTO_TEST_CASE( composable_function_stream_test_002 ) {
+void composable_function_stream_test_002( ) {
 	constexpr auto fs = daw::compose_future( ) | A{} | B{} | C{};
 	auto fut = fs( 3 );
 	auto result = fut.get( );
 	std::cout << result << '\n';
 }
 
-BOOST_AUTO_TEST_CASE( composable_function_stream_test_003 ) {
+void composable_function_stream_test_003( ) {
 	constexpr auto fs = daw::compose_future( ) | A{} | B{} | C{};
 	constexpr auto fs2 = daw::compose_future( ) | A{} | B{} | C{};
 	constexpr auto fs3 = fs.join( fs2 );
@@ -138,7 +136,7 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_003 ) {
 	          << '\n';
 }
 
-BOOST_AUTO_TEST_CASE( composable_function_stream_test_004 ) {
+void composable_function_stream_test_004( ) {
 	constexpr auto fs = daw::compose_future( ) | A{} | B{} | C{};
 	constexpr auto fs2 = daw::compose_future( ) | A{} | B{} | C{};
 	constexpr auto fs3 = fs | fs2 | A{} | fs;
@@ -148,4 +146,11 @@ BOOST_AUTO_TEST_CASE( composable_function_stream_test_004 ) {
 
 	std::cout << fut1.get( ) << ", " << fut2.get( ) << ", " << fut3.get( )
 	          << '\n';
+}
+
+int main( ) {
+	composable_function_stream_test_001( );
+	composable_function_stream_test_002( );
+	composable_function_stream_test_003( );
+	composable_function_stream_test_004( );
 }

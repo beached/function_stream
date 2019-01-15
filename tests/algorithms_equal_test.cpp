@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_equal
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -70,7 +67,7 @@ void equal_test( size_t SZ ) {
 		b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
 		daw::do_not_optimize( b2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( b1 == b2, "Wrong return value" );
+	daw::expecting( b1, b2 );
 
 	a.back( ) = 0;
 	b1 = false;
@@ -84,7 +81,7 @@ void equal_test( size_t SZ ) {
 		b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
 		daw::do_not_optimize( b2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( b1 == b2, "Wrong return value" );
+	daw::expecting( b1, b2 );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
@@ -120,7 +117,7 @@ void equal_test_str( size_t SZ ) {
 		b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
 		daw::do_not_optimize( b2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( b1 == b2, "Wrong return value" );
+	daw::expecting( b1, b2 );
 
 	a[3 * ( a.size( ) / 4 ) + 1] =
 	  std::string{"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"};
@@ -135,14 +132,14 @@ void equal_test_str( size_t SZ ) {
 		b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
 		daw::do_not_optimize( b2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( b1 == b2, "Wrong return value" );
+	daw::expecting( b1, b2 );
 
 	auto const par_max = std::max( result_1, result_3 );
 	auto const seq_max = std::max( result_2, result_4 );
 	display_info( seq_max, par_max, SZ, blah.size( ), "equal" );
 }
 
-BOOST_AUTO_TEST_CASE( equal_int64_t ) {
+void equal_int64_t( ) {
 	std::cout << "equal tests - int64_t\n";
 	equal_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -150,10 +147,15 @@ BOOST_AUTO_TEST_CASE( equal_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( equal_string ) {
+void equal_string( ) {
 	std::cout << "equal tests - std::string\n";
 	equal_test_str( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		equal_test_str( n );
 	}
+}
+
+int main( ) {
+	equal_int64_t( );
+	equal_string( );
 }

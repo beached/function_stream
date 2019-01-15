@@ -37,9 +37,6 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#define BOOST_TEST_MODULE parallel_algorithms_reduce
-#include <daw/boost_test.h>
-
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
@@ -65,9 +62,7 @@ void reduce_test( size_t SZ ) {
 		daw::do_not_optimize( accum_result2 );
 	} );
 
-	BOOST_REQUIRE_MESSAGE(
-	  daw::math::nearly_equal( accum_result1, accum_result2 ),
-	  "Wrong return value" );
+	daw::expecting( daw::math::nearly_equal( accum_result1, accum_result2 ) );
 
 	a = b;
 	auto const result_3 = daw::benchmark( [&]( ) {
@@ -82,9 +77,7 @@ void reduce_test( size_t SZ ) {
 		daw::do_not_optimize( accum_result2 );
 	} );
 
-	BOOST_REQUIRE_MESSAGE(
-	  daw::math::nearly_equal( accum_result1, accum_result2 ),
-	  "Wrong return value" );
+	daw::expecting( daw::math::nearly_equal( accum_result1, accum_result2 ) );
 
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
@@ -109,7 +102,7 @@ void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 		accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op );
 		daw::do_not_optimize( accum_result2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( accum_result1 == accum_result2, "Wrong return value" );
+	daw::expecting( accum_result1, accum_result2 );
 	a = b;
 	auto const result_3 = daw::benchmark( [&]( ) {
 		accum_result1 = daw::algorithm::parallel::reduce<value_t>(
@@ -121,13 +114,13 @@ void reduce_test2( size_t SZ, value_t init, BinaryOp bin_op ) {
 		accum_result2 = std::accumulate( a.begin( ), a.end( ), init, bin_op );
 		daw::do_not_optimize( accum_result2 );
 	} );
-	BOOST_REQUIRE_MESSAGE( accum_result1 == accum_result2, "Wrong return value" );
+	daw::expecting( accum_result1, accum_result2 );
 	auto const par_min = std::min( result_1, result_3 );
 	auto const seq_min = std::min( result_2, result_4 );
 	display_info( seq_min, par_min, SZ, sizeof( value_t ), "reduce2" );
 }
 
-BOOST_AUTO_TEST_CASE( reduce_double ) {
+void reduce_double( ) {
 	std::cout << "reduce tests - double\n";
 	reduce_test<double>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -135,7 +128,7 @@ BOOST_AUTO_TEST_CASE( reduce_double ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( reduce_int64_t ) {
+void reduce_int64_t( ) {
 	std::cout << "reduce tests - int64_t\n";
 	reduce_test<int64_t>( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
@@ -143,7 +136,7 @@ BOOST_AUTO_TEST_CASE( reduce_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( reduce2_int64_t ) {
+void reduce2_int64_t( ) {
 	std::cout << "reduce 2 tests - uint64_t\n";
 	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
 		return lhs * rhs;
@@ -154,11 +147,18 @@ BOOST_AUTO_TEST_CASE( reduce2_int64_t ) {
 	}
 }
 
-BOOST_AUTO_TEST_CASE( reduce3_double ) {
+void reduce3_double( ) {
 	std::cout << "reduce 3 tests - double\n";
 	reduce_test<double>( LARGE_TEST_SZ * 10 );
 	reduce_test<double>( 6'000'000 );
 	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
 		reduce_test<double>( n );
 	}
+}
+
+int main( ) {
+	reduce_double( );
+	reduce_int64_t( );
+	reduce2_int64_t( );
+	reduce3_double( );
 }
