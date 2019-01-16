@@ -34,7 +34,7 @@
 using real_t =
   boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
 
-real_t fib( uintmax_t n ) noexcept {
+real_t fib( uintmax_t n ) {
 	if( n <= 1 ) {
 		return n;
 	}
@@ -53,7 +53,7 @@ void test_task_scheduler( ) {
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 
-	auto const nums = [&]( ) {
+	auto const nums = []( ) {
 		auto result = std::vector<uintmax_t>{};
 		for( size_t n = 0; n < ITEMS; ++n ) {
 			result.push_back( daw::randint<uintmax_t>( 500, 9999 ) );
@@ -65,7 +65,7 @@ void test_task_scheduler( ) {
 	daw::expecting( ts.started( ) );
 	auto par_test = [&]( ) {
 		auto results = daw::locked_stack_t<real_t>{};
-		auto sem = daw::semaphore{1 - ITEMS};
+		auto sem = daw::semaphore( 1 - ITEMS );
 		for( auto i : nums ) {
 			ts.add_task( [&results, &sem, i]( ) {
 				results.push_back( fib( i ) );
