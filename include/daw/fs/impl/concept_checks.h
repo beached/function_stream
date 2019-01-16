@@ -29,7 +29,7 @@
 namespace daw {
 	namespace concept_checks {
 		template<typename BinaryPredicate, typename Iterator1, typename Iterator2>
-		CXINLINE bool is_binary_predicate_v = traits::is_binary_predicate<
+		inline constexpr bool is_binary_predicate_v = traits::is_binary_predicate<
 		  BinaryPredicate, typename std::iterator_traits<Iterator1>::value_type,
 		  typename std::iterator_traits<Iterator2>::value_type>;
 
@@ -44,7 +44,7 @@ namespace daw {
 		}
 
 		template<typename UnaryPredicate, typename Iterator1>
-		CXINLINE bool is_unary_predicate_v = traits::is_unary_predicate_v<
+		inline constexpr bool is_unary_predicate_v = traits::is_unary_predicate_v<
 		  UnaryPredicate, typename std::iterator_traits<Iterator1>::value_type>;
 
 		template<typename UnaryPredicate, typename Iterator1>
@@ -57,7 +57,7 @@ namespace daw {
 		}
 
 		template<typename Iterator1, typename Iterator2>
-		CXINLINE bool is_equality_comparable_v = traits::is_equality_comparable_v<
+		inline constexpr bool is_equality_comparable_v = traits::is_equality_comparable_v<
 		  typename std::iterator_traits<Iterator1>::value_type,
 		  typename std::iterator_traits<Iterator2>::value_type>;
 
@@ -74,7 +74,7 @@ namespace daw {
 		using value_of_deref_t = daw::remove_cvref_t<decltype( *std::declval<T>( ) )>;
 
 		template<typename Operator, typename... Iterators>
-		CXINLINE bool const
+		inline constexpr bool const
 		    is_callable_v = std::is_invocable_v<
 		      Operator, value_of_deref_t<Iterators>...>;
 

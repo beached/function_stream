@@ -37,7 +37,7 @@
 #include <daw/daw_string_view.h>
 #include <daw/daw_utility.h>
 
-#include "algorithms.h"
+#include "daw/fs/algorithms.h"
 
 #include "common.h"
 
