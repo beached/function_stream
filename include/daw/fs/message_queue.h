@@ -35,48 +35,56 @@ namespace daw::parallel {
 	template<typename T>
 	class locking_circular_buffer {
 		using value_type = std::optional<T>;
-		std::unique_ptr<value_type[]> m_values;
-		std::unique_ptr<std::mutex> m_mutex = std::make_unique<std::mutex>( );
-		size_t m_front = 0;
-		size_t m_back = 0;
-		size_t m_size;
-		bool m_is_full = false;
+		struct members_t {
+			value_type *m_values;
+			std::mutex m_mutex{};
+			size_t m_front = 0;
+			size_t m_back = 0;
+			size_t m_size;
+			bool m_is_full = false;
+
+			members_t( size_t queue_size ) noexcept
+			  : m_values( new value_type[queue_size]( ) )
+			  , m_size( queue_size ) {}
+		};
+		std::unique_ptr<members_t> m_data = std::make_unique<members_t>( );
 
 		bool empty( ) const {
-			return !m_is_full and m_front == m_back;
+			return !m_data->m_is_full and m_data->m_front == m_data->m_back;
 		}
 
 		bool full( ) const {
-			return m_is_full;
+			return m_data->m_is_full;
 		}
 
 	public:
 		locking_circular_buffer( size_t queue_size )
-		  : m_values( std::make_unique<value_type[]>( queue_size ) ), m_size( queue_size ) {}
+		  : m_data( std::make_unique<members_t>( queue_size ) ) {}
 
 		std::optional<T> pop_front( ) {
-			auto lck = std::unique_lock( *m_mutex, std::try_to_lock );
+			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or empty( ) ) {
 				return {};
 			}
-			m_is_full = false;
-			assert( m_values[m_front] );
-			auto result = std::exchange( m_values[m_front], std::optional<T>{} );
-			m_front = ( m_front + 1 ) % m_size;
+			m_data->m_is_full = false;
+			assert( m_data->m_values[m_front] );
+			auto result =
+			  std::exchange( m_data->m_values[m_data->m_front], std::optional<T>{} );
+			m_data->m_front = ( m_data->m_front + 1 ) % m_data->m_size;
 			return result;
 		}
 
 		template<typename U>
 		push_back_result push_back( U &&value ) {
 			static_assert( std::is_convertible_v<U, T> );
-			auto lck = std::unique_lock( *m_mutex, std::try_to_lock );
+			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or full( ) ) {
 				return push_back_result::failed;
 			}
-			assert( !m_values[m_back] );
-			m_values[m_back] = std::forward<U>( value );
-			m_back = ( m_back + 1 ) % m_size;
-			m_is_full = m_front == m_back;
+			assert( !m_data->m_values[m_data->m_back] );
+			m_data->m_values[m_data->m_back] = std::forward<U>( value );
+			m_data->m_back = ( m_data->m_back + 1 ) % m_data->m_size;
+			m_data->m_is_full = m_data->m_front == m_data->m_back;
 			return push_back_result::success;
 		}
 	};
