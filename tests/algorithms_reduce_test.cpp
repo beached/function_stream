@@ -138,7 +138,7 @@ void reduce_int64_t( ) {
 
 void reduce2_int64_t( ) {
 	std::cout << "reduce 2 tests - uint64_t\n";
-	auto const bin_op = []( auto const &lhs, auto const &rhs ) noexcept {
+	constexpr auto bin_op = []( auto lhs, auto rhs ) noexcept {
 		return lhs * rhs;
 	};
 	reduce_test2<uint64_t>( LARGE_TEST_SZ, 1, bin_op );

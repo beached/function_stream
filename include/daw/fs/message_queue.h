@@ -22,152 +22,61 @@
 
 #pragma once
 
-#include <boost/next_prior.hpp>
-#include <boost/lockfree/spsc_queue.hpp>
-#include <boost/lockfree/stack.hpp>
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <utility>
+#include <vector>
 
-namespace daw {
-	namespace parallel {
-		template<typename T>
-		constexpr unsigned long size_msg_queue_to_cache_size( ) noexcept {
-			auto const sz = 4096;
-			return sz / sizeof( T );
+namespace daw::parallel {
+	enum class push_back_result : bool { failed, success };
+
+	template<typename T>
+	class locking_circular_buffer {
+		std::vector<std::optional<T>> m_values;
+		std::unique_ptr<std::mutex> m_mutex = std::make_unique<std::mutex>( );
+		size_t m_front = 0;
+		size_t m_back = 0;
+		bool m_is_full = false;
+
+		bool empty( ) const {
+			return !m_is_full and m_front == m_back;
 		}
 
-		struct use_autosize {};
+		bool full( ) const {
+			return m_is_full;
+		}
 
-		template<typename T, typename base_queue_t>
-		class basic_msg_queue_t {
-			struct members_t {
-				std::atomic<bool> m_completed;
-				base_queue_t m_queue;
+	public:
+		locking_circular_buffer( size_t queue_size )
+		  : m_values( queue_size ) {}
 
-				members_t( ) noexcept( daw::is_nothrow_constructible_v<base_queue_t> )
-				  : m_completed( false )
-				  , m_queue( ) {}
-
-				explicit members_t( unsigned long max_size ) noexcept(
-				  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
-				  : m_completed( false )
-				  , m_queue( max_size ) {}
-
-				explicit members_t( use_autosize ) noexcept(
-				  daw::is_nothrow_constructible_v<base_queue_t, size_t> )
-				  : m_completed( false )
-				  , m_queue( size_msg_queue_to_cache_size<T>( ) ) {}
-			};
-			std::shared_ptr<members_t> members;
-
-			base_queue_t const &queue( ) const {
-				return members->m_queue;
+		std::optional<T> pop_front( ) {
+			auto lck = std::lock_guard( *m_mutex );
+			if( empty( ) ) {
+				return {};
 			}
+			m_is_full = false;
+			assert( m_values[m_front] );
+			auto result = std::exchange( m_values[m_front], std::optional<T>{} );
+			m_front = ( m_front + 1 ) % m_values.size( );
+			return result;
+		}
 
-			base_queue_t &queue( ) {
-				return members->m_queue;
+		template<typename U>
+		push_back_result push_back( U &&value ) {
+			static_assert( std::is_convertible_v<U, T> );
+			auto lck = std::lock_guard( *m_mutex );
+			if( full( ) ) {
+				return push_back_result::failed;
 			}
-
-		public:
-			basic_msg_queue_t( ) = default;
-
-			explicit basic_msg_queue_t( unsigned long max_size )
-			  : members( std::make_shared<members_t>( max_size ) ) {}
-
-			explicit basic_msg_queue_t( use_autosize )
-			  : members( std::make_shared<members_t>( use_autosize{} ) ) {}
-
-			void notify_completed( ) {
-				members->m_completed.store( true );
-			}
-
-			template<typename U>
-			bool send( U const &value ) {
-				return queue( ).push( value );
-			}
-
-			template<typename U>
-			bool receive( U &value ) {
-				return queue( ).pop( value );
-			}
-
-			bool has_more( ) const {
-				return !members->m_completed.load( ) || !members->m_queue.empty( );
-			}
-		}; // basic_msg_queue_t
-
-		template<typename T>
-		using spsc_msg_queue_t =
-		  basic_msg_queue_t<T, boost::lockfree::spsc_queue<T>>;
-
-		template<typename T>
-		using mpmc_msg_queue_t = basic_msg_queue_t<T, boost::lockfree::stack<T>>;
-
-		/// msg_ptr_t only ever has one owner and will, like auto_ptr,
-		/// do a move when copied.  It is intended to allow anything through
-		/// the message queue and then moved_out to a real value afterwards.
-		/// It will clean-up when it goes out of scope if it still owns a value
-		template<typename T>
-		struct msg_ptr_t {
-			using value_t = std::remove_reference_t<T>;
-			using pointer = value_t *;
-			using const_pointer = value_t const *;
-			using reference = value_t &;
-			using const_reference = value_t const &;
-
-		private:
-			mutable pointer m_ptr = nullptr;
-
-		public:
-			constexpr msg_ptr_t( ) noexcept = default;
-
-			template<
-			  typename... Args,
-			  std::enable_if_t<(!daw::traits::is_first_type_v<msg_ptr_t, Args...> &&
-			                    !daw::traits::is_first_type_v<pointer, Args...>),
-			                   std::nullptr_t> = nullptr>
-			explicit msg_ptr_t( Args &&... args )
-			  : m_ptr( new value_t( std::forward<Args>( args )... ) ) {}
-
-			constexpr explicit msg_ptr_t( pointer p ) noexcept
-			  : m_ptr( p ) {}
-
-			void dispose( ) {
-				auto tmp = std::exchange( m_ptr, nullptr );
-				if( tmp ) {
-					delete tmp;
-				}
-			}
-
-			constexpr pointer transfer( ) noexcept {
-				return std::exchange( m_ptr, nullptr );
-			}
-
-			constexpr reference operator*( ) noexcept {
-				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
-				                             "Message cannot be null" );
-				return *m_ptr;
-			}
-
-			constexpr const_reference operator*( ) const noexcept {
-				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
-				                             "Message cannot be null" );
-				return *m_ptr;
-			}
-
-			constexpr pointer operator->( ) noexcept {
-				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
-				                             "Message cannot be null" );
-				return m_ptr;
-			}
-
-			constexpr pointer operator->( ) const noexcept {
-				daw::exception::DebugAssert( static_cast<bool>( m_ptr ),
-				                             "Message cannot be null" );
-				return m_ptr;
-			}
-
-			constexpr explicit operator bool( ) const {
-				return static_cast<bool>( m_ptr );
-			}
-		};
-	} // namespace parallel
-} // namespace daw
+			assert( !m_values[m_back] );
+			m_values[m_back] = std::forward<U>( value );
+			m_back = ( m_back + 1 ) % m_values.size( );
+			m_is_full = m_front == m_back;
+			return push_back_result::success;
+		}
+	};
+} // namespace daw::parallel

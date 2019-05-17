@@ -151,10 +151,9 @@ void sort_test( size_t SZ ) {
 
 int main( ) {
 	std::cout << "sort tests - int64_t\n";
-	sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
+	for( size_t n = 1000; n < MAX_ITEMS * 10; n *= 10 ) {
 		sort_test( n );
 		std::cout << '\n';
 	}
-	return 0;
+	sort_test( LARGE_TEST_SZ );
 }

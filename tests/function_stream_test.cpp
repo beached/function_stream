@@ -113,10 +113,11 @@ namespace part1 {
 		auto const fib2 = []( ) { return fib( 10 ); };
 
 		auto f_grp = daw::make_future_result_group( fib2, fib2 );
+
 		auto v = f_grp.get( );
 		static_assert( daw::tuple_size_v<decltype( v )> == 2 );
 		std::cout << "Function Group\n";
-		daw::expecting( *std::get<0>( v ) == *std::get<1>( v ) );
+		daw::expecting( std::get<0>( v ) == std::get<1>( v ) );
 		std::cout << *std::get<0>( v ) << '\n';
 		std::cout << *std::get<1>( v ) << '\n';
 		return true;

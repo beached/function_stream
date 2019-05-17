@@ -47,7 +47,7 @@ namespace daw {
 		                                          bool block_on_destruction )
 		  : m_block_on_destruction( block_on_destruction )
 		  , m_num_threads( num_threads )
-		  , m_tasks( num_threads, task_queue_t( 1024 ) ) {}
+		  , m_tasks( make_task_queues( num_threads, 1024 ) ) {}
 
 		task_scheduler_impl::~task_scheduler_impl( ) {
 			stop( m_block_on_destruction );
@@ -57,46 +57,48 @@ namespace daw {
 			return m_continue;
 		}
 
-		daw::impl::task_ptr_t
+		std::optional<daw::task_t>
 		task_scheduler_impl::wait_for_task_from_pool( size_t id ) {
 			// Get task.  First try own queue, if not try the others and finally
 			// wait for own queue to fill
-			daw::impl::task_ptr_t tsk;
-			if( m_tasks[id].receive( tsk ) ) {
+			if( !m_continue ) {
+				return {};
+			}
+			if( auto tsk = m_tasks[id].pop_front( ); tsk ) {
 				return tsk;
 			}
 			for( auto m = ( id + 1 ) % m_num_threads; m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
-				if( m_tasks[m].receive( tsk ) ) {
+				if( auto tsk = m_tasks[m].pop_front( ); tsk ) {
 					return tsk;
 				}
 			}
-			while( !m_tasks[id].receive( tsk ) ) {
+			auto tsk = std::optional<daw::task_t>( );
+			while( m_continue and !( tsk = m_tasks[id].pop_front( ) ) ) {
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for( 1ns );
 			}
 			return tsk;
 		}
 
-		void task_scheduler_impl::run_task( daw::impl::task_ptr_t &&tsk ) noexcept {
-			if( !tsk ) {
+		void
+		task_scheduler_impl::run_task( std::optional<daw::task_t> &&tsk ) noexcept {
+			if( !tsk or !tsk->m_function ) {
 				return;
 			}
-			std::unique_ptr<task_t> uptr( tsk.transfer( ) );
 			try {
-				if( !uptr->is_ready( ) ) {
-					add_task( daw::move( uptr->m_function ),
-					          daw::move( *( uptr->m_semaphore.release( ) ) ) );
+				if( tsk->is_ready( ) ) {
+					send_task( std::move( tsk ), get_task_id( ) );
 				} else {
-					daw::exception::dbg_precondition_check( uptr, "Cannot deref a null ptr" );
-					daw::invoke( *uptr );
+					std::invoke( *tsk );
 				}
-			} catch( ... ) {
+			} catch( std::exception const &ex ) {
 				// Don't let a task take down thread
 				// TODO: add callback to task_scheduler for handling
 				// task exceptions
-			}
+				Unused( ex );
+			} catch( ... ) { Unused( tsk ); }
 		}
 
 		size_t task_scheduler_impl::get_task_id( ) {
@@ -105,15 +107,14 @@ namespace daw {
 		}
 
 		bool task_scheduler_impl::run_next_task( size_t id ) {
-			auto tsk = daw::impl::task_ptr_t( );
-			if( m_tasks[id].receive( tsk ) ) {
+			if( auto tsk = m_tasks[id].pop_front( ); tsk ) {
 				run_task( daw::move( tsk ) );
 				return true;
 			}
 			for( auto m = ( id + 1 ) % m_num_threads; m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
-				if( m_tasks[m].receive( tsk ) ) {
+				if( auto tsk = m_tasks[m].pop_front( ); tsk ) {
 					run_task( daw::move( tsk ) );
 					return true;
 				}
@@ -129,9 +130,9 @@ namespace daw {
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
-			while( !sem || !sem->try_wait( ) ) {
+			while( !sem or !sem->try_wait( ) ) {
 				auto self = wself.lock( );
-				if( !self || !self->m_continue ) {
+				if( !self or !self->m_continue ) {
 					return;
 				}
 				run_task( self->wait_for_task_from_pool( id ) );
@@ -249,8 +250,13 @@ namespace daw {
 			return sem;
 		}
 
-		void task_scheduler_impl::send_task( task_ptr_t tsk, size_t id ) {
-			while( !m_tasks[id].send( tsk ) ) {
+		void task_scheduler_impl::send_task( std::optional<task_t> &&tsk,
+		                                     size_t id ) {
+			if( !tsk ) {
+				return;
+			}
+			while( m_tasks[id].push_back( std::move( *tsk ) ) ==
+			       daw::parallel::push_back_result::failed ) {
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for( 1ns );
 			}

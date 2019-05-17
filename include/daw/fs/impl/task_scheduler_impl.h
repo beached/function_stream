@@ -31,6 +31,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <daw/daw_enable_if.h>
 #include <daw/daw_traits.h>
 #include <daw/parallel/daw_latch.h>
 #include <daw/parallel/daw_locked_value.h>
@@ -40,52 +41,65 @@
 namespace daw {
 	struct task_t {
 		std::function<void( )> m_function;
-		std::unique_ptr<daw::shared_latch> m_semaphore;
+		daw::shared_latch m_semaphore{};
 
-		template<
-		  typename Callable,
-		  std::enable_if_t<(!daw::is_same_v<task_t, daw::remove_cvref_t<Callable>> &&
-		                    traits::is_callable_v<Callable>),
-		                   std::nullptr_t> = nullptr>
-		explicit task_t( Callable &&c )
-		  : m_function( std::forward<Callable>( c ) )
-		  , m_semaphore( nullptr ) {
-
-			daw::exception::Assert( static_cast<bool>( m_function ),
-			                        "Callable must be valid" );
-		}
+		task_t( task_t const & ) = delete;
+		task_t &operator=( task_t const & ) = delete;
+		task_t( task_t && ) noexcept = default;
+		task_t &operator=( task_t && ) noexcept = default;
+		~task_t( ) = default;
 
 		template<typename Callable,
-		         std::enable_if_t<traits::is_callable_v<Callable>, std::nullptr_t> =
-		           nullptr>
-		task_t( Callable &&c, daw::shared_latch sem )
-		  : m_function( std::forward<Callable>( c ) )
-		  , m_semaphore( std::make_unique<daw::shared_latch>( daw::move( sem ) ) ) {
+		         daw::enable_if_t<daw::all_true_v<
+		           !daw::is_same_v<task_t, daw::remove_cvref_t<Callable>>,
+		           std::is_invocable_v<daw::remove_cvref_t<Callable>>>> = nullptr>
+		explicit task_t( Callable &&c )
+		  : m_function( std::forward<Callable>( c ) ) {
 
-			daw::exception::Assert( static_cast<bool>( m_function ),
-			                        "Callable must be valid" );
+			daw::exception::precondition_check( m_function,
+			                                    "Callable must be valid" );
+		}
+
+		template<
+		  typename Callable, typename SharedLatch,
+		  std::enable_if_t<daw::all_true_v<std::is_invocable_v<Callable>,
+		                                   daw::is_shared_latch_v<SharedLatch>>,
+		                   std::nullptr_t> = nullptr>
+		task_t( Callable &&c, SharedLatch &&sem )
+		  : m_function( std::forward<Callable>( c ) )
+		  , m_semaphore( std::forward<SharedLatch>( sem ) ) {
+
+			daw::exception::precondition_check( m_function,
+			                                    "Callable must be valid" );
 		}
 
 		void operator( )( ) noexcept( noexcept( m_function( ) ) ) {
-			daw::invoke( m_function );
+			if( m_function ) {
+				std::invoke( m_function );
+			}
 		}
 
 		void operator( )( ) const noexcept( noexcept( m_function( ) ) ) {
-			daw::invoke( m_function );
+			if( m_function ) {
+				std::invoke( m_function );
+			}
 		}
 
 		bool is_ready( ) const {
 			if( m_semaphore ) {
-				return m_semaphore->try_wait( );
+				return m_semaphore.try_wait( );
 			}
 			return true;
+		}
+
+		explicit operator bool( ) const noexcept {
+			return static_cast<bool>( m_function );
 		}
 	};
 
 	namespace impl {
 		template<typename... Tasks>
-		constexpr bool are_tasks_v =
-		  daw::all_true_v<traits::is_callable_v<Tasks>...>;
+		constexpr bool are_tasks_v = daw::all_true_v<std::is_invocable_v<Tasks>...>;
 
 		template<typename Waitable>
 		using is_waitable_detector =
@@ -93,9 +107,14 @@ namespace daw {
 
 		template<typename Waitable>
 		constexpr bool is_waitable_v =
-		  daw::is_detected_v<is_waitable_detector, Waitable>;
+		  daw::is_detected_v<is_waitable_detector,
+		                     std::remove_reference_t<Waitable>>;
 
-		using task_ptr_t = daw::parallel::msg_ptr_t<task_t>;
+		template<typename... Args>
+		inline std::optional<task_t> make_task_ptr( Args &&... args ) {
+			return std::optional<task_t>( std::in_place,
+			                              std::forward<Args>( args )... );
+		}
 
 		class task_scheduler_impl;
 
@@ -107,7 +126,7 @@ namespace daw {
 		class task_scheduler_impl
 		  : public std::enable_shared_from_this<task_scheduler_impl> {
 			using task_queue_t =
-			  daw::parallel::mpmc_msg_queue_t<daw::impl::task_ptr_t>;
+			  daw::parallel::locking_circular_buffer<daw::task_t>;
 
 			daw::lockable_value_t<std::vector<std::thread>> m_threads;
 			daw::lockable_value_t<std::unordered_map<std::thread::id, size_t>>
@@ -122,8 +141,16 @@ namespace daw {
 
 			std::weak_ptr<task_scheduler_impl> get_weak_this( );
 
-			daw::impl::task_ptr_t wait_for_task_from_pool( size_t id );
+			std::optional<daw::task_t> wait_for_task_from_pool( size_t id );
 
+			static std::vector<task_queue_t> make_task_queues( size_t count, size_t queue_sz ) {
+				std::vector<task_queue_t> result{};
+				result.reserve( count );
+				for( size_t n=0; n<count; ++n ) {
+					result.emplace_back( queue_sz );
+				}
+				return result;
+			}
 		public:
 			task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
 			~task_scheduler_impl( );
@@ -136,17 +163,17 @@ namespace daw {
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
 
 		private:
-			void send_task( task_ptr_t tsk, size_t id );
+			void send_task( std::optional<task_t> &&tsk, size_t id );
 
 			template<typename Task>
 			void add_task( Task &&task, size_t id ) {
 				send_task(
-				  task_ptr_t(
+				  make_task_ptr(
 				    [wself = get_weak_this( ),
 				     task = daw::mutable_capture( std::forward<Task>( task ) ), id]( ) {
 					    if( auto self = wself.lock( ); self ) {
 						    std::invoke( daw::move( *task ) );
-						    while( self->m_continue && self->run_next_task( id ) ) {}
+						    while( self->m_continue and self->run_next_task( id ) ) {}
 					    }
 				    } ),
 				  id );
@@ -154,25 +181,22 @@ namespace daw {
 
 			template<typename Task>
 			void add_task( Task &&task, daw::shared_latch sem, size_t id ) {
-				auto tsk = [wself = get_weak_this( ), task = std::forward<Task>( task ),
-				            id]( ) mutable {
-					if( wself.expired( ) ) {
-						return;
-					}
-					auto self = wself.lock( );
-					if( self ) {
-						task( );
-						while( self->m_continue && self->run_next_task( id ) ) {}
+				auto tsk = [wself = get_weak_this( ),
+				            task = daw::mutable_capture( std::forward<Task>( task ) ),
+				            id]( ) {
+					if( auto self = wself.lock( ); self ) {
+						std::invoke( *task );
+						while( self->m_continue and self->run_next_task( id ) ) {}
 					}
 				};
-				send_task( task_ptr_t( daw::move( tsk ), daw::move( sem ) ), id );
+				send_task( make_task_ptr( daw::move( tsk ), std::move( sem ) ), id );
 			}
 
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 			void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 			                  std::optional<daw::shared_latch> sem );
 
-			void run_task( task_ptr_t &&tsk ) noexcept;
+			void run_task( std::optional<task_t> &&tsk ) noexcept;
 
 			size_t get_task_id( );
 
@@ -180,7 +204,7 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task &&task ) {
 				static_assert(
-				  traits::is_callable_v<Task>,
+				  std::is_invocable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
 
 				add_task( std::forward<Task>( task ), get_task_id( ) );
@@ -189,10 +213,10 @@ namespace daw {
 			template<typename Task>
 			void add_task( Task &&task, daw::shared_latch sem ) {
 				static_assert(
-				  traits::is_callable_v<Task>,
+				  std::is_invocable_v<Task>,
 				  "Task must be callable without arguments (e.g. task( );)" );
 
-				add_task( std::forward<Task>( task ), daw::move( sem ),
+				add_task( std::forward<Task>( task ), std::move( sem ),
 				          get_task_id( ) );
 			}
 
@@ -209,7 +233,5 @@ namespace daw {
 
 			daw::shared_latch start_temp_task_runners( size_t task_count = 1 );
 		}; // task_scheduler_impl
-
-	} // namespace impl
-
+	}    // namespace impl
 } // namespace daw

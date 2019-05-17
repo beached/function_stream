@@ -298,21 +298,16 @@ namespace daw {
 				          ts = daw::mutable_capture( m_task_scheduler ),
 				          self = this->shared_from_this( )](
 				           expected_result_t value ) -> void {
-					value.visit(
-					  [&]( auto &&v )
-					    -> std::enable_if_t<daw::is_same_v<
-					      base_result_t, daw::remove_cvref_t<decltype( v )>>> {
-						  ts->add_task(
-						    [result = daw::mutable_capture( std::move( *result ) ),
-						     func = daw::mutable_capture( daw::move( *func ) ),
-						     v = daw::mutable_capture(
-						       std::forward<decltype( v )>( v ) )]( ) {
-							    result->from_code( daw::move( *func ), daw::move( *v ) );
-						    } );
-					  },
-					  [&result]( std::exception_ptr ptr ) {
-						  result->set_exception( ptr );
-					  } );
+					if( value.has_value( ) ) {
+						ts->add_task(
+						  [result = daw::mutable_capture( std::move( *result ) ),
+						   func = daw::mutable_capture( daw::move( *func ) ),
+						   v = daw::mutable_capture( daw::move( value.get( ) ) )]( ) {
+							  result->from_code( daw::move( *func ), daw::move( *v ) );
+						  } );
+					} else {
+						result->set_exception( value.get_exception_ptr( ) );
+					}
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -346,18 +341,15 @@ namespace daw {
 				          self = this->shared_from_this( )]( auto &&value )
 				  -> std::enable_if_t<daw::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
-					std::forward<decltype( value )>( value ).visit(
-					  [&]( auto &&val )
-					    -> std::enable_if_t<daw::is_same_v<
-					      base_result_t, daw::remove_cvref_t<decltype( val )>>> {
-						  ts->add_task(
-						    impl::add_fork_task( *ts, *result, *tpfuncs,
-						                         std::forward<decltype( val )>( val ) ) );
-					  },
-					  [&]( std::exception_ptr ptr ) {
-						  daw::tuple::apply( *result,
-						                     [ptr]( auto &t ) { t.set_exception( ptr ); } );
-					  } );
+					if( value.has_value( ) ) {
+						ts->add_task(
+						  impl::add_fork_task( *ts, *result, *tpfuncs, value.get( ) ) );
+					} else {
+						daw::tuple::apply( *result,
+						                   [ptr = value.get_exception_ptr( )]( auto &t ) {
+							                   t.set_exception( ptr );
+						                   } );
+					}
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -447,17 +439,15 @@ namespace daw {
 				          ts = daw::mutable_capture( m_task_scheduler ),
 				          self = this->shared_from_this( )](
 				           expected_result_t value ) -> void {
-					value.visit(
-					  [&]( ) {
-						  ts->add_task(
-						    [result = daw::mutable_capture( daw::move( *result ) ),
-						     func = daw::mutable_capture( daw::move( *func ) )]( ) {
-							    result->from_code( daw::move( *func ) );
-						    } );
-					  },
-					  [&result]( std::exception_ptr ptr ) {
-						  result->set_exception( ptr );
-					  } );
+					if( value.has_value( ) ) {
+						ts->add_task(
+						  [result = daw::mutable_capture( daw::move( *result ) ),
+						   func = daw::mutable_capture( daw::move( *func ) )]( ) {
+							  result->from_code( daw::move( *func ) );
+						  } );
+					} else {
+						result->set_exception( value.get_exception_ptr( ) );
+					}
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -487,14 +477,14 @@ namespace daw {
 				          self = this->shared_from_this( )]( auto &&value ) mutable
 				  -> std::enable_if_t<daw::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
-					value.visit(
-					  [&]( ) {
-						  ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
-					  },
-					  [&]( std::exception_ptr ptr ) {
-						  daw::tuple::apply(
-						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
-					  } );
+					if( value.has_value( ) ) {
+						ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
+					} else {
+						daw::tuple::apply( result,
+						                   [ptr = value.get_exeption_ptr( )]( auto &&t ) {
+							                   t.set_exception( ptr );
+						                   } );
+					}
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -524,14 +514,14 @@ namespace daw {
 				          self = this->shared_from_this( )]( auto &&value ) mutable
 				  -> std::enable_if_t<daw::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
-					value.visit(
-					  [&]( ) {
-						  ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
-					  },
-					  [&]( std::exception_ptr ptr ) {
-						  daw::tuple::apply(
-						    result, [ptr]( auto &&t ) { t.set_exception( ptr ); } );
-					  } );
+					if( value.has_value( ) ) {
+						ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
+					} else {
+						daw::tuple::apply(
+						  result, [ptr = value.get_exception_ptr( )]( auto &&t ) {
+							  std::forward<decltype( t )>( t ).set_exception( ptr );
+						  } );
+					}
 				};
 				if( future_status::ready == status( ) ) {
 					pass_next( daw::move( m_result ) );
@@ -576,10 +566,7 @@ namespace daw {
 					  try {
 						  std::get<N>( *results ) = std::apply(
 						    std::get<N>( callables->get( ) ), *( tp_args->get( ) ) );
-					  } catch( ... ) {
-						  std::get<N>( *results )
-						    .set_exception( std::current_exception( ) );
-					  }
+					  } catch( ... ) { std::get<N>( *results ).set_exception( ); }
 				  },
 				  ts );
 
@@ -613,11 +600,11 @@ namespace daw {
 		public:
 			template<
 			  typename... Fs,
-			  std::enable_if_t<(sizeof...( Fs ) != 1 or
-			                    !std::is_same_v<future_group_result_t,
-			                                    std::remove_reference_t<
-			                                      daw::traits::first_type<Fs...>>>),
-			                   std::nullptr_t> = nullptr>
+			  daw::enable_if_t<
+			    ( sizeof...( Fs ) != 1 or
+			      !std::is_same_v<
+			        future_group_result_t,
+			        daw::remove_cvref_t<daw::traits::first_type<Fs...>>> )> = nullptr>
 			explicit constexpr future_group_result_t( Fs &&... fs )
 			  : tp_functions( std::forward<Fs>( fs )... ) {}
 
@@ -644,8 +631,7 @@ namespace daw {
 				   ts = daw::mutable_capture( ts ),
 				   tp_args = daw::mutable_capture( daw::move( tp_args ) )]( ) {
 					  result_tp_t tp_result{};
-					  impl::apply_many( *ts, daw::move( *sem ), tp_result,
-					                    daw::move( *tp_functions ),
+					  impl::apply_many( *ts, *sem, tp_result, daw::move( *tp_functions ),
 					                    daw::move( *tp_args ) );
 
 					  sem->wait( );

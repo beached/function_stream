@@ -100,14 +100,15 @@ namespace daw {
 				template<typename RandomIterator, typename Func>
 				daw::shared_latch
 				partition_range( std::vector<daw::view<RandomIterator>> ranges,
-				                 Func func, task_scheduler ts ) {
+				                 Func &&func, task_scheduler ts ) {
 					auto sem = daw::shared_latch( ranges.size( ) );
 					for( auto rng : ranges ) {
-						schedule_task( sem,
-						               [func = daw::mutable_capture( func ), rng]( ) {
-							               daw::invoke( *func, rng );
-						               },
-						               ts );
+						schedule_task(
+						  sem,
+						  [func = daw::mutable_capture( func ), rng = daw::move( rng )]( ) {
+							  daw::invoke( *func, rng );
+						  },
+						  ts );
 					}
 					return sem;
 				}
@@ -240,14 +241,14 @@ namespace daw {
 						return;
 					}
 					auto const ranges = PartitionPolicy{}( range, ts.size( ) * 4U );
-					partition_range( ranges,
-					                 [srt = mutable_capture( std::forward<Sort>( srt ) ),
-					                  cmp = mutable_capture( cmp )]( auto const &rng ) {
-						                 daw::invoke( *srt, rng.begin( ), rng.end( ),
-						                              *cmp );
-					                 },
-					                 ts )
-					  .wait( );
+					auto sem = partition_range(
+					  ranges,
+					  [srt = mutable_capture( std::forward<Sort>( srt ) ),
+					   cmp = mutable_capture( cmp )]( auto const &rng ) {
+						  daw::invoke( *srt, rng.begin( ), rng.end( ), *cmp );
+					  },
+					  ts );
+					sem.wait( );
 
 					merge_reduce_range(
 					  ranges,

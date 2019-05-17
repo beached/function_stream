@@ -18,6 +18,8 @@ if( "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
 	set( DEP_ROOT_DIR "${DEP_ROOT_DIR_BASE}/debug" )
 elseif( "${CMAKE_BUILD_TYPE}" STREQUAL "Release" )
 	set( DEP_ROOT_DIR "${DEP_ROOT_DIR_BASE}/release" )
+elseif( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
+	set( DEP_ROOT_DIR "${DEP_ROOT_DIR_BASE}/release" )
 endif( )
 
 message( "Building for: ${CMAKE_BUILD_TYPE}" )
