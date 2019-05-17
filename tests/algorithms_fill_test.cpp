@@ -82,7 +82,7 @@ void fill_int64_t( ) {
 
 void fill_int32_t( ) {
 	std::cout << "fill tests - int32_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
 		fill_test<int32_t>( n );
 	}
 }

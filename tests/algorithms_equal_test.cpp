@@ -149,10 +149,10 @@ void equal_int64_t( ) {
 
 void equal_string( ) {
 	std::cout << "equal tests - std::string\n";
-	equal_test_str( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
 		equal_test_str( n );
 	}
+	equal_test_str( LARGE_TEST_SZ );
 }
 
 int main( ) {

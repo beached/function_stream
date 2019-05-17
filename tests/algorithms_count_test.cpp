@@ -91,10 +91,10 @@ void count_test( size_t SZ ) {
 
 void count_int64_t( ) {
 	std::cout << "count tests - int64_t\n";
-	count_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
 		count_test<int64_t>( n );
 	}
+	count_test<int64_t>( LARGE_TEST_SZ );
 }
 
 int main( ) {

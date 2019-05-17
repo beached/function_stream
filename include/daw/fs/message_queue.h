@@ -28,17 +28,18 @@
 #include <mutex>
 #include <optional>
 #include <utility>
-#include <vector>
 
 namespace daw::parallel {
 	enum class push_back_result : bool { failed, success };
 
 	template<typename T>
 	class locking_circular_buffer {
-		std::vector<std::optional<T>> m_values;
+		using value_type = std::optional<T>;
+		std::unique_ptr<value_type[]> m_values;
 		std::unique_ptr<std::mutex> m_mutex = std::make_unique<std::mutex>( );
 		size_t m_front = 0;
 		size_t m_back = 0;
+		size_t m_size;
 		bool m_is_full = false;
 
 		bool empty( ) const {
@@ -51,30 +52,30 @@ namespace daw::parallel {
 
 	public:
 		locking_circular_buffer( size_t queue_size )
-		  : m_values( queue_size ) {}
+		  : m_values( std::make_unique<value_type[]>( queue_size ) ), m_size( queue_size ) {}
 
 		std::optional<T> pop_front( ) {
-			auto lck = std::lock_guard( *m_mutex );
-			if( empty( ) ) {
+			auto lck = std::unique_lock( *m_mutex, std::try_to_lock );
+			if( !lck.owns_lock( ) or empty( ) ) {
 				return {};
 			}
 			m_is_full = false;
 			assert( m_values[m_front] );
 			auto result = std::exchange( m_values[m_front], std::optional<T>{} );
-			m_front = ( m_front + 1 ) % m_values.size( );
+			m_front = ( m_front + 1 ) % m_size;
 			return result;
 		}
 
 		template<typename U>
 		push_back_result push_back( U &&value ) {
 			static_assert( std::is_convertible_v<U, T> );
-			auto lck = std::lock_guard( *m_mutex );
-			if( full( ) ) {
+			auto lck = std::unique_lock( *m_mutex, std::try_to_lock );
+			if( !lck.owns_lock( ) or full( ) ) {
 				return push_back_result::failed;
 			}
 			assert( !m_values[m_back] );
 			m_values[m_back] = std::forward<U>( value );
-			m_back = ( m_back + 1 ) % m_values.size( );
+			m_back = ( m_back + 1 ) % m_size;
 			m_is_full = m_front == m_back;
 			return push_back_result::success;
 		}

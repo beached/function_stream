@@ -78,21 +78,21 @@ void for_each_test( size_t SZ ) {
 
 void for_each_double( ) {
 	std::cout << "for_each tests - double\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
 		for_each_test<double>( n );
 	}
 }
 
 void for_each_int64_t( ) {
 	std::cout << "for_each tests - int64_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
 		for_each_test<int64_t>( n );
 	}
 }
 
 void for_each_int32_t( ) {
 	std::cout << "for_each tests - int32_t\n";
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
 		for_each_test<int32_t>( n );
 	}
 }

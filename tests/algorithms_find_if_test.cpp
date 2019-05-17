@@ -84,10 +84,10 @@ void find_if_test( size_t SZ ) {
 
 void find_if_int64_t( ) {
 	std::cout << "find_if tests - int64_t\n";
-	find_if_test<int64_t>( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 100; n /= 10 ) {
+	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
 		find_if_test<int64_t>( n );
 	}
+	find_if_test<int64_t>( LARGE_TEST_SZ );
 }
 
 int main( ) {
