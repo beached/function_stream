@@ -67,7 +67,7 @@ namespace daw {
 			if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
 				return tsk;
 			}
-			for( auto m = ( id + 1 ) % m_num_threads; m != id;
+			for( auto m = ( id + 1 ) % m_num_threads; m_continue and m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
 				if( auto tsk = m_tasks[m].try_pop_front( ); tsk ) {
@@ -250,11 +250,24 @@ namespace daw {
 			if( !tsk ) {
 				return;
 			}
-			while( m_tasks[id].push_back( std::move( *tsk ) ) ==
-			       daw::parallel::push_back_result::failed ) {
-				using namespace std::chrono_literals;
-				std::this_thread::sleep_for( 1ns );
+			if( !m_continue ) {
+				return;
 			}
+			if( m_tasks[id].try_push_back( std::move( *tsk ) ) ==
+			    daw::parallel::push_back_result::success ) {
+				return;
+			}
+			for( auto m = ( id + 1 ) % m_num_threads; m != id;
+			     m = ( m + 1 ) % m_num_threads ) {
+				if( !m_continue ) {
+					return;
+				}
+				if( m_tasks[m].try_push_back( std::move( *tsk ) ) ==
+				    daw::parallel::push_back_result::success ) {
+					return;
+				}
+			}
+			m_tasks[id].push_back( std::move( *tsk ), m_continue );
 		}
 	} // namespace impl
 

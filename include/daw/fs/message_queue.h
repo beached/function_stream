@@ -48,8 +48,17 @@ namespace daw::parallel {
 			bool m_is_full = false;
 
 			members_t( size_t queue_size ) noexcept
-			  : m_values( new value_type[queue_size]( ) )
+			  : m_values( new value_type[queue_size] )
 			  , m_size( queue_size ) {}
+
+			~members_t( ) noexcept {
+				delete[] m_values;
+			}
+
+			members_t( members_t const & ) = delete;
+			members_t( members_t && ) = delete;
+			members_t &operator=( members_t const & ) = delete;
+			members_t &operator=( members_t && ) = delete;
 		};
 		std::unique_ptr<members_t> m_data = std::make_unique<members_t>( );
 
@@ -88,7 +97,6 @@ namespace daw::parallel {
 			if( !can_continue ) {
 				return {};
 			}
-			assert( m_data->m_values[m_data->m_front] );
 			auto const oe = daw::on_scope_exit( [&]( ) {
 				m_data->m_is_full = false;
 				m_data->m_not_full.notify_one( );
@@ -100,8 +108,28 @@ namespace daw::parallel {
 			return result;
 		}
 
+		template<typename U, typename Bool>
+		void push_back( U &&value, Bool &&can_continue ) {
+			static_assert( std::is_convertible_v<U, T> );
+			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
+			if( !lck.owns_lock( ) or full( ) ) {
+				m_data->m_not_full.wait( lck,
+				                         [&]( ) { return can_continue and !full( ); } );
+			}
+			if( !can_continue ) {
+				return;
+			}
+			auto const oe = daw::on_scope_exit( [&]( ) {
+				m_data->m_is_full = m_data->m_front == m_data->m_back;
+				m_data->m_not_empty.notify_one( );
+			} );
+
+			m_data->m_values[m_data->m_back] = std::forward<U>( value );
+			m_data->m_back = ( m_data->m_back + 1 ) % m_data->m_size;
+		}
+
 		template<typename U>
-		push_back_result push_back( U &&value ) {
+		push_back_result try_push_back( U &&value ) {
 			static_assert( std::is_convertible_v<U, T> );
 			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or full( ) ) {
@@ -118,4 +146,3 @@ namespace daw::parallel {
 		}
 	};
 } // namespace daw::parallel
-
