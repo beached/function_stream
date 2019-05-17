@@ -74,7 +74,7 @@ namespace daw {
 					return tsk;
 				}
 			}
-			return m_tasks[id].pop_front( m_continue );
+			return m_tasks[id].pop_front( );
 		}
 
 		void

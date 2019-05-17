@@ -87,25 +87,20 @@ namespace daw::parallel {
 			return result;
 		}
 
-		template<typename Bool>
-		std::optional<T> pop_front( Bool &&can_continue ) {
+		T pop_front( ) {
 			auto lck = std::unique_lock( m_data->m_mutex );
 			if( empty( ) ) {
 				m_data->m_not_empty.wait(
-				  lck, [&]( ) { return can_continue and !empty( ); } );
-			}
-			if( !can_continue ) {
-				return {};
+				  lck, [&]( ) { return !empty( ); } );
 			}
 			auto const oe = daw::on_scope_exit( [&]( ) {
 				m_data->m_is_full = false;
+				m_data->m_front = ( m_data->m_front + 1 ) % m_data->m_size;
 				m_data->m_not_full.notify_one( );
 			} );
 
-			auto result =
-			  std::exchange( m_data->m_values[m_data->m_front], std::optional<T>{} );
-			m_data->m_front = ( m_data->m_front + 1 ) % m_data->m_size;
-			return result;
+			return *std::exchange( m_data->m_values[m_data->m_front],
+			                      std::optional<T>{} );
 		}
 
 		template<typename U, typename Bool>
