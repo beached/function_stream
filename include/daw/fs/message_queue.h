@@ -29,6 +29,8 @@
 #include <optional>
 #include <utility>
 
+#include <boost/lockfree/queue.hpp>
+
 namespace daw::parallel {
 	enum class push_back_result : bool { failed, success };
 
@@ -38,6 +40,8 @@ namespace daw::parallel {
 		struct members_t {
 			value_type *m_values;
 			std::mutex m_mutex{};
+			std::condition_variable m_not_empty{};
+			std::condition_variable m_not_full{};
 			size_t m_front = 0;
 			size_t m_back = 0;
 			size_t m_size;
@@ -61,13 +65,35 @@ namespace daw::parallel {
 		locking_circular_buffer( size_t queue_size )
 		  : m_data( std::make_unique<members_t>( queue_size ) ) {}
 
-		std::optional<T> pop_front( ) {
+		std::optional<T> try_pop_front( ) {
 			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or empty( ) ) {
 				return {};
 			}
 			m_data->m_is_full = false;
-			assert( m_data->m_values[m_front] );
+			assert( m_data->m_values[m_data->m_front] );
+			auto result =
+			  std::exchange( m_data->m_values[m_data->m_front], std::optional<T>{} );
+			m_data->m_front = ( m_data->m_front + 1 ) % m_data->m_size;
+			return result;
+		}
+
+		template<typename Bool>
+		std::optional<T> pop_front( Bool &&can_continue ) {
+			auto lck = std::unique_lock( m_data->m_mutex );
+			if( empty( ) ) {
+				m_data->m_not_empty.wait(
+				  lck, [&]( ) { return can_continue and !empty( ); } );
+			}
+			if( !can_continue ) {
+				return {};
+			}
+			assert( m_data->m_values[m_data->m_front] );
+			auto const oe = daw::on_scope_exit( [&]( ) {
+				m_data->m_is_full = false;
+				m_data->m_not_full.notify_one( );
+			} );
+
 			auto result =
 			  std::exchange( m_data->m_values[m_data->m_front], std::optional<T>{} );
 			m_data->m_front = ( m_data->m_front + 1 ) % m_data->m_size;
@@ -79,9 +105,12 @@ namespace daw::parallel {
 			static_assert( std::is_convertible_v<U, T> );
 			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or full( ) ) {
-				return push_back_result::failed;
+				m_data->m_not_full.wait( lck, [&]( ) { return !full( ); } );
 			}
 			assert( !m_data->m_values[m_data->m_back] );
+			auto const oe =
+			  daw::on_scope_exit( [&]( ) { m_data->m_not_empty.notify_one( ); } );
+
 			m_data->m_values[m_data->m_back] = std::forward<U>( value );
 			m_data->m_back = ( m_data->m_back + 1 ) % m_data->m_size;
 			m_data->m_is_full = m_data->m_front == m_data->m_back;
@@ -89,3 +118,4 @@ namespace daw::parallel {
 		}
 	};
 } // namespace daw::parallel
+

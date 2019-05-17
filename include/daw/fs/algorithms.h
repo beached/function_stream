@@ -106,7 +106,7 @@ namespace daw {
 				impl::parallel_sort(
 				  daw::view( first, last ),
 				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
-					  daw::sort( f, l, cmp );
+					  std::sort( f, l, cmp );
 				  },
 				  daw::move( comp ), daw::move( ts ) );
 			}
@@ -122,7 +122,7 @@ namespace daw {
 
 				impl::fork_join_sort( daw::view( first, last ),
 				                      []( RandomIterator f, RandomIterator l,
-				                          Compare cmp ) { daw::sort( f, l, cmp ); },
+				                          Compare cmp ) { std::sort( f, l, cmp ); },
 				                      std::forward<Compare>( comp ), daw::move( ts ) );
 			}
 

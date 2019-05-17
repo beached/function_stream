@@ -64,22 +64,17 @@ namespace daw {
 			if( !m_continue ) {
 				return {};
 			}
-			if( auto tsk = m_tasks[id].pop_front( ); tsk ) {
+			if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
 				return tsk;
 			}
 			for( auto m = ( id + 1 ) % m_num_threads; m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
-				if( auto tsk = m_tasks[m].pop_front( ); tsk ) {
+				if( auto tsk = m_tasks[m].try_pop_front( ); tsk ) {
 					return tsk;
 				}
 			}
-			auto tsk = std::optional<daw::task_t>( );
-			while( m_continue and !( tsk = m_tasks[id].pop_front( ) ) ) {
-				using namespace std::chrono_literals;
-				std::this_thread::sleep_for( 1ns );
-			}
-			return tsk;
+			return m_tasks[id].pop_front( m_continue );
 		}
 
 		void
@@ -107,14 +102,14 @@ namespace daw {
 		}
 
 		bool task_scheduler_impl::run_next_task( size_t id ) {
-			if( auto tsk = m_tasks[id].pop_front( ); tsk ) {
+			if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
 				run_task( daw::move( tsk ) );
 				return true;
 			}
 			for( auto m = ( id + 1 ) % m_num_threads; m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
-				if( auto tsk = m_tasks[m].pop_front( ); tsk ) {
+				if( auto tsk = m_tasks[m].try_pop_front( ); tsk ) {
 					run_task( daw::move( tsk ) );
 					return true;
 				}
