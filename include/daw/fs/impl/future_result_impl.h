@@ -38,7 +38,7 @@
 #include "../task_scheduler.h"
 
 namespace daw {
-	enum class future_status { ready, timeout, deferred, continued };
+	enum class future_status: uint8_t { ready, timeout, deferred, continued };
 
 	template<typename Result>
 	struct future_result_t;
@@ -643,21 +643,21 @@ namespace daw {
 				auto sem = daw::shared_latch( sizeof...( Functions ) );
 				auto result = future_result_t<result_tp_t>( sem, ts );
 
-				auto th_worker =
-				  [result = daw::mutable_capture( result ),
-				   sem = daw::mutable_capture( sem ),
-				   tp_functions = daw::mutable_capture( daw::move( tp_functions ) ),
-				   ts = daw::mutable_capture( ts ),
-				   tp_args = daw::mutable_capture( daw::move( tp_args ) )]( ) {
-					  auto const oe = ::daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
+				auto th_worker = [result = daw::mutable_capture( result ),
+				                  sem = daw::mutable_capture( sem ),
+				                  tp_functions = daw::mutable_capture( tp_functions ),
+				                  ts = daw::mutable_capture( ts ),
+				                  tp_args =
+				                    daw::mutable_capture( daw::move( tp_args ) )]( ) {
+					auto const oe = ::daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
 
-					  auto tp_result = result_tp_t( );
-					  impl::apply_many( *ts, *sem, tp_result, daw::move( *tp_functions ),
-					                    daw::move( *tp_args ) );
+					auto tp_result = result_tp_t( );
+					impl::apply_many( *ts, *sem, tp_result, daw::move( *tp_functions ),
+					                  daw::move( *tp_args ) );
 
-					  sem->wait( );
-					  result->set_value( daw::move( tp_result ) );
-				  };
+					sem->wait( );
+					result->set_value( daw::move( tp_result ) );
+				};
 				try {
 					if( not ts.add_task( daw::move( th_worker ) ) ) {
 						throw ::daw::unable_to_add_task_exception{};

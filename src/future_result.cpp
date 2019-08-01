@@ -86,7 +86,7 @@ namespace daw {
 		}
 
 		future_status member_data_base_t::status( ) const {
-			return m_status;
+			return static_cast<future_status>( m_status );
 		}
 	} // namespace impl
 
