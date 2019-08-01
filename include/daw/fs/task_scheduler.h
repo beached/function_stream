@@ -32,18 +32,20 @@
 #include "impl/task_scheduler_impl.h"
 
 namespace daw {
+	struct unable_to_add_task_exception {};
+
 	class task_scheduler {
 		std::shared_ptr<impl::task_scheduler_impl> m_impl;
 
 	public:
 		explicit task_scheduler(
-		  std::size_t num_threads = std::thread::hardware_concurrency( )*4,
+		  std::size_t num_threads = std::thread::hardware_concurrency( ),
 		  bool block_on_destruction = true );
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
-		void add_task( Task &&task ) noexcept {
-			m_impl->add_task( std::forward<Task>( task ) );
+		[[nodiscard]] decltype( auto ) add_task( Task &&task ) noexcept {
+			return m_impl->add_task( std::forward<Task>( task ) );
 		}
 
 		template<
@@ -51,15 +53,16 @@ namespace daw {
 		  std::enable_if_t<daw::all_true_v<std::is_invocable_v<Task>,
 		                                   daw::is_shared_latch_v<SharedLatch>>,
 		                   std::nullptr_t> = nullptr>
-		void add_task( Task &&task, SharedLatch &&sem ) noexcept {
-			m_impl->add_task( std::forward<Task>( task ),
-			                  std::forward<SharedLatch>( sem ) );
+		[[nodiscard]] decltype( auto ) add_task( Task &&task,
+		                                         SharedLatch &&sem ) noexcept {
+			return m_impl->add_task( std::forward<Task>( task ),
+			                         std::forward<SharedLatch>( sem ) );
 		}
 		template<typename SharedLatch,
 		         std::enable_if_t<daw::is_shared_latch_v<SharedLatch>,
 		                          std::nullptr_t> = nullptr>
-		void add_task( SharedLatch &&sem ) noexcept {
-			m_impl->add_task( [] {}, std::forward<SharedLatch>( sem ) );
+		[[nodiscard]] decltype( auto ) add_task( SharedLatch &&sem ) noexcept {
+			return m_impl->add_task( [] {}, std::forward<SharedLatch>( sem ) );
 		}
 
 		void start( );
@@ -68,15 +71,14 @@ namespace daw {
 		size_t size( ) const;
 
 		template<typename Function>
-		decltype( auto ) wait_for_scope( Function &&func ) {
+		[[nodiscard]] decltype( auto ) wait_for_scope( Function &&func ) {
 			static_assert( std::is_invocable_v<Function>,
 			               "Function passed to wait_for_scope must be callable "
 			               "without an arugment. e.g. func( )" );
 
 			auto const at_exit = daw::on_scope_exit(
-			  [sem = m_impl->start_temp_task_runners( )]( ) mutable {
-				  sem.notify( );
-			  } );
+			  [sem = ::daw::mutable_capture(
+			     m_impl->start_temp_task_runners( ) )]( ) { sem->notify( ); } );
 			return func( );
 		}
 
@@ -89,7 +91,7 @@ namespace daw {
 			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
 		}
 
-		explicit operator bool( ) const noexcept {
+		[[nodiscard]] explicit operator bool( ) const noexcept {
 			return static_cast<bool>( m_impl ) && m_impl->started( );
 		}
 	}; // task_scheduler
@@ -112,24 +114,25 @@ namespace daw {
 	/// @param task Task of form void( ) to run
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	void schedule_task( daw::shared_latch sem, Task &&task,
-	                    task_scheduler ts = get_task_scheduler( ) ) {
+	[[nodiscard]] decltype( auto )
+	schedule_task( daw::shared_latch sem, Task &&task,
+	               task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( std::is_invocable_v<Task>,
 		               "Task task passed to schedule_task must be callable without "
 		               "an arugment. e.g. task( )" );
 
-		ts.add_task( [task = daw::mutable_capture( std::forward<Task>( task ) ),
-		              sem = daw::mutable_capture( std::move( sem ) )]( ) {
-			auto const at_exit =
-			  daw::on_scope_exit( [&sem]( ) {
-			  	daw::move( *sem ).notify( );
-			  } );
+		return ts.add_task( [task =
+		                       daw::mutable_capture( std::forward<Task>( task ) ),
+		                     sem = daw::mutable_capture( std::move( sem ) )]( ) {
+
+			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
+
 			daw::invoke( daw::move( *task ) );
 		} );
 	}
 
 	template<typename Task>
-	daw::shared_latch
+	[[nodiscard]] daw::shared_latch
 	create_waitable_task( Task &&task,
 	                      task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( std::is_invocable_v<Task>,
@@ -137,7 +140,11 @@ namespace daw {
 		               "without an arugment. "
 		               "e.g. task( )" );
 		auto sem = daw::shared_latch( );
-		schedule_task( sem, std::forward<Task>( task ), daw::move( ts ) );
+		if( !schedule_task( sem, std::forward<Task>( task ), daw::move( ts ) ) ) {
+			// TODO, I don't like this but I don't want to change the return value to
+			// express that we failed to add the task... yet
+			sem.notify( );
+		}
 		return sem;
 	}
 
@@ -146,7 +153,7 @@ namespace daw {
 	/// @param tasks callable items of the form void( )
 	/// @returns a semaphore that will stop waiting when all tasks complete
 	template<typename... Tasks>
-	daw::shared_latch create_task_group( Tasks &&... tasks ) {
+	[[nodiscard]] daw::shared_latch create_task_group( Tasks &&... tasks ) {
 		static_assert( impl::are_tasks_v<Tasks...>,
 		               "Tasks passed to create_task_group must be callable without "
 		               "an arugment. e.g. task( )" );
@@ -154,7 +161,11 @@ namespace daw {
 		auto sem = daw::shared_latch( sizeof...( tasks ) );
 
 		auto const st = [&]( auto &&task ) {
-			schedule_task( sem, std::forward<decltype( task )>( task ), ts );
+			if( !schedule_task( sem, std::forward<decltype( task )>( task ), ts ) ) {
+				// TODO, I don't like this but I don't want to change the return value
+				// to express that we failed to add the task... yet
+				sem.notify( );
+			}
 			return 0;
 		};
 
@@ -180,8 +191,8 @@ namespace daw {
 	}
 
 	template<typename Function>
-	decltype( auto ) wait_for_scope( Function &&func,
-	                                 task_scheduler ts = get_task_scheduler( ) ) {
+	[[nodiscard]] decltype( auto )
+	wait_for_scope( Function &&func, task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( std::is_invocable_v<Function>,
 		               "Function passed to wait_for_scope must be callable without "
 		               "an arugment. e.g. func( )" );

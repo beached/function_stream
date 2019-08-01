@@ -73,14 +73,17 @@ namespace daw {
 
 		template<size_t pos, typename Package>
 		void call( Package &&package ) {
-			get_task_scheduler( ).add_task(
+			if( not get_task_scheduler( ).add_task(
 			  [package =
 			     daw::mutable_capture( std::forward<Package>( package ) )]( ) {
 				  using which_t = typename impl::which_type_t<
 				    pos, decltype( ( *package )->function_list( ) )>::category;
 
 				  call_task<pos>( daw::move( *package ), which_t{} );
-			  } );
+			  } ) ) {
+
+				throw ::daw::unable_to_add_task_exception{};
+			}
 		}
 
 		template<size_t pos, typename Package>
@@ -186,7 +189,7 @@ namespace daw {
 				} else if constexpr( sizeof...( Args ) == 0 ) {
 					return;
 				}
-				std::terminate( );
+				std::abort( );
 			}
 
 			template<typename... Args>
@@ -201,7 +204,7 @@ namespace daw {
 				} else if constexpr( sizeof...( Args ) == 0 ) {
 					return;
 				}
-				std::terminate( );
+				std::abort( );
 			}
 
 			template<typename... Args>

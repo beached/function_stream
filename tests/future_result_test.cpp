@@ -87,7 +87,7 @@ void future_result_test_004( ) {
 
 	daw::expecting( f3.is_exception( ) );
 	daw::expecting( 3, count );
-	daw::expecting_exception( [&f3]( ) { f3.get( ); } );
+	daw::expecting_exception( [&f3]( ) { (void)f3.get( ); } );
 }
 
 void future_result_test_005( ) {
@@ -108,7 +108,7 @@ void future_result_test_005( ) {
 
 	daw::expecting( f4.is_exception( ) );
 	daw::expecting( 3, count );
-	daw::expecting_exception( [&f4]( ) { f4.get( ); } );
+	daw::expecting_exception( [&f4]( ) { (void)f4.get( ); } );
 }
 
 void future_result_test_006( ) {

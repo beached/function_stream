@@ -119,7 +119,6 @@ namespace daw {
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
 				                                         RandomIterator>( );
-
 				impl::fork_join_sort( daw::view( first, last ),
 				                      []( RandomIterator f, RandomIterator l,
 				                          Compare cmp ) { std::sort( f, l, cmp ); },
@@ -161,7 +160,7 @@ namespace daw {
 			}
 
 			template<typename T, typename RandomIterator, typename BinaryOperation>
-			T reduce( RandomIterator first, RandomIterator last, T init,
+			[[nodiscard]] T reduce( RandomIterator first, RandomIterator last, T init,
 			          BinaryOperation binary_op,
 			          task_scheduler ts = get_task_scheduler( ) ) {
 
@@ -191,7 +190,7 @@ namespace daw {
 			}
 
 			template<typename T, typename RandomIterator>
-			T reduce( RandomIterator first, RandomIterator last, T init,
+			[[nodiscard]] T reduce( RandomIterator first, RandomIterator last, T init,
 			          task_scheduler ts = get_task_scheduler( ) ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
@@ -200,7 +199,7 @@ namespace daw {
 			}
 
 			template<typename RandomIterator>
-			decltype( auto ) reduce( RandomIterator first, RandomIterator last,
+			[[nodiscard]] decltype( auto ) reduce( RandomIterator first, RandomIterator last,
 			                         task_scheduler ts = get_task_scheduler( ) ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
@@ -211,7 +210,7 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename Compare = std::less<>>
-			decltype( auto ) min_element( RandomIterator first, RandomIterator last,
+			[[nodiscard]] decltype( auto ) min_element( RandomIterator first, RandomIterator last,
 			                              task_scheduler ts = get_task_scheduler( ),
 			                              Compare comp = Compare{} ) {
 
@@ -225,7 +224,7 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename Compare = std::less<>>
-			decltype( auto ) max_element( RandomIterator first,
+			[[nodiscard]] decltype( auto ) max_element( RandomIterator first,
 			                              RandomIterator const last,
 			                              task_scheduler ts = get_task_scheduler( ),
 			                              Compare comp = Compare{} ) {
@@ -323,7 +322,7 @@ namespace daw {
 			  typename BinaryOperation,
 			  std::enable_if_t<traits::is_random_access_iterator_v<RandomIterator>,
 			                   std::nullptr_t> = nullptr>
-			decltype( auto ) map_reduce( RandomIterator first, RandomIterator last,
+			[[nodiscard]] decltype( auto ) map_reduce( RandomIterator first, RandomIterator last,
 			                             UnaryOperation map_function,
 			                             BinaryOperation reduce_function,
 			                             task_scheduler ts = get_task_scheduler( ) ) {
@@ -372,7 +371,7 @@ namespace daw {
 			/// @return Value from reduce function after range is of size 1
 			template<typename RandomIterator, typename T, typename UnaryOperation,
 			         typename BinaryOperation>
-			decltype( auto ) map_reduce( RandomIterator first, RandomIterator last,
+			[[nodiscard]] decltype( auto ) map_reduce( RandomIterator first, RandomIterator last,
 			                             T const &init, UnaryOperation map_function,
 			                             BinaryOperation reduce_function,
 			                             task_scheduler ts = get_task_scheduler( ) ) {
@@ -453,7 +452,7 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename UnaryPredicate>
-			RandomIterator find_if( RandomIterator first, RandomIterator last,
+			[[nodiscard]] RandomIterator find_if( RandomIterator first, RandomIterator last,
 			                        UnaryPredicate pred,
 			                        task_scheduler ts = get_task_scheduler( ) ) {
 
@@ -467,7 +466,7 @@ namespace daw {
 
 			template<typename RandomIterator1, typename RandomIterator2,
 			         typename BinaryPredicate>
-			bool equal( RandomIterator1 first1, RandomIterator1 last1,
+			[[nodiscard]] bool equal( RandomIterator1 first1, RandomIterator1 last1,
 			            RandomIterator2 first2, RandomIterator2 last2,
 			            BinaryPredicate pred,
 			            task_scheduler ts = get_task_scheduler( ) ) {
@@ -484,7 +483,7 @@ namespace daw {
 			}
 
 			template<typename RandomIterator1, typename RandomIterator2>
-			bool equal( RandomIterator1 first1, RandomIterator1 last1,
+			[[nodiscard]] bool equal( RandomIterator1 first1, RandomIterator1 last1,
 			            RandomIterator2 first2, RandomIterator2 last2,
 			            task_scheduler ts = get_task_scheduler( ) ) {
 
@@ -503,7 +502,7 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename UnaryPredicate>
-			decltype( auto ) count_if( RandomIterator first, RandomIterator last,
+			[[nodiscard]] decltype( auto ) count_if( RandomIterator first, RandomIterator last,
 			                           UnaryPredicate pred,
 			                           task_scheduler ts = get_task_scheduler( ) ) {
 
@@ -516,7 +515,7 @@ namespace daw {
 			}
 
 			template<typename RandomIterator, typename T>
-			decltype( auto ) count( RandomIterator first, RandomIterator last,
+			[[nodiscard]] decltype( auto ) count( RandomIterator first, RandomIterator last,
 			                        T const &value,
 			                        task_scheduler ts = get_task_scheduler( ) ) {
 

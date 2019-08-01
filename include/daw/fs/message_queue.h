@@ -22,43 +22,45 @@
 
 #pragma once
 
+#include <array>
 #include <cassert>
+#include <condition_variable>
 #include <cstddef>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <utility>
 
-#include <boost/lockfree/queue.hpp>
-
 namespace daw::parallel {
+	namespace wait_impl {
+		template<typename Waiter, typename Rep, typename Period, typename Predicate,
+		         typename ConditionalChecker>
+		bool wait_for( Waiter &wt, std::unique_lock<std::mutex> &lock,
+		               std::chrono::duration<Rep, Period> const &timeout,
+		               Predicate pred, ConditionalChecker cond ) {
+
+			static_assert( std::is_invocable_v<Predicate> );
+			static_assert( std::is_invocable_v<ConditionalChecker> );
+			auto status = wt.wait_for( lock, timeout, pred );
+			while( cond( ) and not status ) {
+				status = wt.wait_for( lock, timeout, pred );
+			}
+			return status && cond( );
+		}
+	} // namespace wait_impl
 	enum class push_back_result : bool { failed, success };
 
-	template<typename T>
+	template<typename T, size_t Sz>
 	class locking_circular_buffer {
 		using value_type = std::optional<T>;
 		struct members_t {
-			value_type *m_values;
+			std::array<value_type, Sz> m_values{};
 			std::mutex m_mutex{};
 			std::condition_variable m_not_empty{};
 			std::condition_variable m_not_full{};
 			size_t m_front = 0;
 			size_t m_back = 0;
-			size_t m_size;
 			bool m_is_full = false;
-
-			members_t( size_t queue_size ) noexcept
-			  : m_values( new value_type[queue_size] )
-			  , m_size( queue_size ) {}
-
-			~members_t( ) noexcept {
-				delete[] m_values;
-			}
-
-			members_t( members_t const & ) = delete;
-			members_t( members_t && ) = delete;
-			members_t &operator=( members_t const & ) = delete;
-			members_t &operator=( members_t && ) = delete;
 		};
 		std::unique_ptr<members_t> m_data = std::make_unique<members_t>( );
 
@@ -71,10 +73,9 @@ namespace daw::parallel {
 		}
 
 	public:
-		locking_circular_buffer( size_t queue_size )
-		  : m_data( std::make_unique<members_t>( queue_size ) ) {}
+		locking_circular_buffer( ) = default;
 
-		std::optional<T> try_pop_front( ) {
+		[[nodiscard]] std::optional<T> try_pop_front( ) {
 			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or empty( ) ) {
 				return {};
@@ -83,36 +84,71 @@ namespace daw::parallel {
 			assert( m_data->m_values[m_data->m_front] );
 			auto result =
 			  std::exchange( m_data->m_values[m_data->m_front], std::optional<T>{} );
-			m_data->m_front = ( m_data->m_front + 1 ) % m_data->m_size;
+			m_data->m_front = ( m_data->m_front + 1 ) % Sz;
 			return result;
 		}
 
-		T pop_front( ) {
+		[[nodiscard]] T pop_front( ) {
 			auto lck = std::unique_lock( m_data->m_mutex );
 			if( empty( ) ) {
-				m_data->m_not_empty.wait(
-				  lck, [&]( ) { return !empty( ); } );
+				m_data->m_not_empty.wait( lck, [&]( ) { return !empty( ); } );
 			}
 			auto const oe = daw::on_scope_exit( [&]( ) {
 				m_data->m_is_full = false;
-				m_data->m_front = ( m_data->m_front + 1 ) % m_data->m_size;
+				m_data->m_front = ( m_data->m_front + 1 ) % Sz;
 				m_data->m_not_full.notify_one( );
 			} );
 
 			return *std::exchange( m_data->m_values[m_data->m_front],
+			                       std::optional<T>{} );
+		}
+
+		template<typename Predicate, typename Duration = std::chrono::seconds>
+		[[nodiscard]] std::optional<T>
+		pop_front( Predicate can_continue,
+		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
+			static_assert( std::is_invocable_v<Predicate> );
+			auto lck = std::unique_lock( m_data->m_mutex );
+			if( empty( ) ) {
+				auto const can_pop =
+				  wait_impl::wait_for( m_data->m_not_empty, lck, timeout,
+				                       [&]( ) { return not empty( ); }, can_continue );
+				if( not can_pop ) {
+					return {};
+				}
+			}
+			if( not can_continue( ) ) {
+				return {};
+			}
+			auto const oe = daw::on_scope_exit( [&]( ) {
+				m_data->m_is_full = false;
+				m_data->m_front = ( m_data->m_front + 1 ) % Sz;
+				m_data->m_not_full.notify_one( );
+			} );
+
+			return std::exchange( m_data->m_values[m_data->m_front],
 			                      std::optional<T>{} );
 		}
 
-		template<typename U, typename Bool>
-		void push_back( U &&value, Bool &&can_continue ) {
+		template<typename U, typename Predicate,
+		         typename Duration = std::chrono::seconds>
+		[[nodiscard]] bool
+		push_back( U &&value, Predicate can_continue,
+		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
+
+			static_assert( std::is_invocable_v<Predicate> );
+
 			static_assert( std::is_convertible_v<U, T> );
-			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
-			if( !lck.owns_lock( ) or full( ) ) {
-				m_data->m_not_full.wait( lck,
-				                         [&]( ) { return can_continue and !full( ); } );
+			auto lck = std::unique_lock( m_data->m_mutex );
+			if( full( ) ) {
+				m_data->m_not_full.wait(
+				  lck, [&]( ) { return can_continue( ) and !full( ); } );
 			}
-			if( !can_continue ) {
-				return;
+			auto const can_push =
+			  wait_impl::wait_for( m_data->m_not_empty, lck, timeout,
+			                       [&]( ) { return not full( ); }, can_continue );
+			if( not can_push ) {
+				return false;
 			}
 			auto const oe = daw::on_scope_exit( [&]( ) {
 				m_data->m_is_full = m_data->m_front == m_data->m_back;
@@ -120,24 +156,25 @@ namespace daw::parallel {
 			} );
 
 			m_data->m_values[m_data->m_back] = std::forward<U>( value );
-			m_data->m_back = ( m_data->m_back + 1 ) % m_data->m_size;
+			m_data->m_back = ( m_data->m_back + 1 ) % Sz;
+			return true;
 		}
 
 		template<typename U>
-		push_back_result try_push_back( U &&value ) {
+		[[nodiscard]] push_back_result try_push_back( U &&value ) {
 			static_assert( std::is_convertible_v<U, T> );
 			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or full( ) ) {
-				m_data->m_not_full.wait( lck, [&]( ) { return !full( ); } );
+				return push_back_result::failed;
 			}
 			assert( !m_data->m_values[m_data->m_back] );
 			auto const oe =
 			  daw::on_scope_exit( [&]( ) { m_data->m_not_empty.notify_one( ); } );
 
 			m_data->m_values[m_data->m_back] = std::forward<U>( value );
-			m_data->m_back = ( m_data->m_back + 1 ) % m_data->m_size;
+			m_data->m_back = ( m_data->m_back + 1 ) % Sz;
 			m_data->m_is_full = m_data->m_front == m_data->m_back;
 			return push_back_result::success;
 		}
-	};
+	}; // namespace daw::parallel
 } // namespace daw::parallel

@@ -32,13 +32,13 @@ namespace daw {
 	namespace impl {
 		namespace {
 			template<typename... Args>
-			auto create_thread( Args &&... args ) noexcept {
+			std::thread create_thread( Args &&... args ) noexcept {
 				try {
 					return std::thread( std::forward<Args>( args )... );
 				} catch( std::system_error const &e ) {
 					std::cerr << "Error creating thread, aborting.\n Error code: "
 					          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
-					std::terminate( );
+					std::abort( );
 				}
 			}
 		} // namespace
@@ -47,34 +47,36 @@ namespace daw {
 		                                          bool block_on_destruction )
 		  : m_block_on_destruction( block_on_destruction )
 		  , m_num_threads( num_threads )
-		  , m_tasks( make_task_queues( num_threads, 1024 ) ) {}
+		  , m_tasks( make_task_queues( num_threads ) ) {}
 
 		task_scheduler_impl::~task_scheduler_impl( ) {
 			stop( m_block_on_destruction );
 		}
 
 		bool task_scheduler_impl::started( ) const {
-			return m_continue;
+			return *m_continue;
 		}
 
 		std::optional<daw::task_t>
 		task_scheduler_impl::wait_for_task_from_pool( size_t id ) {
 			// Get task.  First try own queue, if not try the others and finally
 			// wait for own queue to fill
-			if( !m_continue ) {
+			if( not( *m_continue ) ) {
 				return {};
 			}
 			if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
 				return tsk;
 			}
-			for( auto m = ( id + 1 ) % m_num_threads; m_continue and m != id;
+			for( auto m = ( id + 1 ) % m_num_threads; *m_continue and m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
 
 				if( auto tsk = m_tasks[m].try_pop_front( ); tsk ) {
 					return tsk;
 				}
 			}
-			return m_tasks[id].pop_front( );
+			return m_tasks[id].pop_front( [m_continue = this->m_continue]( ) {
+				return static_cast<bool>( *m_continue );
+			} );
 		}
 
 		void
@@ -83,17 +85,18 @@ namespace daw {
 				return;
 			}
 			try {
-				if( tsk->is_ready( ) ) {
-					send_task( std::move( tsk ), get_task_id( ) );
-				} else {
-					std::invoke( *tsk );
+				if( *m_continue ) {
+					if( tsk->is_ready( ) ) {
+						(void)send_task( daw::move( tsk ), get_task_id( ) );
+					} else {
+						std::invoke( *tsk );
+					}
 				}
-			} catch( std::exception const &ex ) {
+			} catch( ... ) {
 				// Don't let a task take down thread
 				// TODO: add callback to task_scheduler for handling
 				// task exceptions
-				Unused( ex );
-			} catch( ... ) { Unused( tsk ); }
+			}
 		}
 
 		size_t task_scheduler_impl::get_task_id( ) {
@@ -125,9 +128,12 @@ namespace daw {
 			// The self.lock( ) determines where or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
-			while( !sem or !sem->try_wait( ) ) {
+			if( !sem ) {
+				return;
+			}
+			while( !sem->try_wait( ) ) {
 				auto self = wself.lock( );
-				if( !self or !self->m_continue ) {
+				if( !self or not( *self->m_continue ) ) {
 					return;
 				}
 				run_task( self->wait_for_task_from_pool( id ) );
@@ -141,13 +147,13 @@ namespace daw {
 			if( !self ) {
 				return;
 			}
-			while( self->m_continue ) {
+			while( *self->m_continue ) {
 				run_task( self->wait_for_task_from_pool( id ) );
 			}
 		}
 
 		void task_scheduler_impl::start( ) {
-			m_continue = true;
+			*m_continue = true;
 			auto threads = m_threads.get( );
 			auto thread_map = m_thread_map.get( );
 			for( size_t n = 0; n < m_num_threads; ++n ) {
@@ -167,11 +173,13 @@ namespace daw {
 		}
 
 		void task_scheduler_impl::stop( bool block ) noexcept {
-			m_continue = false;
+			*m_continue = false;
 			try {
+				/*
 				for( size_t n = 0; n < m_tasks.size( ); ++n ) {
-					add_task( []( ) {}, n );
+					(void)add_task( []( ) {}, n );
 				}
+				 */
 				auto threads = m_threads.get( );
 				for( auto &th : *threads ) {
 					try {
@@ -182,7 +190,7 @@ namespace daw {
 								th.detach( );
 							}
 						}
-					} catch( std::exception const & ) {}
+					} catch( ... ) {}
 				}
 				threads->clear( );
 			} catch( ... ) {}
@@ -228,46 +236,48 @@ namespace daw {
 				auto it = other_threads->emplace( other_threads->end( ), std::nullopt );
 				other_threads.release( );
 
-				auto const thread_worker = [it, id, wself = get_weak_this( ),
-				                            sem]( ) mutable {
-					auto self = wself.lock( );
-					if( !self ) {
-						return;
-					}
-					auto const at_exit = daw::on_scope_exit(
-					  [&self, it]( ) { self->m_other_threads.get( )->erase( it ); } );
+				*it =
+				  create_thread( [it, id, wself = get_weak_this( ), sem]( ) mutable {
+					  auto self = wself.lock( );
+					  if( !self ) {
+						  return;
+					  }
+					  auto const at_exit = daw::on_scope_exit(
+					    [&self, it]( ) { self->m_other_threads.get( )->erase( it ); } );
 
-					self->task_runner( id, wself, sem );
-				};
-				*it = create_thread( thread_worker );
+					  self->task_runner( id, wself, sem );
+				  } );
 				( *it )->detach( );
 			}
 			return sem;
 		}
 
-		void task_scheduler_impl::send_task( std::optional<task_t> &&tsk,
+		bool task_scheduler_impl::send_task( std::optional<task_t> &&tsk,
 		                                     size_t id ) {
 			if( !tsk ) {
-				return;
+				return true;
 			}
-			if( !m_continue ) {
-				return;
+			if( not( *m_continue ) ) {
+				return true;
 			}
 			if( m_tasks[id].try_push_back( std::move( *tsk ) ) ==
 			    daw::parallel::push_back_result::success ) {
-				return;
+				return true;
 			}
 			for( auto m = ( id + 1 ) % m_num_threads; m != id;
 			     m = ( m + 1 ) % m_num_threads ) {
-				if( !m_continue ) {
-					return;
+				if( not( *m_continue ) ) {
+					return true;
 				}
 				if( m_tasks[m].try_push_back( std::move( *tsk ) ) ==
 				    daw::parallel::push_back_result::success ) {
-					return;
+					return true;
 				}
 			}
-			m_tasks[id].push_back( std::move( *tsk ), m_continue );
+			return m_tasks[id].push_back( std::move( *tsk ),
+			                       [m_continue = this->m_continue]( ) {
+				                       return static_cast<bool>( *m_continue );
+			                       } );
 		}
 	} // namespace impl
 

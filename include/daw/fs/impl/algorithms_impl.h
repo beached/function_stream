@@ -40,7 +40,7 @@ namespace daw {
 		namespace parallel {
 			namespace impl {
 				template<size_t MinRangeSize, typename Iterator>
-				auto get_part_info( daw::view<Iterator> rng,
+				[[nodiscard]] auto get_part_info( daw::view<Iterator> rng,
 				                    size_t max_parts ) noexcept {
 
 					static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
@@ -74,7 +74,7 @@ namespace daw {
 					static constexpr size_t min_range_size = MinRangeSize;
 
 					template<typename Iterator>
-					std::vector<daw::view<Iterator>>
+					[[nodiscard]] std::vector<daw::view<Iterator>>
 					operator( )( Iterator first, Iterator last,
 					             size_t const max_parts ) const {
 
@@ -98,52 +98,61 @@ namespace daw {
 				};
 
 				template<typename RandomIterator, typename Func>
-				daw::shared_latch
+				[[nodiscard]] daw::shared_latch
 				partition_range( std::vector<daw::view<RandomIterator>> ranges,
 				                 Func &&func, task_scheduler ts ) {
 					auto sem = daw::shared_latch( ranges.size( ) );
 					for( auto rng : ranges ) {
-						schedule_task(
-						  sem,
-						  [func = daw::mutable_capture( func ), rng = daw::move( rng )]( ) {
-							  daw::invoke( *func, rng );
-						  },
-						  ts );
+						if( not schedule_task(
+						      sem,
+						      [func = daw::mutable_capture( func ),
+						       rng = daw::move( rng )]( ) { daw::invoke( *func, rng ); },
+						      ts ) ) {
+
+							throw ::daw::unable_to_add_task_exception{};
+						}
 					}
 					return sem;
 				}
 
 				template<typename RandomIterator, typename Func>
-				daw::shared_latch
+				[[nodiscard]] daw::shared_latch
 				partition_range_pos( std::vector<daw::view<RandomIterator>> ranges,
 				                     Func func, task_scheduler ts,
 				                     size_t const start_pos = 0 ) {
 					auto sem = daw::shared_latch( ranges.size( ) - start_pos );
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
-						schedule_task( sem,
-						               [func = daw::mutable_capture( func ),
-						                rng = ranges[n],
-						                n]( ) { daw::invoke( *func, rng, n ); },
-						               ts );
+						if( not schedule_task( sem,
+						                       [func = daw::mutable_capture( func ),
+						                        rng = ranges[n],
+						                        n]( ) { daw::invoke( *func, rng, n ); },
+						                       ts ) ) {
+
+							throw ::daw::unable_to_add_task_exception{};
+						}
 					}
 					return sem;
 				}
 
 				template<typename PartitionPolicy, typename RandomIterator,
 				         typename Func>
-				daw::shared_latch partition_range( daw::view<RandomIterator> range,
+				[[nodiscard]] daw::shared_latch partition_range( daw::view<RandomIterator> range,
 				                                   Func &&func, task_scheduler ts ) {
 					if( range.empty( ) ) {
 						return {};
 					}
 					auto const ranges = PartitionPolicy{}( range, ts.size( ) );
 					auto sem = daw::shared_latch( ranges.size( ) );
+					bool status = true;
 					for( auto rng : ranges ) {
-						schedule_task(
+						status &= schedule_task(
 						  sem,
 						  [func = daw::mutable_capture( std::forward<Func>( func ) ),
 						   rng]( ) { daw::invoke( *func, rng.begin( ), rng.end( ) ); },
 						  ts );
+					}
+					if( not status ) {
+						throw ::daw::unable_to_add_task_exception{};
 					}
 					return sem;
 				}
@@ -218,12 +227,15 @@ namespace daw {
 							next_ranges.push_back( ranges.back( ) );
 						}
 						for( size_t n = 1; n < count; n += 2 ) {
-							ts.add_task(
-							  [func = mutable_capture( func ), &ranges, n, &sem]( ) {
-								  daw::invoke( *func, ranges[n - 1].begin( ),
-								               ranges[n].begin( ), ranges[n].end( ) );
-								  sem.notify( );
-							  } );
+							if( not ts.add_task(
+							      [func = mutable_capture( func ), &ranges, n, &sem]( ) {
+								      daw::invoke( *func, ranges[n - 1].begin( ),
+								                   ranges[n].begin( ), ranges[n].end( ) );
+								      sem.notify( );
+							      } ) ) {
+
+								throw ::daw::unable_to_add_task_exception{};
+							}
 						}
 						sem.wait( );
 						std::swap( ranges, next_ranges );

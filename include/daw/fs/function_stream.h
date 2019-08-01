@@ -65,7 +65,7 @@ namespace daw {
 		  : m_funcs( funcs ) {}
 
 		template<typename... Args>
-		auto operator( )( Args &&... args ) const {
+		[[nodiscard]] auto operator( )( Args &&... args ) const {
 			using func_result_t =
 			  decltype( std::declval<func_comp_t>( ).apply( args... ) );
 			future_result_t<func_result_t> result{};
@@ -113,13 +113,13 @@ namespace daw {
 		std::tuple<Funcs...> m_funcs;
 
 		template<typename... Functions>
-		constexpr static future_generator_t<Functions...>
+		[[nodiscard]] constexpr static future_generator_t<Functions...>
 		make_future_generator( std::tuple<Functions...> &&tp_funcs ) {
 			return future_generator_t<Functions...>{daw::move( tp_funcs )};
 		}
 
 		template<typename... Functions>
-		constexpr static future_generator_t<Functions...>
+		[[nodiscard]] constexpr static future_generator_t<Functions...>
 		make_future_generator( std::tuple<Functions...> const &tp_funcs ) {
 			return future_generator_t<Functions...>{tp_funcs};
 		}
@@ -143,30 +143,30 @@ namespace daw {
 		  : m_funcs{daw::move( tp_funcs )} {}
 
 		template<typename... Args>
-		constexpr decltype( auto ) operator( )( Args &&... args ) const {
+		[[nodiscard]] constexpr decltype( auto ) operator( )( Args &&... args ) const {
 			return get_function_stream( )( std::forward<Args...>( args )... );
 		}
 
-		constexpr function_stream<Funcs...> get_function_stream( ) const {
+		[[nodiscard]] constexpr function_stream<Funcs...> get_function_stream( ) const {
 			return function_stream<Funcs...>( m_funcs );
 		}
 
 		template<typename... NextFunctions>
-		constexpr auto next( NextFunctions &&... next_functions ) const {
+		[[nodiscard]] constexpr auto next( NextFunctions &&... next_functions ) const {
 			return make_future_generator( std::tuple_cat(
 			  m_funcs,
 			  std::make_tuple( std::forward<NextFunctions>( next_functions )... ) ) );
 		}
 
 		template<typename... NextFuncs>
-		constexpr decltype( auto )
+		[[nodiscard]] constexpr decltype( auto )
 		join( future_generator_t<NextFuncs...> const &fut2 ) const {
 			return make_future_generator( std::tuple_cat( m_funcs, fut2.m_funcs ) );
 		}
 	};
 
 	template<typename... Functions>
-	constexpr future_generator_t<Functions...>
+	[[nodiscard]] constexpr future_generator_t<Functions...>
 	make_future_generator( Functions &&... functions ) {
 		return future_generator_t<Functions...>{
 		  std::forward<Functions>( functions )...};
@@ -185,7 +185,7 @@ namespace daw {
 	         std::enable_if_t<
 	           impl::can_next<future_generator_t<Functions...>, NextFunction>,
 	           std::nullptr_t> = nullptr>
-	constexpr decltype( auto )
+	[[nodiscard]] constexpr decltype( auto )
 	operator|( future_generator_t<Functions...> const &lhs,
 	           NextFunction &&next_func ) {
 		return lhs.next(
@@ -205,26 +205,26 @@ namespace daw {
 	         std::enable_if_t<impl::can_join<future_generator_t<Functions...>,
 	                                         future_generator_t<Functions2...>>,
 	                          std::nullptr_t> = nullptr>
-	constexpr decltype( auto )
+	[[nodiscard]] constexpr decltype( auto )
 	operator|( future_generator_t<Functions...> const &lhs,
 	           future_generator_t<Functions2...> const &rhs ) {
 		return lhs.join( rhs );
 	}
 
 	template<typename... Functions>
-	constexpr auto compose_functions( Functions &&... functions ) {
+	[[nodiscard]] constexpr auto compose_functions( Functions &&... functions ) {
 		return impl::function_composer_t<std::remove_cv_t<Functions>...>{
 		  std::forward<Functions>( functions )...};
 	}
 
 	template<typename... Functions>
-	constexpr auto compose( Functions &&... funcs ) noexcept {
+	[[nodiscard]] constexpr auto compose( Functions &&... funcs ) noexcept {
 		return impl::function_composer_t<std::remove_cv_t<Functions>...>(
 		  std::forward<Functions>( funcs )... );
 	}
 
 	template<typename... Functions>
-	constexpr auto compose_future( Functions &&... funcs ) noexcept {
+	[[nodiscard]] constexpr auto compose_future( Functions &&... funcs ) noexcept {
 		return future_generator_t<std::remove_cv_t<Functions>...>(
 		  std::tuple<std::remove_cv_t<Functions>...>(
 		    std::forward<Functions>( funcs )... ) );

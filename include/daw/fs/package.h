@@ -34,7 +34,7 @@ namespace daw {
 	struct package_t;
 
 	template<typename Result, typename Functions, typename... Args>
-	std::shared_ptr<package_t<Result, Functions, Args...>>
+	[[nodiscard]] std::shared_ptr<package_t<Result, Functions, Args...>>
 	make_shared_package( bool continue_on_result_destruction, Result &&result,
 	                     Functions &&functions, Args &&... args );
 
@@ -81,7 +81,6 @@ namespace daw {
 		  members;
 
 	public:
-		package_t( ) = delete;
 		package_t( package_t const & ) = delete;
 		package_t &operator=( package_t const & ) = delete;
 
@@ -99,58 +98,58 @@ namespace daw {
 		  : members( continueonclientdestruction, daw::move( result ),
 		             functions, std::forward<Args>( args )... ) {}
 
-		constexpr functions_t const &function_list( ) const noexcept {
+		[[nodiscard]] constexpr functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;
 		}
 
-		constexpr functions_t &function_list( ) noexcept {
+		[[nodiscard]] constexpr functions_t &function_list( ) noexcept {
 			return members->m_function_list;
 		}
 
-		constexpr result_t const &result( ) const noexcept {
+		[[nodiscard]] constexpr result_t const &result( ) const noexcept {
 			return members->m_result;
 		}
 
-		constexpr result_t &result( ) noexcept {
+		[[nodiscard]] constexpr result_t &result( ) noexcept {
 			return members->m_result;
 		}
 
-		constexpr bool continue_processing( ) const {
+		[[nodiscard]] constexpr bool continue_processing( ) const {
 			return !destination_expired( ) || continue_on_result_destruction( );
 		}
 
 		template<typename... NewArgs>
-		decltype( auto ) next_package( NewArgs &&... nargs ) {
+		[[nodiscard]] decltype( auto ) next_package( NewArgs &&... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ),
 			                            daw::move( members->m_result ),
 			                            daw::move( members->m_function_list ),
 			                            std::forward<NewArgs>( nargs )... );
 		}
 
-		constexpr bool destination_expired( ) const {
+		[[nodiscard]] constexpr bool destination_expired( ) const {
 			return result( ).expired( );
 		}
 
-		constexpr arguments_t const &targs( ) const noexcept {
+		[[nodiscard]] constexpr arguments_t const &targs( ) const noexcept {
 			return members->m_targs;
 		}
 
-		constexpr arguments_t &targs( ) noexcept {
+		[[nodiscard]] constexpr arguments_t &targs( ) noexcept {
 			return members->m_targs;
 		}
 
 	private:
-		constexpr bool const &continue_on_result_destruction( ) const noexcept {
+		[[nodiscard]] constexpr bool const &continue_on_result_destruction( ) const noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 
-		constexpr bool &continue_on_result_destruction( ) noexcept {
+		[[nodiscard]] constexpr bool &continue_on_result_destruction( ) noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 	}; // package_t
 
 	template<typename Result, typename Functions, typename... Args>
-	package_t<Result, Functions, Args...>
+	[[nodiscard]] package_t<Result, Functions, Args...>
 	make_package( bool continue_on_result_destruction, Result &&result,
 	              Functions &&functions, Args &&... args ) {
 		return package_t<Result, Functions, Args...>(
@@ -159,7 +158,7 @@ namespace daw {
 	}
 
 	template<typename Result, typename Functions, typename... Args>
-	std::shared_ptr<package_t<Result, Functions, Args...>>
+	[[nodiscard]] std::shared_ptr<package_t<Result, Functions, Args...>>
 	make_shared_package( bool continue_on_result_destruction, Result &&result,
 	                     Functions &&functions, Args &&... args ) {
 		return std::make_shared<package_t<Result, Functions, Args...>>(

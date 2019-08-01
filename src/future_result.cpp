@@ -38,7 +38,7 @@ namespace daw {
 				pass_next( daw::move( m_result ) );
 				return;
 			}
-			status( ) = future_status::ready;
+			status( future_status::ready );
 			notify( );
 		}
 
@@ -81,20 +81,14 @@ namespace daw {
 			m_semaphore.notify( );
 		}
 
-		future_status &member_data_base_t::status( ) {
-			return m_status;
+		void member_data_base_t::status( future_status s ) {
+			m_status = s;
 		}
 
-		future_status const &member_data_base_t::status( ) const {
+		future_status member_data_base_t::status( ) const {
 			return m_status;
 		}
 	} // namespace impl
-
-	future_result_t<void>::future_result_t( )
-	  : m_data( std::make_shared<m_data_t>( get_task_scheduler( ) ) ) {
-
-		daw::exception::dbg_throw_on_false( m_data, "m_data shouldn't be null" );
-	}
 
 	future_result_t<void>::future_result_t( task_scheduler ts )
 	  : m_data( std::make_shared<m_data_t>( daw::move( ts ) ) ) {
