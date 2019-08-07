@@ -1,0 +1,19 @@
+{
+	"provides": "function_stream",
+	"build_type": "cmake",
+	"dependencies": [
+		{
+			"provides": "header_libraries",
+			"download_type": "git",
+			"build_type": "cmake",
+			"uri": "https://github.com/beached/header_libraries.git"
+		},
+		{
+			"provides": "date",
+			"download_type": "git",
+			"build_type": "cmake",
+			"uri": "https://github.com/howardhinnant/date.git",
+			"cmake_args": [ "-DUSE_SYSTEM_TZ_DB=true" ]
+		}
+	]
+}

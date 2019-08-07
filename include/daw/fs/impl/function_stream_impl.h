@@ -74,13 +74,13 @@ namespace daw {
 		template<size_t pos, typename Package>
 		void call( Package &&package ) {
 			if( not get_task_scheduler( ).add_task(
-			  [package =
-			     daw::mutable_capture( std::forward<Package>( package ) )]( ) {
-				  using which_t = typename impl::which_type_t<
-				    pos, decltype( ( *package )->function_list( ) )>::category;
+			      [package =
+			         daw::mutable_capture( std::forward<Package>( package ) )]( ) {
+				      using which_t = typename impl::which_type_t<
+				        pos, decltype( ( *package )->function_list( ) )>::category;
 
-				  call_task<pos>( daw::move( *package ), which_t{} );
-			  } ) ) {
+				      call_task<pos>( daw::move( *package ), which_t{} );
+			      } ) ) {
 
 				throw ::daw::unable_to_add_task_exception{};
 			}
@@ -98,7 +98,7 @@ namespace daw {
 					return daw::apply( func, daw::move( package->targs( ) ) );
 				} );
 			} else {
-				daw::apply( func, daw::move( package->targs( ) ) );
+				(void)daw::apply( func, daw::move( package->targs( ) ) );
 			}
 		}
 
@@ -120,9 +120,9 @@ namespace daw {
 		}
 
 		template<size_t pos, typename TFunctions, typename... Args>
-		constexpr decltype( auto ) function_composer_impl( TFunctions &&funcs,
-		                                                   last_function_tag,
-		                                                   Args &&... args ) {
+		[[nodiscard]] constexpr decltype( auto )
+		function_composer_impl( TFunctions &&funcs, last_function_tag,
+		                        Args &&... args ) {
 			static_assert(
 			  pos == daw::tuple_size_v<std::remove_reference_t<TFunctions>> - 1,
 			  "last_function_tag should only be retuned for last item in tuple" );
@@ -132,9 +132,9 @@ namespace daw {
 		}
 
 		template<size_t pos, typename TFunctions, typename... Args>
-		constexpr decltype( auto ) function_composer_impl( TFunctions &&funcs,
-		                                                   function_tag,
-		                                                   Args &&... args ) {
+		[[nodiscard]] constexpr decltype( auto )
+		function_composer_impl( TFunctions &&funcs, function_tag,
+		                        Args &&... args ) {
 			static_assert(
 			  !is_empty_tuple_v<TFunctions> and
 			    pos < daw::tuple_size_v<std::remove_const_t<TFunctions>> - 1,
@@ -153,32 +153,33 @@ namespace daw {
 		}
 
 		template<typename... Functions>
-		struct function_composer_t {
+		struct [[nodiscard]] function_composer_t {
 			using tfunction_t = std::tuple<daw::remove_cvref_t<Functions>...>;
 			tfunction_t funcs;
 
 			template<typename... Fs,
 			         std::enable_if_t<std::is_constructible_v<tfunction_t, Fs...>,
 			                          std::nullptr_t> = nullptr>
-			constexpr explicit function_composer_t( Fs &&... fs ) noexcept
+			constexpr explicit function_composer_t( Fs && ... fs ) noexcept
 			  : funcs( std::forward<Fs>( fs )... ) {}
 
 		private:
 			template<typename... Fs>
-			static constexpr function_composer_t<Fs...>
-			make_function_composer_t( std::tuple<Fs...> &&tpfuncs ) noexcept {
+			[[nodiscard]] static constexpr function_composer_t<Fs...>
+			make_function_composer_t( std::tuple<Fs...> && tpfuncs ) noexcept {
 				return function_composer_t<Fs...>( daw::move( tpfuncs ) );
 			}
 
 			template<typename... Fs>
-			static constexpr function_composer_t<Fs...>
+			[[nodiscard]] static constexpr function_composer_t<Fs...>
 			make_function_composer_t( std::tuple<Fs...> const &tpfuncs ) noexcept {
 				return function_composer_t<Fs...>( tpfuncs );
 			}
 
 		public:
 			template<typename... Args>
-			constexpr decltype( auto ) apply( Args &&... args ) const & {
+			[[nodiscard]] constexpr decltype( auto ) apply( Args && ... args )
+			  const & {
 				if constexpr( !is_empty_tuple_v<tfunction_t> ) {
 					using which_t = typename which_type_t<0, tfunction_t>::category;
 					return function_composer_impl<0>( funcs, which_t{},
@@ -193,7 +194,7 @@ namespace daw {
 			}
 
 			template<typename... Args>
-			constexpr decltype( auto ) apply( Args &&... args ) && {
+			[[nodiscard]] constexpr decltype( auto ) apply( Args && ... args ) && {
 				if constexpr( !is_empty_tuple_v<tfunction_t> ) {
 					using which_t = typename which_type_t<0, tfunction_t>::category;
 					return function_composer_impl<0>( daw::move( funcs ), which_t{},
@@ -208,25 +209,28 @@ namespace daw {
 			}
 
 			template<typename... Args>
-			constexpr decltype( auto ) operator( )( Args &&... args ) const & {
+			[[nodiscard]] constexpr decltype( auto ) operator( )( Args &&... args )
+			  const & {
 				return apply( std::forward<Args>( args )... );
 			}
 
 			template<typename... Args>
-			constexpr decltype( auto ) operator( )( Args &&... args ) && {
+			[[nodiscard]] constexpr decltype( auto ) operator( )(
+			  Args &&... args ) && {
 				return apply( std::forward<Args>( args )... );
 			}
 
 			template<typename... NextFunctions>
-			constexpr decltype( auto )
-			next( NextFunctions &&... next_functions ) const &noexcept {
+			[[nodiscard]] constexpr decltype( auto ) next(
+			  NextFunctions && ... next_functions ) const &noexcept {
 				return make_function_composer_t( std::tuple_cat(
 				  funcs, std::make_tuple( daw::make_callable(
 				           std::forward<NextFunctions>( next_functions ) )... ) ) );
 			}
 
 			template<typename... NextFunctions>
-			  constexpr decltype( auto ) next( NextFunctions &&... next_functions ) &&
+			  [[nodiscard]] constexpr decltype( auto ) next( NextFunctions &&
+			                                                 ... next_functions ) &&
 			  noexcept {
 				return make_function_composer_t( std::tuple_cat(
 				  daw::move( funcs ),
@@ -236,14 +240,14 @@ namespace daw {
 		};
 
 		template<typename NextFunction, typename... Functions>
-		constexpr decltype( auto )
+		[[nodiscard]] constexpr decltype( auto )
 		operator|( function_composer_t<Functions...> const &lhs,
 		           NextFunction &&next_func ) noexcept {
 			return lhs.next( std::forward<NextFunction>( next_func ) );
 		}
 
 		template<typename NextFunction, typename... Functions>
-		constexpr decltype( auto )
+		[[nodiscard]] constexpr decltype( auto )
 		operator|( function_composer_t<Functions...> &&lhs,
 		           NextFunction &&next_func ) noexcept {
 			return daw::move( lhs ).next( std::forward<NextFunction>( next_func ) );

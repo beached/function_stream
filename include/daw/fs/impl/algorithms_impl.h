@@ -69,7 +69,7 @@ namespace daw {
 				}
 
 				template<size_t MinRangeSize = 1>
-				struct split_range_t {
+				struct [[nodiscard]] split_range_t {
 					static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
 					static constexpr size_t min_range_size = MinRangeSize;
 
@@ -91,7 +91,7 @@ namespace daw {
 						return results;
 					}
 					template<typename Iterator>
-					std::vector<daw::view<Iterator>>
+					[[nodiscard]] std::vector<daw::view<Iterator>>
 					operator( )( daw::view<Iterator> rng, size_t const max_parts ) const {
 						return operator( )( rng.begin( ), rng.end( ), max_parts );
 					}
@@ -315,7 +315,7 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename T,
 				         typename Iterator, typename BinaryOp>
-				auto parallel_reduce( daw::view<Iterator> range, T init,
+				[[nodiscard]] auto parallel_reduce( daw::view<Iterator> range, T init,
 				                      BinaryOp binary_op, task_scheduler ts ) {
 					using result_t =
 					  daw::remove_cvref_t<decltype( binary_op( init, range.front( ) ) )>;
@@ -347,7 +347,7 @@ namespace daw {
 				}
 
 				template<typename Type1, typename Type2, typename Compare>
-				Type1 compare_value( Type1 const &lhs, Type2 const &rhs, Compare cmp ) {
+				[[nodiscard]] Type1 compare_value( Type1 const &lhs, Type2 const &rhs, Compare cmp ) {
 					if( cmp( lhs, rhs ) ) {
 						return lhs;
 					}
@@ -356,7 +356,7 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename Compare>
-				Iterator parallel_min_element( daw::view<Iterator> range, Compare cmp,
+				[[nodiscard]] Iterator parallel_min_element( daw::view<Iterator> range, Compare cmp,
 				                               task_scheduler ts ) {
 					if( range.empty( ) ) {
 						return range.end( );
@@ -382,7 +382,7 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename Compare>
-				Iterator parallel_max_element( daw::view<Iterator> range, Compare cmp,
+				[[nodiscard]] Iterator parallel_max_element( daw::view<Iterator> range, Compare cmp,
 				                               task_scheduler ts ) {
 					if( range.empty( ) ) {
 						return range.end( );
@@ -452,7 +452,7 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<2>, typename Iterator,
 				         typename T, typename MapFunction, typename ReduceFunction>
-				auto parallel_map_reduce( daw::view<Iterator> range, T const &init,
+				[[nodiscard]] auto parallel_map_reduce( daw::view<Iterator> range, T const &init,
 				                          MapFunction map_function,
 				                          ReduceFunction reduce_function,
 				                          task_scheduler ts ) {
@@ -568,7 +568,7 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename UnaryPredicate>
-				Iterator parallel_find_if( daw::view<Iterator> range_in,
+				[[nodiscard]] Iterator parallel_find_if( daw::view<Iterator> range_in,
 				                           UnaryPredicate &&pred, task_scheduler ts ) {
 
 					auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
@@ -616,7 +616,7 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator1,
 				         typename Iterator2, typename BinaryPredicate>
-				bool parallel_equal( Iterator1 first1, Iterator1 last1,
+				[[nodiscard]] bool parallel_equal( Iterator1 first1, Iterator1 last1,
 				                     Iterator2 first2, Iterator2 last2,
 				                     BinaryPredicate pred, task_scheduler ts ) {
 					if( std::distance( first1, last1 ) !=
@@ -661,7 +661,7 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<2>,
 				         typename RandomIterator, typename UnaryPredicate>
-				auto parallel_count( daw::view<RandomIterator> range_in,
+				[[nodiscard]] auto parallel_count( daw::view<RandomIterator> range_in,
 				                     UnaryPredicate pred, task_scheduler ts ) {
 					static_assert( PartitionPolicy::min_range_size >= 2,
 					               "Minimum range size must be >= 2" );

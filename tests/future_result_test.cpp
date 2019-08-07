@@ -173,6 +173,28 @@ void future_result_test_010( ) {
 	daw::expecting( result, 42 );
 }
 
+void fork_join_test_001( ) {
+	auto const f1 =
+	  daw::async( []( ) { return std::string( "Hello" ); } )
+	    .fork_join(
+	      []( char a, char b, char c, char d, char e ) {
+		      auto result = std::string( );
+		      result += a;
+		      result += b;
+		      result += c;
+		      result += d;
+		      result += e;
+		      return result;
+	      },
+	      []( std::string const &s ) -> char { return s[0] | ' '; },
+	      []( std::string const &s ) -> char { return s[1] | ' '; },
+	      []( std::string const &s ) -> char { return s[2] | ' '; },
+	      []( std::string const &s ) -> char { return s[3] | ' '; },
+	      []( std::string const &s ) -> char { return s[4] | ' '; } );
+
+	daw::expecting( f1.get( ) = "hello" );
+}
+
 int main( ) {
 	future_result_test_001( );
 	future_result_test_002( );
@@ -184,4 +206,5 @@ int main( ) {
 	future_result_test_008( );
 	future_result_test_009( );
 	future_result_test_010( );
+	fork_join_test_001( );
 }

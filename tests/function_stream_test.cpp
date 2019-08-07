@@ -61,13 +61,13 @@ namespace part1 {
 	}
 
 	struct A {
-		constexpr int operator( )( int x ) const noexcept {
+		constexpr int operator( )( int ) const noexcept {
 			return 1;
 		}
 	};
 
 	struct B {
-		constexpr int operator( )( int x ) const noexcept {
+		constexpr int operator( )( int ) const noexcept {
 			return 2;
 		}
 	};
@@ -77,7 +77,7 @@ namespace part1 {
 	};
 
 	struct D {
-		std::string operator( )( int x ) const {
+		std::string operator( )( int ) const {
 			return std::string{"Hello"};
 		}
 	};

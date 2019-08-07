@@ -39,7 +39,7 @@
 #include "../message_queue.h"
 
 namespace daw {
-	struct task_t {
+	struct [[nodiscard]] task_t {
 		std::function<void( )> m_function;
 		daw::shared_latch m_semaphore{};
 
@@ -85,14 +85,14 @@ namespace daw {
 			}
 		}
 
-		bool is_ready( ) const {
+		[[nodiscard]] bool is_ready( ) const {
 			if( m_semaphore ) {
 				return m_semaphore.try_wait( );
 			}
 			return true;
 		}
 
-		explicit operator bool( ) const noexcept {
+		[[nodiscard]] explicit operator bool( ) const noexcept {
 			return static_cast<bool>( m_function );
 		}
 	};
@@ -116,14 +116,14 @@ namespace daw {
 			                              std::forward<Args>( args )... );
 		}
 
-		class task_scheduler_impl;
+		class [[nodiscard]] task_scheduler_impl;
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself,
 		                  std::optional<daw::shared_latch> sem );
 
 		void task_runner( size_t id, std::weak_ptr<task_scheduler_impl> wself );
 
-		class task_scheduler_impl
+		class [[nodiscard]] task_scheduler_impl
 		  : public std::enable_shared_from_this<task_scheduler_impl> {
 			using task_queue_t =
 			  daw::parallel::locking_circular_buffer<daw::task_t, 1024>;
@@ -140,11 +140,11 @@ namespace daw {
 			daw::lockable_value_t<std::list<std::optional<std::thread>>>
 			  m_other_threads{};
 
-			std::weak_ptr<task_scheduler_impl> get_weak_this( );
+			[[nodiscard]] std::weak_ptr<task_scheduler_impl> get_weak_this( );
 
-			std::optional<daw::task_t> wait_for_task_from_pool( size_t id );
+			[[nodiscard]] std::optional<daw::task_t> wait_for_task_from_pool( size_t id );
 
-			static std::vector<task_queue_t> make_task_queues( size_t count ) {
+			[[nodiscard]] static std::vector<task_queue_t> make_task_queues( size_t count ) {
 				std::vector<task_queue_t> result{};
 				result.reserve( count );
 				for( size_t n = 0; n < count; ++n ) {
@@ -225,7 +225,7 @@ namespace daw {
 				                 get_task_id( ) );
 			}
 
-			bool run_next_task( size_t id );
+			[[nodiscard]] bool run_next_task( size_t id );
 
 			void start( );
 			void stop( bool block = true ) noexcept;

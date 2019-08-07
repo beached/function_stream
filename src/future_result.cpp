@@ -20,7 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <boost/next_prior.hpp>
 #include "daw/fs/future_result.h"
 
 namespace daw {
@@ -81,8 +80,8 @@ namespace daw {
 			m_semaphore.notify( );
 		}
 
-		void member_data_base_t::status( future_status s ) {
-			m_status = s;
+		void member_data_base_t::status( future_status new_status ) {
+			m_status = new_status;
 		}
 
 		future_status member_data_base_t::status( ) const {

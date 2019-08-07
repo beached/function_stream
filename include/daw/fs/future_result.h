@@ -40,7 +40,7 @@
 
 namespace daw {
 	template<typename Result>
-	struct future_result_t : public impl::future_result_base_t {
+	struct [[nodiscard]] future_result_t : public impl::future_result_base_t {
 		using result_type_t = daw::remove_cvref_t<Result>;
 		using result_t = daw::expected_t<result_type_t>;
 		using m_data_t = impl::member_data_t<result_type_t>;
@@ -72,14 +72,14 @@ namespace daw {
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] future_status
-		wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
+		[[nodiscard]] future_status wait_for(
+		  std::chrono::duration<Rep, Period> rel_time ) const {
 			return m_data->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] future_status
-		wait_until( std::chrono::time_point<Clock, Duration> timeout_time ) const {
+		[[nodiscard]] future_status wait_until(
+		  std::chrono::time_point<Clock, Duration> timeout_time ) const {
 			return m_data->wait_until( timeout_time );
 		}
 
@@ -92,14 +92,14 @@ namespace daw {
 		}
 
 		template<typename R>
-		void set_value( R &&value ) {
+		void set_value( R && value ) {
 			static_assert( daw::is_convertible_v<daw::remove_cvref_t<R>, Result>,
 			               "Argument must convertible to a Result type" );
 			m_data->set_value( std::forward<R>( value ) );
 		}
 
 		template<typename Exception>
-		void set_exception( Exception &&ex ) {
+		void set_exception( Exception && ex ) {
 			m_data->set_exception(
 			  std::make_exception_ptr( std::forward<Exception>( ex ) ) );
 		}
@@ -113,7 +113,7 @@ namespace daw {
 		}
 
 		template<typename Function, typename... Args>
-		void from_code( Function &&func, Args &&... args ) {
+		void from_code( Function && func, Args && ... args ) {
 			static_assert(
 			  daw::is_convertible_v<std::invoke_result_t<Function, Args...>, Result>,
 			  "Function func with Args does not return a value that is "
@@ -138,20 +138,20 @@ namespace daw {
 		}
 
 		template<typename Function>
-		[[nodiscard]] decltype( auto ) next( Function &&func ) const {
+		[[nodiscard]] decltype( auto ) next( Function && func ) const {
 			return m_data->next(
 			  daw::make_callable( std::forward<Function>( func ) ) );
 		}
 
 		template<typename... Functions>
-		[[nodiscard]] decltype( auto ) fork( Functions &&... funcs ) const {
+		[[nodiscard]] decltype( auto ) fork( Functions && ... funcs ) const {
 			return m_data->fork(
 			  daw::make_callable( std::forward<Functions>( funcs ) )... );
 		}
 
 		template<typename Function, typename... Functions>
-		[[nodiscard]] decltype( auto ) fork_join( Function &&joiner,
-		                                          Functions &&... funcs ) const {
+		[[nodiscard]] decltype( auto ) fork_join( Function && joiner,
+		                                          Functions && ... funcs ) const {
 			return m_data->fork_join(
 			  daw::make_callable( std::forward<Function>( joiner ) ),
 			  daw::make_callable( std::forward<Functions>( funcs ) )... );
@@ -160,7 +160,8 @@ namespace daw {
 	// future_result_t
 
 	template<>
-	struct future_result_t<void> : public impl::future_result_base_t {
+	struct [[nodiscard]] future_result_t<void>
+	  : public impl::future_result_base_t {
 		using result_type_t = void;
 		using result_t = daw::expected_t<result_type_t>;
 		using m_data_t = impl::member_data_t<result_type_t>;
@@ -177,14 +178,14 @@ namespace daw {
 		void wait( ) const override;
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] future_status
-		wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
+		[[nodiscard]] future_status wait_for(
+		  std::chrono::duration<Rep, Period> rel_time ) const {
 			return m_data->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] future_status
-		wait_until( std::chrono::time_point<Clock, Duration> timeout_time ) const {
+		[[nodiscard]] future_status wait_until(
+		  std::chrono::time_point<Clock, Duration> timeout_time ) const {
 			return m_data->wait_until( timeout_time );
 		}
 
@@ -198,31 +199,34 @@ namespace daw {
 		void set_exception( std::exception_ptr ptr );
 
 		template<typename Exception>
-		void set_exception( Exception &&ex ) {
+		void set_exception( Exception && ex ) {
 			m_data->set_exception(
 			  std::make_exception_ptr( std::forward<Exception>( ex ) ) );
 		}
 
 		template<typename Function, typename... Args>
-		void from_code( Function &&func, Args &&... args ) {
+		void from_code( Function && func, Args && ... args ) {
 			m_data->from_code( daw::make_void_function( daw::make_callable(
 			                     std::forward<Function>( func ) ) ),
 			                   std::forward<Args>( args )... );
 		}
 
 		template<typename Function>
-		[[nodiscard]] decltype( auto ) next( Function &&function ) const {
+		[[nodiscard]] decltype( auto ) next( Function && function ) const {
 			return m_data->next(
 			  daw::make_callable( std::forward<Function>( function ) ) );
 		}
 
 		template<typename Function, typename... Functions>
-		[[nodiscard]] decltype( auto ) fork( Function &&func,
-		                                     Functions &&... funcs ) const {
+		[[nodiscard]] decltype( auto ) fork( Function && func,
+		                                     Functions && ... funcs ) const {
 			return m_data->fork( daw::make_callable(
 			  std::forward<Function>( func ), std::forward<Functions>( funcs ) )... );
 		}
 	}; // future_result_t<void>
+
+	template<typename T>
+	future_result_t( T )->future_result_t<T>;
 
 	template<typename result_t, typename Function>
 	[[nodiscard]] constexpr decltype( auto )
@@ -377,32 +381,35 @@ namespace daw {
 
 	namespace impl {
 		template<typename Iterator, typename OutputIterator, typename BinaryOp>
-		void reduce_futures2( Iterator first, Iterator last,
-		                      OutputIterator out_first, BinaryOp &&binary_op ) {
+		inline OutputIterator reduce_futures2( Iterator first, Iterator last,
+		                                       OutputIterator out_it,
+		                                       BinaryOp &&binary_op ) {
 			auto const sz = std::distance( first, last );
-			if( sz == 0 ) {
-				return;
+			assert( sz >= 0 );
+			if( sz <= 0 ) {
+				return out_it;
 			} else if( sz == 1 ) {
-				*out_first++ = *first++;
-				return;
+				*out_it++ = *first++;
+				return out_it;
 			}
 			bool const odd_count = sz % 2 == 1;
 			if( odd_count ) {
 				last = std::next( first, sz - 1 );
 			}
 			while( first != last ) {
-				auto l = *first++;
+				auto l_it = first++;
 				auto r_it = first++;
-				*out_first++ = l.next( [r = daw::mutable_capture( *r_it ),
-				                        binary_op = daw::mutable_capture( binary_op )](
-				                         auto &&result ) {
+				*out_it++ = l_it->next( [r = daw::mutable_capture( *r_it ),
+				                      binary_op = daw::mutable_capture( binary_op )](
+				                       auto &&result ) {
 					return daw::invoke(
 					  *binary_op, std::forward<decltype( result )>( result ), r->get( ) );
 				} );
 			}
 			if( odd_count ) {
-				*out_first++ = *last;
+				*out_it++ = *last;
 			}
+			return out_it;
 		}
 	} // namespace impl
 
