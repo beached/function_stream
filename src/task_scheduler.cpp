@@ -23,7 +23,6 @@
 #include <iostream>
 #include <thread>
 
-#include <boost/next_prior.hpp>
 #include <daw/parallel/daw_latch.h>
 
 #include "daw/fs/task_scheduler.h"

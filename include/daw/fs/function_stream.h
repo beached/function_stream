@@ -70,7 +70,7 @@ namespace daw {
 			  decltype( std::declval<func_comp_t>( ).apply( args... ) );
 			future_result_t<func_result_t> result{};
 			impl::call<0>( make_shared_package( continue_on_result_destruction,
-			                                    result.weak_ptr( ), m_funcs,
+			                                    result.get_handle( ), m_funcs,
 			                                    std::forward<Args>( args )... ) );
 			return result;
 		}

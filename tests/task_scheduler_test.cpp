@@ -20,7 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iostream>
 #include <thread>
 
@@ -31,8 +30,7 @@
 
 #include "daw/fs/task_scheduler.h"
 
-using real_t =
-  boost::multiprecision::number<boost::multiprecision::cpp_dec_float<10000>>;
+using real_t = double;
 
 real_t fib( uintmax_t n ) {
 	if( n <= 1 ) {

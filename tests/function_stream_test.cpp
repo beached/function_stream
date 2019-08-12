@@ -145,7 +145,7 @@ void future_result_test_001( ) {
 
 	std::cout << "operator|\n";
 
-	auto const u = daw::make_future_result( []( ) -> int {
+	auto u = daw::make_future_result( []( ) -> int {
 		std::cout << "part1\n";
 		std::cout << std::endl;
 		return 2;

@@ -2,10 +2,7 @@ cmake_minimum_required( VERSION 2.8.12 )
 
 project( function_stream_prj )
 
-find_package( Boost 1.61.0 COMPONENTS system iostreams filesystem regex REQUIRED )
-
 enable_testing( )
-add_definitions( -DBOOST_TEST_DYN_LINK -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK )
 
 find_package( Threads REQUIRED )
 
@@ -65,10 +62,6 @@ set( TEST_FOLDER "tests" )
 include_directories( SYSTEM "${CMAKE_BINARY_DIR}/install/include" )
 include_directories( ${HEADER_FOLDER} )
 
-include_directories( SYSTEM ${Boost_INCLUDE_DIRS} )
-
-link_directories( ${Boost_LIBRARY_DIRS} )
-
 set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/daw/fs/algorithms.h
 	${HEADER_FOLDER}/daw/fs/function_stream.h
@@ -99,21 +92,21 @@ set( TASK_SCHEDULER_SOURCE_FILES
 add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} )
 
 add_library( task_scheduler_lib ${TASK_SCHEDULER_HEADER_FILES} ${TASK_SCHEDULER_SOURCE_FILES} )
-target_link_libraries( task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( task_scheduler_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( task_scheduler_lib dependency_stub )
 
 add_library( function_stream_lib ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${FUNCTION_STREAM_SOURCE_FILES} )
-target_link_libraries( function_stream_lib task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( function_stream_lib task_scheduler_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( function_stream_lib dependency_stub )
 
 add_library( display_info_lib ${HEADER_FOLDER}/display_info.h ${SOURCE_FOLDER}/display_info.cpp )
-target_link_libraries( display_info_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( display_info_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_dependencies( display_info_lib dependency_stub )
 
 add_custom_target( full )
 
 add_executable( task_scheduler_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/task_scheduler_test.cpp )
-target_link_libraries( task_scheduler_test_bin task_scheduler_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( task_scheduler_test_bin task_scheduler_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( task_scheduler_test task_scheduler_test_bin )
 add_dependencies( check task_scheduler_test_bin )
 add_dependencies( full task_scheduler_test_bin )
@@ -125,37 +118,37 @@ add_dependencies( check function_stream_test_bin )
 add_dependencies( full function_stream_test_bin )
 
 add_executable( future_result_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/future_result_test.cpp )
-target_link_libraries( future_result_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( future_result_test_bin task_scheduler_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( future_result_test future_result_test_bin )
 add_dependencies( check future_result_test_bin )
 add_dependencies( full future_result_test_bin )
 
 add_executable( function_composition_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_composition_test.cpp )
-target_link_libraries( function_composition_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( function_composition_test_bin task_scheduler_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( function_composition_test function_composition_test_bin )
 add_dependencies( check function_composition_test_bin )
 add_dependencies( full function_composition_test_bin )
 
 add_executable( function_composition_test_bin2 EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/function_composition_test2.cpp )
-target_link_libraries( function_composition_test_bin2 task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( function_composition_test_bin2 task_scheduler_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( function_composition_test2 function_composition_test_bin2 )
 add_dependencies( check function_composition_test_bin2 )
 add_dependencies( full function_composition_test_bin2 )
 
 add_executable( algorithms_for_each_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_for_each_test.cpp )
-target_link_libraries( algorithms_for_each_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_for_each_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_for_each_test algorithms_for_each_test_bin )
 add_dependencies( check algorithms_for_each_test_bin )
 add_dependencies( full algorithms_for_each_test_bin )
 
 add_executable( algorithms_fill_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_fill_test.cpp )
-target_link_libraries( algorithms_fill_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_fill_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_fill_test algorithms_fill_test_bin )
 add_dependencies( check algorithms_fill_test_bin )
 add_dependencies( full algorithms_fill_test_bin )
 
 add_executable( algorithms_find_if_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_find_if_test.cpp )
-target_link_libraries( algorithms_find_if_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_find_if_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_find_if_test algorithms_find_if_test_bin )
 add_dependencies( check algorithms_find_if_test_bin )
 add_dependencies( full algorithms_find_if_test_bin )
@@ -167,61 +160,61 @@ add_dependencies( check algorithms_sort_test_bin )
 add_dependencies( full algorithms_sort_test_bin )
 
 add_executable( algorithms_stable_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_stable_sort_test.cpp )
-target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_stable_sort_test algorithms_stable_sort_test_bin )
 add_dependencies( check algorithms_stable_sort_test_bin )
 add_dependencies( full algorithms_sort_test_bin )
 
 add_executable( algorithms_reduce_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_reduce_test.cpp )
-target_link_libraries( algorithms_reduce_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_reduce_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_reduce_test algorithms_reduce_test_bin )
 add_dependencies( check algorithms_reduce_test_bin )
 add_dependencies( full algorithms_reduce_test_bin )
 
 add_executable( algorithms_min_max_element_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_min_max_element_test.cpp )
-target_link_libraries( algorithms_min_max_element_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_min_max_element_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_min_max_element_test algorithms_min_max_element_test_bin )
 add_dependencies( check algorithms_min_max_element_test_bin )
 add_dependencies( full algorithms_min_max_element_test_bin )
 
 add_executable( algorithms_transform_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_transform_test.cpp )
-target_link_libraries( algorithms_transform_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_transform_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_transform_test algorithms_transform_test_bin )
 add_dependencies( check algorithms_transform_test_bin )
 add_dependencies( full algorithms_transform_test_bin )
 
 add_executable( algorithms_map_reduce_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_map_reduce_test.cpp )
-target_link_libraries( algorithms_map_reduce_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_map_reduce_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_map_reduce_test algorithms_map_reduce_test_bin )
 add_dependencies( check algorithms_map_reduce_test_bin )
 add_dependencies( full algorithms_map_reduce_test_bin )
 
 add_executable( algorithms_scan_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_scan_test.cpp )
-target_link_libraries( algorithms_scan_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_scan_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_scan_test algorithms_scan_test_bin )
 add_dependencies( check algorithms_scan_test_bin )
 add_dependencies( full algorithms_scan_test_bin )
 
 add_executable( algorithms_equal_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_equal_test.cpp )
-target_link_libraries( algorithms_equal_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_equal_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_equal_test algorithms_equal_test_bin )
 add_dependencies( check algorithms_equal_test_bin )
 add_dependencies( full algorithms_equal_test_bin )
 
 add_executable( algorithms_count_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_count_test.cpp )
-target_link_libraries( algorithms_count_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_count_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_count_test algorithms_count_test_bin )
 add_dependencies( check algorithms_count_test_bin )
 add_dependencies( full algorithms_count_test_bin )
 
 add_executable( algorithms_chunked_for_each_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_chunked_for_each_test.cpp )
-target_link_libraries( algorithms_chunked_for_each_test_bin task_scheduler_lib display_info_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_chunked_for_each_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_chunked_for_each_test algorithms_chunked_for_each_test_bin )
 add_dependencies( check algorithms_chunked_for_each_test_bin )
 add_dependencies( full algorithms_chunked_for_each_test_bin )
 
 #add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
-#target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+#target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 #add_test( map_reduce_test map_reduce_test_bin )
 #add_dependencies( check map_reduce_test_bin )
 #add_dependencies( full map_reduce_test_bin )

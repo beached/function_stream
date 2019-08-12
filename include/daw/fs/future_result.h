@@ -46,70 +46,96 @@ namespace daw {
 		using m_data_t = impl::member_data_t<result_type_t>;
 
 	private:
-		std::shared_ptr<m_data_t> m_data =
-		  std::make_shared<m_data_t>( get_task_scheduler( ) );
+		m_data_t m_data = m_data_t( get_task_scheduler( ) );
+
+		explicit future_result_t( m_data_t d ) noexcept
+		  : m_data( std::move( d ) ) {}
 
 	public:
 		future_result_t( ) = default;
 
 		explicit future_result_t( task_scheduler ts )
-		  : m_data( std::make_shared<m_data_t>( daw::move( ts ) ) ) {}
+		  : m_data( daw::move( ts ) ) {}
 
 		future_result_t( daw::shared_latch sem, task_scheduler ts )
-		  : m_data(
-		      std::make_shared<m_data_t>( daw::move( sem ), daw::move( ts ) ) ) {}
+		  : m_data( daw::move( sem ), daw::move( ts ) ) {}
 
 		explicit future_result_t( daw::shared_latch sem )
-		  : m_data( std::make_shared<m_data_t>( daw::move( sem ),
-		                                        get_task_scheduler( ) ) ) {}
+		  : m_data( daw::move( sem ), get_task_scheduler( ) ) {}
 
-		[[nodiscard]] std::weak_ptr<m_data_t> weak_ptr( ) {
-			return m_data;
+	public:
+		[[nodiscard]] auto get_handle( ) const {
+			using data_handle_t =
+			  daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
+			class handle_t {
+				data_handle_t m_handle;
+
+				explicit handle_t( data_handle_t hnd )
+				  : m_handle( std::move( hnd ) ) {}
+
+				friend struct future_result_t<Result>;
+
+			public:
+				using type = result_type_t;
+
+				bool explired( ) const {
+					return m_handle.expired( );
+				}
+
+				std::optional<future_result_t> lock( ) const {
+					if( auto lck = m_handle.lock( ); lck ) {
+						return future_result_t( std::move( *lck ) );
+					}
+					return {};
+				}
+			};
+
+			return handle_t( m_data.get_handle( ) );
 		}
 
 		void wait( ) const override {
-			m_data->wait( );
+			m_data.wait( );
 		}
 
 		template<typename Rep, typename Period>
 		[[nodiscard]] future_status wait_for(
 		  std::chrono::duration<Rep, Period> rel_time ) const {
-			return m_data->wait_for( rel_time );
+			return m_data.wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
 		[[nodiscard]] future_status wait_until(
 		  std::chrono::time_point<Clock, Duration> timeout_time ) const {
-			return m_data->wait_until( timeout_time );
+			return m_data.wait_until( timeout_time );
 		}
 
 		[[nodiscard]] bool try_wait( ) const override {
-			return m_data->try_wait( );
+			return m_data.try_wait( );
 		}
 
 		[[nodiscard]] explicit operator bool( ) const {
-			return m_data->try_wait( );
+			return m_data.try_wait( );
 		}
 
 		template<typename R>
 		void set_value( R && value ) {
 			static_assert( daw::is_convertible_v<daw::remove_cvref_t<R>, Result>,
 			               "Argument must convertible to a Result type" );
-			m_data->set_value( std::forward<R>( value ) );
+			m_data.set_value( std::forward<R>( value ) );
 		}
 
 		template<typename Exception>
 		void set_exception( Exception && ex ) {
-			m_data->set_exception(
+			m_data.set_exception(
 			  std::make_exception_ptr( std::forward<Exception>( ex ) ) );
 		}
 
 		void set_exception( ) {
-			m_data->set_exception( std::current_exception( ) );
+			m_data.set_exception( std::current_exception( ) );
 		}
 
 		void set_exception( std::exception_ptr ptr ) {
-			m_data->set_exception( ptr );
+			m_data.set_exception( ptr );
 		}
 
 		template<typename Function, typename... Args>
@@ -119,40 +145,38 @@ namespace daw {
 			  "Function func with Args does not return a value that is "
 			  "convertible to Result. e.g Result "
 			  "r = func( args... ) must be valid" );
-			daw::exception::dbg_precondition_check( m_data,
-			                                        "Expected m_data to be valid" );
-			m_data->from_code( daw::make_callable( std::forward<Function>( func ) ),
-			                   std::forward<Args>( args )... );
+			m_data.from_code( daw::make_callable( std::forward<Function>( func ) ),
+			                  std::forward<Args>( args )... );
 		}
 
 		[[nodiscard]] bool is_exception( ) const {
-			return m_data->is_exception( );
+			return m_data.is_exception( );
 		}
 
 		[[nodiscard]] decltype( auto ) get( ) {
-			return m_data->get( );
+			return m_data.get( );
 		}
 
 		[[nodiscard]] decltype( auto ) get( ) const {
-			return m_data->get( );
+			return m_data.get( );
 		}
 
 		template<typename Function>
-		[[nodiscard]] decltype( auto ) next( Function && func ) const {
-			return m_data->next(
+		[[nodiscard]] decltype( auto ) next( Function && func ) {
+			return m_data.next(
 			  daw::make_callable( std::forward<Function>( func ) ) );
 		}
 
 		template<typename... Functions>
-		[[nodiscard]] decltype( auto ) fork( Functions && ... funcs ) const {
-			return m_data->fork(
+		[[nodiscard]] decltype( auto ) fork( Functions && ... funcs ) {
+			return m_data.fork(
 			  daw::make_callable( std::forward<Functions>( funcs ) )... );
 		}
 
 		template<typename Function, typename... Functions>
 		[[nodiscard]] decltype( auto ) fork_join( Function && joiner,
-		                                          Functions && ... funcs ) const {
-			return m_data->fork_join(
+		                                          Functions && ... funcs ) {
+			return m_data.fork_join(
 			  daw::make_callable( std::forward<Function>( joiner ) ),
 			  daw::make_callable( std::forward<Functions>( funcs ) )... );
 		}
@@ -165,8 +189,12 @@ namespace daw {
 		using result_type_t = void;
 		using result_t = daw::expected_t<result_type_t>;
 		using m_data_t = impl::member_data_t<result_type_t>;
-		std::shared_ptr<m_data_t> m_data =
-		  std::make_shared<m_data_t>( get_task_scheduler( ) );
+
+	private:
+		m_data_t m_data = m_data_t( get_task_scheduler( ) );
+
+		explicit future_result_t( m_data_t d ) noexcept
+		  : m_data( std::move( d ) ) {}
 
 	public:
 		future_result_t( ) = default;
@@ -174,19 +202,47 @@ namespace daw {
 		explicit future_result_t( daw::shared_latch sem,
 		                          task_scheduler ts = get_task_scheduler( ) );
 
-		[[nodiscard]] std::weak_ptr<m_data_t> weak_ptr( );
+		[[nodiscard]] auto get_handle( ) const {
+			using data_handle_t =
+			  daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
+			class handle_t {
+				data_handle_t m_handle;
+
+				explicit handle_t( data_handle_t hnd )
+				  : m_handle( std::move( hnd ) ) {}
+
+				friend future_result_t;
+
+			public:
+				using type = void;
+
+				bool explired( ) const {
+					return m_handle.expired( );
+				}
+
+				std::optional<future_result_t> lock( ) const {
+					if( auto lck = m_handle.lock( ); lck ) {
+						return future_result_t( std::move( *lck ) );
+					}
+					return {};
+				}
+			};
+
+			return handle_t( m_data.get_handle( ) );
+		}
+
 		void wait( ) const override;
 
 		template<typename Rep, typename Period>
 		[[nodiscard]] future_status wait_for(
 		  std::chrono::duration<Rep, Period> rel_time ) const {
-			return m_data->wait_for( rel_time );
+			return wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
 		[[nodiscard]] future_status wait_until(
 		  std::chrono::time_point<Clock, Duration> timeout_time ) const {
-			return m_data->wait_until( timeout_time );
+			return wait_until( timeout_time );
 		}
 
 		void get( ) const;
@@ -200,27 +256,27 @@ namespace daw {
 
 		template<typename Exception>
 		void set_exception( Exception && ex ) {
-			m_data->set_exception(
+			m_data.set_exception(
 			  std::make_exception_ptr( std::forward<Exception>( ex ) ) );
 		}
 
 		template<typename Function, typename... Args>
 		void from_code( Function && func, Args && ... args ) {
-			m_data->from_code( daw::make_void_function( daw::make_callable(
-			                     std::forward<Function>( func ) ) ),
-			                   std::forward<Args>( args )... );
+			m_data.from_code( daw::make_void_function( daw::make_callable(
+			                    std::forward<Function>( func ) ) ),
+			                  std::forward<Args>( args )... );
 		}
 
 		template<typename Function>
-		[[nodiscard]] decltype( auto ) next( Function && function ) const {
-			return m_data->next(
+		[[nodiscard]] decltype( auto ) next( Function && function ) {
+			return m_data.next(
 			  daw::make_callable( std::forward<Function>( function ) ) );
 		}
 
 		template<typename Function, typename... Functions>
 		[[nodiscard]] decltype( auto ) fork( Function && func,
 		                                     Functions && ... funcs ) const {
-			return m_data->fork( daw::make_callable(
+			return m_data.fork( daw::make_callable(
 			  std::forward<Function>( func ), std::forward<Functions>( funcs ) )... );
 		}
 	}; // future_result_t<void>
@@ -236,13 +292,15 @@ namespace daw {
 		return lhs.next( daw::make_callable( std::forward<Function>( rhs ) ) );
 	}
 
+	/*
+	 * TODO: get rid of me
 	template<typename result_t, typename Function>
 	[[nodiscard]] constexpr decltype( auto )
 	operator|( future_result_t<result_t> const &lhs, Function &&rhs ) {
 		static_assert( daw::traits::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );
 		return lhs.next( daw::make_callable( std::forward<Function>( rhs ) ) );
-	}
+	}*/
 
 	template<typename result_t, typename Function>
 	[[nodiscard]] constexpr decltype( auto )
@@ -400,8 +458,8 @@ namespace daw {
 				auto l_it = first++;
 				auto r_it = first++;
 				*out_it++ = l_it->next( [r = daw::mutable_capture( *r_it ),
-				                      binary_op = daw::mutable_capture( binary_op )](
-				                       auto &&result ) {
+				                         binary_op = daw::mutable_capture( binary_op )](
+				                          auto &&result ) {
 					return daw::invoke(
 					  *binary_op, std::forward<decltype( result )>( result ), r->get( ) );
 				} );

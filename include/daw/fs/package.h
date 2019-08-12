@@ -54,7 +54,7 @@ namespace daw {
 	namespace impl {
 		template<typename functions_t, typename arguments_t, typename result_t,
 		         typename... Args>
-		struct members_t {
+		struct [[nodiscard]] members_t {
 			functions_t m_function_list;
 			arguments_t m_targs;
 			result_t m_result;
@@ -74,7 +74,8 @@ namespace daw {
 		using functions_t = daw::remove_cvref_t<Functions>;
 		using arguments_t = std::tuple<daw::remove_cvref_t<Args>...>;
 		using result_t = Result;
-		using result_value_t = weak_ptr_type_t<result_t>;
+		using result_value_t = typename result_t::type;
+	//	weak_ptr_type_t<result_t>;
 
 	private:
 		daw::value_ptr<impl::members_t<functions_t, arguments_t, result_t, Args...>>
@@ -115,7 +116,9 @@ namespace daw {
 		}
 
 		[[nodiscard]] constexpr bool continue_processing( ) const {
-			return !destination_expired( ) || continue_on_result_destruction( );
+			// TODO: remove
+			//return !destination_expired( ) or continue_on_result_destruction( );
+			return continue_on_result_destruction( );
 		}
 
 		template<typename... NewArgs>
@@ -126,9 +129,12 @@ namespace daw {
 			                            std::forward<NewArgs>( nargs )... );
 		}
 
+		/*
+		 * TODO: remove
 		[[nodiscard]] constexpr bool destination_expired( ) const {
 			return result( ).expired( );
 		}
+		 */
 
 		[[nodiscard]] constexpr arguments_t const &targs( ) const noexcept {
 			return members->m_targs;
