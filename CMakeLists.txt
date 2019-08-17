@@ -73,7 +73,6 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/daw/fs/impl/concept_checks.h
 	${HEADER_FOLDER}/daw/fs/impl/function_stream_impl.h
 	${HEADER_FOLDER}/daw/fs/impl/future_result_impl.h
-	${HEADER_FOLDER}/daw/fs/impl/task_scheduler_impl.h
 	${HEADER_FOLDER}/daw/fs/impl/task.h
 )
 
@@ -87,7 +86,6 @@ set( TASK_SCHEDULER_HEADER_FILES
 
 set( TASK_SCHEDULER_SOURCE_FILES
 	${SOURCE_FOLDER}/task_scheduler.cpp
-	${SOURCE_FOLDER}/task_scheduler_impl.cpp
 )
 
 #set( CMAKE_CTEST_COMMAND ctest -V )

@@ -390,6 +390,9 @@ namespace daw {
 			[[nodiscard]] auto fork_join( Function && joiner,
 			                              Functions && ... funcs ) {
 
+				// TODO: finish implementing
+				Unused( joiner );
+				Unused( funcs... );
 				assert( m_data );
 				assert( not m_data->m_next_has_method
 				              .try_wait( ) ); // can only set next function once
@@ -399,10 +402,11 @@ namespace daw {
 				                        std::declval<expected_result_t>( ).get( ) )> and
 				  ... ) );
 
+				/* TODO Finish
 				using result_temp_t =
 				  std::tuple<future_result_t<daw::remove_cvref_t<decltype(
 				    funcs( std::declval<expected_result_t>( ).get( ) ) )>>...>;
-
+				*/
 				// using result_final_t =
 				// not implemented
 				std::abort( );
@@ -586,6 +590,8 @@ namespace daw {
 			template<typename Function, typename... Functions>
 			[[nodiscard]] auto fork_join( Function && joiner,
 			                              Functions && ... funcs ) {
+				// TODO: finish implementing
+				Unused( joiner );
 				static_assert( ( std::is_invocable_v<Functions> and ... ) );
 				daw::exception::precondition_check(
 				  not m_data->m_next_has_method.try_wait( ),

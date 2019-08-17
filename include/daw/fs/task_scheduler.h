@@ -29,54 +29,218 @@
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
 #include <daw/parallel/daw_latch.h>
+#include <daw/parallel/daw_locked_value.h>
 
-#include "impl/task_scheduler_impl.h"
+#include "impl/task.h"
+#include "message_queue.h"
 
 namespace daw {
-	struct unable_to_add_task_exception : std::exception {};
+	template<typename... Tasks>
+	constexpr bool are_tasks_v = daw::all_true_v<std::is_invocable_v<Tasks>...>;
+
+	template<typename Waitable>
+	using is_waitable_detector = decltype( std::declval<Waitable &>( ).wait( ) );
+
+	template<typename Waitable>
+	constexpr bool is_waitable_v =
+	  daw::is_detected_v<is_waitable_detector, std::remove_reference_t<Waitable>>;
+
+	template<typename... Args>
+	inline std::optional<task_t> make_task_ptr( Args &&... args ) {
+		return std::optional<task_t>( std::in_place,
+		                              std::forward<Args>( args )... );
+	}
+	struct unable_to_add_task_exception : std::exception {
+		unable_to_add_task_exception( ) = default;
+
+		char const * what( ) const noexcept override;
+	};
 
 	class task_scheduler {
-		impl::task_scheduler_impl m_impl =
-		  impl::task_scheduler_impl( std::thread::hardware_concurrency( ), true );
+		using task_queue_t =
+		  daw::parallel::locking_circular_buffer<daw::task_t, 1024>;
 
-	public:
-		task_scheduler( ) = default;
+		class member_data_t {
+			daw::lockable_value_t<std::vector<std::thread>> m_threads{};
+			daw::lockable_value_t<std::unordered_map<std::thread::id, size_t>>
+			  m_thread_map{};
+			bool m_block_on_destruction;       // from ctor
+			size_t const m_num_threads;        // from ctor
+			std::vector<task_queue_t> m_tasks; // from ctor
+			std::atomic<size_t> m_task_count{0};
+			daw::lockable_value_t<std::list<std::optional<std::thread>>>
+			  m_other_threads{};
+			std::atomic_bool m_continue = false;
 
-		inline task_scheduler( std::size_t num_threads )
-		  : m_impl( num_threads, true ) {}
+			friend task_scheduler;
 
-		inline task_scheduler( std::size_t num_threads, bool block_on_destruction )
-		  : m_impl( num_threads, block_on_destruction ) {}
+			member_data_t( std::size_t num_threads, bool block_on_destruction );
+		};
+		std::shared_ptr<member_data_t> m_data = std::shared_ptr<member_data_t>(
+		  new member_data_t( std::thread::hardware_concurrency( ), true ) );
 
+		task_scheduler( std::shared_ptr<member_data_t> &&sptr )
+		  : m_data( daw::move( sptr ) ) {}
+
+		[[nodiscard]] inline auto get_handle( ) {
+			class handle_t {
+				std::weak_ptr<member_data_t> m_handle;
+
+				explicit handle_t( std::weak_ptr<member_data_t> wptr )
+				  : m_handle( wptr ) {}
+
+				friend task_scheduler;
+
+			public:
+				bool expired( ) const {
+					return m_handle.expired( );
+				}
+
+				std::optional<task_scheduler> lock( ) const {
+					if( auto lck = m_handle.lock( ); lck ) {
+						return task_scheduler( daw::move( lck ) );
+					}
+					return {};
+				}
+			};
+
+			return handle_t( static_cast<std::weak_ptr<member_data_t>>( m_data ) );
+		}
+
+		[[nodiscard]] std::optional<daw::task_t>
+		wait_for_task_from_pool( size_t id );
+
+		[[nodiscard]] static std::vector<task_queue_t>
+		make_task_queues( size_t count ) {
+			std::vector<task_queue_t> result{};
+			result.reserve( count );
+			for( size_t n = 0; n < count; ++n ) {
+				result.emplace_back( );
+			}
+			return result;
+		}
+		[[nodiscard]] bool send_task( std::optional<task_t> &&tsk, size_t id );
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
-		[[nodiscard]] decltype( auto ) add_task( Task &&task ) noexcept {
-			return m_impl.add_task( std::forward<Task>( task ) );
+		[[nodiscard]] bool add_task( Task &&task, size_t id ) {
+			return send_task(
+			  make_task_ptr(
+			    [wself = get_handle( ),
+			     task = daw::mutable_capture( std::forward<Task>( task ) ), id]( ) {
+				    if( auto self = wself.lock( ); self ) {
+					    std::invoke( daw::move( *task ) );
+					    while( self->m_data->m_continue and self->run_next_task( id ) ) {}
+				    }
+			    } ),
+			  id );
 		}
 
-		template<
-		  typename Task, typename SharedLatch,
-		  std::enable_if_t<daw::all_true_v<std::is_invocable_v<Task>,
-		                                   daw::is_shared_latch_v<SharedLatch>>,
-		                   std::nullptr_t> = nullptr>
+		template<typename Task>
+		[[nodiscard]] decltype( auto ) add_task( Task &&task, daw::shared_latch sem,
+		                                         size_t id ) {
+			auto tsk = [wself = get_handle( ),
+			            task = daw::mutable_capture( std::forward<Task>( task ) ),
+			            id]( ) {
+				if( auto self = wself.lock( ); self ) {
+					std::invoke( *task );
+					while( self->m_data->m_continue and self->run_next_task( id ) ) {}
+				}
+			};
+			return send_task( make_task_ptr( daw::move( tsk ), std::move( sem ) ),
+			                  id );
+		}
+
+		template<typename Handle>
+		void task_runner( size_t id, Handle hnd ) {
+
+			auto self = hnd.lock( );
+			if( not self ) {
+				return;
+			}
+			auto self2 = *get_handle( ).lock( );
+			while( self2.m_data->m_continue ) {
+				run_task( self2.wait_for_task_from_pool( id ) );
+			}
+		}
+
+		template<typename Handle>
+		void task_runner( size_t id, Handle hnd,
+		                  std::optional<daw::shared_latch> sem ) {
+
+			// The self.lock( ) determines where or not the
+			// task_scheduler_impl has destructed yet and keeps it alive while
+			// we use members
+			if( hnd.expired( ) ) {
+				return;
+			}
+			while( not sem->try_wait( ) ) {
+				if( auto self = hnd.lock( ); not( self or self->m_data->m_continue ) ) {
+					return;
+				} else {
+					run_task( self->wait_for_task_from_pool( id ) );
+				}
+			}
+		}
+
+		void run_task( std::optional<task_t> &&tsk ) noexcept;
+
+		[[nodiscard]] size_t get_task_id( );
+
+	public:
+		task_scheduler( ) = default;
+		task_scheduler( std::size_t num_threads, bool block_on_destruction );
+
+		task_scheduler( task_scheduler && ) = default;
+		task_scheduler &operator=( task_scheduler && ) = default;
+		task_scheduler( task_scheduler const & ) = default;
+		task_scheduler &operator=( task_scheduler const & ) = default;
+		~task_scheduler( );
+
+		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
+		                                         std::nullptr_t> = nullptr>
+		[[nodiscard]] decltype( auto ) add_task( Task &&task ) {
+			static_assert(
+			  std::is_invocable_v<Task>,
+			  "Task must be callable without arguments (e.g. task( );)" );
+
+			return add_task( std::forward<Task>( task ), get_task_id( ) );
+		}
+
+		template<typename Task>
 		[[nodiscard]] decltype( auto ) add_task( Task &&task,
-		                                         SharedLatch &&sem ) noexcept {
-			return m_impl.add_task( std::forward<Task>( task ),
-			                        std::forward<SharedLatch>( sem ) );
+		                                         daw::shared_latch sem ) {
+			static_assert(
+			  std::is_invocable_v<Task>,
+			  "Task must be callable without arguments (e.g. task( );)" );
+
+			return add_task( std::forward<Task>( task ), std::move( sem ),
+			                 get_task_id( ) );
 		}
 
-		template<typename SharedLatch,
-		         std::enable_if_t<daw::is_shared_latch_v<SharedLatch>,
-		                          std::nullptr_t> = nullptr>
-		[[nodiscard]] decltype( auto ) add_task( SharedLatch &&sem ) noexcept {
-			return m_impl.add_task( [] {}, std::forward<SharedLatch>( sem ) );
-		}
+		[[nodiscard]] bool run_next_task( size_t id );
 
 		void start( );
 		void stop( bool block = true ) noexcept;
-		bool started( ) const;
-		size_t size( ) const;
+
+		[[nodiscard]] bool started( ) const;
+
+		[[nodiscard]] size_t size( ) const {
+			return m_data->m_tasks.size( );
+		}
+
+		[[nodiscard]] daw::shared_latch
+		start_temp_task_runners( size_t task_count = 1U );
+
+		[[nodiscard]] inline decltype( auto )
+		add_task( daw::shared_latch &&sem ) noexcept {
+			return add_task( [] {}, daw::move( sem ) );
+		}
+
+		[[nodiscard]] inline decltype( auto )
+		add_task( daw::shared_latch const &sem ) noexcept {
+			return add_task( [] {}, sem );
+		}
 
 		template<typename Function>
 		[[nodiscard]] decltype( auto ) wait_for_scope( Function &&func ) {
@@ -85,7 +249,7 @@ namespace daw {
 			               "without an arugment. e.g. func( )" );
 
 			auto const at_exit = daw::on_scope_exit(
-			  [sem = ::daw::mutable_capture( m_impl.start_temp_task_runners( ) )]( ) {
+			  [sem = ::daw::mutable_capture( start_temp_task_runners( ) )]( ) {
 				  sem->notify( );
 			  } );
 			return std::invoke( std::forward<Function>( func ) );
@@ -94,14 +258,14 @@ namespace daw {
 		template<typename Waitable>
 		void wait_for( Waitable &&waitable ) {
 			static_assert(
-			  impl::is_waitable_v<Waitable>,
+			  is_waitable_v<Waitable>,
 			  "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 
 			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
 		}
 
 		[[nodiscard]] explicit operator bool( ) const noexcept {
-			return m_impl.started( );
+			return started( );
 		}
 	}; // task_scheduler
 
@@ -153,7 +317,7 @@ namespace daw {
 	/// @returns a semaphore that will stop waiting when all tasks complete
 	template<typename... Tasks>
 	[[nodiscard]] daw::shared_latch create_task_group( Tasks &&... tasks ) {
-		static_assert( impl::are_tasks_v<Tasks...>,
+		static_assert( are_tasks_v<Tasks...>,
 		               "Tasks passed to create_task_group must be callable without "
 		               "an arugment. e.g. task( )" );
 		auto ts = get_task_scheduler( );
@@ -183,7 +347,7 @@ namespace daw {
 
 	template<typename... Tasks>
 	void invoke_tasks( Tasks &&... tasks ) {
-		static_assert( impl::are_tasks_v<Tasks...>,
+		static_assert( are_tasks_v<Tasks...>,
 		               "Tasks passed to invoke_tasks must be callable without an "
 		               "arugment. e.g. task( )" );
 		invoke_tasks( get_task_scheduler( ), std::forward<Tasks>( tasks )... );
