@@ -52,6 +52,7 @@ namespace daw {
 			daw::shared_latch m_semaphore = daw::shared_latch( );
 			std::atomic<future_status> m_status = future_status::deferred;
 			task_scheduler m_task_scheduler;
+			daw::shared_latch m_next_has_method = daw::shared_latch( 1 );
 			next_function_t m_next = nullptr;
 			expected_result_t m_result = expected_result_t( );
 
@@ -65,7 +66,7 @@ namespace daw {
 			template<typename Rep, typename Period>
 			[[nodiscard]] future_status wait_for(
 			  std::chrono::duration<Rep, Period> rel_time ) {
-				if( future_status::deferred == m_status ||
+				if( future_status::deferred == m_status or
 				    future_status::ready == m_status ) {
 					return m_status;
 				}
@@ -78,7 +79,7 @@ namespace daw {
 			template<typename Clock, typename Duration>
 			[[nodiscard]] future_status wait_until(
 			  std::chrono::time_point<Clock, Duration> timeout_time ) {
-				if( future_status::deferred == m_status ||
+				if( future_status::deferred == m_status or
 				    future_status::ready == m_status ) {
 					return m_status;
 				}
@@ -189,8 +190,9 @@ namespace daw {
 			  : m_data( daw::move( dptr ) ) {}
 
 			[[nodiscard]] decltype( auto ) pass_next( expected_result_t && value ) {
-				daw::exception::daw_throw_on_false(
-				  m_data->m_next, "Attempt to call next function on empty function" );
+				daw::exception::precondition_check(
+				  m_data->m_next_has_method.try_wait( ),
+				  "Attempt to call next function on empty function" );
 
 				return m_data->m_next( daw::move( value ) );
 			}
@@ -198,14 +200,15 @@ namespace daw {
 			[[nodiscard]] decltype( auto ) pass_next(
 			  expected_result_t const &value ) {
 				::daw::exception::precondition_check(
-				  m_data->m_next, "Attempt to call next function on empty function" );
+				  m_data->m_next_has_method.try_wait( ),
+				  "Attempt to call next function on empty function" );
 
 				return m_data->m_next( value );
 			}
 
 		public:
 			void set_value( expected_result_t && value ) {
-				if( static_cast<bool>( m_data->m_next ) ) {
+				if( m_data->m_next_has_method.try_wait( ) ) {
 					pass_next( daw::move( value ) );
 					return;
 				}
@@ -215,8 +218,7 @@ namespace daw {
 			}
 
 			void set_value( expected_result_t const &value ) {
-				if( auto const has_next = static_cast<bool>( m_data->m_next );
-				    has_next ) {
+				if( m_data->m_next_has_method.try_wait( ) ) {
 					pass_next( value );
 					return;
 				}
@@ -226,8 +228,7 @@ namespace daw {
 			}
 
 			void set_value( base_result_t && value ) {
-				auto const has_next = static_cast<bool>( m_data->m_next );
-				if( has_next ) {
+				if( m_data->m_next_has_method.try_wait( ) ) {
 					pass_next( expected_result_t( daw::move( value ) ) );
 					return;
 				}
@@ -237,8 +238,7 @@ namespace daw {
 			}
 
 			void set_value( base_result_t const &value ) {
-				auto const has_next = static_cast<bool>( m_data->m_next );
-				if( has_next ) {
+				if( m_data->m_next_has_method.try_wait( ) ) {
 					pass_next( expected_result_t{value} );
 					return;
 				}
@@ -248,8 +248,7 @@ namespace daw {
 			}
 
 			void set_exception( std::exception_ptr ptr ) {
-				auto const has_next = static_cast<bool>( m_data->m_next );
-				if( has_next ) {
+				if( m_data->m_next_has_method.try_wait( ) ) {
 					pass_next( expected_result_t{ptr} );
 					return;
 				}
@@ -300,8 +299,10 @@ namespace daw {
 			  std::enable_if_t<!std::is_function_v<std::remove_reference_t<Function>>,
 			                   std::nullptr_t> = nullptr>
 			[[nodiscard]] auto next( Function && func ) {
-				daw::exception::daw_throw_on_true( m_data->m_next,
-				                                   "Can only set next function once" );
+				assert( m_data );
+				assert( not m_data->m_next_has_method
+				              .try_wait( ) ); // can only set next function once
+
 				using next_result_t = std::invoke_result_t<Function, base_result_t>;
 
 				auto result =
@@ -326,6 +327,7 @@ namespace daw {
 						throw ::daw::unable_to_add_task_exception{};
 					}
 				};
+				m_data->m_next_has_method.notify( );
 				if( future_status::ready == m_data->status( ) ) {
 					pass_next( daw::move( m_data->m_result ) );
 					m_data->status( future_status::continued );
@@ -338,6 +340,10 @@ namespace daw {
 
 			template<typename... Functions>
 			[[nodiscard]] auto fork( Functions && ... funcs ) {
+				assert( m_data );
+				assert( not m_data->m_next_has_method
+				              .try_wait( ) ); // can only set next function once
+
 				using result_t =
 				  std::tuple<future_result_t<daw::remove_cvref_t<decltype(
 				    funcs( std::declval<expected_result_t>( ).get( ) ) )>>...>;
@@ -383,6 +389,10 @@ namespace daw {
 			template<typename Function, typename... Functions>
 			[[nodiscard]] auto fork_join( Function && joiner,
 			                              Functions && ... funcs ) {
+
+				assert( m_data );
+				assert( not m_data->m_next_has_method
+				              .try_wait( ) ); // can only set next function once
 				static_assert( (
 				  std::is_invocable_v<Functions,
 				                      decltype(
@@ -456,19 +466,21 @@ namespace daw {
 			  : m_data( daw::move( dptr ) ) {}
 
 			void pass_next( expected_result_t && value ) {
-				daw::exception::daw_throw_on_false(
-				  m_data->m_next, "Attempt to call next function on empty function" );
-				daw::exception::dbg_throw_on_true(
-				  value.has_exception( ), "Unexpected exception in expected_t" );
+				daw::exception::precondition_check(
+				  m_data->m_next_has_method.try_wait( ),
+				  "Attempt to call next function on empty function" );
+				daw::exception::precondition_check(
+				  not value.has_exception( ), "Unexpected exception in expected_t" );
 
 				m_data->m_next( daw::move( value ) );
 			}
 
 			void pass_next( expected_result_t const &value ) {
-				daw::exception::daw_throw_on_false(
-				  m_data->m_next, "Attempt to call next function on empty function" );
-				daw::exception::dbg_throw_on_true(
-				  value.has_exception( ), "Unexpected exception in expected_t" );
+				daw::exception::precondition_check(
+				  m_data->m_next_has_method.try_wait( ),
+				  "Attempt to call next function on empty function" );
+				daw::exception::precondition_check(
+				  not value.has_exception( ), "Unexpected exception in expected_t" );
 
 				m_data->m_next( value );
 			}
@@ -491,8 +503,9 @@ namespace daw {
 
 			template<typename Function>
 			[[nodiscard]] auto next( Function && func ) {
-				daw::exception::daw_throw_on_true( m_data->m_next,
-				                                   "Can only set next function once" );
+				daw::exception::precondition_check(
+				  not m_data->m_next_has_method.try_wait( ),
+				  "Can only set next function once" );
 				using next_result_t =
 				  daw::traits::invoke_result_t<std::remove_reference_t<Function>>;
 
@@ -529,6 +542,9 @@ namespace daw {
 
 			template<typename... Functions>
 			[[nodiscard]] auto fork( Functions && ... funcs ) {
+				daw::exception::precondition_check(
+				  not m_data->m_next_has_method.try_wait( ),
+				  "Can only set next function once" );
 				using result_t = std::tuple<
 				  future_result_t<daw::remove_cvref_t<decltype( funcs( ) )>>...>;
 
@@ -571,6 +587,9 @@ namespace daw {
 			[[nodiscard]] auto fork_join( Function && joiner,
 			                              Functions && ... funcs ) {
 				static_assert( ( std::is_invocable_v<Functions> and ... ) );
+				daw::exception::precondition_check(
+				  not m_data->m_next_has_method.try_wait( ),
+				  "Can only set next function once" );
 
 				auto const construct_future = [&]( auto &&f ) {
 					// Default constructs a future of the result type with the task

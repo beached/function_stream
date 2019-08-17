@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <exception>
 #include <memory>
 #include <thread>
 
@@ -32,20 +33,26 @@
 #include "impl/task_scheduler_impl.h"
 
 namespace daw {
-	struct unable_to_add_task_exception {};
+	struct unable_to_add_task_exception : std::exception {};
 
 	class task_scheduler {
-		std::shared_ptr<impl::task_scheduler_impl> m_impl;
+		impl::task_scheduler_impl m_impl =
+		  impl::task_scheduler_impl( std::thread::hardware_concurrency( ), true );
 
 	public:
-		explicit task_scheduler(
-		  std::size_t num_threads = std::thread::hardware_concurrency( ),
-		  bool block_on_destruction = true );
+		task_scheduler( ) = default;
+
+		inline task_scheduler( std::size_t num_threads )
+		  : m_impl( num_threads, true ) {}
+
+		inline task_scheduler( std::size_t num_threads, bool block_on_destruction )
+		  : m_impl( num_threads, block_on_destruction ) {}
+
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
 		[[nodiscard]] decltype( auto ) add_task( Task &&task ) noexcept {
-			return m_impl->add_task( std::forward<Task>( task ) );
+			return m_impl.add_task( std::forward<Task>( task ) );
 		}
 
 		template<
@@ -55,14 +62,15 @@ namespace daw {
 		                   std::nullptr_t> = nullptr>
 		[[nodiscard]] decltype( auto ) add_task( Task &&task,
 		                                         SharedLatch &&sem ) noexcept {
-			return m_impl->add_task( std::forward<Task>( task ),
-			                         std::forward<SharedLatch>( sem ) );
+			return m_impl.add_task( std::forward<Task>( task ),
+			                        std::forward<SharedLatch>( sem ) );
 		}
+
 		template<typename SharedLatch,
 		         std::enable_if_t<daw::is_shared_latch_v<SharedLatch>,
 		                          std::nullptr_t> = nullptr>
 		[[nodiscard]] decltype( auto ) add_task( SharedLatch &&sem ) noexcept {
-			return m_impl->add_task( [] {}, std::forward<SharedLatch>( sem ) );
+			return m_impl.add_task( [] {}, std::forward<SharedLatch>( sem ) );
 		}
 
 		void start( );
@@ -77,9 +85,10 @@ namespace daw {
 			               "without an arugment. e.g. func( )" );
 
 			auto const at_exit = daw::on_scope_exit(
-			  [sem = ::daw::mutable_capture(
-			     m_impl->start_temp_task_runners( ) )]( ) { sem->notify( ); } );
-			return func( );
+			  [sem = ::daw::mutable_capture( m_impl.start_temp_task_runners( ) )]( ) {
+				  sem->notify( );
+			  } );
+			return std::invoke( std::forward<Function>( func ) );
 		}
 
 		template<typename Waitable>
@@ -92,18 +101,9 @@ namespace daw {
 		}
 
 		[[nodiscard]] explicit operator bool( ) const noexcept {
-			return static_cast<bool>( m_impl ) && m_impl->started( );
+			return m_impl.started( );
 		}
 	}; // task_scheduler
-
-	template<typename>
-	struct is_task_scheduler : public std::false_type {};
-
-	template<>
-	struct is_task_scheduler<task_scheduler> : public std::true_type {};
-
-	template<typename T>
-	inline constexpr bool is_task_scheduler_v = is_task_scheduler<T>::value;
 
 	task_scheduler get_task_scheduler( );
 
@@ -124,7 +124,6 @@ namespace daw {
 		return ts.add_task( [task =
 		                       daw::mutable_capture( std::forward<Task>( task ) ),
 		                     sem = daw::mutable_capture( std::move( sem ) )]( ) {
-
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
 
 			daw::invoke( daw::move( *task ) );
