@@ -97,49 +97,15 @@ namespace daw {
 			template<typename RandomIterator, typename Compare = std::less<>>
 			void sort( RandomIterator first, RandomIterator last,
 			           task_scheduler ts = get_task_scheduler( ),
-			           Compare comp = Compare{} ) {
+			           Compare &&comp = Compare{} ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
-				daw::concept_checks::is_binary_predicate_test<Compare, RandomIterator,
-				                                              RandomIterator>( );
-
+				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
+				                                         RandomIterator>( );
 				impl::parallel_sort(
 				  daw::view( first, last ),
 				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
 					  std::sort( f, l, cmp );
-				  },
-				  daw::move( comp ), daw::move( ts ) );
-			}
-
-			template<typename RandomIterator, typename Compare = std::less<>>
-			void fork_join_sort( RandomIterator first, RandomIterator last,
-			                     task_scheduler ts = get_task_scheduler( ),
-			                     Compare &&comp = Compare{} ) {
-
-				traits::is_random_access_iterator_test<RandomIterator>( );
-				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
-				                                         RandomIterator>( );
-				impl::fork_join_sort(
-				  daw::view( first, last ),
-				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
-					  std::sort( f, l, cmp );
-				  },
-				  std::forward<Compare>( comp ), daw::move( ts ) );
-			}
-
-			template<typename RandomIterator, typename Compare = std::less<>>
-			void stable_fork_join_sort( RandomIterator first, RandomIterator last,
-			                            task_scheduler ts = get_task_scheduler( ),
-			                            Compare &&comp = Compare{} ) {
-
-				traits::is_random_access_iterator_test<RandomIterator>( );
-				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
-				                                         RandomIterator>( );
-
-				impl::fork_join_sort(
-				  daw::view( first, last ),
-				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
-					  std::stable_sort( f, l, cmp );
 				  },
 				  std::forward<Compare>( comp ), daw::move( ts ) );
 			}
@@ -147,7 +113,7 @@ namespace daw {
 			template<typename RandomIterator, typename Compare = std::less<>>
 			void stable_sort( RandomIterator first, RandomIterator last,
 			                  task_scheduler ts = get_task_scheduler( ),
-			                  Compare comp = Compare{} ) {
+			                  Compare &&comp = Compare{} ) {
 
 				traits::is_random_access_iterator_test<RandomIterator>( );
 				concept_checks::is_binary_predicate_test<Compare, RandomIterator,
@@ -158,7 +124,7 @@ namespace daw {
 				  []( RandomIterator f, RandomIterator l, Compare cmp ) {
 					  std::stable_sort( f, l, cmp );
 				  },
-				  daw::move( comp ), daw::move( ts ) );
+				  std::forward<Compare>( comp ), daw::move( ts ) );
 			}
 
 			template<typename T, typename RandomIterator, typename BinaryOperation>

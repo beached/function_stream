@@ -59,7 +59,7 @@ sort: size->1000000 7.6MB %max->57.8(2.3/4X) par_total->29ms par_item->29ns thro
 sort: size->100000 781.2KB %max->42.7(1.7/4X) par_total->3ms par_item->33ns throughput->231.1MB/s seq_total->5ms seq_item->56ns throughput->135.3MB/s 
 sort: size->10000 78.1KB %max->35.2(1.4/4X) par_total->336µs par_item->33ns throughput->226.5MB/s seq_total->473µs seq_item->47ns throughput->161.0MB/s 
 sort: size->1000 7.8KB %max->15.1(0.6/4X) par_total->58µs par_item->58ns throughput->130.8MB/s seq_total->35µs seq_item->35ns throughput->217.1MB/s 
-sort: size->100 800.0bytes %max->24.9(1.0/4X) par_total->1µs par_item->15ns throughput->481.3MB/s seq_total->1µs seq_item->15ns throughput->483.2MB/s 
+sort_merge: size->100 800.0bytes %max->24.9(1.0/4X) par_total->1µs par_item->15ns throughput->481.3MB/s seq_total->1µs seq_item->15ns throughput->483.2MB/s
 stable_sort tests
 int64_t
 stable_sort: size->100000000 762.9MB %max->68.4(2.7/4X) par_total->3s par_item->39ns throughput->194.7MB/s seq_total->10s seq_item->107ns throughput->71.1MB/s 
@@ -68,7 +68,7 @@ stable_sort: size->1000000 7.6MB %max->62.4(2.5/4X) par_total->32ms par_item->32
 stable_sort: size->100000 781.2KB %max->47.1(1.9/4X) par_total->3ms par_item->35ns throughput->216.8MB/s seq_total->6ms seq_item->66ns throughput->115.2MB/s 
 stable_sort: size->10000 78.1KB %max->34.5(1.4/4X) par_total->384µs par_item->38ns throughput->198.2MB/s seq_total->530µs seq_item->53ns throughput->143.8MB/s 
 stable_sort: size->1000 7.8KB %max->15.2(0.6/4X) par_total->64µs par_item->64ns throughput->118.9MB/s seq_total->38µs seq_item->38ns throughput->195.8MB/s 
-stable_sort: size->100 800.0bytes %max->23.0(0.9/4X) par_total->2µs par_item->20ns throughput->370.2MB/s seq_total->1µs seq_item->18ns throughput->401.8MB/s 
+stable_sort_merge: size->100 800.0bytes %max->23.0(0.9/4X) par_total->2µs par_item->20ns throughput->370.2MB/s seq_total->1µs seq_item->18ns throughput->401.8MB/s
 reduce tests
 int64_t
 reduce: size->200000000 1.5GB %max->35.4(1.4/4X) par_total->53ms par_item->269ps throughput->27.6GB/s seq_total->76ms seq_item->382ps throughput->19.5GB/s 

@@ -58,7 +58,7 @@ sort: size->1000000 %cpus->41.03 par_total->25ms par_item->25ns throughput->297M
 sort: size->100000 %cpus->26.2297 par_total->3ms par_item->33ns throughput->230MB/s seq_total->6ms seq_item->69ns throughput->109MB/s
 sort: size->10000 %cpus->17.9621 par_total->387µs par_item->38ns throughput->197MB/s seq_total->556µs seq_item->55ns throughput->137MB/s
 sort: size->1000 %cpus->8.3525 par_total->86µs par_item->86ns throughput->88MB/s seq_total->57µs seq_item->57ns throughput->132MB/s
-sort: size->100 %cpus->12.1944 par_total->3µs par_item->36ns throughput->207MB/s seq_total->3µs seq_item->35ns throughput->212MB/s
+sort_merge: size->100 %cpus->12.1944 par_total->3µs par_item->36ns throughput->207MB/s seq_total->3µs seq_item->35ns throughput->212MB/s
 stable_sort tests
 int64_t
 stable_sort: size->100000000 %cpus->26.1406 par_total->7s par_item->75ns throughput->101MB/s seq_total->15s seq_item->157ns throughput->48MB/s
@@ -67,7 +67,7 @@ stable_sort: size->1000000 %cpus->41.5162 par_total->32ms par_item->32ns through
 stable_sort: size->100000 %cpus->24.0583 par_total->3ms par_item->31ns throughput->241MB/s seq_total->6ms seq_item->60ns throughput->125MB/s
 stable_sort: size->10000 %cpus->14.199 par_total->422µs par_item->42ns throughput->180MB/s seq_total->480µs seq_item->48ns throughput->158MB/s
 stable_sort: size->1000 %cpus->6.09566 par_total->81µs par_item->81ns throughput->93MB/s seq_total->39µs seq_item->39ns throughput->192MB/s
-stable_sort: size->100 %cpus->12.1704 par_total->2µs par_item->29ns throughput->254MB/s seq_total->2µs seq_item->29ns throughput->261MB/s
+stable_sort_merge: size->100 %cpus->12.1704 par_total->2µs par_item->29ns throughput->254MB/s seq_total->2µs seq_item->29ns throughput->261MB/s
 reduce tests
 int64_t
 reduce: size->200000000 %cpus->27.6572 par_total->253ms par_item->1ns throughput->5GB/s seq_total->560ms seq_item->2ns throughput->2GB/s

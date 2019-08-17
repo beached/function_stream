@@ -41,7 +41,7 @@ namespace daw {
 			namespace impl {
 				template<size_t MinRangeSize, typename Iterator>
 				[[nodiscard]] auto get_part_info( daw::view<Iterator> rng,
-				                    size_t max_parts ) noexcept {
+				                                  size_t max_parts ) noexcept {
 
 					static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
 
@@ -74,9 +74,8 @@ namespace daw {
 					static constexpr size_t min_range_size = MinRangeSize;
 
 					template<typename Iterator>
-					[[nodiscard]] std::vector<daw::view<Iterator>>
-					operator( )( Iterator first, Iterator last,
-					             size_t const max_parts ) const {
+					[[nodiscard]] std::vector<daw::view<Iterator>> operator( )(
+					  Iterator first, Iterator last, size_t const max_parts ) const {
 
 						daw::view rng( first, last );
 
@@ -91,8 +90,8 @@ namespace daw {
 						return results;
 					}
 					template<typename Iterator>
-					[[nodiscard]] std::vector<daw::view<Iterator>>
-					operator( )( daw::view<Iterator> rng, size_t const max_parts ) const {
+					[[nodiscard]] std::vector<daw::view<Iterator>> operator( )(
+					  daw::view<Iterator> rng, size_t const max_parts ) const {
 						return operator( )( rng.begin( ), rng.end( ), max_parts );
 					}
 				};
@@ -122,11 +121,12 @@ namespace daw {
 				                     size_t const start_pos = 0 ) {
 					auto sem = daw::shared_latch( ranges.size( ) - start_pos );
 					for( size_t n = start_pos; n < ranges.size( ); ++n ) {
-						if( not schedule_task( sem,
-						                       [func = daw::mutable_capture( func ),
-						                        rng = ranges[n],
-						                        n]( ) { daw::invoke( *func, rng, n ); },
-						                       ts ) ) {
+						if( not schedule_task(
+						      sem,
+						      [func = daw::mutable_capture( func ), rng = ranges[n], n]( ) {
+							      daw::invoke( *func, rng, n );
+						      },
+						      ts ) ) {
 
 							throw ::daw::unable_to_add_task_exception{};
 						}
@@ -136,8 +136,9 @@ namespace daw {
 
 				template<typename PartitionPolicy, typename RandomIterator,
 				         typename Func>
-				[[nodiscard]] daw::shared_latch partition_range( daw::view<RandomIterator> range,
-				                                   Func &&func, task_scheduler ts ) {
+				[[nodiscard]] daw::shared_latch
+				partition_range( daw::view<RandomIterator> range, Func &&func,
+				                 task_scheduler ts ) {
 					if( range.empty( ) ) {
 						return {};
 					}
@@ -179,13 +180,14 @@ namespace daw {
 
 				template<typename Ranges, typename Func>
 				void parallel_for_each( Ranges &ranges, Func func, task_scheduler ts ) {
-					partition_range( ranges,
-					                 [func]( auto f, auto l ) mutable {
-						                 for( auto it = f; it != l; ++it ) {
-							                 daw::invoke( func, *it );
-						                 }
-					                 },
-					                 ts )
+					partition_range(
+					  ranges,
+					  [func]( auto f, auto l ) mutable {
+						  for( auto it = f; it != l; ++it ) {
+							  daw::invoke( func, *it );
+						  }
+					  },
+					  ts )
 					  .wait( );
 				}
 
@@ -196,17 +198,18 @@ namespace daw {
 					auto const ranges = PartitionPolicy{}( first, last, ts.size( ) );
 					auto sem = daw::shared_latch( ranges.size( ) );
 					Unused( sem );
-					partition_range( ranges,
-					                 [func, first]( auto rng ) {
-						                 auto const start_pos = static_cast<size_t>(
-						                   std::distance( first, rng.begin( ) ) );
-						                 auto const end_pos = static_cast<size_t>(
-						                   std::distance( first, rng.end( ) ) );
-						                 for( size_t n = start_pos; n < end_pos; ++n ) {
-							                 daw::invoke( func, n );
-						                 }
-					                 },
-					                 ts )
+					partition_range(
+					  ranges,
+					  [func, first]( auto rng ) {
+						  auto const start_pos =
+						    static_cast<size_t>( std::distance( first, rng.begin( ) ) );
+						  auto const end_pos =
+						    static_cast<size_t>( std::distance( first, rng.end( ) ) );
+						  for( size_t n = start_pos; n < end_pos; ++n ) {
+							  daw::invoke( func, n );
+						  }
+					  },
+					  ts )
 					  .wait( );
 				}
 
@@ -246,35 +249,6 @@ namespace daw {
 				         typename Sort, typename Compare>
 				void parallel_sort( daw::view<Iterator> range, Sort &&srt,
 				                    Compare &&cmp, task_scheduler ts ) {
-					if( PartitionPolicy::min_range_size >
-					    static_cast<size_t>( range.size( ) ) ) {
-						daw::invoke( std::forward<Sort>( srt ), range.begin( ),
-						             range.end( ), std::forward<Compare>( cmp ) );
-						return;
-					}
-					auto const ranges = PartitionPolicy{}( range, ts.size( ) * 4U );
-					auto sem = partition_range(
-					  ranges,
-					  [srt = mutable_capture( std::forward<Sort>( srt ) ),
-					   cmp = mutable_capture( cmp )]( auto const &rng ) {
-						  daw::invoke( *srt, rng.begin( ), rng.end( ), *cmp );
-					  },
-					  ts );
-					sem.wait( );
-
-					merge_reduce_range(
-					  ranges,
-					  [cmp = mutable_capture( std::forward<Compare>( cmp ) )](
-					    Iterator f, Iterator m, Iterator l ) {
-						  std::inplace_merge( f, m, l, *cmp );
-					  },
-					  ts );
-				}
-
-				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
-				         typename Sort, typename Compare>
-				void fork_join_sort( daw::view<Iterator> range, Sort &&srt,
-				                     Compare &&cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size > range.size( ) ) {
 						daw::invoke( srt, range.begin( ), range.end( ), cmp );
 						return;
@@ -291,16 +265,16 @@ namespace daw {
 						return r;
 					};
 
-					std::transform( ranges.begin( ), ranges.end( ),
-					                std::back_inserter( sorters ),
-					                [ts = daw::mutable_capture( ts ),
-					                 sort_fn]( daw::view<Iterator> rng ) {
-						                return make_future_result( *ts, sort_fn, rng );
-					                } );
+					daw::algorithm::transform(
+					  ranges.begin( ), ranges.end( ), std::back_inserter( sorters ),
+					  [ts = daw::mutable_capture( ts ),
+					   sort_fn]( daw::view<Iterator> rng ) {
+						  return make_future_result( *ts, sort_fn, rng );
+					  } );
 
 					auto merger = [cmp]( daw::view<Iterator> rng_left,
 					                     daw::view<Iterator> rng_right ) {
-						daw::exception::precondition_check(
+						daw::exception::dbg_precondition_check(
 						  rng_left.end( ) == rng_right.begin( ),
 						  "Ranges must be next to each other" );
 
@@ -316,7 +290,8 @@ namespace daw {
 				template<typename PartitionPolicy = split_range_t<>, typename T,
 				         typename Iterator, typename BinaryOp>
 				[[nodiscard]] auto parallel_reduce( daw::view<Iterator> range, T init,
-				                      BinaryOp binary_op, task_scheduler ts ) {
+				                                    BinaryOp binary_op,
+				                                    task_scheduler ts ) {
 					using result_t =
 					  daw::remove_cvref_t<decltype( binary_op( init, range.front( ) ) )>;
 					{
@@ -347,7 +322,8 @@ namespace daw {
 				}
 
 				template<typename Type1, typename Type2, typename Compare>
-				[[nodiscard]] Type1 compare_value( Type1 const &lhs, Type2 const &rhs, Compare cmp ) {
+				[[nodiscard]] Type1 compare_value( Type1 const &lhs, Type2 const &rhs,
+				                                   Compare cmp ) {
 					if( cmp( lhs, rhs ) ) {
 						return lhs;
 					}
@@ -356,8 +332,9 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename Compare>
-				[[nodiscard]] Iterator parallel_min_element( daw::view<Iterator> range, Compare cmp,
-				                               task_scheduler ts ) {
+				[[nodiscard]] Iterator parallel_min_element( daw::view<Iterator> range,
+				                                             Compare cmp,
+				                                             task_scheduler ts ) {
 					if( range.empty( ) ) {
 						return range.end( );
 					}
@@ -382,8 +359,9 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename Compare>
-				[[nodiscard]] Iterator parallel_max_element( daw::view<Iterator> range, Compare cmp,
-				                               task_scheduler ts ) {
+				[[nodiscard]] Iterator parallel_max_element( daw::view<Iterator> range,
+				                                             Compare cmp,
+				                                             task_scheduler ts ) {
 					if( range.empty( ) ) {
 						return range.end( );
 					}
@@ -452,10 +430,11 @@ namespace daw {
 
 				template<typename PartitionPolicy = split_range_t<2>, typename Iterator,
 				         typename T, typename MapFunction, typename ReduceFunction>
-				[[nodiscard]] auto parallel_map_reduce( daw::view<Iterator> range, T const &init,
-				                          MapFunction map_function,
-				                          ReduceFunction reduce_function,
-				                          task_scheduler ts ) {
+				[[nodiscard]] auto parallel_map_reduce( daw::view<Iterator> range,
+				                                        T const &init,
+				                                        MapFunction map_function,
+				                                        ReduceFunction reduce_function,
+				                                        task_scheduler ts ) {
 					static_assert( PartitionPolicy::min_range_size >= 2,
 					               "Minimum range size must be >= 2" );
 					daw::exception::precondition_check( range.size( ) >= 2 );
@@ -569,7 +548,8 @@ namespace daw {
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename UnaryPredicate>
 				[[nodiscard]] Iterator parallel_find_if( daw::view<Iterator> range_in,
-				                           UnaryPredicate &&pred, task_scheduler ts ) {
+				                                         UnaryPredicate &&pred,
+				                                         task_scheduler ts ) {
 
 					auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
 					auto results = std::vector<std::optional<Iterator>>(
@@ -617,8 +597,9 @@ namespace daw {
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator1,
 				         typename Iterator2, typename BinaryPredicate>
 				[[nodiscard]] bool parallel_equal( Iterator1 first1, Iterator1 last1,
-				                     Iterator2 first2, Iterator2 last2,
-				                     BinaryPredicate pred, task_scheduler ts ) {
+				                                   Iterator2 first2, Iterator2 last2,
+				                                   BinaryPredicate pred,
+				                                   task_scheduler ts ) {
 					if( std::distance( first1, last1 ) !=
 					    std::distance( first2, last2 ) ) {
 						return false;
@@ -662,7 +643,8 @@ namespace daw {
 				template<typename PartitionPolicy = split_range_t<2>,
 				         typename RandomIterator, typename UnaryPredicate>
 				[[nodiscard]] auto parallel_count( daw::view<RandomIterator> range_in,
-				                     UnaryPredicate pred, task_scheduler ts ) {
+				                                   UnaryPredicate pred,
+				                                   task_scheduler ts ) {
 					static_assert( PartitionPolicy::min_range_size >= 2,
 					               "Minimum range size must be >= 2" );
 					daw::exception::daw_throw_on_false(

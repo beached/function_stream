@@ -28,14 +28,14 @@ void fill( Iterator first, Iterator last, T const &value, task_scheduler ts );
 Sorts the elements in the range [first, last) in ascending order. The order of equal elements is not guaranteed to be preserved.  Elements are compared using the given binary comparison function compare.
 ``` C++
 template<typename Iterator, typename LessCompare> 
-void sort( Iterator first, Iterator last, LessCompare compare, task_scheduler ts );
+void sort_merge( Iterator first, Iterator last, LessCompare compare, task_scheduler ts );
 ```
 
 ### stable_sort
 Sorts the elements in the range [first, last) in ascending order. The order of equal elements is guaranteed to be preserved.  Elements are compared using the given comparison function compare.
 ``` C++
 template<typename Iterator, typename LessCompare> 
-void stable_sort( Iterator first, Iterator last, task_scheduler ts, LessCompare compare = LessCompare{} );
+void stable_sort_merge( Iterator first, Iterator last, task_scheduler ts, LessCompare compare = LessCompare{} );
 ```
 ### min/max element
 Finds the smallest(min) or largest(max) element in the range [first, last).  Elements are compared using the given binary comparison function compare.

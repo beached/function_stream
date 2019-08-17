@@ -39,8 +39,6 @@
 
 #include "common.h"
 
-#define USE_SORT_FJ
-
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last,
                 daw::string_view label ) {
@@ -79,18 +77,12 @@ void sort_test( size_t SZ ) {
 	auto a = daw::make_random_data<int64_t>( SZ );
 
 	auto b = a;
-	auto const par_test = [&]( ) {
-		daw::algorithm::parallel::sort( a.begin( ), a.end( ), ts );
-		daw::do_not_optimize( a );
-	};
 
-#ifdef USE_SORT_FJ
-	auto const fj_test = [&]( ) {
-		daw::algorithm::parallel::fork_join_sort(
+	auto const par_test = [&]( ) {
+		daw::algorithm::parallel::sort(
 		  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
 		daw::do_not_optimize( a );
 	};
-#endif
 
 #ifdef HAS_PAR_STL
 	auto const par_stl_test = [&]( ) {
@@ -109,12 +101,6 @@ void sort_test( size_t SZ ) {
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
 
-#ifdef USE_SORT_FJ
-	auto const fj_result_1 = daw::benchmark( fj_test );
-	test_sort( a.begin( ), a.end( ), "p_result_1" );
-	a = b;
-#endif
-
 	auto const ser_result_1 = daw::benchmark( ser_test );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
@@ -122,29 +108,20 @@ void sort_test( size_t SZ ) {
 	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
 
-#ifdef USE_SORT_FJ
-	auto const fj_result_2 = daw::benchmark( fj_test );
-	test_sort( a.begin( ), a.end( ), "p_result_1" );
-	a = b;
-#endif
-
 	auto const ser_result_2 = daw::benchmark( ser_test );
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 
 	auto const par_min = std::min( par_result_1, par_result_2 );
 	auto const seq_min = std::min( ser_result_1, ser_result_2 );
-#ifdef USE_SORT_FJ
-	auto const fj_min = std::min( fj_result_1, fj_result_2 );
-#endif
 
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
-#ifdef USE_SORT_FJ
-	display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "sort_fj" );
-#endif
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort_merge" );
 }
 
 int main( ) {
-	std::cout << "sort tests - int64_t\n";
+#ifdef DEBUG
+	std::cout << "Debug build\n";
+#endif
+	std::cout << "sort_merge tests - int64_t\n";
 	for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
 		sort_test( n );
 		std::cout << '\n';

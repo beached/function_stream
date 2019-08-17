@@ -82,13 +82,13 @@ void stable_sort_test( size_t SZ ) {
 
 	auto b = a;
 	auto const par_test = [&]( ) {
-		daw::algorithm::parallel::stable_sort( a.begin( ), a.end( ), ts );
+		daw::algorithm::parallel::stable_sort_merge( a.begin( ), a.end( ), ts );
 		daw::do_not_optimize( a );
 	};
 
 #ifdef USE_SORT_FJ
 	auto const fj_test = [&]( ) {
-		daw::algorithm::parallel::stable_fork_join_sort(
+		daw::algorithm::parallel::stable_sort(
 		  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
 		daw::do_not_optimize( a );
 	};
@@ -131,14 +131,14 @@ void stable_sort_test( size_t SZ ) {
 	auto const fj_min = std::min( fj_result_1, fj_result_2 );
 #endif
 
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort" );
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort_merge" );
 #ifdef USE_SORT_FJ
 	display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "stable_sort_fj" );
 #endif
 }
 
 void stable_sort_int64_t( ) {
-	std::cout << "stable_sort tests - int64_t\n";
+	std::cout << "stable_sort_merge tests - int64_t\n";
 	stable_sort_test( LARGE_TEST_SZ );
 	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
 		stable_sort_test( n );
