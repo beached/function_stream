@@ -70,7 +70,7 @@ namespace daw {
 	}    // namespace impl
 
 	template<typename Result, typename Functions, typename... Args>
-	struct package_t {
+	struct [[nodiscard]] package_t {
 		using functions_t = daw::remove_cvref_t<Functions>;
 		using arguments_t = std::tuple<daw::remove_cvref_t<Args>...>;
 		using result_t = Result;

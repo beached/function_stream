@@ -82,7 +82,7 @@ namespace daw {
 				      call_task<pos>( daw::move( *package ), which_t{} );
 			      } ) ) {
 
-				throw ::daw::unable_to_add_task_exception{};
+				throw ::daw::unable_to_add_task_exception( );
 			}
 		}
 
