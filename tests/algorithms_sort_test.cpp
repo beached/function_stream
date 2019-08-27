@@ -115,7 +115,7 @@ void sort_test( size_t SZ, unsigned ThreadCount ) {
 	auto const par_min = std::min( par_result_1, par_result_2 );
 	auto const seq_min = std::min( ser_result_1, ser_result_2 );
 
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort_merge" );
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
 }
 
 int main( int argc, char const **argv ) {
@@ -124,7 +124,7 @@ int main( int argc, char const **argv ) {
 #endif
 	if( argc > 1 and std::string( argv[1] ) == "full" ) {
 		for( unsigned t = 2; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
-			std::cout << "sort_merge tests - int64_t - " << t << " threads\n";
+			std::cout << "sort tests - int64_t - " << t << " threads\n";
 			for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
 				sort_test( n, t );
 				std::cout << '\n';
@@ -134,7 +134,7 @@ int main( int argc, char const **argv ) {
 		return 0;
 	}
 	auto const t = std::thread::hardware_concurrency( );
-	std::cout << "sort_merge tests - int64_t - " << t << " threads\n";
+	std::cout << "sort tests - int64_t - " << t << " threads\n";
 	for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
 		sort_test( n, t );
 		std::cout << '\n';

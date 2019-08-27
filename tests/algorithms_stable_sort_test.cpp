@@ -23,25 +23,20 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
-#include <cstdlib>
-#include <date/date.h>
 #include <iostream>
-#include <numeric>
-#include <string>
-#include <thread>
-#include <vector>
+
+#ifdef _WIN32
+#define HAS_PAR_STL
+#include <execution>
+#endif
 
 #include <daw/daw_benchmark.h>
-#include <daw/daw_math.h>
 #include <daw/daw_random.h>
 #include <daw/daw_string_view.h>
-#include <daw/daw_utility.h>
 
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
-
-#define USE_SORT_FJ
 
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last,
@@ -76,38 +71,36 @@ void test_sort( Iterator const first, Iterator const last,
 	}
 }
 
-void stable_sort_test( size_t SZ ) {
-	auto ts = daw::get_task_scheduler( );
+void sort_test( size_t SZ, unsigned ThreadCount ) {
+	auto ts = daw::task_scheduler( ThreadCount, true );
+	ts.start( );
+	// daw::get_task_scheduler( );
 	auto a = daw::make_random_data<int64_t>( SZ );
 
 	auto b = a;
+
 	auto const par_test = [&]( ) {
-		daw::algorithm::parallel::stable_sort_merge( a.begin( ), a.end( ), ts );
+		daw::algorithm::parallel::stable_sort(
+		  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
 		daw::do_not_optimize( a );
 	};
 
-#ifdef USE_SORT_FJ
-	auto const fj_test = [&]( ) {
-		daw::algorithm::parallel::stable_sort(
-		  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
+#ifdef HAS_PAR_STL
+	auto const par_stl_test = [&]( ) {
+		std::sort( std::execution::par, a.data( ),
+		           a.data( ) + static_cast<ptrdiff_t>( a.size( ) ) );
 		daw::do_not_optimize( a );
 	};
 #endif
 
 	auto const ser_test = [&]( ) {
-		std::stable_sort( a.begin( ), a.end( ) );
+		std::sort( a.begin( ), a.end( ) );
 		daw::do_not_optimize( a );
 	};
 
 	auto const par_result_1 = daw::benchmark( par_test );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
-
-#ifdef USE_SORT_FJ
-	auto const fj_result_1 = daw::benchmark( fj_test );
-	test_sort( a.begin( ), a.end( ), "p_result_1" );
-	a = b;
-#endif
 
 	auto const ser_result_1 = daw::benchmark( ser_test );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
@@ -116,37 +109,35 @@ void stable_sort_test( size_t SZ ) {
 	test_sort( a.begin( ), a.end( ), "p_result2" );
 	a = b;
 
-#ifdef USE_SORT_FJ
-	auto const fj_result_2 = daw::benchmark( fj_test );
-	test_sort( a.begin( ), a.end( ), "p_result_1" );
-	a = b;
-#endif
-
 	auto const ser_result_2 = daw::benchmark( ser_test );
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 
 	auto const par_min = std::min( par_result_1, par_result_2 );
 	auto const seq_min = std::min( ser_result_1, ser_result_2 );
-#ifdef USE_SORT_FJ
-	auto const fj_min = std::min( fj_result_1, fj_result_2 );
-#endif
 
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort_merge" );
-#ifdef USE_SORT_FJ
-	display_info( seq_min, fj_min, SZ, sizeof( int64_t ), "stable_sort_fj" );
-#endif
+	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort" );
 }
 
-void stable_sort_int64_t( ) {
-	std::cout << "stable_sort_merge tests - int64_t\n";
-	stable_sort_test( LARGE_TEST_SZ );
-	for( size_t n = MAX_ITEMS; n >= 10; n /= 10 ) {
-		stable_sort_test( n );
+int main( int argc, char const **argv ) {
+#ifdef DEBUG
+	std::cout << "Debug build\n";
+#endif
+	if( argc > 1 and std::string( argv[1] ) == "full" ) {
+		for( unsigned t = 2; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
+			std::cout << "stable_sort tests - int64_t - " << t << " threads\n";
+			for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
+				sort_test( n, t );
+				std::cout << '\n';
+			}
+			sort_test( LARGE_TEST_SZ, t );
+		}
+		return 0;
+	}
+	auto const t = std::thread::hardware_concurrency( );
+	std::cout << "stable_sort tests - int64_t - " << t << " threads\n";
+	for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
+		sort_test( n, t );
 		std::cout << '\n';
 	}
+	sort_test( LARGE_TEST_SZ, t );
 }
-
-int main( ) {
-	stable_sort_int64_t( );
-}
-

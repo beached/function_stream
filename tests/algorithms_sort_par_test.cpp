@@ -85,10 +85,12 @@ void sort_test( size_t SZ ) {
 
 	auto const par_result_1 = daw::benchmark( par_test );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
+	daw::do_not_optimize( par_result_1 );
 	a = b;
 
 	auto const par_result_2 = daw::benchmark( par_test );
 	test_sort( a.begin( ), a.end( ), "p_result2" );
+	daw::do_not_optimize( par_result_2 );
 }
 
 int main( ) {
