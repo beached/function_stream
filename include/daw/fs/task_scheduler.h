@@ -53,7 +53,7 @@ namespace daw {
 	struct unable_to_add_task_exception : std::exception {
 		unable_to_add_task_exception( ) = default;
 
-		char const * what( ) const noexcept override;
+		char const *what( ) const noexcept override;
 	};
 
 	class task_scheduler {
@@ -71,6 +71,7 @@ namespace daw {
 			daw::lockable_value_t<std::list<std::optional<std::thread>>>
 			  m_other_threads{};
 			std::atomic_bool m_continue = false;
+			std::atomic<size_t> m_current_id{0};
 
 			friend task_scheduler;
 
@@ -188,8 +189,10 @@ namespace daw {
 		[[nodiscard]] size_t get_task_id( );
 
 	public:
-		task_scheduler( ) = default;
+		task_scheduler( );
+		task_scheduler( std::size_t num_threads );
 		task_scheduler( std::size_t num_threads, bool block_on_destruction );
+		task_scheduler( std::size_t num_threads, bool block_on_destruction, bool auto_start );
 
 		task_scheduler( task_scheduler && ) = default;
 		task_scheduler &operator=( task_scheduler && ) = default;

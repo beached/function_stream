@@ -53,7 +53,9 @@ namespace daw {
 			std::atomic<future_status> m_status = future_status::deferred;
 			task_scheduler m_task_scheduler;
 			daw::shared_latch m_next_has_method = daw::shared_latch( 1 );
-			next_function_t m_next = nullptr;
+			::daw::lockable_value_t<next_function_t> m_next =
+			  ::daw::lockable_value_t<next_function_t>( next_function_t( nullptr ) );
+
 			expected_result_t m_result = expected_result_t( );
 
 			explicit member_data_members( task_scheduler ts )
@@ -194,7 +196,7 @@ namespace daw {
 				  m_data->m_next_has_method.try_wait( ),
 				  "Attempt to call next function on empty function" );
 
-				return m_data->m_next( daw::move( value ) );
+				return ( *m_data->m_next.get( ) )( daw::move( value ) );
 			}
 
 			[[nodiscard]] decltype( auto ) pass_next(
@@ -203,7 +205,7 @@ namespace daw {
 				  m_data->m_next_has_method.try_wait( ),
 				  "Attempt to call next function on empty function" );
 
-				return m_data->m_next( value );
+				return ( *m_data->m_next.get( ) )( value );
 			}
 
 		public:
@@ -308,7 +310,7 @@ namespace daw {
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );
 
-				m_data->m_next =
+				( *m_data->m_next.get( ) ) =
 				  [result = daw::mutable_capture( result ),
 				   func = daw::mutable_capture( std::forward<Function>( func ) ),
 				   ts = daw::mutable_capture( m_data->m_task_scheduler ),
@@ -356,12 +358,13 @@ namespace daw {
 					return fut_t( m_data->m_task_scheduler );
 				};
 				auto result = result_t( construct_future( funcs )... );
-				m_data->m_next = [result = mutable_capture( result ),
-				                  tpfuncs = daw::mutable_capture(
-				                    std::tuple<daw::remove_cvref_t<Functions>...>(
-				                      std::forward<Functions>( funcs )... ) ),
-				                  ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				                  self = *this]( auto &&value )
+				( *m_data->m_next.get( ) ) =
+				  [result = mutable_capture( result ),
+				   tpfuncs = daw::mutable_capture(
+				     std::tuple<daw::remove_cvref_t<Functions>...>(
+				       std::forward<Functions>( funcs )... ) ),
+				   ts = daw::mutable_capture( m_data->m_task_scheduler ),
+				   self = *this]( auto &&value )
 				  -> std::enable_if_t<daw::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
 					if( value.has_value( ) ) {
@@ -476,7 +479,7 @@ namespace daw {
 				daw::exception::precondition_check(
 				  not value.has_exception( ), "Unexpected exception in expected_t" );
 
-				m_data->m_next( daw::move( value ) );
+				( *m_data->m_next.get( ) )( daw::move( value ) );
 			}
 
 			void pass_next( expected_result_t const &value ) {
@@ -486,7 +489,7 @@ namespace daw {
 				daw::exception::precondition_check(
 				  not value.has_exception( ), "Unexpected exception in expected_t" );
 
-				m_data->m_next( value );
+				( *m_data->m_next.get( ) )( value );
 			}
 
 		public:
@@ -516,7 +519,7 @@ namespace daw {
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );
 
-				m_data->m_next =
+				( *m_data->m_next.get( ) ) =
 				  [result = daw::mutable_capture( result ),
 				   func = daw::mutable_capture( std::forward<Function>( func ) ),
 				   ts = daw::mutable_capture( m_data->m_task_scheduler ),

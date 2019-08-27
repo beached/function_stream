@@ -29,7 +29,8 @@ namespace daw {
 		void member_data_t<void>::set_value(
 		  member_data_t<void>::expected_result_t result ) {
 			m_data->m_result = daw::move( result );
-			if( m_data->m_next ) {
+
+			if( auto nxt = m_data->m_next.get( ); *nxt ) {
 				pass_next( daw::move( m_data->m_result ) );
 				return;
 			}

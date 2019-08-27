@@ -60,9 +60,30 @@ namespace daw {
 	  , m_num_threads( num_threads )
 	  , m_tasks( make_task_queues( num_threads ) ) {}
 
+	task_scheduler::task_scheduler( ) {
+		start( );
+	}
+
+	task_scheduler::task_scheduler( std::size_t num_threads )
+	  : m_data( new member_data_t( num_threads, true ) ) {
+		start( );
+	}
+
 	task_scheduler::task_scheduler( std::size_t num_threads,
 	                                bool block_on_destruction )
-	  : m_data( new member_data_t( num_threads, block_on_destruction ) ) {}
+	  : m_data( new member_data_t( num_threads, block_on_destruction ) ) {
+
+		start( );
+	}
+
+	task_scheduler::task_scheduler( std::size_t num_threads,
+	                                bool block_on_destruction, bool auto_start )
+	  : m_data( new member_data_t( num_threads, block_on_destruction ) ) {
+
+		if( auto_start ) {
+			start( );
+		}
+	}
 
 	task_scheduler::~task_scheduler( ) {
 		if( auto tmp = std::exchange( m_data, nullptr ); tmp ) {
@@ -111,6 +132,7 @@ namespace daw {
 				}
 			}
 		} catch( ... ) {
+			daw::breakpoint( );
 			// Don't let a task take down thread
 			// TODO: add callback to task_scheduler for handling
 			// task exceptions
@@ -183,29 +205,24 @@ namespace daw {
 	task_scheduler::start_temp_task_runners( size_t task_count ) {
 		auto sem = daw::shared_latch( task_count );
 		for( size_t n = 0; n < task_count; ++n ) {
-			auto const id = [&]( ) {
-				auto const current_epoch =
-				  static_cast<size_t>( ( std::chrono::high_resolution_clock::now( ) )
-				                         .time_since_epoch( )
-				                         .count( ) );
-				return current_epoch % size( );
-			}( );
+			size_t const id = m_data->m_current_id++;
 
 			auto other_threads = m_data->m_other_threads.get( );
 			auto it = other_threads->emplace( other_threads->end( ), std::nullopt );
 			other_threads.release( );
 
-			*it = create_thread( [it, id, wself = get_handle( ), sem]( ) mutable {
-				auto self = wself.lock( );
-				if( !self ) {
-					return;
-				}
-				auto const at_exit = daw::on_scope_exit( [&self, it]( ) {
-					self->m_data->m_other_threads.get( )->erase( it );
-				} );
+			*it = create_thread(
+			  [it, id, wself = get_handle( ), sem = daw::mutable_capture( sem )]( ) {
+				  auto self = wself.lock( );
+				  if( !self ) {
+					  return;
+				  }
+				  auto const at_exit = daw::on_scope_exit( [&self, it]( ) {
+					  self->m_data->m_other_threads.get( )->erase( it );
+				  } );
 
-				self->task_runner( id, wself, sem );
-			} );
+				  self->task_runner( id, wself, sem );
+			  } );
 			( *it )->detach( );
 		}
 		return sem;

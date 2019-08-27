@@ -73,7 +73,8 @@ void test_sort( Iterator const first, Iterator const last,
 
 void sort_test( size_t SZ, unsigned ThreadCount ) {
 	auto ts = daw::task_scheduler( ThreadCount, true );
-	// daw::get_task_scheduler( );
+	ts.start( );
+	 //daw::get_task_scheduler( );
 	auto a = daw::make_random_data<int64_t>( SZ );
 
 	auto b = a;
@@ -121,8 +122,8 @@ int main( ) {
 #ifdef DEBUG
 	std::cout << "Debug build\n";
 #endif
-	for( unsigned t = 2U; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
-		std::cout << "sort_merge tests - int64_t\n";
+	for( unsigned t = 2; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
+		std::cout << "sort_merge tests - int64_t - " << t << " threads\n";
 		for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
 			sort_test( n, t );
 			std::cout << '\n';

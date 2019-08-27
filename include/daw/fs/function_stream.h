@@ -108,7 +108,7 @@ namespace daw {
 	template<typename... Funcs>
 	class future_generator_t {
 		template<typename...>
-		friend class future_generator_t;
+		friend class ::daw::future_generator_t;
 
 		std::tuple<Funcs...> m_funcs;
 

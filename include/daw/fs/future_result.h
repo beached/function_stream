@@ -73,7 +73,7 @@ namespace daw {
 				explicit handle_t( data_handle_t hnd )
 				  : m_handle( std::move( hnd ) ) {}
 
-				friend struct future_result_t<Result>;
+				friend future_result_t<Result>;
 
 			public:
 				using type = result_type_t;
