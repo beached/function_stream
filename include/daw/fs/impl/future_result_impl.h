@@ -49,12 +49,13 @@ namespace daw {
 	namespace impl {
 		template<typename expected_result_t, typename next_function_t>
 		struct [[nodiscard]] member_data_members {
+			using next_t =
+			  ::daw::lockable_value_t<next_function_t, std::recursive_mutex>;
+
+			task_scheduler m_task_scheduler;
+			next_t m_next = next_t( next_function_t( nullptr ) );
 			daw::shared_latch m_semaphore = daw::shared_latch( );
 			std::atomic<future_status> m_status = future_status::deferred;
-			task_scheduler m_task_scheduler;
-			::daw::lockable_value_t<next_function_t, std::recursive_mutex> m_next =
-			  ::daw::lockable_value_t<next_function_t, std::recursive_mutex>(
-			    next_function_t( nullptr ) );
 
 			expected_result_t m_result = expected_result_t( );
 
@@ -62,8 +63,8 @@ namespace daw {
 			  : m_task_scheduler( std::move( ts ) ) {}
 
 			member_data_members( daw::shared_latch sem, task_scheduler ts )
-			  : m_semaphore( std::move( sem ) )
-			  , m_task_scheduler( std::move( ts ) ) {}
+			  : m_task_scheduler( std::move( ts ) )
+			  , m_semaphore( std::move( sem ) ) {}
 
 			template<typename Rep, typename Period>
 			[[nodiscard]] future_status wait_for(
