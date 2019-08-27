@@ -52,9 +52,9 @@ namespace daw {
 			daw::shared_latch m_semaphore = daw::shared_latch( );
 			std::atomic<future_status> m_status = future_status::deferred;
 			task_scheduler m_task_scheduler;
-			daw::shared_latch m_next_has_method = daw::shared_latch( 1 );
-			::daw::lockable_value_t<next_function_t> m_next =
-			  ::daw::lockable_value_t<next_function_t>( next_function_t( nullptr ) );
+			::daw::lockable_value_t<next_function_t, std::recursive_mutex> m_next =
+			  ::daw::lockable_value_t<next_function_t, std::recursive_mutex>(
+			    next_function_t( nullptr ) );
 
 			expected_result_t m_result = expected_result_t( );
 
@@ -192,35 +192,36 @@ namespace daw {
 			  : m_data( daw::move( dptr ) ) {}
 
 			[[nodiscard]] decltype( auto ) pass_next( expected_result_t && value ) {
-				daw::exception::precondition_check(
-				  m_data->m_next_has_method.try_wait( ),
-				  "Attempt to call next function on empty function" );
+				auto nxt = m_data->m_next.get( );
+				::daw::exception::precondition_check(
+				  *nxt, "Attempt to call next function on empty function" );
 
-				return ( *m_data->m_next.get( ) )( daw::move( value ) );
+				return ( *nxt )( std::move( value ) );
 			}
 
 			[[nodiscard]] decltype( auto ) pass_next(
 			  expected_result_t const &value ) {
-				::daw::exception::precondition_check(
-				  m_data->m_next_has_method.try_wait( ),
-				  "Attempt to call next function on empty function" );
 
-				return ( *m_data->m_next.get( ) )( value );
+				auto nxt = m_data->m_next.get( );
+				::daw::exception::precondition_check(
+				  *nxt, "Attempt to call next function on empty function" );
+
+				return ( *nxt )( value );
 			}
 
 		public:
 			void set_value( expected_result_t && value ) {
-				if( m_data->m_next_has_method.try_wait( ) ) {
+				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( daw::move( value ) );
 					return;
 				}
 				m_data->m_result = daw::move( value );
 				m_data->status( future_status::ready );
 				m_data->notify( );
-			}
+			} // namespace impl
 
 			void set_value( expected_result_t const &value ) {
-				if( m_data->m_next_has_method.try_wait( ) ) {
+				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( value );
 					return;
 				}
@@ -230,8 +231,9 @@ namespace daw {
 			}
 
 			void set_value( base_result_t && value ) {
-				if( m_data->m_next_has_method.try_wait( ) ) {
-					pass_next( expected_result_t( daw::move( value ) ) );
+				if( auto nxt = m_data->m_next.get( ); *nxt ) {
+					pass_next(
+					  ::daw::construct_a<expected_result_t>( ::daw::move( value ) ) );
 					return;
 				}
 				m_data->m_result = daw::move( value );
@@ -240,8 +242,8 @@ namespace daw {
 			}
 
 			void set_value( base_result_t const &value ) {
-				if( m_data->m_next_has_method.try_wait( ) ) {
-					pass_next( expected_result_t{value} );
+				if( auto nxt = m_data->m_next.get( ); *nxt ) {
+					pass_next( ::daw::construct_a<expected_result_t>( value ) );
 					return;
 				}
 				m_data->m_result = value;
@@ -250,8 +252,8 @@ namespace daw {
 			}
 
 			void set_exception( std::exception_ptr ptr ) {
-				if( m_data->m_next_has_method.try_wait( ) ) {
-					pass_next( expected_result_t{ptr} );
+				if( auto nxt = m_data->m_next.get( ); *nxt ) {
+					pass_next( ::daw::construct_a<expected_result_t>( ptr ) );
 					return;
 				}
 				m_data->m_result = ptr;
@@ -302,19 +304,18 @@ namespace daw {
 			                   std::nullptr_t> = nullptr>
 			[[nodiscard]] auto next( Function && func ) {
 				assert( m_data );
-				assert( not m_data->m_next_has_method
-				              .try_wait( ) ); // can only set next function once
+				auto nxt = m_data->m_next.get( );
+				assert( !*nxt ); // can only set next function once
 
 				using next_result_t = std::invoke_result_t<Function, base_result_t>;
 
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );
 
-				( *m_data->m_next.get( ) ) =
-				  [result = daw::mutable_capture( result ),
-				   func = daw::mutable_capture( std::forward<Function>( func ) ),
-				   ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				   self = *this]( expected_result_t value ) -> void {
+				*nxt = [result = daw::mutable_capture( result ),
+				        func = daw::mutable_capture( std::forward<Function>( func ) ),
+				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
+				        self = *this]( expected_result_t value ) -> void {
 					if( not value.has_value( ) ) {
 						result->set_exception( value.get_exception_ptr( ) );
 						return;
@@ -329,12 +330,12 @@ namespace daw {
 						throw ::daw::unable_to_add_task_exception{};
 					}
 				};
-				m_data->m_next_has_method.notify( );
 				if( future_status::ready == m_data->status( ) ) {
 					pass_next( daw::move( m_data->m_result ) );
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
+					nxt.release( );
 					m_data->notify( );
 				}
 				return result;
@@ -343,8 +344,8 @@ namespace daw {
 			template<typename... Functions>
 			[[nodiscard]] auto fork( Functions && ... funcs ) {
 				assert( m_data );
-				assert( not m_data->m_next_has_method
-				              .try_wait( ) ); // can only set next function once
+				auto nxt = m_data->m_next.get( );
+				assert( !*nxt ); // can only set next function once
 
 				using result_t =
 				  std::tuple<future_result_t<daw::remove_cvref_t<decltype(
@@ -358,13 +359,12 @@ namespace daw {
 					return fut_t( m_data->m_task_scheduler );
 				};
 				auto result = result_t( construct_future( funcs )... );
-				( *m_data->m_next.get( ) ) =
-				  [result = mutable_capture( result ),
-				   tpfuncs = daw::mutable_capture(
-				     std::tuple<daw::remove_cvref_t<Functions>...>(
-				       std::forward<Functions>( funcs )... ) ),
-				   ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				   self = *this]( auto &&value )
+				*nxt = [result = mutable_capture( result ),
+				        tpfuncs = daw::mutable_capture(
+				          std::tuple<daw::remove_cvref_t<Functions>...>(
+				            std::forward<Functions>( funcs )... ) ),
+				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
+				        self = *this]( auto &&value )
 				  -> std::enable_if_t<daw::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
 					if( value.has_value( ) ) {
@@ -384,6 +384,7 @@ namespace daw {
 				if( future_status::ready == m_data->status( ) ) {
 					pass_next( daw::move( m_data->m_result ) );
 				} else {
+					nxt.release( );
 					m_data->notify( );
 				}
 				return result;
@@ -397,8 +398,9 @@ namespace daw {
 				Unused( joiner );
 				Unused( funcs... );
 				assert( m_data );
-				assert( not m_data->m_next_has_method
-				              .try_wait( ) ); // can only set next function once
+				auto nxt = m_data->m_next.get( );
+				assert( *nxt ); // can only set next function once
+
 				static_assert( (
 				  std::is_invocable_v<Functions,
 				                      decltype(
@@ -447,7 +449,7 @@ namespace daw {
 
 				return handle_t( static_cast<std::weak_ptr<data_t>>( m_data ) );
 			}
-		};
+		}; // namespace impl
 
 		template<>
 		struct [[nodiscard]] member_data_t<void> {
@@ -473,23 +475,25 @@ namespace daw {
 			  : m_data( daw::move( dptr ) ) {}
 
 			void pass_next( expected_result_t && value ) {
+				auto nxt = m_data->m_next.get( );
 				daw::exception::precondition_check(
-				  m_data->m_next_has_method.try_wait( ),
-				  "Attempt to call next function on empty function" );
+				  *nxt, "Attempt to call next function on empty function" );
+
 				daw::exception::precondition_check(
 				  not value.has_exception( ), "Unexpected exception in expected_t" );
 
-				( *m_data->m_next.get( ) )( daw::move( value ) );
+				( *nxt )( daw::move( value ) );
 			}
 
 			void pass_next( expected_result_t const &value ) {
+				auto nxt = m_data->m_next.get( );
 				daw::exception::precondition_check(
-				  m_data->m_next_has_method.try_wait( ),
-				  "Attempt to call next function on empty function" );
+				  *nxt, "Attempt to call next function on empty function" );
+
 				daw::exception::precondition_check(
 				  not value.has_exception( ), "Unexpected exception in expected_t" );
 
-				( *m_data->m_next.get( ) )( value );
+				( *nxt )( value );
 			}
 
 		public:
@@ -510,20 +514,19 @@ namespace daw {
 
 			template<typename Function>
 			[[nodiscard]] auto next( Function && func ) {
-				daw::exception::precondition_check(
-				  not m_data->m_next_has_method.try_wait( ),
-				  "Can only set next function once" );
+				auto nxt = m_data->m_next.get( );
+				daw::exception::precondition_check( *nxt,
+				                                    "Can only set next function once" );
 				using next_result_t =
 				  daw::traits::invoke_result_t<std::remove_reference_t<Function>>;
 
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );
 
-				( *m_data->m_next.get( ) ) =
-				  [result = daw::mutable_capture( result ),
-				   func = daw::mutable_capture( std::forward<Function>( func ) ),
-				   ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				   self = *this]( expected_result_t value ) -> void {
+				*nxt = [result = daw::mutable_capture( result ),
+				        func = daw::mutable_capture( std::forward<Function>( func ) ),
+				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
+				        self = *this]( expected_result_t value ) -> void {
 					if( value.has_value( ) ) {
 						if( ts->add_task(
 						      [result = daw::mutable_capture( daw::move( *result ) ),
@@ -542,6 +545,7 @@ namespace daw {
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
+					nxt.release( );
 					m_data->notify( );
 				}
 				return result;
@@ -549,9 +553,9 @@ namespace daw {
 
 			template<typename... Functions>
 			[[nodiscard]] auto fork( Functions && ... funcs ) {
-				daw::exception::precondition_check(
-				  not m_data->m_next_has_method.try_wait( ),
-				  "Can only set next function once" );
+				auto nxt = m_data->m_next.get( );
+				daw::exception::precondition_check( !*nxt,
+				                                    "Can only set next function once" );
 				using result_t = std::tuple<
 				  future_result_t<daw::remove_cvref_t<decltype( funcs( ) )>>...>;
 
@@ -566,9 +570,9 @@ namespace daw {
 
 				auto tpfuncs = std::tuple<daw::remove_cvref_t<Functions>...>(
 				  std::forward<Functions>( funcs )... );
-				m_data->m_next = [result, tpfuncs = daw::move( tpfuncs ),
-				                  ts = m_data->m_task_scheduler,
-				                  self = *this]( auto &&value ) mutable
+				*nxt = [result, tpfuncs = daw::move( tpfuncs ),
+				        ts = m_data->m_task_scheduler,
+				        self = *this]( auto &&value ) mutable
 				  -> std::enable_if_t<daw::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
 					if( value.has_value( ) ) {
@@ -585,6 +589,7 @@ namespace daw {
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
+					nxt.release( );
 					m_data->notify( );
 				}
 				return result;
@@ -596,9 +601,9 @@ namespace daw {
 				// TODO: finish implementing
 				Unused( joiner );
 				static_assert( ( std::is_invocable_v<Functions> and ... ) );
-				daw::exception::precondition_check(
-				  not m_data->m_next_has_method.try_wait( ),
-				  "Can only set next function once" );
+				auto nxt = m_data->m_next.get( );
+				daw::exception::precondition_check( !*nxt,
+				                                    "Can only set next function once" );
 
 				auto const construct_future = [&]( auto &&f ) {
 					// Default constructs a future of the result type with the task
@@ -613,28 +618,28 @@ namespace daw {
 
 				auto tpfuncs = std::tuple( std::forward<Functions>( funcs )... );
 
-				m_data->m_next =
-				  [result = ::daw::mutable_capture( result ),
-				   tpfuncs = ::daw::mutable_capture( daw::move( tpfuncs ) ),
-				   ts = ::daw::mutable_capture( m_data->m_task_scheduler ),
-				   self = *this]( auto const &value ) {
-					  static_assert(
-					    daw::is_same_v<expected_result_t,
-					                   daw::remove_cvref_t<decltype( value )>> );
-					  if( value.has_value( ) ) {
-						  ts->add_task( impl::add_fork_task( ts, result, tpfuncs ) );
-						  return;
-					  }
-					  daw::tuple::apply(
-					    result, [ptr = value.get_exception_ptr( )]( auto &&t ) {
-						    std::forward<decltype( t )>( t ).set_exception( ptr );
-					    } );
-				  };
+				*nxt = [result = ::daw::mutable_capture( result ),
+				        tpfuncs = ::daw::mutable_capture( daw::move( tpfuncs ) ),
+				        ts = ::daw::mutable_capture( m_data->m_task_scheduler ),
+				        self = *this]( auto const &value ) {
+					static_assert(
+					  daw::is_same_v<expected_result_t,
+					                 daw::remove_cvref_t<decltype( value )>> );
+					if( value.has_value( ) ) {
+						ts->add_task( impl::add_fork_task( ts, result, tpfuncs ) );
+						return;
+					}
+					daw::tuple::apply(
+					  result, [ptr = value.get_exception_ptr( )]( auto &&t ) {
+						  std::forward<decltype( t )>( t ).set_exception( ptr );
+					  } );
+				};
 				if( future_status::ready == m_data->status( ) ) {
 					pass_next( daw::move( m_data->m_result ) );
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
+					nxt.release( );
 					m_data->notify( );
 				}
 				return result;

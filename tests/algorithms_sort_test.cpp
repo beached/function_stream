@@ -74,7 +74,7 @@ void test_sort( Iterator const first, Iterator const last,
 void sort_test( size_t SZ, unsigned ThreadCount ) {
 	auto ts = daw::task_scheduler( ThreadCount, true );
 	ts.start( );
-	 //daw::get_task_scheduler( );
+	// daw::get_task_scheduler( );
 	auto a = daw::make_random_data<int64_t>( SZ );
 
 	auto b = a;
@@ -118,16 +118,26 @@ void sort_test( size_t SZ, unsigned ThreadCount ) {
 	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort_merge" );
 }
 
-int main( ) {
+int main( int argc, char const **argv ) {
 #ifdef DEBUG
 	std::cout << "Debug build\n";
 #endif
-	for( unsigned t = 2; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
-		std::cout << "sort_merge tests - int64_t - " << t << " threads\n";
-		for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
-			sort_test( n, t );
-			std::cout << '\n';
+	if( argc > 1 and std::string( argv[1] ) == "full" ) {
+		for( unsigned t = 2; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
+			std::cout << "sort_merge tests - int64_t - " << t << " threads\n";
+			for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
+				sort_test( n, t );
+				std::cout << '\n';
+			}
+			sort_test( LARGE_TEST_SZ, t );
 		}
-		sort_test( LARGE_TEST_SZ, t );
+		return 0;
 	}
+	auto const t = std::thread::hardware_concurrency( );
+	std::cout << "sort_merge tests - int64_t - " << t << " threads\n";
+	for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
+		sort_test( n, t );
+		std::cout << '\n';
+	}
+	sort_test( LARGE_TEST_SZ, t );
 }
