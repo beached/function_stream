@@ -25,7 +25,6 @@
 #include <cstdint>
 #include <iostream>
 
-
 #ifdef _WIN32
 #define HAS_PAR_STL
 #include <execution>
@@ -72,8 +71,9 @@ void test_sort( Iterator const first, Iterator const last,
 	}
 }
 
-void sort_test( size_t SZ ) {
-	auto ts = daw::get_task_scheduler( );
+void sort_test( size_t SZ, unsigned ThreadCount ) {
+	auto ts = daw::task_scheduler( ThreadCount, true );
+	// daw::get_task_scheduler( );
 	auto a = daw::make_random_data<int64_t>( SZ );
 
 	auto b = a;
@@ -121,10 +121,12 @@ int main( ) {
 #ifdef DEBUG
 	std::cout << "Debug build\n";
 #endif
-	std::cout << "sort_merge tests - int64_t\n";
-	for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
-		sort_test( n );
-		std::cout << '\n';
+	for( unsigned t = 2U; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
+		std::cout << "sort_merge tests - int64_t\n";
+		for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
+			sort_test( n, t );
+			std::cout << '\n';
+		}
+		sort_test( LARGE_TEST_SZ, t );
 	}
-	sort_test( LARGE_TEST_SZ );
 }

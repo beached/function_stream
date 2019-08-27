@@ -231,6 +231,12 @@ add_dependencies( full algorithms_chunked_for_each_test_bin )
 #add_dependencies( check map_reduce_test_bin )
 #add_dependencies( full map_reduce_test_bin )
 
+add_executable( k-means_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/k-means.cpp )
+target_link_libraries( k-means_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
+add_test( k-means_test k-means_test_bin )
+add_dependencies( check k-means_test_bin )
+add_dependencies( full k-means_test_bin )
+
 install( TARGETS function_stream_lib task_scheduler_lib DESTINATION lib )
 install( DIRECTORY ${HEADER_FOLDER}/daw DESTINATION include )
 
