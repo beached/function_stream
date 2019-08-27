@@ -64,14 +64,14 @@ namespace daw {
 			daw::lockable_value_t<std::vector<std::thread>> m_threads{};
 			daw::lockable_value_t<std::unordered_map<std::thread::id, size_t>>
 			  m_thread_map{};
-			bool m_block_on_destruction;       // from ctor
 			size_t const m_num_threads;        // from ctor
 			std::vector<task_queue_t> m_tasks; // from ctor
 			std::atomic<size_t> m_task_count{0};
 			daw::lockable_value_t<std::list<std::optional<std::thread>>>
 			  m_other_threads{};
-			std::atomic_bool m_continue = false;
 			std::atomic<size_t> m_current_id{0};
+			std::atomic_bool m_continue = false;
+			bool m_block_on_destruction; // from ctor
 
 			friend task_scheduler;
 
@@ -140,9 +140,9 @@ namespace daw {
 		template<typename Task>
 		[[nodiscard]] decltype( auto ) add_task( Task &&task, daw::shared_latch sem,
 		                                         size_t id ) {
-			auto tsk = [wself = get_handle( ),
-			            task = daw::mutable_capture( std::forward<Task>( task ) ),
-			            id]( ) {
+			auto tsk = [wself = get_handle( ), id,
+			            task =
+			              daw::mutable_capture( std::forward<Task>( task ) )]( ) {
 				if( auto self = wself.lock( ); self ) {
 					std::invoke( *task );
 					while( self->m_data->m_continue and self->run_next_task( id ) ) {}
@@ -192,7 +192,8 @@ namespace daw {
 		task_scheduler( );
 		task_scheduler( std::size_t num_threads );
 		task_scheduler( std::size_t num_threads, bool block_on_destruction );
-		task_scheduler( std::size_t num_threads, bool block_on_destruction, bool auto_start );
+		task_scheduler( std::size_t num_threads, bool block_on_destruction,
+		                bool auto_start );
 
 		task_scheduler( task_scheduler && ) = default;
 		task_scheduler &operator=( task_scheduler && ) = default;

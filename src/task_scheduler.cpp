@@ -56,9 +56,9 @@ namespace daw {
 
 	task_scheduler::member_data_t::member_data_t( std::size_t num_threads,
 	                                              bool block_on_destruction )
-	  : m_block_on_destruction( block_on_destruction )
-	  , m_num_threads( num_threads )
-	  , m_tasks( make_task_queues( num_threads ) ) {}
+	  : m_num_threads( num_threads )
+	  , m_tasks( make_task_queues( num_threads ) )
+	  , m_block_on_destruction( block_on_destruction ) {}
 
 	task_scheduler::task_scheduler( ) {
 		start( );

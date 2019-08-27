@@ -56,10 +56,10 @@ namespace daw::parallel {
 		struct members_t {
 			std::array<value_type, Sz> m_values{};
 			std::mutex m_mutex{};
-			std::condition_variable m_not_empty{};
-			std::condition_variable m_not_full{};
 			size_t m_front = 0;
 			size_t m_back = 0;
+			std::condition_variable m_not_empty{};
+			std::condition_variable m_not_full{};
 			bool m_is_full = false;
 		};
 		std::unique_ptr<members_t> m_data = std::make_unique<members_t>( );
