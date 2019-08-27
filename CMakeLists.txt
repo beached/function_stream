@@ -163,7 +163,7 @@ add_executable( algorithms_stable_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/
 target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_stable_sort_test algorithms_stable_sort_test_bin )
 add_dependencies( check algorithms_stable_sort_test_bin )
-add_dependencies( full algorithms_sort_test_bin )
+add_dependencies( full algorithms_stable_sort_test_bin )
 
 add_executable( algorithms_sort_par_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_sort_par_test.cpp )
 target_link_libraries( algorithms_sort_par_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
@@ -225,9 +225,9 @@ add_test( algorithms_chunked_for_each_test algorithms_chunked_for_each_test_bin 
 add_dependencies( check algorithms_chunked_for_each_test_bin )
 add_dependencies( full algorithms_chunked_for_each_test_bin )
 
-#add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
-#target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
-#add_test( map_reduce_test map_reduce_test_bin )
+add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FILES} ${TASK_SCHEDULER_HEADER_FILES} ${TEST_FOLDER}/map_reduce_test.cpp )
+target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
+add_test( map_reduce_test map_reduce_test_bin )
 #add_dependencies( check map_reduce_test_bin )
 #add_dependencies( full map_reduce_test_bin )
 
