@@ -105,7 +105,7 @@ namespace daw {
 						if( not schedule_task(
 						      sem,
 						      [func = daw::mutable_capture( func ),
-						       rng = daw::move( rng )]( ) { daw::invoke( *func, rng ); },
+						       rng = daw::move( rng )]( ) { ( *func )( rng ); },
 						      ts ) ) {
 
 							throw ::daw::unable_to_add_task_exception{};
@@ -124,7 +124,7 @@ namespace daw {
 						if( not schedule_task(
 						      sem,
 						      [func = daw::mutable_capture( func ), rng = ranges[n], n]( ) {
-							      daw::invoke( *func, rng, n );
+							      ( *func )( rng, n );
 						      },
 						      ts ) ) {
 
@@ -149,7 +149,7 @@ namespace daw {
 						status &= schedule_task(
 						  sem,
 						  [func = daw::mutable_capture( std::forward<Func>( func ) ),
-						   rng]( ) { daw::invoke( *func, rng.begin( ), rng.end( ) ); },
+						   rng]( ) { ( *func )( rng.begin( ), rng.end( ) ); },
 						  ts );
 					}
 					if( not status ) {
@@ -170,7 +170,7 @@ namespace daw {
 					  [func = daw::mutable_capture( std::forward<Func>( func ) )](
 					    auto &&first, auto &&last ) {
 						  while( first != last ) {
-							  daw::invoke( *func, *first );
+							  ( *func )( *first );
 							  ++first;
 						  }
 					  },
@@ -184,7 +184,7 @@ namespace daw {
 					  ranges,
 					  [func]( auto f, auto l ) mutable {
 						  for( auto it = f; it != l; ++it ) {
-							  daw::invoke( func, *it );
+							  func( *it );
 						  }
 					  },
 					  ts )
@@ -206,7 +206,7 @@ namespace daw {
 						  auto const end_pos =
 						    static_cast<size_t>( std::distance( first, rng.end( ) ) );
 						  for( size_t n = start_pos; n < end_pos; ++n ) {
-							  daw::invoke( func, n );
+							  func( n );
 						  }
 					  },
 					  ts )
@@ -232,8 +232,8 @@ namespace daw {
 						for( size_t n = 1; n < count; n += 2 ) {
 							if( not ts.add_task(
 							      [func = mutable_capture( func ), &ranges, n, &sem]( ) {
-								      daw::invoke( *func, ranges[n - 1].begin( ),
-								                   ranges[n].begin( ), ranges[n].end( ) );
+								      ( *func )( ranges[n - 1].begin( ), ranges[n].begin( ),
+								                 ranges[n].end( ) );
 								      sem.notify( );
 							      } ) ) {
 
@@ -250,7 +250,7 @@ namespace daw {
 				void parallel_sort( daw::view<Iterator> range, Sort &&srt,
 				                    Compare &&cmp, task_scheduler ts ) {
 					if( PartitionPolicy::min_range_size > range.size( ) ) {
-						daw::invoke( srt, range.begin( ), range.end( ), cmp );
+						srt( range.begin( ), range.end( ), cmp );
 						return;
 					}
 					auto ranges = PartitionPolicy( )( range, ts.size( ) );
@@ -261,7 +261,7 @@ namespace daw {
 					auto const sort_fn = [cmp = mutable_capture( cmp ),
 					                      srt = mutable_capture( std::forward<Sort>(
 					                        srt ) )]( daw::view<Iterator> r ) {
-						daw::invoke( *srt, r.begin( ), r.end( ), *cmp );
+						( *srt )( r.begin( ), r.end( ), *cmp );
 						return r;
 					};
 
@@ -480,9 +480,8 @@ namespace daw {
 							return;
 						}
 					}
-					using value_t = daw::remove_cvref_t<
-					  std::invoke_result_t<BinaryOp, decltype( range_in.front( ) ),
-					                       decltype( range_in.front( ) )>>;
+					using value_t = daw::remove_cvref_t<decltype( std::forward<BinaryOp>(
+					  binary_op )( range_in.front( ), range_in.front( ) ) )>;
 
 					auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
 					auto p1_results =
@@ -493,7 +492,7 @@ namespace daw {
 						for( size_t n = pos + 1; n < p1_results.size( ); ++n ) {
 							std::lock_guard<daw::spin_lock> lck( mut_p1_results[n] );
 							if( p1_results[n] ) {
-								p1_results[n] = daw::invoke( binary_op, *p1_results[n], value );
+								p1_results[n] = binary_op( *p1_results[n], value );
 							} else {
 								p1_results[n] = value;
 							}
@@ -532,12 +531,12 @@ namespace daw {
 						    range_out->begin( ),
 						    std::distance( range_in->begin( ), cur_range.begin( ) ) );
 
-						  auto sum = daw::invoke( *binary_op, *p1_results[n],
-						                          cur_range.pop_front( ) );
+						  auto sum =
+						    ( *binary_op )( *p1_results[n], cur_range.pop_front( ) );
 
 						  *( out_pos++ ) = sum;
 						  while( !cur_range.empty( ) ) {
-							  sum = daw::invoke( *binary_op, sum, cur_range.pop_front( ) );
+							  sum = ( *binary_op )( sum, cur_range.pop_front( ) );
 							  *out_pos = sum;
 							  ++out_pos;
 						  }

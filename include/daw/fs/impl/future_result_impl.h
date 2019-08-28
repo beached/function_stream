@@ -53,7 +53,7 @@ namespace daw {
 			  ::daw::lockable_value_t<next_function_t, std::recursive_mutex>;
 
 			task_scheduler m_task_scheduler;
-			next_t m_next = next_t( next_function_t( nullptr ) );
+			next_t m_next = next_t( next_function_t( ) );
 			daw::shared_latch m_semaphore = daw::shared_latch( );
 			std::atomic<future_status> m_status = future_status::deferred;
 
@@ -516,7 +516,7 @@ namespace daw {
 			template<typename Function>
 			[[nodiscard]] auto next( Function && func ) {
 				auto nxt = m_data->m_next.get( );
-				daw::exception::precondition_check( *nxt,
+				daw::exception::precondition_check( not *nxt,
 				                                    "Can only set next function once" );
 				using next_result_t =
 				  daw::traits::invoke_result_t<std::remove_reference_t<Function>>;
