@@ -31,6 +31,8 @@
 #include <optional>
 #include <utility>
 
+#include <daw/parallel/daw_locked_value.h>
+
 namespace daw::parallel {
 	namespace wait_impl {
 		template<typename Waiter, typename Rep, typename Period, typename Predicate,
@@ -55,7 +57,6 @@ namespace daw::parallel {
 		using value_type = std::optional<T>;
 		struct members_t {
 			std::array<value_type, Sz> m_values{};
-			std::mutex m_mutex = std::mutex( );
 			size_t m_front = 0;
 			size_t m_back = 0;
 			std::condition_variable m_not_empty = std::condition_variable( );
@@ -64,48 +65,23 @@ namespace daw::parallel {
 
 			members_t( ) = default;
 		};
-		std::unique_ptr<members_t> m_data = std::make_unique<members_t>( );
+		::std::unique_ptr<members_t> m_data = std::make_unique<members_t>( );
+		::daw::unique_mutex m_mutex = ::daw::unique_mutex( );
 
 		bool empty( ) const {
-			// Expects mutex to already be locked
-			return (not m_data->m_is_full) and (m_data->m_front == m_data->m_back);
+			return ( not m_data->m_is_full ) and
+			       ( m_data->m_front == m_data->m_back );
 		}
 
 		bool full( ) const {
-			// Expects mutex to already be locked
 			return m_data->m_is_full;
 		}
 
 	public:
 		locking_circular_buffer( ) = default;
 
-		locking_circular_buffer( locking_circular_buffer &&other ) noexcept
-		  : m_data( ( std::lock_guard( other.m_data->m_mutex ),
-		              std::move( other.m_data ) ) ) {}
-
-		locking_circular_buffer &
-		operator=( locking_circular_buffer &&rhs ) noexcept {
-			if( this != &rhs ) {
-				auto const lck = std::lock_guard( m_data->m_mutex );
-				auto const lck2 = std::lock_guard( rhs.m_data->m_mutex );
-				using std::swap;
-				swap( m_data, rhs.m_data );
-			}
-			return *this;
-		}
-
-		locking_circular_buffer &
-		operator=( locking_circular_buffer const & ) = delete;
-
-		locking_circular_buffer( locking_circular_buffer const & ) = delete;
-
-		~locking_circular_buffer( ) noexcept {
-			// Ensure we don't go UB, cannot destruct until we can lock
-			auto const lck = std::lock_guard( m_data->m_mutex );
-		}
-
 		[[nodiscard]] std::optional<T> try_pop_front( ) {
-			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
+			auto lck = std::unique_lock( m_mutex, std::try_to_lock );
 			if( not lck.owns_lock( ) or empty( ) ) {
 				return {};
 			}
@@ -118,7 +94,7 @@ namespace daw::parallel {
 		}
 
 		[[nodiscard]] T pop_front( ) {
-			auto lck = std::unique_lock( m_data->m_mutex );
+			auto lck = std::unique_lock( m_mutex );
 			if( empty( ) ) {
 				m_data->m_not_empty.wait( lck, [&]( ) { return !empty( ); } );
 			}
@@ -137,7 +113,7 @@ namespace daw::parallel {
 		pop_front( Predicate can_continue,
 		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
 			static_assert( std::is_invocable_v<Predicate> );
-			auto lck = std::unique_lock( m_data->m_mutex );
+			auto lck = std::unique_lock( m_mutex.get( ) );
 			if( empty( ) ) {
 				auto const can_pop = wait_impl::wait_for(
 				  m_data->m_not_empty, lck, timeout, [&]( ) { return not empty( ); },
@@ -168,7 +144,7 @@ namespace daw::parallel {
 			static_assert( std::is_invocable_v<Predicate> );
 
 			static_assert( std::is_convertible_v<U, T> );
-			auto lck = std::unique_lock( m_data->m_mutex );
+			auto lck = std::unique_lock( m_mutex.get( ) );
 			if( full( ) ) {
 				m_data->m_not_full.wait(
 				  lck, [&]( ) { return can_continue( ) and !full( ); } );
@@ -192,7 +168,7 @@ namespace daw::parallel {
 		template<typename U>
 		[[nodiscard]] push_back_result try_push_back( U &&value ) {
 			static_assert( std::is_convertible_v<U, T> );
-			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
+			auto lck = std::unique_lock( m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or full( ) ) {
 				return push_back_result::failed;
 			}

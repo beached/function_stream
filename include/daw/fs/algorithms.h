@@ -104,10 +104,7 @@ namespace daw::algorithm::parallel {
 		concept_checks::is_binary_predicate_test<Compare, RandomIterator,
 		                                         RandomIterator>( );
 		impl::parallel_sort(
-		  daw::view( first, last ),
-		  []( RandomIterator f, RandomIterator l, Compare cmp ) {
-			  ::std::sort( f, l, cmp );
-		  },
+		  daw::view( first, last ), impl::sorter{},
 		  ::daw::traits::lift_func( ::std::forward<Compare>( comp ) ),
 		  daw::move( ts ) );
 	}
@@ -122,10 +119,7 @@ namespace daw::algorithm::parallel {
 		                                         RandomIterator>( );
 
 		impl::parallel_sort(
-		  daw::view( first, last ),
-		  []( RandomIterator f, RandomIterator l, Compare cmp ) {
-			  ::std::stable_sort( f, l, cmp );
-		  },
+		  daw::view( first, last ), impl::stable_sorter{},
 		  ::daw::traits::lift_func( ::std::forward<Compare>( comp ) ),
 		  daw::move( ts ) );
 	}

@@ -257,6 +257,27 @@ namespace daw::algorithm::parallel::impl {
 			return daw::view<Iterator>( rng_left.begin( ), rng_right.end( ) );
 		}
 	};
+
+	struct sorter {
+		template<typename RandomIterator, typename Compare>
+		constexpr void operator( )( RandomIterator &&first, RandomIterator &&last,
+		                            Compare &&cmp ) const {
+			::std::sort( ::std::forward<RandomIterator>( first ),
+			             ::std::forward<RandomIterator>( last ),
+			             std::forward<Compare>( cmp ) );
+		}
+	};
+
+	struct stable_sorter {
+		template<typename RandomIterator, typename Compare>
+		constexpr void operator( )( RandomIterator &&first, RandomIterator &&last,
+		                            Compare &&cmp ) const {
+			::std::stable_sort( ::std::forward<RandomIterator>( first ),
+			                    ::std::forward<RandomIterator>( last ),
+			                    std::forward<Compare>( cmp ) );
+		}
+	};
+
 	template<typename Compare>
 	parallel_sort_merger( Compare cmp )->parallel_sort_merger<Compare>;
 
