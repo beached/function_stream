@@ -55,20 +55,24 @@ namespace daw::parallel {
 		using value_type = std::optional<T>;
 		struct members_t {
 			std::array<value_type, Sz> m_values{};
-			std::mutex m_mutex{};
+			std::mutex m_mutex = std::mutex( );
 			size_t m_front = 0;
 			size_t m_back = 0;
-			std::condition_variable m_not_empty{};
-			std::condition_variable m_not_full{};
+			std::condition_variable m_not_empty = std::condition_variable( );
+			std::condition_variable m_not_full = std::condition_variable( );
 			bool m_is_full = false;
+
+			members_t( ) = default;
 		};
 		std::unique_ptr<members_t> m_data = std::make_unique<members_t>( );
 
 		bool empty( ) const {
-			return !m_data->m_is_full and m_data->m_front == m_data->m_back;
+			// Expects mutex to already be locked
+			return (not m_data->m_is_full) and (m_data->m_front == m_data->m_back);
 		}
 
 		bool full( ) const {
+			// Expects mutex to already be locked
 			return m_data->m_is_full;
 		}
 
@@ -102,7 +106,7 @@ namespace daw::parallel {
 
 		[[nodiscard]] std::optional<T> try_pop_front( ) {
 			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
-			if( !lck.owns_lock( ) or empty( ) ) {
+			if( not lck.owns_lock( ) or empty( ) ) {
 				return {};
 			}
 			m_data->m_is_full = false;

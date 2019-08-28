@@ -113,11 +113,8 @@ namespace daw {
 
 		[[nodiscard]] static std::vector<task_queue_t>
 		make_task_queues( size_t count ) {
-			std::vector<task_queue_t> result{};
-			result.reserve( count );
-			for( size_t n = 0; n < count; ++n ) {
-				result.emplace_back( );
-			}
+			auto result = std::vector<task_queue_t>( );
+			result.resize( count );
 			return result;
 		}
 		[[nodiscard]] bool send_task( std::optional<task_t> &&tsk, size_t id );
