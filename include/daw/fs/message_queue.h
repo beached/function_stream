@@ -110,9 +110,9 @@ namespace daw::parallel {
 			static_assert( std::is_invocable_v<Predicate> );
 			auto lck = std::unique_lock( m_data->m_mutex );
 			if( empty( ) ) {
-				auto const can_pop =
-				  wait_impl::wait_for( m_data->m_not_empty, lck, timeout,
-				                       [&]( ) { return not empty( ); }, can_continue );
+				auto const can_pop = wait_impl::wait_for(
+				  m_data->m_not_empty, lck, timeout, [&]( ) { return not empty( ); },
+				  can_continue );
 				if( not can_pop ) {
 					return {};
 				}
@@ -144,9 +144,9 @@ namespace daw::parallel {
 				m_data->m_not_full.wait(
 				  lck, [&]( ) { return can_continue( ) and !full( ); } );
 			}
-			auto const can_push =
-			  wait_impl::wait_for( m_data->m_not_empty, lck, timeout,
-			                       [&]( ) { return not full( ); }, can_continue );
+			auto const can_push = wait_impl::wait_for(
+			  m_data->m_not_empty, lck, timeout, [&]( ) { return not full( ); },
+			  can_continue );
 			if( not can_push ) {
 				return false;
 			}

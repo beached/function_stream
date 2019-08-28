@@ -215,7 +215,7 @@ void map_reduce_test2( size_t SZ ) {
 
 void map_reduce_int64_t( ) {
 	std::cout << "map_reduce tests - int64_t\n";
-	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
+	for( size_t n = 128; n < MAX_ITEMS * 2; n *= 2 ) {
 		map_reduce_test<int64_t>( n );
 	}
 	map_reduce_test<int64_t>( LARGE_TEST_SZ * 10 );
@@ -223,7 +223,7 @@ void map_reduce_int64_t( ) {
 
 void map_reduce2_int64_t( ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
-	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
+	for( size_t n = 128; n < MAX_ITEMS * 2; n *= 2 ) {
 		map_reduce_test2<int64_t>( n );
 	}
 	map_reduce_test2<int64_t>( LARGE_TEST_SZ * 10 );
@@ -231,7 +231,7 @@ void map_reduce2_int64_t( ) {
 
 void map_reduce3_int64_t( ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
-	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
+	for( size_t n = 128; n < MAX_ITEMS * 2; n *= 2 ) {
 		map_reduce_test3<int64_t>( n );
 	}
 }

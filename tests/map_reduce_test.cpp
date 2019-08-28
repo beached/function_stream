@@ -28,9 +28,9 @@
 #include <string>
 #include <vector>
 
-#include <daw/daw_span.h>
 #include <daw/daw_benchmark.h>
 #include <daw/daw_memory_mapped_file.h>
+#include <daw/daw_span.h>
 #include <daw/daw_string_view.h>
 #include <daw/parallel/daw_semaphore.h>
 
@@ -136,7 +136,7 @@ daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
 	daw::parallel::spsc_msg_queue_t<daw::string_view> str_lines_result{
 	  daw::parallel::use_autosize{}};
 
-	ts.add_task( [str=daw::move(str), str_lines_result]( ) mutable {
+	ts.add_task( [str = daw::move( str ), str_lines_result]( ) mutable {
 		auto const at_exit = daw::on_scope_exit(
 		  [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
 

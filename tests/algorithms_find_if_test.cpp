@@ -84,7 +84,7 @@ void find_if_test( size_t SZ ) {
 
 void find_if_int64_t( ) {
 	std::cout << "find_if tests - int64_t\n";
-	for( size_t n = 128; n < MAX_ITEMS*2; n *= 2 ) {
+	for( size_t n = 128; n < MAX_ITEMS * 2; n *= 2 ) {
 		find_if_test<int64_t>( n );
 	}
 	find_if_test<int64_t>( LARGE_TEST_SZ );

@@ -308,7 +308,8 @@ namespace daw {
 				auto nxt = m_data->m_next.get( );
 				assert( !*nxt ); // can only set next function once
 
-				using next_result_t = decltype( func( std::declval<base_result_t>( ) ) );
+				using next_result_t =
+				  decltype( func( std::declval<base_result_t>( ) ) );
 
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );
@@ -516,9 +517,10 @@ namespace daw {
 			template<typename Function>
 			[[nodiscard]] auto next( Function && func ) {
 				auto nxt = m_data->m_next.get( );
-				daw::exception::precondition_check( not *nxt,
+				daw::exception::precondition_check( not*nxt,
 				                                    "Can only set next function once" );
-				using next_result_t = decltype( std::declval<std::remove_reference_t<Function>>( )( ) );
+				using next_result_t =
+				  decltype( std::declval<std::remove_reference_t<Function>>( )( ) );
 
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );

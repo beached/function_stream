@@ -490,8 +490,7 @@ namespace daw {
 
 		impl::reduce_futures2( std::make_move_iterator( first ),
 		                       std::make_move_iterator( last ),
-		                       std::back_inserter( results ),
-		                       binary_op );
+		                       std::back_inserter( results ), binary_op );
 
 		while( results.size( ) > 1 ) {
 			auto tmp = std::vector<ResultType>( );

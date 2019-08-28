@@ -52,8 +52,7 @@ namespace daw {
 		    daw::all_true_v<
 		      !std::is_same_v<function_stream, daw::remove_cvref_t<F>>,
 		      !std::is_same_v<std::tuple<Functions...>, daw::remove_cvref_t<F>>,
-		      !daw::any_true_v<std::is_function_v<F>,
-		                               std::is_function_v<Fs>...>>,
+		      !daw::any_true_v<std::is_function_v<F>, std::is_function_v<Fs>...>>,
 		    std::nullptr_t> = nullptr>
 		constexpr explicit function_stream( F &&f, Fs &&... funcs )
 		  : m_funcs( std::forward<F>( f ), std::forward<Fs>( funcs )... ) {}
@@ -89,7 +88,7 @@ namespace daw {
 	  ->function_stream<daw::remove_cvref_t<Functions>...>;
 
 	template<typename... Functions>
-	constexpr auto make_function_stream( Functions&&... funcs ) noexcept {
+	constexpr auto make_function_stream( Functions &&... funcs ) noexcept {
 		return function_stream( std::make_tuple( daw::make_callable( funcs )... ) );
 	}
 
@@ -143,16 +142,19 @@ namespace daw {
 		  : m_funcs{daw::move( tp_funcs )} {}
 
 		template<typename... Args>
-		[[nodiscard]] constexpr decltype( auto ) operator( )( Args &&... args ) const {
+		[[nodiscard]] constexpr decltype( auto )
+		operator( )( Args &&... args ) const {
 			return get_function_stream( )( std::forward<Args...>( args )... );
 		}
 
-		[[nodiscard]] constexpr function_stream<Funcs...> get_function_stream( ) const {
+		[[nodiscard]] constexpr function_stream<Funcs...>
+		get_function_stream( ) const {
 			return function_stream<Funcs...>( m_funcs );
 		}
 
 		template<typename... NextFunctions>
-		[[nodiscard]] constexpr auto next( NextFunctions &&... next_functions ) const {
+		[[nodiscard]] constexpr auto
+		next( NextFunctions &&... next_functions ) const {
 			return make_future_generator( std::tuple_cat(
 			  m_funcs,
 			  std::make_tuple( std::forward<NextFunctions>( next_functions )... ) ) );
@@ -224,7 +226,8 @@ namespace daw {
 	}
 
 	template<typename... Functions>
-	[[nodiscard]] constexpr auto compose_future( Functions &&... funcs ) noexcept {
+	[[nodiscard]] constexpr auto
+	compose_future( Functions &&... funcs ) noexcept {
 		return future_generator_t<std::remove_cv_t<Functions>...>(
 		  std::tuple<std::remove_cv_t<Functions>...>(
 		    std::forward<Functions>( funcs )... ) );

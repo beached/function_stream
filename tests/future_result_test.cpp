@@ -179,13 +179,13 @@ void fork_join_test_001( ) {
 	  daw::async( []( ) { return std::string( "Hello" ); } )
 	    .fork_join(
 	      []( char a, char b, char c, char d, char e ) {
-		      auto result = std::string( );
-		      result += a;
-		      result += b;
-		      result += c;
-		      result += d;
-		      result += e;
-		      return result;
+	        auto result = std::string( );
+	        result += a;
+	        result += b;
+	        result += c;
+	        result += d;
+	        result += e;
+	        return result;
 	      },
 	      []( std::string const &s ) -> char { return s[0] | ' '; },
 	      []( std::string const &s ) -> char { return s[1] | ' '; },

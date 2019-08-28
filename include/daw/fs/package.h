@@ -61,7 +61,7 @@ namespace daw {
 			bool m_continue_on_result_destruction;
 
 			constexpr members_t( bool continueonclientdestruction, result_t result,
-			                     functions_t functions, Args&&... args )
+			                     functions_t functions, Args &&... args )
 			  : m_function_list( daw::move( functions ) )
 			  , m_targs( std::forward<Args>( args )... )
 			  , m_result( result )
@@ -75,7 +75,7 @@ namespace daw {
 		using arguments_t = std::tuple<daw::remove_cvref_t<Args>...>;
 		using result_t = Result;
 		using result_value_t = typename result_t::type;
-	//	weak_ptr_type_t<result_t>;
+		//	weak_ptr_type_t<result_t>;
 
 	private:
 		daw::value_ptr<impl::members_t<functions_t, arguments_t, result_t, Args...>>
@@ -90,14 +90,14 @@ namespace daw {
 		constexpr package_t &operator=( package_t && ) noexcept = default;
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
-		                     functions_t && functions, Args &&... args )
+		                     functions_t &&functions, Args &&... args )
 		  : members( continueonclientdestruction, daw::move( result ),
 		             daw::move( functions ), std::forward<Args>( args )... ) {}
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
-		                     functions_t const & functions, Args &&... args )
-		  : members( continueonclientdestruction, daw::move( result ),
-		             functions, std::forward<Args>( args )... ) {}
+		                     functions_t const &functions, Args &&... args )
+		  : members( continueonclientdestruction, daw::move( result ), functions,
+		             std::forward<Args>( args )... ) {}
 
 		[[nodiscard]] constexpr functions_t const &function_list( ) const noexcept {
 			return members->m_function_list;
@@ -117,12 +117,12 @@ namespace daw {
 
 		[[nodiscard]] constexpr bool continue_processing( ) const {
 			// TODO: remove
-			//return !destination_expired( ) or continue_on_result_destruction( );
+			// return !destination_expired( ) or continue_on_result_destruction( );
 			return continue_on_result_destruction( );
 		}
 
 		template<typename... NewArgs>
-		[[nodiscard]] decltype( auto ) next_package( NewArgs &&... nargs ) {
+		[[nodiscard]] decltype( auto ) next_package( NewArgs && ... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ),
 			                            daw::move( members->m_result ),
 			                            daw::move( members->m_function_list ),
@@ -132,7 +132,7 @@ namespace daw {
 		/*
 		 * TODO: remove
 		[[nodiscard]] constexpr bool destination_expired( ) const {
-			return result( ).expired( );
+		  return result( ).expired( );
 		}
 		 */
 
@@ -145,7 +145,8 @@ namespace daw {
 		}
 
 	private:
-		[[nodiscard]] constexpr bool const &continue_on_result_destruction( ) const noexcept {
+		[[nodiscard]] constexpr bool const &continue_on_result_destruction( )
+		  const noexcept {
 			return members->m_continue_on_result_destruction;
 		}
 

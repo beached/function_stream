@@ -130,7 +130,7 @@ namespace daw {
 			    [wself = get_handle( ),
 			     task = daw::mutable_capture( std::forward<Task>( task ) ), id]( ) {
 				    if( auto self = wself.lock( ); self ) {
-					    ::daw::move( *task )( );
+					    ::daw::move ( *task )( );
 					    while( self->m_data->m_continue and self->run_next_task( id ) ) {}
 				    }
 			    } ),
@@ -294,7 +294,7 @@ namespace daw {
 		                     sem = daw::mutable_capture( std::move( sem ) )]( ) {
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
 
-			daw::move( *task )( );
+			daw::move ( *task )( );
 		} );
 	}
 
