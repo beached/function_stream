@@ -141,7 +141,9 @@ namespace daw {
 		template<typename Function, typename... Args>
 		void from_code( Function && func, Args && ... args ) {
 			static_assert(
-			  daw::is_convertible_v<std::invoke_result_t<Function, Args...>, Result>,
+			  daw::is_convertible_v<decltype( ::std::forward<Function>( func )(
+			                          ::std::forward<Args>( args )... ) ),
+			                        Result>,
 			  "Function func with Args does not return a value that is "
 			  "convertible to Result. e.g Result "
 			  "r = func( args... ) must be valid" );
@@ -297,9 +299,9 @@ namespace daw {
 	template<typename result_t, typename Function>
 	[[nodiscard]] constexpr decltype( auto )
 	operator|( future_result_t<result_t> const &lhs, Function &&rhs ) {
-		static_assert( daw::traits::is_callable_v<Function, result_t>,
-		               "Supplied function must be callable with result of future" );
-		return lhs.next( daw::make_callable( std::forward<Function>( rhs ) ) );
+	  static_assert( daw::traits::is_callable_v<Function, result_t>,
+	                 "Supplied function must be callable with result of future" );
+	  return lhs.next( daw::make_callable( std::forward<Function>( rhs ) ) );
 	}*/
 
 	template<typename result_t, typename Function>
@@ -373,7 +375,8 @@ namespace daw {
 
 		static_assert(
 		  daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
-		using result_t = std::invoke_result_t<Function, Args...>;
+		using result_t = decltype(
+		  std::forward<Function>( func )( std::forward<Args>( args )... ) );
 		auto result = future_result_t<result_t>( daw::move( sem ) );
 		ts.add_task( impl::make_future_task(
 		  result, daw::make_callable( std::forward<Function>( func ) ),
@@ -441,7 +444,7 @@ namespace daw {
 		template<typename Iterator, typename OutputIterator, typename BinaryOp>
 		inline OutputIterator reduce_futures2( Iterator first, Iterator last,
 		                                       OutputIterator out_it,
-		                                       BinaryOp &&binary_op ) {
+		                                       BinaryOp const &binary_op ) {
 			auto const sz = std::distance( first, last );
 			assert( sz >= 0 );
 			if( sz <= 0 ) {
@@ -457,12 +460,12 @@ namespace daw {
 			while( first != last ) {
 				auto l_it = first++;
 				auto r_it = first++;
-				*out_it++ = l_it->next( [r = daw::mutable_capture( *r_it ),
-				                         binary_op = daw::mutable_capture( binary_op )](
-				                          auto &&result ) {
-					return daw::invoke(
-					  *binary_op, std::forward<decltype( result )>( result ), r->get( ) );
-				} );
+				*out_it++ = l_it->next(
+				  [r = daw::mutable_capture( *r_it ),
+				   binary_op = daw::mutable_capture( binary_op )]( auto &&result ) {
+					  return ( *binary_op )( std::forward<decltype( result )>( result ),
+					                         r->get( ) );
+				  } );
 			}
 			if( odd_count ) {
 				*out_it++ = *last;
@@ -487,7 +490,8 @@ namespace daw {
 
 		impl::reduce_futures2( std::make_move_iterator( first ),
 		                       std::make_move_iterator( last ),
-		                       std::back_inserter( results ), binary_op );
+		                       std::back_inserter( results ),
+		                       binary_op );
 
 		while( results.size( ) > 1 ) {
 			auto tmp = std::vector<ResultType>( );
@@ -505,8 +509,8 @@ namespace daw {
 		template<typename F, typename Tuple, std::size_t... I>
 		[[nodiscard]] constexpr decltype( auto )
 		future_apply_impl( F &&f, Tuple &&t, std::index_sequence<I...> ) {
-			return daw::invoke( std::forward<F>( f ),
-			                    std::get<I>( std::forward<Tuple>( t ) ).get( )... );
+			return std::forward<F>( f )(
+			  std::get<I>( std::forward<Tuple>( t ) ).get( )... );
 		}
 	} // namespace impl
 

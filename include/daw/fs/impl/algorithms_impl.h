@@ -245,6 +245,27 @@ namespace daw {
 					}
 				}
 
+				template<typename Compare>
+				struct parallel_sort_merger {
+					Compare cmp;
+
+					template<typename Iterator>
+					constexpr ::daw::view<Iterator>
+					operator( )( daw::view<Iterator> rng_left,
+					             daw::view<Iterator> rng_right ) const {
+						daw::exception::dbg_precondition_check(
+						  rng_left.end( ) == rng_right.begin( ),
+						  "Ranges must be contigous" );
+
+						std::inplace_merge( rng_left.begin( ), rng_left.end( ),
+						                    rng_right.end( ), cmp );
+
+						return daw::view<Iterator>( rng_left.begin( ), rng_right.end( ) );
+					}
+				};
+				template<typename Compare>
+				parallel_sort_merger( Compare cmp )->parallel_sort_merger<Compare>;
+
 				template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 				         typename Sort, typename Compare>
 				void parallel_sort( daw::view<Iterator> range, Sort &&srt,
@@ -272,19 +293,8 @@ namespace daw {
 						  return make_future_result( *ts, sort_fn, rng );
 					  } );
 
-					auto merger = [cmp]( daw::view<Iterator> rng_left,
-					                     daw::view<Iterator> rng_right ) {
-						daw::exception::dbg_precondition_check(
-						  rng_left.end( ) == rng_right.begin( ),
-						  "Ranges must be next to each other" );
-
-						std::inplace_merge( rng_left.begin( ), rng_left.end( ),
-						                    rng_right.end( ), cmp );
-
-						return daw::view<Iterator>( rng_left.begin( ), rng_right.end( ) );
-					};
 					ts.wait_for( reduce_futures( sorters.begin( ), sorters.end( ),
-					                             daw::move( merger ) ) );
+					                             parallel_sort_merger{cmp} ) );
 				}
 
 				template<typename PartitionPolicy = split_range_t<>, typename T,

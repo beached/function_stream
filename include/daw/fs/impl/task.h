@@ -57,12 +57,12 @@ namespace daw {
 
 		inline void operator( )( ) noexcept( noexcept( m_function( ) ) ) {
 			assert( m_function );
-			std::invoke( m_function );
+			m_function( );
 		}
 
 		inline void operator( )( ) const noexcept( noexcept( m_function( ) ) ) {
 			assert( m_function );
-			std::invoke( m_function );
+			m_function( );
 		}
 
 		[[nodiscard]] inline bool is_ready( ) const {

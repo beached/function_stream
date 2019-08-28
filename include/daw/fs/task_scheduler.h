@@ -130,7 +130,7 @@ namespace daw {
 			    [wself = get_handle( ),
 			     task = daw::mutable_capture( std::forward<Task>( task ) ), id]( ) {
 				    if( auto self = wself.lock( ); self ) {
-					    std::invoke( daw::move( *task ) );
+					    ::daw::move( *task )( );
 					    while( self->m_data->m_continue and self->run_next_task( id ) ) {}
 				    }
 			    } ),
@@ -144,7 +144,7 @@ namespace daw {
 			            task =
 			              daw::mutable_capture( std::forward<Task>( task ) )]( ) {
 				if( auto self = wself.lock( ); self ) {
-					std::invoke( *task );
+					::daw::move ( *task )( );
 					while( self->m_data->m_continue and self->run_next_task( id ) ) {}
 				}
 			};
@@ -256,7 +256,7 @@ namespace daw {
 			  [sem = ::daw::mutable_capture( start_temp_task_runners( ) )]( ) {
 				  sem->notify( );
 			  } );
-			return std::invoke( std::forward<Function>( func ) );
+			return std::forward<Function>( func )( );
 		}
 
 		template<typename Waitable>
@@ -294,7 +294,7 @@ namespace daw {
 		                     sem = daw::mutable_capture( std::move( sem ) )]( ) {
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
 
-			daw::invoke( daw::move( *task ) );
+			daw::move( *task )( );
 		} );
 	}
 

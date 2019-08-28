@@ -128,7 +128,7 @@ namespace daw {
 				if( tsk->is_ready( ) ) {
 					(void)send_task( daw::move( tsk ), get_task_id( ) );
 				} else {
-					(void)std::invoke( *tsk );
+					(void)(*tsk)( );
 				}
 			}
 		} catch( ... ) {

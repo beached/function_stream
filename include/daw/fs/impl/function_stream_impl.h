@@ -127,8 +127,8 @@ namespace daw {
 			  pos == daw::tuple_size_v<std::remove_reference_t<TFunctions>> - 1,
 			  "last_function_tag should only be retuned for last item in tuple" );
 
-			return daw::invoke( std::get<pos>( std::forward<TFunctions>( funcs ) ),
-			                    std::forward<Args>( args )... );
+			return std::get<pos>( std::forward<TFunctions>( funcs ) )(
+			  std::forward<Args>( args )... );
 		}
 
 		template<size_t pos, typename TFunctions, typename... Args>
@@ -148,8 +148,9 @@ namespace daw {
 
 			return function_composer_impl<pos + 1>(
 			  std::forward<TFunctions>( funcs ), which_t{},
-			  daw::invoke( std::get<pos>( std::forward<TFunctions>( funcs ) ),
-			               std::forward<Args>( args )... ) );
+
+			  std::get<pos>( std::forward<TFunctions>( funcs ) )(
+			    std::forward<Args>( args )... ) );
 		}
 
 		template<typename... Functions>
