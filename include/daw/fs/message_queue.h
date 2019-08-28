@@ -75,6 +75,31 @@ namespace daw::parallel {
 	public:
 		locking_circular_buffer( ) = default;
 
+		locking_circular_buffer( locking_circular_buffer &&other ) noexcept
+		  : m_data( ( std::lock_guard( other.m_data->m_mutex ),
+		              std::move( other.m_data ) ) ) {}
+
+		locking_circular_buffer &
+		operator=( locking_circular_buffer &&rhs ) noexcept {
+			if( this != &rhs ) {
+				auto const lck = std::lock_guard( m_data->m_mutex );
+				auto const lck2 = std::lock_guard( rhs.m_data->m_mutex );
+				using std::swap;
+				swap( m_data, rhs.m_data );
+			}
+			return *this;
+		}
+
+		locking_circular_buffer &
+		operator=( locking_circular_buffer const & ) = delete;
+
+		locking_circular_buffer( locking_circular_buffer const & ) = delete;
+
+		~locking_circular_buffer( ) noexcept {
+			// Ensure we don't go UB, cannot destruct until we can lock
+			auto const lck = std::lock_guard( m_data->m_mutex );
+		}
+
 		[[nodiscard]] std::optional<T> try_pop_front( ) {
 			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or empty( ) ) {

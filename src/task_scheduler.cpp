@@ -99,7 +99,7 @@ namespace daw {
 	task_scheduler::wait_for_task_from_pool( size_t id ) {
 		// Get task.  First try own queue, if not try the others and finally
 		// wait for own queue to fill
-		if( not m_data->m_continue ) {
+		if( not m_data or not m_data->m_continue ) {
 			return {};
 		}
 		if( auto tsk = m_data->m_tasks[id].try_pop_front( ); tsk ) {
