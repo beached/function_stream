@@ -121,6 +121,7 @@ void sort_test( size_t SZ ) {
 int main( ) {
 #ifdef DEBUG
 	std::cout << "Debug build\n";
+	std::cout << SOURCE_CONTROL_REVISION << '\n';
 #endif
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";

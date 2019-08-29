@@ -31,6 +31,7 @@
 #include <daw/parallel/daw_latch.h>
 #include <daw/parallel/daw_locked_value.h>
 
+#include "impl/ithread.h"
 #include "impl/task.h"
 #include "message_queue.h"
 
@@ -46,9 +47,8 @@ namespace daw {
 	  daw::is_detected_v<is_waitable_detector, std::remove_reference_t<Waitable>>;
 
 	template<typename... Args>
-	inline std::optional<task_t> make_task_ptr( Args &&... args ) {
-		return std::optional<task_t>( std::in_place,
-		                              std::forward<Args>( args )... );
+	inline ::std::unique_ptr<task_t> make_task_ptr( Args &&... args ) {
+		return ::std::make_unique<task_t>( std::forward<Args>( args )... );
 	}
 	struct unable_to_add_task_exception : std::exception {
 		unable_to_add_task_exception( ) = default;
@@ -58,27 +58,29 @@ namespace daw {
 
 	class task_scheduler {
 		using task_queue_t =
-		  daw::parallel::locking_circular_buffer<daw::task_t, 1024>;
+		  daw::parallel::locking_circular_buffer<daw::task_t, 2048>;
 
 		class member_data_t {
-			daw::lockable_value_t<std::vector<std::thread>> m_threads{};
-			daw::lockable_value_t<std::unordered_map<std::thread::id, size_t>>
+			::daw::lockable_value_t<std::list<::daw::parallel::ithread>> m_threads{};
+			::daw::lockable_value_t<
+			  std::unordered_map<::daw::parallel::ithread::id, size_t>>
 			  m_thread_map{};
-			size_t const m_num_threads;        // from ctor
-			std::vector<task_queue_t> m_tasks; // from ctor
-			std::atomic<size_t> m_task_count{0};
-			daw::lockable_value_t<std::list<std::optional<std::thread>>>
+			size_t const m_num_threads;          // from ctor
+			::std::vector<task_queue_t> m_tasks; // from ctor
+			::std::atomic<size_t> m_task_count{0};
+			::daw::lockable_value_t<::std::list<::daw::parallel::ithread>>
 			  m_other_threads{};
-			std::atomic<size_t> m_current_id{0};
-			std::atomic_bool m_continue = false;
+			::std::atomic_size_t m_current_id{0};
+			::std::atomic_bool m_continue = true;
 			bool m_block_on_destruction; // from ctor
 
 			friend task_scheduler;
 
 			member_data_t( std::size_t num_threads, bool block_on_destruction );
 		};
-		std::shared_ptr<member_data_t> m_data = std::shared_ptr<member_data_t>(
-		  new member_data_t( std::thread::hardware_concurrency( ), true ) );
+		std::shared_ptr<member_data_t> m_data =
+		  std::shared_ptr<member_data_t>( new member_data_t(
+		    ::daw::parallel::ithread::hardware_concurrency( ), true ) );
 
 		task_scheduler( std::shared_ptr<member_data_t> &&sptr )
 		  : m_data( daw::move( sptr ) ) {}
@@ -108,7 +110,7 @@ namespace daw {
 			return handle_t( static_cast<std::weak_ptr<member_data_t>>( m_data ) );
 		}
 
-		[[nodiscard]] std::optional<daw::task_t>
+		[[nodiscard]] ::std::unique_ptr<daw::task_t>
 		wait_for_task_from_pool( size_t id );
 
 		[[nodiscard]] static std::vector<task_queue_t>
@@ -117,7 +119,7 @@ namespace daw {
 			result.resize( count );
 			return result;
 		}
-		[[nodiscard]] bool send_task( std::optional<task_t> &&tsk, size_t id );
+		[[nodiscard]] bool send_task( ::std::unique_ptr<task_t> &&tsk, size_t id );
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
@@ -181,7 +183,7 @@ namespace daw {
 			}
 		}
 
-		void run_task( std::optional<task_t> &&tsk ) noexcept;
+		void run_task( ::std::unique_ptr<task_t> &&tsk ) noexcept;
 
 		[[nodiscard]] size_t get_task_id( );
 

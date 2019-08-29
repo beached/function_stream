@@ -44,7 +44,7 @@
 template<typename T>
 void for_each_test( size_t SZ ) {
 	auto ts = daw::get_task_scheduler( );
-	bool found = false;
+	std::atomic_bool found = false;
 	std::vector<T> a;
 	a.resize( SZ );
 	std::fill( a.begin( ), a.end( ), 1 );

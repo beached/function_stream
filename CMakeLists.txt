@@ -71,6 +71,8 @@ set( FUNCTION_STREAM_HEADER_FILES
 	${HEADER_FOLDER}/daw/fs/task_scheduler.h
 	${HEADER_FOLDER}/daw/fs/impl/algorithms_impl.h
 	${HEADER_FOLDER}/daw/fs/impl/concept_checks.h
+	${HEADER_FOLDER}/daw/fs/impl/dbg_proxy.h
+	${HEADER_FOLDER}/daw/fs/impl/ithread.h
 	${HEADER_FOLDER}/daw/fs/impl/function_stream_impl.h
 	${HEADER_FOLDER}/daw/fs/impl/future_result_impl.h
 	${HEADER_FOLDER}/daw/fs/impl/task.h

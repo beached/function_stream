@@ -31,9 +31,9 @@
 
 namespace daw {
 	class [[nodiscard]] task_t {
-		std::function<void( )> m_function;
+		::std::function<void( )> m_function; // from ctor
 		// shared to interoperate with other parts
-		daw::shared_latch m_latch{};
+		::daw::shared_latch m_latch = ::daw::shared_latch( );
 
 	public:
 		inline explicit task_t( std::function<void( )> func )
@@ -56,12 +56,14 @@ namespace daw {
 		}
 
 		inline void operator( )( ) noexcept( noexcept( m_function( ) ) ) {
-			assert( m_function );
+			daw::exception::dbg_precondition_check( m_function,
+			                                        "Callable must be valid" );
 			m_function( );
 		}
 
 		inline void operator( )( ) const noexcept( noexcept( m_function( ) ) ) {
-			assert( m_function );
+			daw::exception::dbg_precondition_check( m_function,
+			                                        "Callable must be valid" );
 			m_function( );
 		}
 

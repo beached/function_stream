@@ -26,6 +26,7 @@
 #include <daw/daw_scope_guard.h>
 #include <daw/parallel/daw_latch.h>
 
+#include "daw/fs/impl/ithread.h"
 #include "daw/fs/task_scheduler.h"
 
 namespace daw {
@@ -43,9 +44,9 @@ namespace daw {
 
 	namespace {
 		template<typename... Args>
-		std::thread create_thread( Args &&... args ) noexcept {
+		::daw::parallel::ithread create_thread( Args &&... args ) noexcept {
 			try {
-				return std::thread( std::forward<Args>( args )... );
+				return ::daw::parallel::ithread( std::forward<Args>( args )... );
 			} catch( std::system_error const &e ) {
 				std::cerr << "Error creating thread, aborting.\n Error code: "
 				          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
@@ -95,7 +96,7 @@ namespace daw {
 		return m_data->m_continue;
 	}
 
-	std::optional<daw::task_t>
+	::std::unique_ptr<daw::task_t>
 	task_scheduler::wait_for_task_from_pool( size_t id ) {
 		// Get task.  First try own queue, if not try the others and finally
 		// wait for own queue to fill
@@ -119,7 +120,8 @@ namespace daw {
 		  } );
 	}
 
-	void task_scheduler::run_task( std::optional<daw::task_t> &&tsk ) noexcept {
+	void
+	task_scheduler::run_task( ::std::unique_ptr<daw::task_t> &&tsk ) noexcept {
 		if( not tsk ) {
 			return;
 		}
@@ -161,6 +163,9 @@ namespace daw {
 	}
 
 	void task_scheduler::start( ) {
+		if( started( ) ) {
+			return;
+		}
 		m_data->m_continue = true;
 		auto threads = m_data->m_threads.get( );
 		auto thread_map = m_data->m_thread_map.get( );
@@ -175,24 +180,22 @@ namespace daw {
 			  },
 			  n, get_handle( ) );
 			auto id = thr.get_id( );
-			threads->push_back( daw::move( thr ) );
+			threads->push_back( ::daw::move( thr ) );
 			( *thread_map )[id] = n;
 		}
 	}
 
 	void task_scheduler::stop( bool block ) noexcept {
 		if( auto tmp = m_data; tmp ) {
-			tmp->m_continue = false;
 			try {
 				auto threads = tmp->m_threads.get( );
 				for( auto &th : *threads ) {
 					try {
-						if( th.joinable( ) ) {
-							if( block ) {
-								th.join( );
-							} else {
-								th.detach( );
-							}
+						if( block ) {
+							th.stop_and_wait( );
+						} else {
+							th.detach( );
+							th.stop( );
 						}
 					} catch( ... ) {}
 				}
@@ -208,11 +211,11 @@ namespace daw {
 			size_t const id = m_data->m_current_id++;
 
 			auto other_threads = m_data->m_other_threads.get( );
-			auto it = other_threads->emplace( other_threads->end( ), std::nullopt );
+			auto it = other_threads->emplace( other_threads->end( ) );
 			other_threads.release( );
-
-			*it = create_thread(
-			  [it, id, wself = get_handle( ), sem = daw::mutable_capture( sem )]( ) {
+			auto tmp = create_thread(
+			  [it, id, wself = get_handle( ), sem = daw::mutable_capture( sem )](
+			    ::daw::parallel::interrupt_token can_continue ) {
 				  auto self = wself.lock( );
 				  if( !self ) {
 					  return;
@@ -223,19 +226,21 @@ namespace daw {
 
 				  self->task_runner( id, wself, sem );
 			  } );
-			( *it )->detach( );
+			using std::swap;
+			swap( *it, tmp );
+			it->detach( );
 		}
 		return sem;
 	}
 
-	bool task_scheduler::send_task( std::optional<task_t> &&tsk, size_t id ) {
+	bool task_scheduler::send_task( ::std::unique_ptr<task_t> &&tsk, size_t id ) {
 		if( !tsk ) {
 			return true;
 		}
 		if( not m_data->m_continue ) {
 			return true;
 		}
-		if( m_data->m_tasks[id].try_push_back( std::move( *tsk ) ) ==
+		if( m_data->m_tasks[id].try_push_back( ::daw::move( tsk ) ) ==
 		    daw::parallel::push_back_result::success ) {
 			return true;
 		}
@@ -244,13 +249,13 @@ namespace daw {
 			if( not m_data->m_continue ) {
 				return true;
 			}
-			if( m_data->m_tasks[m].try_push_back( std::move( *tsk ) ) ==
+			if( m_data->m_tasks[m].try_push_back( ::daw::move( tsk ) ) ==
 			    daw::parallel::push_back_result::success ) {
 				return true;
 			}
 		}
 		return m_data->m_tasks[id].push_back(
-		  std::move( *tsk ), [m_continue = &( m_data->m_continue )]( ) {
+		  ::daw::move( tsk ), [m_continue = &( m_data->m_continue )]( ) {
 			  return static_cast<bool>( *m_continue );
 		  } );
 	}
