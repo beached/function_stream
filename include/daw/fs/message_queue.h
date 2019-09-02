@@ -58,13 +58,14 @@ namespace daw::parallel {
 
 	template<typename T, size_t Sz>
 	class locking_circular_buffer {
-		using value_type = std::unique_ptr<T>;
+		using value_type = T;
 		struct members_t {
 			std::array<value_type, Sz> m_values{};
 			std::atomic_size_t m_front = 0;
 			std::atomic_size_t m_back = 0;
 			std::condition_variable m_not_empty = std::condition_variable( );
 			std::condition_variable m_not_full = std::condition_variable( );
+			std::mutex m_mutex = std::mutex( );
 			bool m_is_full = false;
 
 			members_t( ) = default;
@@ -75,7 +76,6 @@ namespace daw::parallel {
 			~members_t( ) = default;
 		};
 		::daw::dbg_proxy<members_t> m_data = std::make_unique<members_t>( );
-		::daw::dbg_proxy<::std::mutex> m_mutex = std::make_unique<::std::mutex>( );
 
 		bool empty( ) const {
 			return ( not m_data->m_is_full ) and
@@ -89,8 +89,8 @@ namespace daw::parallel {
 	public:
 		locking_circular_buffer( ) = default;
 
-		[[nodiscard]] std::unique_ptr<T> try_pop_front( ) {
-			auto lck = std::unique_lock( *m_mutex, std::try_to_lock );
+		[[nodiscard]] T try_pop_front( ) {
+			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( not lck.owns_lock( ) or empty( ) ) {
 				return {};
 			}
@@ -101,8 +101,8 @@ namespace daw::parallel {
 			return ::daw::move( m_data->m_values[m_data->m_front] );
 		}
 
-		[[nodiscard]] std::unique_ptr<T> pop_front( ) {
-			auto lck = std::unique_lock( *m_mutex );
+		[[nodiscard]] T pop_front( ) {
+			auto lck = std::unique_lock( m_data->m_mutex );
 			if( empty( ) ) {
 				m_data->m_not_empty.wait( lck, [&]( ) { return !empty( ); } );
 			}
@@ -116,11 +116,11 @@ namespace daw::parallel {
 		}
 
 		template<typename Predicate, typename Duration = std::chrono::seconds>
-		[[nodiscard]] ::std::unique_ptr<T>
+		[[nodiscard]] T
 		pop_front( Predicate can_continue,
 		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
 			static_assert( std::is_invocable_v<Predicate> );
-			auto lck = std::unique_lock( *m_mutex );
+			auto lck = std::unique_lock( m_data->m_mutex );
 			if( empty( ) ) {
 				auto const can_pop = wait_impl::wait_for(
 				  m_data->m_not_empty, lck, timeout, [&]( ) { return not empty( ); },
@@ -143,12 +143,12 @@ namespace daw::parallel {
 
 		template<typename Predicate, typename Duration = std::chrono::seconds>
 		[[nodiscard]] bool
-		push_back( ::std::unique_ptr<T> &&value, Predicate can_continue,
+		push_back( T &&value, Predicate can_continue,
 		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
 
 			static_assert( std::is_invocable_v<Predicate> );
 
-			auto lck = std::unique_lock( *m_mutex );
+			auto lck = std::unique_lock( m_data->m_mutex );
 			if( full( ) ) {
 				m_data->m_not_full.wait(
 				  lck, [&]( ) { return can_continue( ) and !full( ); } );
@@ -169,8 +169,8 @@ namespace daw::parallel {
 			return true;
 		}
 
-		[[nodiscard]] push_back_result try_push_back( std::unique_ptr<T> &&value ) {
-			auto lck = std::unique_lock( *m_mutex, std::try_to_lock );
+		[[nodiscard]] push_back_result try_push_back( T &&value ) {
+			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or full( ) ) {
 				return push_back_result::failed;
 			}

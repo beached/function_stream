@@ -31,51 +31,66 @@
 
 namespace daw {
 	class [[nodiscard]] task_t {
-		::std::function<void( )> m_function; // from ctor
-		// shared to interoperate with other parts
-		::daw::shared_latch m_latch = ::daw::shared_latch( );
+		struct impl_t {
+			::std::function<void( )> m_function; // from ctor
+			// shared to interoperate with other parts
+			::daw::shared_latch m_latch = ::daw::shared_latch( );
+
+			impl_t( ::std::function<void( )> &&func )
+			  : m_function( ::daw::move( func ) ) {}
+
+			impl_t( ::std::function<void( )> &&func, ::daw::shared_latch &&l )
+			  : m_function( ::daw::move( func ) )
+			  , m_latch( ::daw::move( l ) ) {}
+		};
+		::std::unique_ptr<impl_t> m_impl = ::std::unique_ptr<impl_t>( );
 
 	public:
-		inline explicit task_t( std::function<void( )> func )
-		  : m_function( daw::move( func ) ) {
+		constexpr task_t( ) noexcept /*TODO noexcept*/ = default;
 
-			daw::exception::precondition_check( m_function,
+		inline explicit task_t( std::function<void( )> func )
+		  : m_impl( ::std::make_unique<impl_t>( ::daw::move( func ) ) ) {
+
+			daw::exception::precondition_check( m_impl->m_function,
 			                                    "Callable must be valid" );
 		}
 
 		template<typename Latch>
-		task_t( std::function<void( )> func, Latch && sem )
-		  : m_function( daw::move( func ) )
-		  , m_latch( std::forward<Latch>( sem ) ) {
+		task_t( std::function<void( )> func, Latch l )
+		  : m_impl( ::std::make_unique<impl_t>(
+		      ::daw::move( func ), ::daw::is_shared_latch_v<Latch>
+		                             ? ::daw::move( l )
+		                             : ::daw::shared_latch( ::daw::move( l ) ) ) ) {
 
 			static_assert( daw::is_shared_latch_v<Latch> or
 			               daw::is_unique_latch_v<Latch> );
 
-			daw::exception::precondition_check( m_function,
+			daw::exception::precondition_check( m_impl->m_function,
 			                                    "Callable must be valid" );
 		}
 
-		inline void operator( )( ) noexcept( noexcept( m_function( ) ) ) {
-			daw::exception::dbg_precondition_check( m_function,
+		inline void operator( )( ) noexcept( noexcept( m_impl->m_function( ) ) ) {
+			daw::exception::dbg_precondition_check( m_impl->m_function,
 			                                        "Callable must be valid" );
-			m_function( );
+			m_impl->m_function( );
 		}
 
-		inline void operator( )( ) const noexcept( noexcept( m_function( ) ) ) {
-			daw::exception::dbg_precondition_check( m_function,
+		inline void operator( )( )
+		  const noexcept( noexcept( m_impl->m_function( ) ) ) {
+			daw::exception::dbg_precondition_check( m_impl->m_function,
 			                                        "Callable must be valid" );
-			m_function( );
+			m_impl->m_function( );
 		}
 
 		[[nodiscard]] inline bool is_ready( ) const {
-			if( m_latch ) {
-				return m_latch.try_wait( );
+			if( m_impl->m_latch ) {
+				return m_impl->m_latch.try_wait( );
 			}
 			return true;
 		}
 
 		[[nodiscard]] inline explicit operator bool( ) const noexcept {
-			return static_cast<bool>( m_function );
+			return static_cast<bool>( m_impl and m_impl->m_function );
 		}
-	};
+	}; // namespace daw
 } // namespace daw

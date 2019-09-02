@@ -96,8 +96,7 @@ namespace daw {
 		return m_data->m_continue;
 	}
 
-	::std::unique_ptr<daw::task_t>
-	task_scheduler::wait_for_task_from_pool( size_t id ) {
+	::daw::task_t task_scheduler::wait_for_task_from_pool( size_t id ) {
 		// Get task.  First try own queue, if not try the others and finally
 		// wait for own queue to fill
 		if( not m_data or not m_data->m_continue ) {
@@ -120,17 +119,16 @@ namespace daw {
 		  } );
 	}
 
-	void
-	task_scheduler::run_task( ::std::unique_ptr<daw::task_t> &&tsk ) noexcept {
+	void task_scheduler::run_task( ::daw::task_t &&tsk ) noexcept {
 		if( not tsk ) {
 			return;
 		}
 		try {
 			if( m_data->m_continue ) {
-				if( tsk->is_ready( ) ) {
-					(void)send_task( daw::move( tsk ), get_task_id( ) );
+				if( tsk.is_ready( ) ) {
+					(void)send_task( ::daw::move( tsk ), get_task_id( ) );
 				} else {
-					(void)( *tsk )( );
+					(void)tsk( );
 				}
 			}
 		} catch( ... ) {
@@ -233,7 +231,7 @@ namespace daw {
 		return sem;
 	}
 
-	bool task_scheduler::send_task( ::std::unique_ptr<task_t> &&tsk, size_t id ) {
+	bool task_scheduler::send_task( ::daw::task_t &&tsk, size_t id ) {
 		if( !tsk ) {
 			return true;
 		}

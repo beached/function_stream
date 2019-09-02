@@ -22,9 +22,11 @@
 
 #pragma once
 
+#include <deque>
 #include <exception>
 #include <memory>
 #include <thread>
+#include <vector>
 
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
@@ -46,10 +48,6 @@ namespace daw {
 	constexpr bool is_waitable_v =
 	  daw::is_detected_v<is_waitable_detector, std::remove_reference_t<Waitable>>;
 
-	template<typename... Args>
-	inline ::std::unique_ptr<task_t> make_task_ptr( Args &&... args ) {
-		return ::std::make_unique<task_t>( std::forward<Args>( args )... );
-	}
 	struct unable_to_add_task_exception : std::exception {
 		unable_to_add_task_exception( ) = default;
 
@@ -58,15 +56,15 @@ namespace daw {
 
 	class task_scheduler {
 		using task_queue_t =
-		  daw::parallel::locking_circular_buffer<daw::task_t, 2048>;
+		  daw::parallel::locking_circular_buffer<::daw::task_t, 2048>;
 
 		class member_data_t {
 			::daw::lockable_value_t<std::list<::daw::parallel::ithread>> m_threads{};
 			::daw::lockable_value_t<
 			  std::unordered_map<::daw::parallel::ithread::id, size_t>>
 			  m_thread_map{};
-			size_t const m_num_threads;          // from ctor
-			::std::vector<task_queue_t> m_tasks; // from ctor
+			size_t const m_num_threads;         // from ctor
+			::std::deque<task_queue_t> m_tasks; // from ctor
 			::std::atomic<size_t> m_task_count{0};
 			::daw::lockable_value_t<::std::list<::daw::parallel::ithread>>
 			  m_other_threads{};
@@ -110,22 +108,21 @@ namespace daw {
 			return handle_t( static_cast<std::weak_ptr<member_data_t>>( m_data ) );
 		}
 
-		[[nodiscard]] ::std::unique_ptr<daw::task_t>
-		wait_for_task_from_pool( size_t id );
+		[[nodiscard]] ::daw::task_t wait_for_task_from_pool( size_t id );
 
-		[[nodiscard]] static std::vector<task_queue_t>
+		[[nodiscard]] static std::deque<task_queue_t>
 		make_task_queues( size_t count ) {
-			auto result = std::vector<task_queue_t>( );
+			auto result = std::deque<task_queue_t>( );
 			result.resize( count );
 			return result;
 		}
-		[[nodiscard]] bool send_task( ::std::unique_ptr<task_t> &&tsk, size_t id );
+		[[nodiscard]] bool send_task( ::daw::task_t &&tsk, size_t id );
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
 		[[nodiscard]] bool add_task( Task &&task, size_t id ) {
 			return send_task(
-			  make_task_ptr(
+			  ::daw::task_t(
 			    [wself = get_handle( ),
 			     task = daw::mutable_capture( std::forward<Task>( task ) ), id]( ) {
 				    if( auto self = wself.lock( ); self ) {
@@ -147,7 +144,7 @@ namespace daw {
 					while( self->m_data->m_continue and self->run_next_task( id ) ) {}
 				}
 			};
-			return send_task( make_task_ptr( daw::move( tsk ), std::move( sem ) ),
+			return send_task( ::daw::task_t( daw::move( tsk ), std::move( sem ) ),
 			                  id );
 		}
 
@@ -183,7 +180,7 @@ namespace daw {
 			}
 		}
 
-		void run_task( ::std::unique_ptr<task_t> &&tsk ) noexcept;
+		void run_task( ::daw::task_t &&tsk ) noexcept;
 
 		[[nodiscard]] size_t get_task_id( );
 

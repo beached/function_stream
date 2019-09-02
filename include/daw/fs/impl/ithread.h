@@ -69,15 +69,16 @@ namespace daw::parallel {
 	};
 	namespace ithread_impl {
 		struct ithread_impl {
-			interrupt_token_owner m_continue = interrupt_token_owner( );
-			::std::thread m_thread; // from ctor
+			interrupt_token_owner m_continue;
+			::std::thread m_thread;
 
 			template<typename Callable, typename... Args,
 			         ::std::enable_if_t<
 			           ::std::is_invocable_v<Callable, interrupt_token, Args...>,
 			           ::std::nullptr_t> = nullptr>
 			ithread_impl( Callable &&callable, Args &&... args )
-			  : m_thread( std::forward<Callable>( callable ),
+			  : m_continue( )
+			  , m_thread( std::forward<Callable>( callable ),
 			              m_continue.get_interrupt_token( ),
 			              std::forward<Args>( args )... ) {}
 
@@ -86,7 +87,8 @@ namespace daw::parallel {
 			           not std::is_invocable_v<Callable, interrupt_token, Args...>,
 			           ::std::nullptr_t> = nullptr>
 			ithread_impl( Callable &&callable, Args &&... args )
-			  : m_thread( std::forward<Callable>( callable ),
+			  : m_continue( )
+			  , m_thread( std::forward<Callable>( callable ),
 			              std::forward<Args>( args )... ) {}
 		};
 	} // namespace ithread_impl

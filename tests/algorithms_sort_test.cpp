@@ -118,10 +118,13 @@ void sort_test( size_t SZ ) {
 	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
 }
 
+extern char const *const GIT_VERSION;
+char const *const GIT_VERSION = SOURCE_CONTROL_REVISION;
+
 int main( ) {
 #ifdef DEBUG
 	std::cout << "Debug build\n";
-	std::cout << SOURCE_CONTROL_REVISION << '\n';
+	std::cout << GIT_VERSION << '\n';
 #endif
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
