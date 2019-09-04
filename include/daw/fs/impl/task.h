@@ -43,24 +43,27 @@ namespace daw {
 			  : m_function( ::daw::move( func ) )
 			  , m_latch( ::daw::move( l ) ) {}
 		};
-		::std::unique_ptr<impl_t> m_impl = ::std::unique_ptr<impl_t>( );
+		::std::unique_ptr<impl_t> m_impl; //::std::unique_ptr<impl_t>( );
 
 	public:
-		constexpr task_t( ) noexcept /*TODO noexcept*/ = default;
+		constexpr task_t( ) noexcept/*TODO noexcept*/ = default;
 
-		inline explicit task_t( std::function<void( )> func )
-		  : m_impl( ::std::make_unique<impl_t>( ::daw::move( func ) ) ) {
+		template<typename Func>
+		explicit task_t( Func && func )
+		  : m_impl( ::std::make_unique<impl_t>(
+		      ::std::function<void( )>( ::std::forward<Func>( func ) ) ) ) {
 
 			daw::exception::precondition_check( m_impl->m_function,
 			                                    "Callable must be valid" );
 		}
 
-		template<typename Latch>
-		task_t( std::function<void( )> func, Latch l )
+		template<typename Func, typename Latch>
+		task_t( Func && func, Latch l )
 		  : m_impl( ::std::make_unique<impl_t>(
-		      ::daw::move( func ), ::daw::is_shared_latch_v<Latch>
-		                             ? ::daw::move( l )
-		                             : ::daw::shared_latch( ::daw::move( l ) ) ) ) {
+		      ::std::function<void( )>( ::std::forward<Func>( func ) ),
+		      ::daw::is_shared_latch_v<Latch>
+		        ? ::daw::move( l )
+		        : ::daw::shared_latch( ::daw::move( l ) ) ) ) {
 
 			static_assert( daw::is_shared_latch_v<Latch> or
 			               daw::is_unique_latch_v<Latch> );

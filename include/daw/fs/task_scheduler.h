@@ -80,24 +80,24 @@ namespace daw {
 		  std::shared_ptr<member_data_t>( new member_data_t(
 		    ::daw::parallel::ithread::hardware_concurrency( ), true ) );
 
-		task_scheduler( std::shared_ptr<member_data_t> &&sptr )
+		inline explicit task_scheduler( ::std::shared_ptr<member_data_t> &&sptr )
 		  : m_data( daw::move( sptr ) ) {}
 
 		[[nodiscard]] inline auto get_handle( ) {
 			class handle_t {
 				std::weak_ptr<member_data_t> m_handle;
 
-				explicit handle_t( std::weak_ptr<member_data_t> wptr )
-				  : m_handle( wptr ) {}
+				inline explicit handle_t( ::std::shared_ptr<member_data_t> &sptr )
+				  : m_handle( sptr ) {}
 
 				friend task_scheduler;
 
 			public:
-				bool expired( ) const {
+				inline bool expired( ) const {
 					return m_handle.expired( );
 				}
 
-				std::optional<task_scheduler> lock( ) const {
+				inline std::optional<task_scheduler> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
 						return task_scheduler( daw::move( lck ) );
 					}
@@ -105,7 +105,7 @@ namespace daw {
 				}
 			};
 
-			return handle_t( static_cast<std::weak_ptr<member_data_t>>( m_data ) );
+			return handle_t( m_data );
 		}
 
 		[[nodiscard]] ::daw::task_t wait_for_task_from_pool( size_t id );
@@ -165,14 +165,12 @@ namespace daw {
 		void task_runner( size_t id, Handle hnd,
 		                  std::optional<daw::shared_latch> sem ) {
 
-			// The self.lock( ) determines where or not the
+			// The self.lock( ) determines whether or not the
 			// task_scheduler_impl has destructed yet and keeps it alive while
 			// we use members
-			if( hnd.expired( ) ) {
-				return;
-			}
 			while( not sem->try_wait( ) ) {
-				if( auto self = hnd.lock( ); not( self or self->m_data->m_continue ) ) {
+				if( auto self = hnd.lock( );
+				    ( not self ) or not self->m_data->m_continue ) {
 					return;
 				} else {
 					run_task( self->wait_for_task_from_pool( id ) );
