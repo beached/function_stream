@@ -97,8 +97,9 @@ void map_reduce_test3( size_t SZ ) {
 	auto a = daw::make_random_data<value_t>( SZ, 1, 10'000 );
 
 	auto const map_function = []( value_t value ) {
-		for( intmax_t n = 1; n <= 10000; ++n ) {
-			value = ( value ^ n ) % n;
+		for( uintmax_t n = 1; n <= 10000; ++n ) {
+			value = static_cast<intmax_t>( static_cast<uintmax_t>( value ) ^ n ) %
+			        static_cast<intmax_t>( n );
 			if( value <= 0 ) {
 				value = 10;
 			}

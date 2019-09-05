@@ -46,9 +46,12 @@ namespace daw {
 		::std::unique_ptr<impl_t> m_impl; //::std::unique_ptr<impl_t>( );
 
 	public:
-		constexpr task_t( ) noexcept/*TODO noexcept*/ = default;
+		constexpr task_t( ) noexcept /*TODO noexcept*/ = default;
 
-		template<typename Func>
+		template<typename Func,
+		         ::std::enable_if_t<
+		           not std::is_same_v<task_t, ::daw::remove_cvref_t<Func>>,
+		           ::std::nullptr_t> = nullptr>
 		explicit task_t( Func && func )
 		  : m_impl( ::std::make_unique<impl_t>(
 		      ::std::function<void( )>( ::std::forward<Func>( func ) ) ) ) {

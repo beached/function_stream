@@ -38,6 +38,11 @@
 #include "message_queue.h"
 
 namespace daw {
+	namespace impl {
+		template<typename Iterator, typename Handle>
+		struct temp_task_runner;
+	}
+
 	template<typename... Tasks>
 	constexpr bool are_tasks_v = daw::all_true_v<std::is_invocable_v<Tasks>...>;
 
@@ -51,7 +56,7 @@ namespace daw {
 	struct unable_to_add_task_exception : std::exception {
 		unable_to_add_task_exception( ) = default;
 
-		char const *what( ) const noexcept override;
+		[[nodiscard]] char const *what( ) const noexcept override;
 	};
 
 	class task_scheduler {
@@ -75,13 +80,17 @@ namespace daw {
 			friend task_scheduler;
 
 			member_data_t( std::size_t num_threads, bool block_on_destruction );
+
+		public:
+			member_data_t( member_data_t && ) = delete;
+			member_data_t( member_data_t const & ) = delete;
+			member_data_t &operator=( member_data_t && ) = delete;
+			member_data_t &operator=( member_data_t const & ) = delete;
+			~member_data_t( ) = default;
 		};
 		std::shared_ptr<member_data_t> m_data =
 		  std::shared_ptr<member_data_t>( new member_data_t(
 		    ::daw::parallel::ithread::hardware_concurrency( ), true ) );
-
-		inline explicit task_scheduler( ::std::shared_ptr<member_data_t> &&sptr )
-		  : m_data( daw::move( sptr ) ) {}
 
 		[[nodiscard]] inline auto get_handle( ) {
 			class handle_t {
@@ -93,13 +102,15 @@ namespace daw {
 				friend task_scheduler;
 
 			public:
-				inline bool expired( ) const {
+				[[nodiscard]] inline bool expired( ) const {
 					return m_handle.expired( );
 				}
 
-				inline std::optional<task_scheduler> lock( ) const {
+				friend std::optional<task_scheduler>;
+				[[nodiscard]] inline std::optional<task_scheduler> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
-						return task_scheduler( daw::move( lck ) );
+						return ::std::optional<task_scheduler>( std::in_place,
+						                                        ::daw::move( lck ) );
 					}
 					return {};
 				}
@@ -113,7 +124,10 @@ namespace daw {
 		[[nodiscard]] static std::deque<task_queue_t>
 		make_task_queues( size_t count ) {
 			auto result = std::deque<task_queue_t>( );
-			result.resize( count );
+			// result.reserve( count );
+			for( size_t n = 0; n < count; ++n ) {
+				result.emplace_back( );
+			}
 			return result;
 		}
 		[[nodiscard]] bool send_task( ::daw::task_t &&tsk, size_t id );
@@ -183,16 +197,28 @@ namespace daw {
 		[[nodiscard]] size_t get_task_id( );
 
 	public:
+		inline explicit task_scheduler( ::std::shared_ptr<member_data_t> &&sptr )
+		  : m_data( ::daw::move( sptr ) ) {}
+
 		task_scheduler( );
-		task_scheduler( std::size_t num_threads );
+		explicit task_scheduler( std::size_t num_threads );
 		task_scheduler( std::size_t num_threads, bool block_on_destruction );
 		task_scheduler( std::size_t num_threads, bool block_on_destruction,
 		                bool auto_start );
 
-		task_scheduler( task_scheduler && ) = default;
-		task_scheduler &operator=( task_scheduler && ) = default;
-		task_scheduler( task_scheduler const & ) = default;
-		task_scheduler &operator=( task_scheduler const & ) = default;
+		task_scheduler( task_scheduler &&other ) noexcept
+		  : m_data( ::daw::move( other.m_data ) ) {
+
+			::daw::breakpoint( );
+		}
+
+		task_scheduler &operator=( task_scheduler &&rhs ) noexcept {
+			m_data = std::move( rhs.m_data );
+			return *this;
+		}
+
+		task_scheduler( task_scheduler const & ) noexcept = default;
+		task_scheduler &operator=( task_scheduler const & ) noexcept = default;
 		~task_scheduler( );
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
@@ -259,7 +285,7 @@ namespace daw {
 			  is_waitable_v<Waitable>,
 			  "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
 
-			wait_for_scope( [&waitable]( ) { waitable.wait( ); } );
+			wait_for_scope( [&]( ) { waitable.wait( ); } );
 		}
 
 		[[nodiscard]] explicit operator bool( ) const noexcept {

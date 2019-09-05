@@ -36,15 +36,15 @@ namespace daw::parallel {
 
 		friend class ::daw::parallel::interrupt_token_owner;
 
-		interrupt_token( ::daw::latch const &cond ) noexcept
+		explicit interrupt_token( ::daw::latch const &cond ) noexcept
 		  : m_condition( &cond ) {}
 
 	public:
-		bool can_continue( ) const {
+		[[nodiscard]] bool can_continue( ) const {
 			return m_condition->try_wait( );
 		}
 
-		explicit operator bool( ) const {
+		[[nodiscard]] explicit operator bool( ) const {
 			return m_condition->try_wait( );
 		}
 
@@ -76,7 +76,7 @@ namespace daw::parallel {
 			         ::std::enable_if_t<
 			           ::std::is_invocable_v<Callable, interrupt_token, Args...>,
 			           ::std::nullptr_t> = nullptr>
-			ithread_impl( Callable &&callable, Args &&... args )
+			explicit ithread_impl( Callable &&callable, Args &&... args )
 			  : m_continue( )
 			  , m_thread( std::forward<Callable>( callable ),
 			              m_continue.get_interrupt_token( ),
@@ -86,7 +86,7 @@ namespace daw::parallel {
 			         ::std::enable_if_t<
 			           not std::is_invocable_v<Callable, interrupt_token, Args...>,
 			           ::std::nullptr_t> = nullptr>
-			ithread_impl( Callable &&callable, Args &&... args )
+			explicit ithread_impl( Callable &&callable, Args &&... args )
 			  : m_continue( )
 			  , m_thread( std::forward<Callable>( callable ),
 			              std::forward<Args>( args )... ) {}
@@ -105,7 +105,7 @@ namespace daw::parallel {
 		  ::std::enable_if_t<::std::is_constructible_v<ithread_impl::ithread_impl,
 		                                               Callable, Args...>,
 		                     ::std::nullptr_t> = nullptr>
-		ithread( Callable &&callable, Args &&... args )
+		explicit ithread( Callable &&callable, Args &&... args )
 		  : m_impl( ::std::make_unique<ithread_impl::ithread_impl>(
 		      std::forward<Callable>( callable ),
 		      std::forward<Args>( args )... ) ) {}
@@ -115,12 +115,12 @@ namespace daw::parallel {
 		ithread( ithread && ) noexcept = default;
 		ithread &operator=( ithread && ) noexcept = default;
 
-		inline bool joinable( ) const noexcept {
+		[[nodiscard]] inline bool joinable( ) const noexcept {
 			assert( m_impl );
 			return m_impl->m_thread.joinable( );
 		}
 
-		inline std::thread::id get_id( ) const noexcept {
+		[[nodiscard]] inline std::thread::id get_id( ) const noexcept {
 			assert( m_impl );
 			return m_impl->m_thread.get_id( );
 		}

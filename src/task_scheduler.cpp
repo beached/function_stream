@@ -103,20 +103,18 @@ namespace daw {
 			return {};
 		}
 		if( auto tsk = m_data->m_tasks[id].try_pop_front( ); tsk ) {
-			return tsk;
+			return ::daw::move( tsk );
 		}
 		for( auto m = ( id + 1 ) % m_data->m_num_threads;
 		     m_data->m_continue and m != id;
 		     m = ( m + 1 ) % m_data->m_num_threads ) {
 
 			if( auto tsk = m_data->m_tasks[m].try_pop_front( ); tsk ) {
-				return tsk;
+				return ::daw::move( tsk );
 			}
 		}
 		return m_data->m_tasks[id].pop_front(
-		  [m_continue = &( m_data->m_continue )]( ) {
-			  return static_cast<bool>( *m_continue );
-		  } );
+		  [&]( ) { return static_cast<bool>( m_data->m_continue ); } );
 	}
 
 	void task_scheduler::run_task( ::daw::task_t &&tsk ) noexcept {
@@ -205,25 +203,34 @@ namespace daw {
 	daw::shared_latch
 	task_scheduler::start_temp_task_runners( size_t task_count ) {
 		auto sem = daw::shared_latch( task_count );
+		auto wself = get_handle( );
+		using wself_t = decltype( wself );
+		struct tmp_thread {
+			mutable typename ::std::list<::daw::parallel::ithread>::iterator m_it;
+			size_t m_id;
+			wself_t m_wself;
+			mutable ::daw::shared_latch m_sem;
+
+			inline void
+			operator( )( ::daw::parallel::interrupt_token /* can_continue */ ) const {
+				auto self = m_wself.lock( );
+				if( !self ) {
+					return;
+				}
+				auto const at_exit = daw::on_scope_exit(
+				  [&]( ) { self->m_data->m_other_threads.get( )->erase( m_it ); } );
+
+				self->task_runner( m_id, m_wself, m_sem );
+			}
+		};
 		for( size_t n = 0; n < task_count; ++n ) {
 			size_t const id = m_data->m_current_id++;
 
 			auto other_threads = m_data->m_other_threads.get( );
 			auto it = other_threads->emplace( other_threads->end( ) );
 			other_threads.release( );
-			auto tmp = create_thread(
-			  [it, id, wself = get_handle( ), sem = daw::mutable_capture( sem )](
-			    ::daw::parallel::interrupt_token can_continue ) {
-				  auto self = wself.lock( );
-				  if( !self ) {
-					  return;
-				  }
-				  auto const at_exit = daw::on_scope_exit( [&self, it]( ) {
-					  self->m_data->m_other_threads.get( )->erase( it );
-				  } );
 
-				  self->task_runner( id, wself, sem );
-			  } );
+			auto tmp = create_thread( tmp_thread{it, id, get_handle( ), sem} );
 			using std::swap;
 			swap( *it, tmp );
 			it->detach( );

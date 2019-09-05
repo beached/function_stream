@@ -77,13 +77,20 @@ namespace daw::parallel {
 		};
 		::daw::dbg_proxy<members_t> m_data = std::make_unique<members_t>( );
 
-		bool empty( ) const {
+		[[nodiscard]] bool empty( ) const {
 			return ( not m_data->m_is_full ) and
 			       ( m_data->m_front == m_data->m_back );
 		}
 
-		bool full( ) const {
+		[[nodiscard]] bool full( ) const {
 			return m_data->m_is_full;
+		}
+
+		[[nodiscard]] size_t inc_front( ) {
+			// Assumes we are in a locked area
+			size_t result = m_data->m_front;
+			m_data->m_front = ( m_data->m_front + 1 ) % Sz;
+			return result;
 		}
 
 	public:
@@ -95,10 +102,9 @@ namespace daw::parallel {
 				return {};
 			}
 			m_data->m_is_full = false;
-			assert( m_data->m_values[m_data->m_front] );
-			auto const oe = ::daw::on_scope_exit(
-			  [&]( ) { m_data->m_front = ( m_data->m_front + 1 ) % Sz; } );
-			return ::daw::move( m_data->m_values[m_data->m_front] );
+			auto const pos = inc_front( );
+			assert( m_data->m_values[pos] );
+			return ::daw::move( m_data->m_values[pos] );
 		}
 
 		[[nodiscard]] T pop_front( ) {
@@ -106,13 +112,11 @@ namespace daw::parallel {
 			if( empty( ) ) {
 				m_data->m_not_empty.wait( lck, [&]( ) { return !empty( ); } );
 			}
-			auto const oe = daw::on_scope_exit( [&]( ) {
-				m_data->m_is_full = false;
-				m_data->m_front = ( m_data->m_front + 1 ) % Sz;
-				m_data->m_not_full.notify_one( );
-			} );
+			auto const oe =
+			  daw::on_scope_exit( [&]( ) { m_data->m_not_full.notify_one( ); } );
 
-			return ::daw::move( m_data->m_values[m_data->m_front] );
+			m_data->m_is_full = false;
+			return ::daw::move( m_data->m_values[inc_front( )] );
 		}
 
 		template<typename Predicate, typename Duration = std::chrono::seconds>

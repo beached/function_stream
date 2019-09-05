@@ -114,7 +114,7 @@ namespace daw::algorithm::parallel::impl {
 	template<typename RandomIterator, typename Func>
 	[[nodiscard]] daw::shared_latch
 	partition_range_pos( std::vector<daw::view<RandomIterator>> ranges, Func func,
-	                     task_scheduler ts, size_t const start_pos = 0 ) {
+	                     task_scheduler const & ts, size_t const start_pos = 0 ) {
 		auto sem = daw::shared_latch( ranges.size( ) - start_pos );
 		for( size_t n = start_pos; n < ranges.size( ); ++n ) {
 			if( not schedule_task(
