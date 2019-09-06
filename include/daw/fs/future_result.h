@@ -55,18 +55,19 @@ namespace daw {
 		future_result_t( ) = default;
 
 		explicit future_result_t( task_scheduler ts )
-		  : m_data( daw::move( ts ) ) {}
+		  : m_data( ::daw::move( ts ) ) {}
 
 		future_result_t( daw::shared_latch sem, task_scheduler ts )
-		  : m_data( daw::move( sem ), daw::move( ts ) ) {}
+		  : m_data( ::daw::move( sem ), ::daw::move( ts ) ) {}
 
 		explicit future_result_t( daw::shared_latch sem )
-		  : m_data( daw::move( sem ), get_task_scheduler( ) ) {}
+		  : m_data( ::daw::move( sem ), get_task_scheduler( ) ) {}
 
 	public:
 		[[nodiscard]] auto get_handle( ) const {
 			using data_handle_t =
 			  daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
+
 			class handle_t {
 				data_handle_t m_handle;
 

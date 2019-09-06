@@ -59,7 +59,7 @@ namespace daw::parallel {
 	template<typename T, size_t Sz>
 	class locking_circular_buffer {
 		using value_type = T;
-		struct members_t {
+		struct locking_circular_buffer_impl {
 			std::array<value_type, Sz> m_values{};
 			std::atomic_size_t m_front = 0;
 			std::atomic_size_t m_back = 0;
@@ -68,28 +68,33 @@ namespace daw::parallel {
 			std::mutex m_mutex = std::mutex( );
 			bool m_is_full = false;
 
-			members_t( ) = default;
-			members_t( members_t const & ) = delete;
-			members_t( members_t && ) noexcept = delete;
-			members_t &operator=( members_t const & ) = delete;
-			members_t &operator=( members_t && ) noexcept = delete;
-			~members_t( ) = default;
+			locking_circular_buffer_impl( ) = default;
+			locking_circular_buffer_impl( locking_circular_buffer_impl const & ) =
+			  delete;
+			locking_circular_buffer_impl( locking_circular_buffer_impl && ) noexcept =
+			  delete;
+			locking_circular_buffer_impl &
+			operator=( locking_circular_buffer_impl const & ) = delete;
+			locking_circular_buffer_impl &
+			operator=( locking_circular_buffer_impl && ) noexcept = delete;
+			~locking_circular_buffer_impl( ) = default;
 		};
-		::daw::dbg_proxy<members_t> m_data = std::make_unique<members_t>( );
+		::daw::dbg_proxy<locking_circular_buffer_impl> m_impl =
+		  std::make_unique<locking_circular_buffer_impl>( );
 
 		[[nodiscard]] bool empty( ) const {
-			return ( not m_data->m_is_full ) and
-			       ( m_data->m_front == m_data->m_back );
+			return ( not m_impl->m_is_full ) and
+			       ( m_impl->m_front == m_impl->m_back );
 		}
 
 		[[nodiscard]] bool full( ) const {
-			return m_data->m_is_full;
+			return m_impl->m_is_full;
 		}
 
 		[[nodiscard]] size_t inc_front( ) {
 			// Assumes we are in a locked area
-			size_t result = m_data->m_front;
-			m_data->m_front = ( m_data->m_front + 1 ) % Sz;
+			size_t result = m_impl->m_front;
+			m_impl->m_front = ( m_impl->m_front + 1 ) % Sz;
 			return result;
 		}
 
@@ -97,26 +102,26 @@ namespace daw::parallel {
 		locking_circular_buffer( ) = default;
 
 		[[nodiscard]] T try_pop_front( ) {
-			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
+			auto lck = std::unique_lock( m_impl->m_mutex, std::try_to_lock );
 			if( not lck.owns_lock( ) or empty( ) ) {
 				return {};
 			}
-			m_data->m_is_full = false;
+			m_impl->m_is_full = false;
 			auto const pos = inc_front( );
-			assert( m_data->m_values[pos] );
-			return ::daw::move( m_data->m_values[pos] );
+			assert( m_impl->m_values[pos] );
+			return ::daw::move( m_impl->m_values[pos] );
 		}
 
 		[[nodiscard]] T pop_front( ) {
-			auto lck = std::unique_lock( m_data->m_mutex );
+			auto lck = std::unique_lock( m_impl->m_mutex );
 			if( empty( ) ) {
-				m_data->m_not_empty.wait( lck, [&]( ) { return !empty( ); } );
+				m_impl->m_not_empty.wait( lck, [&]( ) { return !empty( ); } );
 			}
 			auto const oe =
-			  daw::on_scope_exit( [&]( ) { m_data->m_not_full.notify_one( ); } );
+			  daw::on_scope_exit( [&]( ) { m_impl->m_not_full.notify_one( ); } );
 
-			m_data->m_is_full = false;
-			return ::daw::move( m_data->m_values[inc_front( )] );
+			m_impl->m_is_full = false;
+			return ::daw::move( m_impl->m_values[inc_front( )] );
 		}
 
 		template<typename Predicate, typename Duration = std::chrono::seconds>
@@ -124,10 +129,10 @@ namespace daw::parallel {
 		pop_front( Predicate can_continue,
 		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
 			static_assert( std::is_invocable_v<Predicate> );
-			auto lck = std::unique_lock( m_data->m_mutex );
+			auto lck = std::unique_lock( m_impl->m_mutex );
 			if( empty( ) ) {
 				auto const can_pop = wait_impl::wait_for(
-				  m_data->m_not_empty, lck, timeout, [&]( ) { return not empty( ); },
+				  m_impl->m_not_empty, lck, timeout, [&]( ) { return not empty( ); },
 				  can_continue );
 				if( not can_pop ) {
 					return {};
@@ -137,12 +142,12 @@ namespace daw::parallel {
 				return {};
 			}
 			auto const oe = daw::on_scope_exit( [&]( ) {
-				m_data->m_is_full = false;
-				m_data->m_front = ( m_data->m_front + 1 ) % Sz;
-				m_data->m_not_full.notify_one( );
+				m_impl->m_is_full = false;
+				m_impl->m_front = ( m_impl->m_front + 1 ) % Sz;
+				m_impl->m_not_full.notify_one( );
 			} );
 
-			return ::daw::move( m_data->m_values[m_data->m_front] );
+			return ::daw::move( m_impl->m_values[m_impl->m_front] );
 		}
 
 		template<typename Predicate, typename Duration = std::chrono::seconds>
@@ -152,39 +157,54 @@ namespace daw::parallel {
 
 			static_assert( std::is_invocable_v<Predicate> );
 
-			auto lck = std::unique_lock( m_data->m_mutex );
+			auto lck = std::unique_lock( m_impl->m_mutex );
 			if( full( ) ) {
-				m_data->m_not_full.wait(
+				m_impl->m_not_full.wait(
 				  lck, [&]( ) { return can_continue( ) and !full( ); } );
 			}
 			auto const can_push = wait_impl::wait_for(
-			  m_data->m_not_empty, lck, timeout, [&]( ) { return not full( ); },
+			  m_impl->m_not_empty, lck, timeout, [&]( ) { return not full( ); },
 			  can_continue );
 			if( not can_push ) {
 				return false;
 			}
 			auto const oe = daw::on_scope_exit( [&]( ) {
-				m_data->m_is_full = m_data->m_front == m_data->m_back;
-				m_data->m_not_empty.notify_one( );
+				m_impl->m_is_full = m_impl->m_front == m_impl->m_back;
+				m_impl->m_not_empty.notify_one( );
 			} );
 
-			m_data->m_values[m_data->m_back] = ::daw::move( value );
-			m_data->m_back = ( m_data->m_back + 1 ) % Sz;
+			m_impl->m_values[m_impl->m_back] = ::daw::move( value );
+			m_impl->m_back = ( m_impl->m_back + 1 ) % Sz;
 			return true;
 		}
 
 		[[nodiscard]] push_back_result try_push_back( T &&value ) {
-			auto lck = std::unique_lock( m_data->m_mutex, std::try_to_lock );
+			auto lck = std::unique_lock( m_impl->m_mutex, std::try_to_lock );
 			if( !lck.owns_lock( ) or full( ) ) {
 				return push_back_result::failed;
 			}
-			assert( not m_data->m_values[m_data->m_back] );
+			assert( not m_impl->m_values[m_impl->m_back] );
 			auto const oe =
-			  daw::on_scope_exit( [&]( ) { m_data->m_not_empty.notify_one( ); } );
+			  daw::on_scope_exit( [&]( ) { m_impl->m_not_empty.notify_one( ); } );
 
-			m_data->m_values[m_data->m_back] = ::daw::move( value );
-			m_data->m_back = ( m_data->m_back + 1 ) % Sz;
-			m_data->m_is_full = m_data->m_front == m_data->m_back;
+			m_impl->m_values[m_impl->m_back] = ::daw::move( value );
+			m_impl->m_back = ( m_impl->m_back + 1 ) % Sz;
+			m_impl->m_is_full = m_impl->m_front == m_impl->m_back;
+			return push_back_result::success;
+		}
+
+		[[nodiscard]] push_back_result try_push_back( T &&value, bool must_be_empty ) {
+			auto lck = std::unique_lock( m_impl->m_mutex, std::try_to_lock );
+			if( !lck.owns_lock( ) or full( ) or (must_be_empty and not empty( ))) {
+				return push_back_result::failed;
+			}
+			assert( not m_impl->m_values[m_impl->m_back] );
+			auto const oe =
+			  daw::on_scope_exit( [&]( ) { m_impl->m_not_empty.notify_one( ); } );
+
+			m_impl->m_values[m_impl->m_back] = ::daw::move( value );
+			m_impl->m_back = ( m_impl->m_back + 1 ) % Sz;
+			m_impl->m_is_full = m_impl->m_front == m_impl->m_back;
 			return push_back_result::success;
 		}
 	}; // namespace daw::parallel

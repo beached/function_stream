@@ -114,7 +114,7 @@ namespace daw::algorithm::parallel::impl {
 	template<typename RandomIterator, typename Func>
 	[[nodiscard]] daw::shared_latch
 	partition_range_pos( std::vector<daw::view<RandomIterator>> ranges, Func func,
-	                     task_scheduler const & ts, size_t const start_pos = 0 ) {
+	                     task_scheduler const &ts, size_t const start_pos = 0 ) {
 		auto sem = daw::shared_latch( ranges.size( ) - start_pos );
 		for( size_t n = start_pos; n < ranges.size( ); ++n ) {
 			if( not schedule_task(
@@ -360,19 +360,20 @@ namespace daw::algorithm::parallel::impl {
 		if( range.empty( ) ) {
 			return range.end( );
 		}
+		struct min_element_worker {
+			std::vector<Iterator> &r;
+			Compare c;
+
+			inline void operator( )( daw::view<Iterator> rng, size_t n ) const {
+				r[n] = std::min_element( rng.cbegin( ), rng.cend( ), c );
+			}
+		};
 		auto const ranges = PartitionPolicy{}( range, ts.size( ) );
 		auto results = std::vector<Iterator>( ranges.size( ), range.end( ) );
-		auto sem = partition_range_pos(
-		  ranges,
-		  [&results, cmp]( daw::view<Iterator> rng, size_t n ) {
-			  results[n] =
-			    std::min_element( rng.cbegin( ), rng.cend( ),
-			                      [cmp]( auto const &lhs, auto const &rhs ) {
-				                      return cmp( lhs, rhs );
-			                      } );
-		  },
-		  ts );
+		auto sem =
+		  partition_range_pos( ranges, min_element_worker{results, cmp}, ts );
 		ts.wait_for( sem );
+
 		return *std::min_element(
 		  results.cbegin( ), results.cend( ),
 		  [cmp]( auto const &lhs, auto const &rhs ) { return cmp( *lhs, *rhs ); } );

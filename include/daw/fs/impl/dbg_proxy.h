@@ -30,19 +30,19 @@
 namespace daw {
 	template<typename T, typename Container = ::std::unique_ptr<T>>
 	class dbg_proxy {
-		Container m_data = Container( );
+		Container m_data;
 
 	public:
-		constexpr dbg_proxy( ) noexcept(
-		  ::std::is_nothrow_default_constructible_v<Container> ) = default;
-
 		template<
 		  typename... Args,
 		  ::std::enable_if_t<not daw::traits::is_first_type_v<dbg_proxy, Args...>,
 		                     std::nullptr_t> = nullptr>
 		constexpr dbg_proxy( Args &&... args ) noexcept(
 		  ::std::is_nothrow_constructible_v<Container, Args...> )
-		  : m_data( std::forward<Args>( args )... ) {}
+		  : m_data( std::forward<Args>( args )... ) {
+
+			::daw::exception::precondition_check( m_data );
+		}
 
 		explicit constexpr operator bool( ) const
 		  noexcept( noexcept( m_data.operator bool( ) ) ) {

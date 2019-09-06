@@ -67,6 +67,7 @@ namespace daw::parallel {
 			m_condition.notify( );
 		}
 	};
+
 	namespace ithread_impl {
 		struct ithread_impl {
 			interrupt_token_owner m_continue;
@@ -92,6 +93,7 @@ namespace daw::parallel {
 			              std::forward<Args>( args )... ) {}
 		};
 	} // namespace ithread_impl
+
 	class ithread {
 
 		::std::unique_ptr<ithread_impl::ithread_impl> m_impl =
