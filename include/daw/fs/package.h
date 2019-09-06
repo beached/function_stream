@@ -54,19 +54,19 @@ namespace daw {
 	namespace impl {
 		template<typename functions_t, typename arguments_t, typename result_t,
 		         typename... Args>
-		struct [[nodiscard]] members_t {
+		struct [[nodiscard]] package_impl_t {
 			functions_t m_function_list;
 			arguments_t m_targs;
 			result_t m_result;
 			bool m_continue_on_result_destruction;
 
-			constexpr members_t( bool continueonclientdestruction, result_t result,
+			constexpr package_impl_t( bool continueonclientdestruction, result_t result,
 			                     functions_t functions, Args &&... args )
 			  : m_function_list( daw::move( functions ) )
 			  , m_targs( std::forward<Args>( args )... )
 			  , m_result( result )
 			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
-		}; // members_t
+		}; // package_impl_t
 	}    // namespace impl
 
 	template<typename Result, typename Functions, typename... Args>
@@ -78,8 +78,8 @@ namespace daw {
 		//	weak_ptr_type_t<result_t>;
 
 	private:
-		daw::value_ptr<impl::members_t<functions_t, arguments_t, result_t, Args...>>
-		  members;
+		daw::value_ptr<impl::package_impl_t<functions_t, arguments_t, result_t, Args...>>
+		  m_impl;
 
 	public:
 		package_t( package_t const & ) = delete;
@@ -91,28 +91,28 @@ namespace daw {
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
 		                     functions_t &&functions, Args &&... args )
-		  : members( continueonclientdestruction, daw::move( result ),
+		  : m_impl( continueonclientdestruction, daw::move( result ),
 		             daw::move( functions ), std::forward<Args>( args )... ) {}
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
 		                     functions_t const &functions, Args &&... args )
-		  : members( continueonclientdestruction, daw::move( result ), functions,
+		  : m_impl( continueonclientdestruction, daw::move( result ), functions,
 		             std::forward<Args>( args )... ) {}
 
 		[[nodiscard]] constexpr functions_t const &function_list( ) const noexcept {
-			return members->m_function_list;
+			return m_impl->m_function_list;
 		}
 
 		[[nodiscard]] constexpr functions_t &function_list( ) noexcept {
-			return members->m_function_list;
+			return m_impl->m_function_list;
 		}
 
 		[[nodiscard]] constexpr result_t const &result( ) const noexcept {
-			return members->m_result;
+			return m_impl->m_result;
 		}
 
 		[[nodiscard]] constexpr result_t &result( ) noexcept {
-			return members->m_result;
+			return m_impl->m_result;
 		}
 
 		[[nodiscard]] constexpr bool continue_processing( ) const {
@@ -124,8 +124,8 @@ namespace daw {
 		template<typename... NewArgs>
 		[[nodiscard]] decltype( auto ) next_package( NewArgs && ... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ),
-			                            daw::move( members->m_result ),
-			                            daw::move( members->m_function_list ),
+			                            daw::move( m_impl->m_result ),
+			                            daw::move( m_impl->m_function_list ),
 			                            std::forward<NewArgs>( nargs )... );
 		}
 
@@ -137,21 +137,21 @@ namespace daw {
 		 */
 
 		[[nodiscard]] constexpr arguments_t const &targs( ) const noexcept {
-			return members->m_targs;
+			return m_impl->m_targs;
 		}
 
 		[[nodiscard]] constexpr arguments_t &targs( ) noexcept {
-			return members->m_targs;
+			return m_impl->m_targs;
 		}
 
 	private:
 		[[nodiscard]] constexpr bool const &continue_on_result_destruction( )
 		  const noexcept {
-			return members->m_continue_on_result_destruction;
+			return m_impl->m_continue_on_result_destruction;
 		}
 
 		[[nodiscard]] constexpr bool &continue_on_result_destruction( ) noexcept {
-			return members->m_continue_on_result_destruction;
+			return m_impl->m_continue_on_result_destruction;
 		}
 	}; // package_t
 
