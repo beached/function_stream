@@ -43,13 +43,15 @@ namespace daw {
 	}
 
 	namespace {
-		template<typename... Args>
-		::daw::parallel::ithread create_thread( Args &&... args ) noexcept {
+		template<typename Callable, typename... Args>
+		::daw::parallel::ithread create_thread( Callable &&callable,
+		                                        Args &&... args ) noexcept {
 			try {
-				return ::daw::parallel::ithread( std::forward<Args>( args )... );
+				return ::daw::parallel::ithread( std::forward<Callable>( callable ),
+				                                 std::forward<Args>( args )... );
 			} catch( std::system_error const &e ) {
 				std::cerr << "Error creating thread, aborting.\n Error code: "
-				          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
+				          << e.code( ) << "\nMessage: " << e.what( ) << '\n';
 				std::abort( );
 			}
 		}
@@ -86,12 +88,10 @@ namespace daw {
 		}
 	}
 
-	task_scheduler::~task_scheduler( ) {
-		if( auto tmp = std::exchange( m_impl, nullptr ); tmp ) {
-			stop( tmp->m_block_on_destruction );
-		}
+	task_scheduler::task_scheduler_impl::~task_scheduler_impl( ) {
+		stop( m_block_on_destruction );	
 	}
-
+	
 	bool task_scheduler::started( ) const {
 		return m_impl->m_continue;
 	}
@@ -182,23 +182,26 @@ namespace daw {
 		}
 	}
 
+	void task_scheduler::task_scheduler_impl::stop( bool block_on_destruction ) {
+		m_continue = false;
+		try {
+			auto threads = m_threads.get( );
+			for( auto &th : *threads ) {
+				try {
+					if( block_on_destruction ) {
+						th.stop_and_wait( );
+					} else {
+						th.detach( );
+						th.stop( );
+					}
+				} catch( ... ) {}
+			}
+			threads->clear( );
+		} catch( ... ) {}
+	}
+
 	void task_scheduler::stop( bool block ) noexcept {
-		if( auto tmp = m_impl; tmp ) {
-			try {
-				auto threads = tmp->m_threads.get( );
-				for( auto &th : *threads ) {
-					try {
-						if( block ) {
-							th.stop_and_wait( );
-						} else {
-							th.detach( );
-							th.stop( );
-						}
-					} catch( ... ) {}
-				}
-				threads->clear( );
-			} catch( ... ) {}
-		}
+		m_impl->stop( block );
 	}
 
 	daw::shared_latch
@@ -265,15 +268,32 @@ namespace daw {
 	}
 
 	void task_scheduler::task_runner( size_t id ) {
-		auto self = *get_handle( ).lock( );
-		while( self.m_impl->m_continue ) {
-			run_task( self.wait_for_task_from_pool( id ) );
+		auto w_self = get_handle( );
+		while( true ) {
+			auto tsk = task_t( );
+			{
+				auto self = w_self.lock( );
+				if( not self or not self->m_impl->m_continue ) {
+					return;
+				}
+				tsk = self->wait_for_task_from_pool( id );
+			}
+			run_task( ::daw::move( tsk ) );
 		}
 	}
 
 	void task_scheduler::task_runner( size_t id, daw::shared_latch &sem ) {
-		while( m_impl->m_continue and not sem.try_wait( ) ) {
-			run_task( wait_for_task_from_pool( id ) );
+		auto w_self = get_handle( );
+		while( sem.try_wait( ) ) {
+			auto tsk = task_t( );
+			{
+				auto self = w_self.lock( );
+				if( not self or not self->m_impl->m_continue ) {
+					return;
+				}
+				tsk = self->wait_for_task_from_pool( id );
+			}
+			run_task( ::daw::move( tsk ) );
 		}
 	}
 

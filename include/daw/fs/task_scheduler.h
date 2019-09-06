@@ -96,7 +96,7 @@ namespace daw {
 			::daw::lockable_value_t<::std::list<::daw::parallel::ithread>>
 			  m_other_threads{};
 			::std::atomic_size_t m_current_id{0};
-			::std::atomic_bool m_continue = true;
+			::std::atomic_bool m_continue = false;
 			bool m_block_on_destruction; // from ctor
 
 			friend task_scheduler;
@@ -105,14 +105,14 @@ namespace daw {
 			friend struct ::daw::impl::task_wrapper;
 
 			task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
-
+			void stop( bool block_on_destruction );
 		public:
 			task_scheduler_impl( ) = delete;
 			task_scheduler_impl( task_scheduler_impl && ) = delete;
 			task_scheduler_impl( task_scheduler_impl const & ) = delete;
 			task_scheduler_impl &operator=( task_scheduler_impl && ) = delete;
 			task_scheduler_impl &operator=( task_scheduler_impl const & ) = delete;
-			~task_scheduler_impl( ) = default;
+			~task_scheduler_impl( );
 		};
 		std::shared_ptr<task_scheduler_impl> m_impl =
 		  std::shared_ptr<task_scheduler_impl>( new task_scheduler_impl(
@@ -200,12 +200,6 @@ namespace daw {
 		task_scheduler( std::size_t num_threads, bool block_on_destruction,
 		                bool auto_start );
 
-		task_scheduler( task_scheduler && ) noexcept = default;
-		task_scheduler &operator=( task_scheduler && ) noexcept = default;
-		task_scheduler( task_scheduler const & ) noexcept = default;
-		task_scheduler &operator=( task_scheduler const & ) noexcept = default;
-		~task_scheduler( );
-
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
 		[[nodiscard]] decltype( auto ) add_task( Task &&task ) {
@@ -262,56 +256,7 @@ namespace daw {
 			static_assert( std::is_invocable_v<Function>,
 			               "Function passed to wait_for_scope must be callable "
 			               "without an arugment. e.g. func( )" );
-			// See if a queue is empty
-			{
-				auto sem = daw::shared_latch( );
-				std::atomic_bool is_working = false;
 
-				using result_t = decltype( std::forward<Function>( func )( ) );
-				using result_base_t = std::remove_reference_t<result_t>;
-				using result_opt_t =
-				  ::std::conditional_t<::std::is_reference_v<result_t>,
-				                       ::std::reference_wrapper<result_base_t>,
-				                       result_base_t>;
-
-				if constexpr( not std::is_same_v<void, result_base_t> ) {
-					auto result = ::std::optional<result_opt_t>( );
-					for( size_t m = 0; m < m_impl->m_num_threads; ++m ) {
-						if( m_impl->m_tasks[m].try_push_back(
-						      task_t( [&]( ) {
-							      auto const at_exit =
-							        daw::on_scope_exit( [&]( ) { sem.notify( ); } );
-							      result = ::std::optional<result_opt_t>(
-							        std::forward<Function>( func )( ) );
-						      } ),
-						      true ) == daw::parallel::push_back_result::success ) {
-
-							is_working = true;
-						}
-					}
-					if( is_working ) {
-						sem.wait( );
-						return *result;
-					}
-				} else {
-					for( size_t m = 0; m < m_impl->m_num_threads; ++m ) {
-						if( m_impl->m_tasks[m].try_push_back(
-						      task_t( [&]( ) {
-							      auto const at_exit =
-							        daw::on_scope_exit( [&]( ) { sem.notify( ); } );
-							      std::forward<Function>( func )( );
-						      } ),
-						      true ) == daw::parallel::push_back_result::success ) {
-
-							is_working = true;
-						}
-					}
-					if( is_working ) {
-						sem.wait( );
-						return;
-					}
-				}
-			}
 			auto const at_exit = daw::on_scope_exit(
 			  [sem = ::daw::mutable_capture( start_temp_task_runners( ) )]( ) {
 				  sem->notify( );
