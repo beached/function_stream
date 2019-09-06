@@ -51,7 +51,7 @@ namespace daw::parallel {
 			while( cond( ) and not status ) {
 				status = wt.wait_for( lock, timeout, pred );
 			}
-			return status && cond( );
+			return status and cond( );
 		}
 	} // namespace wait_impl
 	enum class push_back_result : bool { failed, success };
@@ -67,18 +67,8 @@ namespace daw::parallel {
 			std::condition_variable m_not_full = std::condition_variable( );
 			std::mutex m_mutex = std::mutex( );
 			bool m_is_full = false;
-
-			locking_circular_buffer_impl( ) = default;
-			locking_circular_buffer_impl( locking_circular_buffer_impl const & ) =
-			  delete;
-			locking_circular_buffer_impl( locking_circular_buffer_impl && ) noexcept =
-			  delete;
-			locking_circular_buffer_impl &
-			operator=( locking_circular_buffer_impl const & ) = delete;
-			locking_circular_buffer_impl &
-			operator=( locking_circular_buffer_impl && ) noexcept = delete;
-			~locking_circular_buffer_impl( ) = default;
 		};
+
 		::daw::dbg_proxy<locking_circular_buffer_impl> m_impl =
 		  std::make_unique<locking_circular_buffer_impl>( );
 
@@ -193,9 +183,10 @@ namespace daw::parallel {
 			return push_back_result::success;
 		}
 
-		[[nodiscard]] push_back_result try_push_back( T &&value, bool must_be_empty ) {
+		[[nodiscard]] push_back_result try_push_back( T &&value,
+		                                              bool must_be_empty ) {
 			auto lck = std::unique_lock( m_impl->m_mutex, std::try_to_lock );
-			if( !lck.owns_lock( ) or full( ) or (must_be_empty and not empty( ))) {
+			if( !lck.owns_lock( ) or full( ) or ( must_be_empty and not empty( ) ) ) {
 				return push_back_result::failed;
 			}
 			assert( not m_impl->m_values[m_impl->m_back] );
