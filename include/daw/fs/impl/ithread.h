@@ -85,12 +85,31 @@ namespace daw::parallel {
 
 			template<typename Callable, typename... Args,
 			         ::std::enable_if_t<
-			           not std::is_invocable_v<Callable, interrupt_token, Args...>,
+			           ::daw::all_true_v<
+			             not::std::is_invocable_v<Callable, interrupt_token, Args...>,
+			             ::std::is_invocable_v<Callable, Args...>>,
 			           ::std::nullptr_t> = nullptr>
 			explicit ithread_impl( Callable &&callable, Args &&... args )
 			  : m_continue( )
 			  , m_thread( std::forward<Callable>( callable ),
 			              std::forward<Args>( args )... ) {}
+
+			ithread_impl( ithread_impl && ) = delete;
+			ithread_impl( ithread_impl const & ) = delete;
+			ithread_impl &operator=( ithread_impl && ) = delete;
+			ithread_impl &operator=( ithread_impl const & ) = delete;
+
+			inline ~ithread_impl( ) noexcept {
+				m_continue.stop( );
+				if( not m_thread.joinable( ) ) {
+					return;
+				}
+				try {
+					m_thread.join( );
+				} catch( ... ) {
+					// Prevent taking down the system
+				}
+			}
 		};
 	} // namespace ithread_impl
 
@@ -101,6 +120,7 @@ namespace daw::parallel {
 
 	public:
 		constexpr ithread( ) noexcept = default;
+
 		using id = ::std::thread::id;
 		template<
 		  typename Callable, typename... Args,
@@ -111,11 +131,6 @@ namespace daw::parallel {
 		  : m_impl( ::std::make_unique<ithread_impl::ithread_impl>(
 		      std::forward<Callable>( callable ),
 		      std::forward<Args>( args )... ) ) {}
-
-		ithread( ithread const & ) = delete;
-		ithread &operator=( ithread const & ) = delete;
-		ithread( ithread && ) noexcept = default;
-		ithread &operator=( ithread && ) noexcept = default;
 
 		[[nodiscard]] inline bool joinable( ) const noexcept {
 			assert( m_impl );
@@ -155,20 +170,6 @@ namespace daw::parallel {
 		inline void detach( ) {
 			assert( m_impl );
 			m_impl->m_thread.detach( );
-		}
-
-		inline ~ithread( ) {
-			if( auto tmp = ::std::move( m_impl ); tmp ) {
-				tmp->m_continue.stop( );
-				if( not tmp->m_thread.joinable( ) ) {
-					return;
-				}
-				try {
-					tmp->m_thread.join( );
-				} catch( ... ) {
-					// Prevent taking down the system
-				}
-			}
 		}
 	};
 } // namespace daw::parallel

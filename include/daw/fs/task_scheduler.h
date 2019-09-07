@@ -93,7 +93,8 @@ namespace daw {
 			size_t const m_num_threads;         // from ctor
 			::std::deque<task_queue_t> m_tasks; // from ctor
 			::std::atomic<size_t> m_task_count{0};
-			::daw::lockable_value_t<::std::list<::daw::parallel::ithread>>
+			::daw::lockable_value_t<
+			  ::std::list<std::shared_ptr<::daw::parallel::ithread>>>
 			  m_other_threads{};
 			::std::atomic_size_t m_current_id{0};
 			::std::atomic_bool m_continue = false;
@@ -106,6 +107,7 @@ namespace daw {
 
 			task_scheduler_impl( std::size_t num_threads, bool block_on_destruction );
 			void stop( bool block_on_destruction );
+
 		public:
 			task_scheduler_impl( ) = delete;
 			task_scheduler_impl( task_scheduler_impl && ) = delete;
@@ -181,7 +183,7 @@ namespace daw {
 		}
 
 		void task_runner( size_t id );
-		void task_runner( size_t id, daw::shared_latch & sem );
+		void task_runner( size_t id, daw::shared_latch &sem );
 		void run_task( ::daw::task_t &&tsk ) noexcept;
 
 		[[nodiscard]] size_t get_task_id( );
@@ -231,8 +233,7 @@ namespace daw {
 			return m_impl->m_tasks.size( );
 		}
 
-		[[nodiscard]] daw::shared_latch
-		start_temp_task_runners( size_t task_count = 1U );
+		[[nodiscard]] daw::shared_latch start_temp_task_runner( );
 
 	private:
 		struct empty_task {
@@ -258,7 +259,7 @@ namespace daw {
 			               "without an arugment. e.g. func( )" );
 
 			auto const at_exit = daw::on_scope_exit(
-			  [sem = ::daw::mutable_capture( start_temp_task_runners( ) )]( ) {
+			  [sem = ::daw::mutable_capture( start_temp_task_runner( ) )]( ) {
 				  sem->notify( );
 			  } );
 			return std::forward<Function>( func )( );

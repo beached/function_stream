@@ -89,9 +89,9 @@ namespace daw {
 	}
 
 	task_scheduler::task_scheduler_impl::~task_scheduler_impl( ) {
-		stop( m_block_on_destruction );	
+		stop( m_block_on_destruction );
 	}
-	
+
 	bool task_scheduler::started( ) const {
 		return m_impl->m_continue;
 	}
@@ -204,14 +204,14 @@ namespace daw {
 		m_impl->stop( block );
 	}
 
-	daw::shared_latch
-	task_scheduler::start_temp_task_runners( size_t task_count ) {
-		auto sem = daw::shared_latch( task_count );
+	daw::shared_latch task_scheduler::start_temp_task_runner( ) {
+		auto sem = daw::shared_latch( );
 		auto wself = get_handle( );
 		using wself_t = decltype( wself );
 		// *****
 		struct tmp_worker {
-			mutable typename ::std::list<::daw::parallel::ithread>::iterator m_it;
+			mutable typename ::std::list<
+			  ::std::shared_ptr<::daw::parallel::ithread>>::iterator m_it;
 			size_t m_id;
 			wself_t m_wself;
 			mutable ::daw::shared_latch m_sem;
@@ -222,22 +222,21 @@ namespace daw {
 				if( not self ) {
 					return;
 				}
-				auto const at_exit = daw::on_scope_exit(
-				  [&]( ) { self->m_impl->m_other_threads.get( )->erase( m_it ); } );
+				auto const at_exit =
+				  daw::on_scope_exit( [&self, m_it = ::daw::move( m_it )]( ) {
+					  self->m_impl->m_other_threads.get( )->erase( m_it );
+				  } );
 
 				self->task_runner( m_id, m_sem );
 			}
 		};
 		// *****
-		for( size_t n = 0; n < task_count; ++n ) {
-			size_t const id = m_impl->m_current_id++;
+		size_t const id = m_impl->m_current_id++;
 
-			auto other_threads = m_impl->m_other_threads.get( );
-			auto it = other_threads->emplace( other_threads->end( ) );
-			*it = create_thread( tmp_worker{it, id, get_handle( ), sem} );
-			it->detach( );
-			// other_threads.release( );
-		}
+		auto other_threads = m_impl->m_other_threads.get( );
+		auto it = other_threads->emplace( other_threads->cend( ) );
+		*it = ::std::make_shared<::daw::parallel::ithread>(
+		  create_thread( tmp_worker{it, id, get_handle( ), sem} ) );
 		return sem;
 	}
 
@@ -284,7 +283,7 @@ namespace daw {
 
 	void task_scheduler::task_runner( size_t id, daw::shared_latch &sem ) {
 		auto w_self = get_handle( );
-		while( sem.try_wait( ) ) {
+		while( not sem.try_wait( ) ) {
 			auto tsk = task_t( );
 			{
 				auto self = w_self.lock( );
