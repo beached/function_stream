@@ -101,13 +101,12 @@ namespace daw::parallel {
 
 			inline ~ithread_impl( ) noexcept {
 				m_continue.stop( );
-				if( not m_thread.joinable( ) ) {
-					return;
-				}
-				try {
-					m_thread.join( );
-				} catch( ... ) {
-					// Prevent taking down the system
+				if( m_thread.joinable( ) ) {
+					try {
+						m_thread.join( );
+					} catch( ... ) {
+						// Prevent taking down the system
+					}
 				}
 			}
 		};

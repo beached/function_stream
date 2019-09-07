@@ -117,6 +117,30 @@ namespace daw {
 		  [&]( ) { return static_cast<bool>( m_impl->m_continue ); } );
 	}
 
+	[[nodiscard]] ::daw::task_t
+	task_scheduler::wait_for_task_from_pool( size_t id,
+	                                         ::daw::shared_latch sem ) {
+		// Get task.  First try own queue, if not try the others and finally
+		// wait for own queue to fill
+		if( not m_impl or not m_impl->m_continue ) {
+			return {};
+		}
+		if( auto tsk = m_impl->m_tasks[id].try_pop_front( ); tsk ) {
+			return ::daw::move( tsk );
+		}
+		for( auto m = ( id + 1 ) % m_impl->m_num_threads;
+		     m_impl->m_continue and m != id;
+		     m = ( m + 1 ) % m_impl->m_num_threads ) {
+
+			if( auto tsk = m_impl->m_tasks[m].try_pop_front( ); tsk ) {
+				return ::daw::move( tsk );
+			}
+		}
+		return m_impl->m_tasks[id].pop_front( [&]( ) {
+			return static_cast<bool>( m_impl->m_continue && not sem.try_wait( ) );
+		} );
+	}
+
 	void task_scheduler::run_task( ::daw::task_t &&tsk ) noexcept {
 		if( not tsk ) {
 			return;
@@ -204,40 +228,29 @@ namespace daw {
 		m_impl->stop( block );
 	}
 
-	daw::shared_latch task_scheduler::start_temp_task_runner( ) {
+	task_scheduler::temp_task_runner task_scheduler::start_temp_task_runner( ) {
 		auto sem = daw::shared_latch( );
 		auto wself = get_handle( );
 		using wself_t = decltype( wself );
 		// *****
 		struct tmp_worker {
-			mutable typename ::std::list<
-			  ::std::shared_ptr<::daw::parallel::ithread>>::iterator m_it;
 			size_t m_id;
 			wself_t m_wself;
 			mutable ::daw::shared_latch m_sem;
 
-			inline void
-			operator( )( ::daw::parallel::interrupt_token /* can_continue */ ) const {
+			inline void operator( )( ) const {
 				auto self = m_wself.lock( );
 				if( not self ) {
 					return;
 				}
-				auto const at_exit =
-				  daw::on_scope_exit( [&self, m_it = ::daw::move( m_it )]( ) {
-					  self->m_impl->m_other_threads.get( )->erase( m_it );
-				  } );
-
 				self->task_runner( m_id, m_sem );
 			}
 		};
 		// *****
 		size_t const id = m_impl->m_current_id++;
 
-		auto other_threads = m_impl->m_other_threads.get( );
-		auto it = other_threads->emplace( other_threads->cend( ) );
-		*it = ::std::make_shared<::daw::parallel::ithread>(
-		  create_thread( tmp_worker{it, id, get_handle( ), sem} ) );
-		return sem;
+		return {create_thread( tmp_worker{id, get_handle( ), sem} ),
+		        ::daw::move( sem )};
 	}
 
 	bool task_scheduler::send_task( ::daw::task_t &&tsk, size_t id ) {
@@ -290,7 +303,7 @@ namespace daw {
 				if( not self or not self->m_impl->m_continue ) {
 					return;
 				}
-				tsk = self->wait_for_task_from_pool( id );
+				tsk = self->wait_for_task_from_pool( id, sem );
 			}
 			run_task( ::daw::move( tsk ) );
 		}

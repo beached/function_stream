@@ -93,9 +93,6 @@ namespace daw {
 			size_t const m_num_threads;         // from ctor
 			::std::deque<task_queue_t> m_tasks; // from ctor
 			::std::atomic<size_t> m_task_count{0};
-			::daw::lockable_value_t<
-			  ::std::list<std::shared_ptr<::daw::parallel::ithread>>>
-			  m_other_threads{};
 			::std::atomic_size_t m_current_id{0};
 			::std::atomic_bool m_continue = false;
 			bool m_block_on_destruction; // from ctor
@@ -148,6 +145,7 @@ namespace daw {
 		}
 
 		[[nodiscard]] ::daw::task_t wait_for_task_from_pool( size_t id );
+		[[nodiscard]] ::daw::task_t wait_for_task_from_pool( size_t id, ::daw::shared_latch sem );
 
 		[[nodiscard]] static std::deque<task_queue_t>
 		make_task_queues( size_t count ) {
@@ -233,9 +231,31 @@ namespace daw {
 			return m_impl->m_tasks.size( );
 		}
 
-		[[nodiscard]] daw::shared_latch start_temp_task_runner( );
-
 	private:
+		struct temp_task_runner {
+			::daw::parallel::ithread th;
+			::daw::shared_latch sem;
+
+			temp_task_runner( ::daw::parallel::ithread &&t,
+			                  daw::shared_latch s ) noexcept
+			  : th( ::daw::move( t ) )
+			  , sem( ::daw::move( s ) ) {
+
+				assert( sem );
+			}
+			temp_task_runner( temp_task_runner && ) noexcept = default;
+			temp_task_runner( temp_task_runner const & ) = delete;
+			temp_task_runner &operator=( temp_task_runner && ) noexcept = default;
+			temp_task_runner &operator=( temp_task_runner const & ) = delete;
+
+			~temp_task_runner( ) {
+				sem.notify( );
+				th.join( );
+			}
+		};
+
+		[[nodiscard]] temp_task_runner start_temp_task_runner( );
+
 		struct empty_task {
 			constexpr void operator( )( ) const noexcept {}
 		};
@@ -258,10 +278,7 @@ namespace daw {
 			               "Function passed to wait_for_scope must be callable "
 			               "without an arugment. e.g. func( )" );
 
-			auto const at_exit = daw::on_scope_exit(
-			  [sem = ::daw::mutable_capture( start_temp_task_runner( ) )]( ) {
-				  sem->notify( );
-			  } );
+			auto const tmp_runner = start_temp_task_runner( );
 			return std::forward<Function>( func )( );
 		}
 
