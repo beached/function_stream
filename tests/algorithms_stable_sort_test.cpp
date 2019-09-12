@@ -122,7 +122,7 @@ int main( int argc, char const **argv ) {
 #ifdef DEBUG
 	std::cout << "Debug build\n";
 #endif
-	if( argc > 1 and std::string( argv[1] ) == "full" ) {
+	if( argc > 1 and std::string( argv[1] ) == "is_full" ) {
 		for( unsigned t = 2; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
 			std::cout << "stable_sort tests - int64_t - " << t << " threads\n";
 			for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {

@@ -60,7 +60,7 @@ namespace daw::impl {
 
 	template<size_t S, typename Tuple>
 	using which_type_t = typename std::conditional<
-	  ( !is_empty_tuple_v<Tuple> and
+	  ( not is_empty_tuple_v<Tuple> and
 	    S < daw::tuple_size_v<daw::remove_cvref_t<Tuple>> - 1 ),
 	  function_tag, last_function_tag>::type;
 
@@ -87,7 +87,7 @@ namespace daw::impl {
 
 	template<size_t pos, typename Package>
 	void call_task( Package &&package, last_function_tag ) {
-		if( !package->continue_processing( ) ) {
+		if( not package->continue_processing( ) ) {
 			return;
 		}
 		auto func = std::get<pos>( package->function_list( ) );
@@ -102,7 +102,7 @@ namespace daw::impl {
 
 	template<size_t pos, typename Package>
 	void call_task( Package &&package, function_tag ) {
-		if( !package->continue_processing( ) ) {
+		if( package->continue_processing( ) ) {
 			return;
 		}
 		auto func = std::get<pos>( package->function_list( ) );
@@ -133,7 +133,7 @@ namespace daw::impl {
 	[[nodiscard]] constexpr decltype( auto )
 	function_composer_impl( TFunctions &&funcs, function_tag, Args &&... args ) {
 		static_assert(
-		  !is_empty_tuple_v<TFunctions> and
+		  not is_empty_tuple_v<TFunctions> and
 		    pos < daw::tuple_size_v<std::remove_const_t<TFunctions>> - 1,
 		  "function_tag should only be returned for all but last item in tuple" );
 		using which_t =
@@ -176,7 +176,7 @@ namespace daw::impl {
 	public:
 		template<typename... Args>
 		[[nodiscard]] constexpr decltype( auto ) apply( Args && ... args ) const & {
-			if constexpr( !is_empty_tuple_v<tfunction_t> ) {
+			if constexpr( not is_empty_tuple_v<tfunction_t> ) {
 				using which_t = typename which_type_t<0, tfunction_t>::category;
 				return function_composer_impl<0>( funcs, which_t{},
 				                                  std::forward<Args>( args )... );
@@ -191,7 +191,7 @@ namespace daw::impl {
 
 		template<typename... Args>
 		[[nodiscard]] constexpr decltype( auto ) apply( Args && ... args ) && {
-			if constexpr( !is_empty_tuple_v<tfunction_t> ) {
+			if constexpr( not is_empty_tuple_v<tfunction_t> ) {
 				using which_t = typename which_type_t<0, tfunction_t>::category;
 				return function_composer_impl<0>( daw::move( funcs ), which_t{},
 				                                  std::forward<Args>( args )... );

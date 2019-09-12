@@ -352,8 +352,8 @@ namespace daw::algorithm::parallel {
 	template<typename RandomIterator, typename T, typename UnaryOperation,
 	         typename BinaryOperation,
 	         ::std::enable_if_t<
-	           !::std::is_same_v<::daw::task_scheduler,
-	                             ::daw::remove_cvref_t<BinaryOperation>>,
+	           not std::is_same_v<::daw::task_scheduler,
+	                              ::daw::remove_cvref_t<BinaryOperation>>,
 	           ::std::nullptr_t> = nullptr>
 	[[nodiscard]] decltype( auto )
 	map_reduce( RandomIterator first, RandomIterator last, T const &init,

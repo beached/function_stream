@@ -60,15 +60,13 @@ namespace daw {
 	task_scheduler::task_scheduler_impl::task_scheduler_impl(
 	  std::size_t num_threads, bool block_on_destruction )
 	  : m_num_threads( num_threads )
-	  , m_tasks( make_task_queues( num_threads ) )
-	  , m_block_on_destruction( block_on_destruction ) {}
+	  , m_tasks( 1U ) //m_num_threads )
+	  , m_block_on_destruction( block_on_destruction ) {
 
-	task_scheduler::task_scheduler( ) {
-		start( );
+		std::cout << m_tasks.size( ) << '\n';
 	}
 
-	task_scheduler::task_scheduler( std::size_t num_threads )
-	  : m_impl( new task_scheduler_impl( num_threads, true ) ) {
+	task_scheduler::task_scheduler( ) {
 		start( );
 	}
 
@@ -79,26 +77,19 @@ namespace daw {
 		start( );
 	}
 
-	task_scheduler::task_scheduler( std::size_t num_threads,
-	                                bool block_on_destruction, bool auto_start )
-	  : m_impl( new task_scheduler_impl( num_threads, block_on_destruction ) ) {
-
-		if( auto_start ) {
-			start( );
-		}
-	}
-
 	task_scheduler::task_scheduler_impl::~task_scheduler_impl( ) {
 		stop( m_block_on_destruction );
 	}
 
 	bool task_scheduler::started( ) const {
+		assert( m_impl );
 		return m_impl->m_continue;
 	}
 
 	::daw::task_t task_scheduler::wait_for_task_from_pool( size_t id ) {
 		// Get task.  First try own queue, if not try the others and finally
 		// wait for own queue to fill
+		assert( m_impl );
 		if( not m_impl or not m_impl->m_continue ) {
 			return {};
 		}
@@ -120,6 +111,7 @@ namespace daw {
 	[[nodiscard]] ::daw::task_t
 	task_scheduler::wait_for_task_from_pool( size_t id,
 	                                         ::daw::shared_latch sem ) {
+		assert( m_impl );
 		// Get task.  First try own queue, if not try the others and finally
 		// wait for own queue to fill
 		if( not m_impl or not m_impl->m_continue ) {
@@ -142,6 +134,7 @@ namespace daw {
 	}
 
 	void task_scheduler::run_task( ::daw::task_t &&tsk ) noexcept {
+		assert( m_impl );
 		if( not tsk ) {
 			return;
 		}
@@ -183,26 +176,33 @@ namespace daw {
 		return false;
 	}
 
+	void task_scheduler::add_queue( size_t n ) {
+		assert( m_impl );
+		auto threads = m_impl->m_threads.get( );
+		auto thread_map = m_impl->m_thread_map.get( );
+		auto thr = create_thread(
+		  []( size_t id, auto wself ) {
+			  auto self = wself.lock( );
+			  if( not self ) {
+				  return;
+			  }
+			  self->task_runner( id );
+		  },
+		  n, get_handle( ) );
+		auto id = thr.get_id( );
+		threads->push_back( ::daw::move( thr ) );
+		( *thread_map )[id] = n;
+	}
+
 	void task_scheduler::start( ) {
+		assert( m_impl );
 		if( started( ) ) {
 			return;
 		}
 		m_impl->m_continue = true;
-		auto threads = m_impl->m_threads.get( );
-		auto thread_map = m_impl->m_thread_map.get( );
+		//assert( m_impl->m_tasks.size( ) == m_impl->m_num_threads );
 		for( size_t n = 0; n < m_impl->m_num_threads; ++n ) {
-			auto thr = create_thread(
-			  []( size_t id, auto wself ) {
-				  auto self = wself.lock( );
-				  if( !self ) {
-					  return;
-				  }
-				  self->task_runner( id );
-			  },
-			  n, get_handle( ) );
-			auto id = thr.get_id( );
-			threads->push_back( ::daw::move( thr ) );
-			( *thread_map )[id] = n;
+			add_queue( n );
 		}
 	}
 
@@ -254,7 +254,7 @@ namespace daw {
 	}
 
 	bool task_scheduler::send_task( ::daw::task_t &&tsk, size_t id ) {
-		if( !tsk ) {
+		if( not tsk ) {
 			return true;
 		}
 		if( not m_impl->m_continue ) {
@@ -300,13 +300,22 @@ namespace daw {
 			auto tsk = task_t( );
 			{
 				auto self = w_self.lock( );
-				if( not self or not self->m_impl->m_continue ) {
+				if( not self or not self->m_impl->m_continue or not sem.try_wait( ) ) {
 					return;
 				}
 				tsk = self->wait_for_task_from_pool( id, sem );
 			}
 			run_task( ::daw::move( tsk ) );
 		}
+	}
+
+	bool task_scheduler::has_empty_queue( ) const {
+		for( auto const &q : m_impl->m_tasks ) {
+			if( q.empty( ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	char const *unable_to_add_task_exception::what( ) const noexcept {

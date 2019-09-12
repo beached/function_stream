@@ -50,9 +50,9 @@ namespace daw {
 		  typename F, typename... Fs,
 		  std::enable_if_t<
 		    daw::all_true_v<
-		      !std::is_same_v<function_stream, daw::remove_cvref_t<F>>,
-		      !std::is_same_v<std::tuple<Functions...>, daw::remove_cvref_t<F>>,
-		      !daw::any_true_v<std::is_function_v<F>, std::is_function_v<Fs>...>>,
+		      not std::is_same_v<function_stream, daw::remove_cvref_t<F>>,
+		      not std::is_same_v<std::tuple<Functions...>, daw::remove_cvref_t<F>>,
+		      not daw::any_true_v<std::is_function_v<F>, std::is_function_v<Fs>...>>,
 		    std::nullptr_t> = nullptr>
 		constexpr explicit function_stream( F &&f, Fs &&... funcs )
 		  : m_funcs( std::forward<F>( f ), std::forward<Fs>( funcs )... ) {}
@@ -127,7 +127,7 @@ namespace daw {
 		template<typename... Functions,
 		         std::enable_if_t<(sizeof...( Functions ) > 1 &&
 		                           sizeof...( Functions ) == sizeof...( Funcs ) &&
-		                           !daw::is_same_v<std::tuple<Funcs...>,
+		                           not daw::is_same_v<std::tuple<Funcs...>,
 		                                           std::tuple<Functions...>>),
 		                          std::nullptr_t> = nullptr>
 		constexpr explicit future_generator_t( Functions &&... funcs ) noexcept(
@@ -246,7 +246,7 @@ namespace daw {
 	           std::enable_if_t<
 	             (sizeof...( Functions ) > 1 &&
 	              sizeof...( Functions ) == sizeof...( Funcs ) &&
-	              !daw::is_same_v<std::tuple<Funcs...>,
+	              not daw::is_same_v<std::tuple<Funcs...>,
 	                              std::tuple<Functions...>>),
 	             std::nullptr_t> = nullptr>
 	  constexpr explicit future_generator_split_t( Functions &&... funcs )

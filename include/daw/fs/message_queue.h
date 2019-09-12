@@ -58,86 +58,138 @@ namespace daw::parallel {
 
 	template<typename T, size_t Sz>
 	class locking_circular_buffer {
+		static_assert( ::std::is_move_constructible_v<T> );
+		static_assert( ::std::is_move_assignable_v<T> );
 		using value_type = T;
 		struct locking_circular_buffer_impl {
+			mutable std::mutex m_mutex = std::mutex( );
 			std::array<value_type, Sz> m_values{};
-			std::atomic_size_t m_front = 0;
-			std::atomic_size_t m_back = 0;
+			size_t m_front = 0;
+			size_t m_back = 0;
 			std::condition_variable m_not_empty = std::condition_variable( );
 			std::condition_variable m_not_full = std::condition_variable( );
-			std::mutex m_mutex = std::mutex( );
 			bool m_is_full = false;
+
+			template<typename... Args>
+			[[nodiscard]] decltype( auto ) unique_lock( Args &&... args ) const {
+				return std::unique_lock( m_mutex, std::forward<Args>( args )... );
+			}
+
+			locking_circular_buffer_impl( ) = default;
 		};
 
-		::daw::dbg_proxy<locking_circular_buffer_impl> m_impl =
-		  std::make_unique<locking_circular_buffer_impl>( );
+		locking_circular_buffer_impl m_impl = locking_circular_buffer_impl( );
 
-		[[nodiscard]] bool empty( ) const {
-			return ( not m_impl->m_is_full ) and
-			       ( m_impl->m_front == m_impl->m_back );
+		[[nodiscard]] bool is_empty( ) const {
+			// Assumes we are in a locked area
+			return ( not m_impl.m_is_full ) and ( m_impl.m_front == m_impl.m_back );
 		}
 
-		[[nodiscard]] bool full( ) const {
-			return m_impl->m_is_full;
+		[[nodiscard]] bool is_full( ) const {
+			// Assumes we are in a locked area
+			return m_impl.m_is_full;
 		}
 
 		[[nodiscard]] size_t inc_front( ) {
 			// Assumes we are in a locked area
-			size_t result = m_impl->m_front;
-			m_impl->m_front = ( m_impl->m_front + 1 ) % Sz;
+			size_t result = m_impl.m_front;
+			m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
 			return result;
+		}
+
+		[[nodiscard]] decltype( auto ) back( ) {
+			// Assumes we are in a locked area
+			return m_impl.m_values[m_impl.m_back];
+		}
+
+		void inc_back( ) {
+			// Assumes we are in a locked area
+			m_impl.m_back = ( m_impl.m_back + 1 ) % Sz;
+		}
+
+		template<typename Value>
+		void set_back( Value &&v ) {
+			// Assumes we are in a locked area
+			back( ) = std::forward<Value>( v );
+			inc_back( );
 		}
 
 	public:
 		locking_circular_buffer( ) = default;
 
-		[[nodiscard]] T try_pop_front( ) {
-			auto lck = std::unique_lock( m_impl->m_mutex, std::try_to_lock );
-			if( not lck.owns_lock( ) or empty( ) ) {
-				return {};
-			}
-			m_impl->m_is_full = false;
-			auto const pos = inc_front( );
-			assert( m_impl->m_values[pos] );
-			return ::daw::move( m_impl->m_values[pos] );
+		[[nodiscard]] bool empty( ) const noexcept {
+			auto lck = m_impl.unique_lock( std::try_to_lock );
+			return is_empty( );
 		}
 
-		[[nodiscard]] T pop_front( ) {
-			auto lck = std::unique_lock( m_impl->m_mutex );
-			if( empty( ) ) {
-				m_impl->m_not_empty.wait( lck, [&]( ) { return !empty( ); } );
+		[[nodiscard]] T try_pop_front( ) noexcept {
+			try {
+				auto lck = m_impl.unique_lock( std::try_to_lock );
+				if( not lck.owns_lock( ) or is_empty( ) ) {
+					return {};
+				}
+				auto result = ::daw::move( m_impl.m_values[inc_front( )] );
+				m_impl.m_is_full = false;
+				m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
+				lck.unlock( );
+				m_impl.m_not_full.notify_one( );
+				return result;
+			} catch( std::system_error ) {
+				// Error trying to lock, for now abort,
+				// maybe in the future return fail
+				std::abort( );
 			}
-			auto const oe =
-			  daw::on_scope_exit( [&]( ) { m_impl->m_not_full.notify_one( ); } );
+		}
 
-			m_impl->m_is_full = false;
-			return ::daw::move( m_impl->m_values[inc_front( )] );
+		[[nodiscard]] T pop_front( ) noexcept {
+			try {
+				auto lck = m_impl.unique_lock( );
+				if( is_empty( ) ) {
+					m_impl.m_not_empty.wait( lck, [&]( ) { return not is_empty( ); } );
+				}
+
+				auto result = ::daw::move( m_impl.m_values[inc_front( )] );
+				m_impl.m_is_full = false;
+				m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
+				lck.unlock( );
+				m_impl.m_not_full.notify_one( );
+				return result;
+			} catch( std::system_error ) {
+				// Error trying to lock, for now abort,
+				// maybe in the future return fail
+				std::abort( );
+			}
 		}
 
 		template<typename Predicate, typename Duration = std::chrono::seconds>
 		[[nodiscard]] T
 		pop_front( Predicate can_continue,
-		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
+		           Duration &&timeout = std::chrono::seconds( 1 ) ) noexcept {
 			static_assert( std::is_invocable_v<Predicate> );
-			auto lck = std::unique_lock( m_impl->m_mutex );
-			if( empty( ) ) {
-				auto const can_pop = wait_impl::wait_for(
-				  m_impl->m_not_empty, lck, timeout, [&]( ) { return not empty( ); },
-				  can_continue );
-				if( not can_pop ) {
+			try {
+				auto lck = m_impl.unique_lock( );
+				if( is_empty( ) ) {
+					auto const can_pop = wait_impl::wait_for(
+					  m_impl.m_not_empty, lck, timeout,
+					  [&]( ) { return not is_empty( ); }, can_continue );
+					if( not can_pop ) {
+						return {};
+					}
+				}
+				if( not can_continue( ) ) {
 					return {};
 				}
+				auto result = ::daw::move( m_impl.m_values[m_impl.m_front] );
+				m_impl.m_is_full = false;
+				m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
+				lck.unlock( );
+				m_impl.m_not_full.notify_one( );
+				return result;
+			} catch( std::system_error ) {
+				// Error trying to lock, for now abort,
+				// maybe in the future return fail
+				std::abort( );
 			}
-			if( not can_continue( ) ) {
-				return {};
-			}
-			auto const oe = daw::on_scope_exit( [&]( ) {
-				m_impl->m_is_full = false;
-				m_impl->m_front = ( m_impl->m_front + 1 ) % Sz;
-				m_impl->m_not_full.notify_one( );
-			} );
-
-			return ::daw::move( m_impl->m_values[m_impl->m_front] );
 		}
 
 		template<typename Predicate, typename Duration = std::chrono::seconds>
@@ -147,56 +199,83 @@ namespace daw::parallel {
 
 			static_assert( std::is_invocable_v<Predicate> );
 
-			auto lck = std::unique_lock( m_impl->m_mutex );
-			if( full( ) ) {
-				m_impl->m_not_full.wait(
-				  lck, [&]( ) { return can_continue( ) and !full( ); } );
-			}
-			auto const can_push = wait_impl::wait_for(
-			  m_impl->m_not_empty, lck, timeout, [&]( ) { return not full( ); },
-			  can_continue );
-			if( not can_push ) {
-				return false;
-			}
-			auto const oe = daw::on_scope_exit( [&]( ) {
-				m_impl->m_is_full = m_impl->m_front == m_impl->m_back;
-				m_impl->m_not_empty.notify_one( );
-			} );
+			try {
+				auto lck = m_impl.unique_lock( );
 
-			m_impl->m_values[m_impl->m_back] = ::daw::move( value );
-			m_impl->m_back = ( m_impl->m_back + 1 ) % Sz;
-			return true;
+				if( is_full( ) ) {
+					m_impl.m_not_full.wait(
+					  lck, [&]( ) { return can_continue( ) and not is_full( ); } );
+				}
+				auto const can_push = wait_impl::wait_for(
+				  m_impl.m_not_empty, lck, timeout, [&]( ) { return not is_full( ); },
+				  can_continue );
+				if( not can_push ) {
+					return false;
+				}
+
+				set_back( ::daw::move( value ) );
+				m_impl.m_is_full = m_impl.m_front == m_impl.m_back;
+				bool const should_notify = not is_empty( );
+				lck.unlock( );
+				if( should_notify ) {
+					m_impl.m_not_empty.notify_one( );
+				}
+
+				return true;
+			} catch( std::system_error ) {
+				// Error trying to lock, for now abort,
+				// maybe in the future return fail
+				std::abort( );
+			}
 		}
 
 		[[nodiscard]] push_back_result try_push_back( T &&value ) {
-			auto lck = std::unique_lock( m_impl->m_mutex, std::try_to_lock );
-			if( !lck.owns_lock( ) or full( ) ) {
-				return push_back_result::failed;
-			}
-			assert( not m_impl->m_values[m_impl->m_back] );
-			auto const oe =
-			  daw::on_scope_exit( [&]( ) { m_impl->m_not_empty.notify_one( ); } );
+			try {
+				auto lck = m_impl.unique_lock( std::try_to_lock );
+				if( not lck.owns_lock( ) or is_full( ) ) {
+					return push_back_result::failed;
+				}
+				assert( not m_impl.m_values[m_impl.m_back] );
 
-			m_impl->m_values[m_impl->m_back] = ::daw::move( value );
-			m_impl->m_back = ( m_impl->m_back + 1 ) % Sz;
-			m_impl->m_is_full = m_impl->m_front == m_impl->m_back;
-			return push_back_result::success;
+				set_back( ::daw::move( value ) );
+				m_impl.m_is_full = m_impl.m_front == m_impl.m_back;
+				bool should_notify = not is_empty( );
+				lck.unlock( );
+				if( should_notify ) {
+					m_impl.m_not_empty.notify_one( );
+				}
+				return push_back_result::success;
+			} catch( std::system_error ) {
+				// Error trying to lock, for now abort,
+				// maybe in the future return fail
+				std::abort( );
+			}
 		}
 
 		[[nodiscard]] push_back_result try_push_back( T &&value,
 		                                              bool must_be_empty ) {
-			auto lck = std::unique_lock( m_impl->m_mutex, std::try_to_lock );
-			if( !lck.owns_lock( ) or full( ) or ( must_be_empty and not empty( ) ) ) {
-				return push_back_result::failed;
-			}
-			assert( not m_impl->m_values[m_impl->m_back] );
-			auto const oe =
-			  daw::on_scope_exit( [&]( ) { m_impl->m_not_empty.notify_one( ); } );
+			try {
+				auto lck = m_impl.unique_lock( std::try_to_lock );
+				if( not lck.owns_lock( ) or is_full( ) or
+				    ( must_be_empty and not is_empty( ) ) ) {
+					return push_back_result::failed;
+				}
 
-			m_impl->m_values[m_impl->m_back] = ::daw::move( value );
-			m_impl->m_back = ( m_impl->m_back + 1 ) % Sz;
-			m_impl->m_is_full = m_impl->m_front == m_impl->m_back;
-			return push_back_result::success;
+				assert( not m_impl.m_values[m_impl.m_back] );
+
+				set_back( ::daw::move( value ) );
+				m_impl.m_is_full = m_impl.m_front == m_impl.m_back;
+				auto should_notify = is_empty( );
+				lck.unlock( );
+				if( should_notify ) {
+					m_impl.m_not_empty.notify_one( );
+				}
+				return push_back_result::success;
+			} catch( std::system_error ) {
+				// Error trying to lock, for now abort,
+				// maybe in the future return fail
+				std::abort( );
+			}
 		}
-	}; // namespace daw::parallel
+	};
 } // namespace daw::parallel

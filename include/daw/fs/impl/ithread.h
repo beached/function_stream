@@ -26,6 +26,7 @@
 #include <thread>
 #include <type_traits>
 
+#include <daw/daw_utility.h>
 #include <daw/parallel/daw_latch.h>
 
 namespace daw::parallel {
@@ -72,6 +73,7 @@ namespace daw::parallel {
 		struct ithread_impl {
 			interrupt_token_owner m_continue;
 			::std::thread m_thread;
+			::daw::latch m_sem = ::daw::latch( 1 );
 
 			template<typename Callable, typename... Args,
 			         ::std::enable_if_t<
@@ -81,7 +83,10 @@ namespace daw::parallel {
 			  : m_continue( )
 			  , m_thread( std::forward<Callable>( callable ),
 			              m_continue.get_interrupt_token( ),
-			              std::forward<Args>( args )... ) {}
+			              std::forward<Args>( args )... ) {
+
+				m_thread.detach( );
+			}
 
 			template<typename Callable, typename... Args,
 			         ::std::enable_if_t<
@@ -91,8 +96,15 @@ namespace daw::parallel {
 			           ::std::nullptr_t> = nullptr>
 			explicit ithread_impl( Callable &&callable, Args &&... args )
 			  : m_continue( )
-			  , m_thread( std::forward<Callable>( callable ),
-			              std::forward<Args>( args )... ) {}
+			  , m_thread(
+			      [&, callable = ::daw::mutable_capture( std::forward<Callable>(
+			            callable ) )]( auto &&... arguments ) {
+				      auto const on_exit =
+				        ::daw::on_scope_exit( [&]( ) { m_sem.notify( ); } );
+				      return ::daw::move( *callable )(
+				        std::forward<decltype( arguments )>( arguments )... );
+			      },
+			      std::forward<Args>( args )... ) {}
 
 			ithread_impl( ithread_impl && ) = delete;
 			ithread_impl( ithread_impl const & ) = delete;
@@ -100,13 +112,14 @@ namespace daw::parallel {
 			ithread_impl &operator=( ithread_impl const & ) = delete;
 
 			inline ~ithread_impl( ) noexcept {
-				m_continue.stop( );
-				if( m_thread.joinable( ) ) {
-					try {
+				try {
+					m_continue.stop( );
+					if( m_thread.joinable( ) ) {
 						m_thread.join( );
-					} catch( ... ) {
-						// Prevent taking down the system
 					}
+					m_sem.wait( );
+				} catch( ... ) {
+					// Do not let an exception take us down
 				}
 			}
 		};
@@ -133,17 +146,12 @@ namespace daw::parallel {
 
 		[[nodiscard]] inline bool joinable( ) const noexcept {
 			assert( m_impl );
-			return m_impl->m_thread.joinable( );
+			return m_impl->m_sem.try_wait( );
 		}
 
 		[[nodiscard]] inline std::thread::id get_id( ) const noexcept {
 			assert( m_impl );
 			return m_impl->m_thread.get_id( );
-		}
-
-		inline decltype( auto ) native_handle( ) {
-			assert( m_impl );
-			return m_impl->m_thread.native_handle( );
 		}
 
 		inline static unsigned int hardware_concurrency( ) noexcept {
@@ -155,20 +163,20 @@ namespace daw::parallel {
 			m_impl->m_continue.stop( );
 		}
 
-		void stop_and_wait( ) {
-			assert( m_impl );
-			m_impl->m_continue.stop( );
-			m_impl->m_thread.join( );
-		}
-
 		inline void join( ) {
 			assert( m_impl );
-			m_impl->m_thread.join( );
+			m_impl->m_sem.wait( );
+		}
+
+		void stop_and_wait( ) {
+			assert( m_impl );
+			stop( );
+			join( );
 		}
 
 		inline void detach( ) {
 			assert( m_impl );
-			m_impl->m_thread.detach( );
+			m_impl->m_sem.reset( 0 );
 		}
 	};
 } // namespace daw::parallel

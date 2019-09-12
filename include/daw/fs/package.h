@@ -116,8 +116,6 @@ namespace daw {
 		}
 
 		[[nodiscard]] constexpr bool continue_processing( ) const {
-			// TODO: remove
-			// return !destination_expired( ) or continue_on_result_destruction( );
 			return continue_on_result_destruction( );
 		}
 

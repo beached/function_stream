@@ -80,7 +80,7 @@ namespace daw::algorithm::parallel::impl {
 
 			auto const part_info = get_part_info<min_range_size>( rng, max_parts );
 
-			while( !rng.empty( ) ) {
+			while( not rng.empty( ) ) {
 				results.push_back( rng.pop_front( part_info.size ) );
 			}
 			return results;
@@ -468,7 +468,7 @@ namespace daw::algorithm::parallel::impl {
 		  [&results, map_function, reduce_function]( daw::view<Iterator> rng,
 		                                             size_t n ) {
 			  result_t result = map_function( rng.pop_front( ) );
-			  while( !rng.empty( ) ) {
+			  while( not rng.empty( ) ) {
 				  result = reduce_function( result, map_function( rng.pop_front( ) ) );
 			  }
 			  results[n] = daw::move( result );
@@ -549,7 +549,7 @@ namespace daw::algorithm::parallel::impl {
 			  auto sum = ( *binary_op )( *p1_results[n], cur_range.pop_front( ) );
 
 			  *( out_pos++ ) = sum;
-			  while( !cur_range.empty( ) ) {
+			  while( not cur_range.empty( ) ) {
 				  sum = ( *binary_op )( sum, cur_range.pop_front( ) );
 				  *out_pos = sum;
 				  ++out_pos;
@@ -640,7 +640,7 @@ namespace daw::algorithm::parallel::impl {
 					  return lv_res;
 				  }( );
 				  for( m = n; m < last_val; ++m ) {
-					  if( !pred( range1[m], range2[m] ) ) {
+					  if( not pred( range1[m], range2[m] ) ) {
 						  is_equal.store( false, std::memory_order_relaxed );
 						  return;
 					  }

@@ -29,7 +29,6 @@ message( "Building for: ${CMAKE_BUILD_TYPE}" )
 message( "Checking for glean cache: '${GLEAN_CACHE}'" )
 if( EXISTS "${GLEAN_CACHE}" )
 	message( "using glean dependencies" )
-
 	add_custom_target( dependency_stub )
 	include_directories( SYSTEM "${GLEAN_CACHE}/include" )
 	link_directories( "${GLEAN_CACHE}/lib" )
@@ -231,7 +230,7 @@ add_executable( map_reduce_test_bin EXCLUDE_FROM_ALL ${FUNCTION_STREAM_HEADER_FI
 target_link_libraries( map_reduce_test_bin task_scheduler_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 add_test( map_reduce_test map_reduce_test_bin )
 #add_dependencies( check map_reduce_test_bin )
-#add_dependencies( full map_reduce_test_bin )
+#add_dependencies( is_full map_reduce_test_bin )
 
 add_executable( k-means_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/k-means.cpp )
 target_link_libraries( k-means_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )

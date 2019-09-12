@@ -63,10 +63,10 @@ void test_task_scheduler( ) {
 	daw::expecting( ts.started( ) );
 	daw::bench_n_test<3>( "parallel", [&]( ) {
 		auto results = daw::locked_stack_t<real_t>( );
-		auto sem = daw::semaphore( 1 - ITEMS );
+		auto sem = daw::latch( ITEMS );
 		for( auto i : nums ) {
-			(void)ts.add_task( [&results, &sem, i]( ) {
-				results.push_back( fib( i ) );
+			(void)ts.add_task( [&results, &sem, i, &ts]( ) {
+				ts.wait_for_scope( [&]( ) { results.push_back( fib( i ) ); } );
 				sem.notify( );
 			} );
 		}

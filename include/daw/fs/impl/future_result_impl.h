@@ -299,14 +299,14 @@ namespace daw {
 				} catch( ... ) { set_exception( std::current_exception( ) ); }
 			}
 
-			template<
-			  typename Function,
-			  std::enable_if_t<!std::is_function_v<std::remove_reference_t<Function>>,
-			                   std::nullptr_t> = nullptr>
+			template<typename Function,
+			         std::enable_if_t<
+			           not std::is_function_v<std::remove_reference_t<Function>>,
+			           std::nullptr_t> = nullptr>
 			[[nodiscard]] auto next( Function && func ) {
 				assert( m_data );
 				auto nxt = m_data->m_next.get( );
-				assert( !*nxt ); // can only set next function once
+				assert( not( *nxt ) ); // can only set next function once
 
 				using next_result_t =
 				  decltype( func( std::declval<base_result_t>( ) ) );
@@ -347,7 +347,7 @@ namespace daw {
 			[[nodiscard]] auto fork( Functions && ... funcs ) {
 				assert( m_data );
 				auto nxt = m_data->m_next.get( );
-				assert( !*nxt ); // can only set next function once
+				assert( not( *nxt ) ); // can only set next function once
 
 				using result_t =
 				  std::tuple<future_result_t<daw::remove_cvref_t<decltype(
@@ -556,7 +556,7 @@ namespace daw {
 			template<typename... Functions>
 			[[nodiscard]] auto fork( Functions && ... funcs ) {
 				auto nxt = m_data->m_next.get( );
-				daw::exception::precondition_check( !*nxt,
+				daw::exception::precondition_check( not( *nxt ),
 				                                    "Can only set next function once" );
 				using result_t = std::tuple<
 				  future_result_t<daw::remove_cvref_t<decltype( funcs( ) )>>...>;
@@ -604,7 +604,7 @@ namespace daw {
 				Unused( joiner );
 				static_assert( ( std::is_invocable_v<Functions> and ... ) );
 				auto nxt = m_data->m_next.get( );
-				daw::exception::precondition_check( !*nxt,
+				daw::exception::precondition_check( not( *nxt ),
 				                                    "Can only set next function once" );
 
 				auto const construct_future = [&]( auto &&f ) {
@@ -768,7 +768,7 @@ public:
 	  typename... Fs,
 	  daw::enable_if_t<(
 	    sizeof...( Fs ) != 1 or
-	    !std::is_same_v<future_group_result_t,
+	    not std::is_same_v<future_group_result_t,
 	                    daw::remove_cvref_t<daw::traits::first_type<Fs...>>> )> =
 	    nullptr>
 	explicit constexpr future_group_result_t( Fs && ... fs )
