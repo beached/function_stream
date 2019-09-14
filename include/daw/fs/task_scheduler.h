@@ -92,7 +92,7 @@ namespace daw {
 			  std::unordered_map<::daw::parallel::ithread::id, size_t>>
 			  m_thread_map = ::daw::lockable_value_t<
 			    std::unordered_map<::daw::parallel::ithread::id, size_t>>( );
-			size_t m_num_threads;               // from ctor
+			::std::atomic_size_t m_num_threads;               // from ctor
 			//::std::deque<task_queue_t> m_tasks; // from ctor
 			::std::vector<task_queue_t> m_tasks; // from ctor
 			::std::atomic_size_t m_task_count = ::std::atomic_size_t( 0ULL );

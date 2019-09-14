@@ -30,57 +30,55 @@
 #include "daw/fs/message_queue.h"
 
 int main( ) {
-	for( size_t j = 0; j < 25U; ++j ) {
-		auto q = ::daw::parallel::locking_circular_buffer<size_t, 1>( );
-		std::array<size_t, 10> results{};
+	//	for( size_t j = 0; j < 25U; ++j ) {
+	auto q = ::daw::parallel::locking_circular_buffer<size_t, 512>( );
+	std::array<size_t, 10> results{};
 
-		auto l = ::daw::latch( 1 );
+	auto l = ::daw::latch( 1 );
 
-		auto const producer = [&]( ) {
-			size_t count = 0;
-			for( size_t n = 1; n <= 100; ++n ) {
-				auto v = n;
-				auto r =
-				  q.push_back( std::move( n ), []( auto &&... ) { return true; } );
+	auto const producer = [&]( ) {
+		size_t count = 0;
+		for( size_t n = 1; n <= 100; ++n ) {
+			auto v = n;
+			auto r = q.push_back( std::move( n ), []( auto &&... ) { return true; } );
+			++count;
+			while( r != ::daw::parallel::push_back_result::success ) {
 				++count;
-				while( not r ) {
-					++count;
-					n = v;
-					r = q.push_back( std::move( n ), []( auto &&... ) { return true; } );
-				}
-				l.notify( );
+				n = v;
+				r = q.push_back( std::move( n ), []( auto &&... ) { return true; } );
 			}
-		};
-		auto const consumer = [&]( size_t i ) {
-			results[i] = 0;
-			size_t count = 0;
-			l.wait( );
-			for( size_t n = 0; n < 100; ++n ) {
-				auto val = q.try_pop_front( );
+			l.notify( );
+		}
+	};
+	auto const consumer = [&]( size_t i ) {
+		results[i] = 0;
+		size_t count = 0;
+		l.wait( );
+		for( size_t n = 0; n < 100; ++n ) {
+			auto val = q.try_pop_front( );
+			++count;
+			while( not val ) {
 				++count;
-				while( not val ) {
-					++count;
-					val = q.try_pop_front( );
-					if( val and val % 2 != 0 ) {
-						val *= 2;
-						(void)q.push_back( std::move( val ), []( ) { return true; } );
-					}
+				val = q.try_pop_front( );
+				if( val and val % 2 != 0 ) {
+					val *= 2;
+					(void)q.push_back( std::move( val ), []( ) { return true; } );
 				}
-				results[i] += val;
 			}
-		};
+			results[i] += val;
+		}
+	};
 
-		auto t0 = ::std::thread( producer );
-		auto consumers = std::vector<std::thread>( );
-		for( size_t n = 0; n < results.size( ); ++n ) {
-			consumers.emplace_back( consumer, n );
-		}
-		t0.join( );
-		for( auto &c : consumers ) {
-			c.join( );
-		}
-		auto const result =
-		  std::accumulate( begin( results ), end( results ), 0ULL );
-		std::cout << result << '\n';
+	auto t0 = ::std::thread( producer );
+	auto consumers = std::vector<std::thread>( );
+	for( size_t n = 0; n < results.size( ); ++n ) {
+		consumers.emplace_back( consumer, n );
 	}
+	t0.join( );
+	for( auto &c : consumers ) {
+		c.join( );
+	}
+	auto const result = std::accumulate( begin( results ), end( results ), 0ULL );
+	std::cout << result << '\n';
+	//}
 }

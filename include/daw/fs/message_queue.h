@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <optional>
 #include <utility>
 
@@ -58,230 +59,154 @@ namespace daw::parallel {
 
 	template<typename T, size_t Sz>
 	class locking_circular_buffer {
+#ifdef __cpp_lib_thread_hardware_interference_size
+		static constepxr size_t cache_size =
+		  ::std::hardware_destructive_interference_size;
+#else
+		static constexpr size_t cache_size = 128U; // safe default
+#endif
+
 		static_assert( ::std::is_move_constructible_v<T> );
 		static_assert( ::std::is_move_assignable_v<T> );
+		// TODO no throw static asserts
+		static_assert( Sz >= 2 );
 		using value_type = T;
 		struct locking_circular_buffer_impl {
-			mutable std::mutex m_mutex = std::mutex( );
-			std::array<value_type, Sz> m_values{};
-			size_t m_front = 0;
-			size_t m_back = 0;
-			std::condition_variable m_not_empty = std::condition_variable( );
-			std::condition_variable m_not_full = std::condition_variable( );
-			bool m_is_full = false;
+			value_type *const m_values = make_buffer( );
 
-			template<typename... Args>
-			[[nodiscard]] decltype( auto ) unique_lock( Args &&... args ) const {
-				return std::unique_lock( m_mutex, std::forward<Args>( args )... );
-			}
+			alignas( cache_size )::std::atomic_size_t m_front = 0;
+			alignas( cache_size )::std::atomic_size_t m_back = 0;
 
 			locking_circular_buffer_impl( ) = default;
+			locking_circular_buffer_impl( locking_circular_buffer_impl const & ) =
+			  delete;
+			locking_circular_buffer_impl &
+			operator=( locking_circular_buffer_impl const & ) = delete;
+			locking_circular_buffer_impl( locking_circular_buffer_impl && ) noexcept =
+			  delete;
+			locking_circular_buffer_impl &
+			operator=( locking_circular_buffer_impl && ) noexcept = delete;
+
+			static constexpr value_type *make_buffer( ) noexcept {
+				auto result = static_cast<value_type *>(
+				  ::std::malloc( sizeof( value_type ) * Sz ) );
+
+				if( not result ) {
+					// could not allocate
+					std::abort( );
+				}
+				return result;
+			}
+
+			~locking_circular_buffer_impl( ) noexcept {
+				if constexpr( not std::is_trivially_destructible_v<value_type> ) {
+					try {
+						while( m_front != m_back ) {
+							m_values[m_front].~value_type( );
+							if( ++m_front == Sz ) {
+								m_front = 0;
+							}
+						}
+					} catch( ... ) {
+						free( m_values );
+						throw;
+					}
+				}
+				free( m_values );
+			}
 		};
 
+		char m_front_padding[cache_size];
 		locking_circular_buffer_impl m_impl = locking_circular_buffer_impl( );
-
-		[[nodiscard]] bool is_empty( ) const {
-			// Assumes we are in a locked area
-			return ( not m_impl.m_is_full ) and ( m_impl.m_front == m_impl.m_back );
-		}
-
-		[[nodiscard]] bool is_full( ) const {
-			// Assumes we are in a locked area
-			return m_impl.m_is_full;
-		}
-
-		[[nodiscard]] size_t inc_front( ) {
-			// Assumes we are in a locked area
-			size_t result = m_impl.m_front;
-			m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
-			return result;
-		}
-
-		[[nodiscard]] decltype( auto ) back( ) {
-			// Assumes we are in a locked area
-			return m_impl.m_values[m_impl.m_back];
-		}
-
-		void inc_back( ) {
-			// Assumes we are in a locked area
-			m_impl.m_back = ( m_impl.m_back + 1 ) % Sz;
-		}
-
-		template<typename Value>
-		void set_back( Value &&v ) {
-			// Assumes we are in a locked area
-			back( ) = std::forward<Value>( v );
-			inc_back( );
-		}
+		char m_back_padding[cache_size -
+		                    ( cache_size % sizeof( ::std::atomic_size_t ) )];
 
 	public:
-		locking_circular_buffer( ) = default;
+		locking_circular_buffer( ) noexcept = default;
 
 		[[nodiscard]] bool empty( ) const noexcept {
-			auto lck = m_impl.unique_lock( std::try_to_lock );
-			return is_empty( );
+			return m_impl.m_front.load( ::std::memory_order_acquire ) ==
+			       m_impl.m_back.load( ::std::memory_order_acquire );
+		}
+
+		[[nodiscard]] bool full( ) const noexcept {
+			auto const next_record =
+			  ( m_impl.m_back.load( ::std::memory_order_acquire ) + 1 ) % Sz;
+
+			return next_record == m_impl.m_front.load( ::std::memory_order_acquire );
 		}
 
 		[[nodiscard]] T try_pop_front( ) noexcept {
-			try {
-				auto lck = m_impl.unique_lock( std::try_to_lock );
-				if( not lck.owns_lock( ) or is_empty( ) ) {
-					return {};
-				}
-				auto result = ::daw::move( m_impl.m_values[inc_front( )] );
-				m_impl.m_is_full = false;
-				m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
-				lck.unlock( );
-				m_impl.m_not_full.notify_one( );
-				return result;
-			} catch( std::system_error const &se ) {
-				// Error trying to lock, for now abort,
-				// maybe in the future return fail
-				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
-				std::abort( );
+			auto const current_front =
+			  m_impl.m_front.load( ::std::memory_order_relaxed );
+			if( current_front == m_impl.m_back.load( ::std::memory_order_acquire ) ) {
+				// queue is empty
+				return {};
 			}
+
+			auto const next_front = ( current_front + 1 ) % Sz;
+
+			auto result = ::daw::move( m_impl.m_values[current_front] );
+			m_impl.m_values[current_front].~value_type( );
+			m_impl.m_front.store( next_front, ::std::memory_order_release );
+			return result;
 		}
 
-		[[nodiscard]] T pop_front( ) noexcept {
-			try {
-				auto lck = m_impl.unique_lock( );
-				if( is_empty( ) ) {
-					m_impl.m_not_empty.wait( lck, [&]( ) { return not is_empty( ); } );
-				}
-
-				auto result = ::daw::move( m_impl.m_values[inc_front( )] );
-				m_impl.m_is_full = false;
-				m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
-				lck.unlock( );
-				m_impl.m_not_full.notify_one( );
-				return result;
-			} catch( std::system_error const &se ) {
-				// Error trying to lock, for now abort,
-				// maybe in the future return fail
-				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
-				std::abort( );
-			}
-		}
-
-		template<typename Predicate, typename Duration = std::chrono::seconds>
-		[[nodiscard]] T
-		pop_front( Predicate can_continue,
-		           Duration &&timeout = std::chrono::seconds( 1 ) ) noexcept {
+		template<typename Predicate>
+		[[nodiscard]] T pop_front( Predicate can_continue ) noexcept {
 			static_assert( std::is_invocable_v<Predicate> );
-			try {
-				auto lck = m_impl.unique_lock( );
-				if( is_empty( ) ) {
-					auto const can_pop = wait_impl::wait_for(
-					  m_impl.m_not_empty, lck, timeout,
-					  [&]( ) { return not is_empty( ); }, can_continue );
-					if( not can_pop ) {
-						return {};
-					}
-				}
-				if( not can_continue( ) ) {
-					return {};
-				}
-				auto result = ::daw::move( m_impl.m_values[m_impl.m_front] );
-				m_impl.m_is_full = false;
-				m_impl.m_front = ( m_impl.m_front + 1 ) % Sz;
-				lck.unlock( );
-				m_impl.m_not_full.notify_one( );
-				return result;
-			} catch( std::system_error const &se ) {
-				// Error trying to lock, for now abort,
-				// maybe in the future return fail
-				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
-				std::abort( );
+			auto result = try_pop_front( );
+			while( not result and can_continue( ) ) {
+				result = try_pop_front( );
 			}
+			return result;
 		}
 
-		template<typename Predicate, typename Duration = std::chrono::seconds>
-		[[nodiscard]] bool
-		push_back( T &&value, Predicate can_continue,
-		           Duration &&timeout = std::chrono::seconds( 1 ) ) {
-
+		template<typename Predicate, typename Duration>
+		[[nodiscard]] T pop_front( Predicate can_continue,
+		                           Duration timeout ) noexcept {
 			static_assert( std::is_invocable_v<Predicate> );
-
-			try {
-				auto lck = m_impl.unique_lock( );
-
-				if( is_full( ) ) {
-					m_impl.m_not_full.wait(
-					  lck, [&]( ) { return can_continue( ) and not is_full( ); } );
-				}
-				auto const can_push = wait_impl::wait_for(
-				  m_impl.m_not_empty, lck, timeout, [&]( ) { return not is_full( ); },
-				  can_continue );
-				if( not can_push ) {
-					return false;
-				}
-
-				set_back( ::daw::move( value ) );
-				m_impl.m_is_full = m_impl.m_front == m_impl.m_back;
-				bool const should_notify = not is_empty( );
-				lck.unlock( );
-				if( should_notify ) {
-					m_impl.m_not_empty.notify_one( );
-				}
-
-				return true;
-			} catch( std::system_error const &se ) {
-				// Error trying to lock, for now abort,
-				// maybe in the future return fail
-				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
-				std::abort( );
+			auto result = try_pop_front( );
+			if( result ) {
+				return result;
 			}
+			auto const end_time =
+			  std::chrono::high_resolution_clock::now( ) + timeout;
+
+			while( not result and can_continue( ) and
+			       std::chrono::high_resolution_clock::now( ) < end_time ) {
+				result = try_pop_front( );
+			}
+			return result;
 		}
 
-		[[nodiscard]] push_back_result try_push_back( T &&value ) {
-			try {
-				auto lck = m_impl.unique_lock( std::try_to_lock );
-				if( not lck.owns_lock( ) or is_full( ) ) {
-					return push_back_result::failed;
+		[[nodiscard]] push_back_result
+		try_push_back( value_type &&value ) noexcept {
+			auto const current_back =
+			  m_impl.m_back.load( ::std::memory_order_relaxed );
+			auto const next_back = ( current_back + 1 ) % Sz;
+			if( next_back != m_impl.m_front.load( ::std::memory_order_acquire ) ) {
+				if constexpr( ::std::is_aggregate_v<value_type> ) {
+					new( &m_impl.m_values[current_back] )
+					  value_type{::daw::move( value )};
+				} else {
+					new( &m_impl.m_values[current_back] )
+					  value_type( ::daw::move( value ) );
 				}
-				assert( not m_impl.m_values[m_impl.m_back] );
-
-				set_back( ::daw::move( value ) );
-				m_impl.m_is_full = m_impl.m_front == m_impl.m_back;
-				bool should_notify = not is_empty( );
-				lck.unlock( );
-				if( should_notify ) {
-					m_impl.m_not_empty.notify_one( );
-				}
+				m_impl.m_back.store( next_back, ::std::memory_order_release );
 				return push_back_result::success;
-			} catch( std::system_error const &se ) {
-				// Error trying to lock, for now abort,
-				// maybe in the future return fail
-				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
-				std::abort( );
 			}
+			return push_back_result::failed;
 		}
 
-		[[nodiscard]] push_back_result try_push_back( T &&value,
-		                                              bool must_be_empty ) {
-			try {
-				auto lck = m_impl.unique_lock( std::try_to_lock );
-				if( not lck.owns_lock( ) or is_full( ) or
-				    ( must_be_empty and not is_empty( ) ) ) {
-					return push_back_result::failed;
-				}
-
-				assert( not m_impl.m_values[m_impl.m_back] );
-
-				set_back( ::daw::move( value ) );
-				m_impl.m_is_full = m_impl.m_front == m_impl.m_back;
-				auto should_notify = is_empty( );
-				lck.unlock( );
-				if( should_notify ) {
-					m_impl.m_not_empty.notify_one( );
-				}
-				return push_back_result::success;
-			} catch( std::system_error const &se ) {
-				// Error trying to lock, for now abort,
-				// maybe in the future return fail
-				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
-				std::abort( );
+		template<typename Predicate>
+		[[nodiscard]] push_back_result push_back( value_type &&value,
+		                                          Predicate &&pred ) noexcept {
+			auto result = try_push_back( ::daw::move( value ) );
+			while( result == push_back_result::failed and pred( ) ) {
+				result = try_push_back( ::daw::move( value ) );
 			}
+			return result;
 		}
 	};
 } // namespace daw::parallel

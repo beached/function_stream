@@ -302,7 +302,7 @@ namespace daw {
 		}
 		return m_impl->m_tasks[id].push_back( ::daw::move( tsk ), [&]( ) {
 			return static_cast<bool>( m_impl->m_continue );
-		} );
+		} ) == ::daw::parallel::push_back_result::success;
 	}
 
 	void task_scheduler::task_runner( size_t id ) {
