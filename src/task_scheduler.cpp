@@ -60,7 +60,7 @@ namespace daw {
 	task_scheduler::task_scheduler_impl::task_scheduler_impl(
 	  std::size_t num_threads, bool block_on_destruction )
 	  : m_num_threads( num_threads )
-	  , m_tasks( 1U ) //m_num_threads )
+	  , m_tasks( 1U ) // m_num_threads )
 	  , m_block_on_destruction( block_on_destruction ) {
 
 		std::cout << m_tasks.size( ) << '\n';
@@ -96,14 +96,26 @@ namespace daw {
 		if( auto tsk = m_impl->m_tasks[id].try_pop_front( ); tsk ) {
 			return ::daw::move( tsk );
 		}
+		for( size_t n = id + 1; n < std::size( m_impl->m_tasks ); ++n ) {
+			if( auto tsk = m_impl->m_tasks[n].try_pop_front( ); tsk ) {
+				return ::daw::move( tsk );
+			}
+		}
+		for( size_t n = 0; n < id; ++n ) {
+			if( auto tsk = m_impl->m_tasks[n].try_pop_front( ); tsk ) {
+				return ::daw::move( tsk );
+			}
+		}
+		/*
 		for( auto m = ( id + 1 ) % m_impl->m_num_threads;
 		     m_impl->m_continue and m != id;
 		     m = ( m + 1 ) % m_impl->m_num_threads ) {
 
-			if( auto tsk = m_impl->m_tasks[m].try_pop_front( ); tsk ) {
-				return ::daw::move( tsk );
-			}
+		  if( auto tsk = m_impl->m_tasks[m].try_pop_front( ); tsk ) {
+		    return ::daw::move( tsk );
+		  }
 		}
+		 */
 		return m_impl->m_tasks[id].pop_front(
 		  [&]( ) { return static_cast<bool>( m_impl->m_continue ); } );
 	}
@@ -165,14 +177,28 @@ namespace daw {
 			run_task( daw::move( tsk ) );
 			return true;
 		}
-		for( auto m = ( id + 1 ) % m_impl->m_num_threads; m != id;
-		     m = ( m + 1 ) % m_impl->m_num_threads ) {
-
-			if( auto tsk = m_impl->m_tasks[m].try_pop_front( ); tsk ) {
-				run_task( daw::move( tsk ) );
+		for( size_t n = id + 1; n < std::size( m_impl->m_tasks ); ++n ) {
+			if( auto tsk = m_impl->m_tasks[n].try_pop_front( ); tsk ) {
+				run_task( ::daw::move( tsk ) );
 				return true;
 			}
 		}
+		for( size_t n = 0; n < id; ++n ) {
+			if( auto tsk = m_impl->m_tasks[n].try_pop_front( ); tsk ) {
+				run_task( ::daw::move( tsk ) );
+				return true;
+			}
+		}
+		/*
+		for( auto m = ( id + 1 ) % m_impl->m_num_threads; m != id;
+		     m = ( m + 1 ) % m_impl->m_num_threads ) {
+
+		  if( auto tsk = m_impl->m_tasks[m].try_pop_front( ); tsk ) {
+		    run_task( daw::move( tsk ) );
+		    return true;
+		  }
+		}
+		 */
 		return false;
 	}
 
@@ -200,7 +226,7 @@ namespace daw {
 			return;
 		}
 		m_impl->m_continue = true;
-		//assert( m_impl->m_tasks.size( ) == m_impl->m_num_threads );
+		// assert( m_impl->m_tasks.size( ) == m_impl->m_num_threads );
 		for( size_t n = 0; n < m_impl->m_num_threads; ++n ) {
 			add_queue( n );
 		}

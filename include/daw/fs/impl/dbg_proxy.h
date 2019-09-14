@@ -26,6 +26,7 @@
 #include <type_traits>
 
 #include <daw/daw_exception.h>
+#include <daw/daw_traits.h>
 
 namespace daw {
 	template<typename T, typename Container = ::std::unique_ptr<T>>

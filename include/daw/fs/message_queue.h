@@ -134,9 +134,10 @@ namespace daw::parallel {
 				lck.unlock( );
 				m_impl.m_not_full.notify_one( );
 				return result;
-			} catch( std::system_error ) {
+			} catch( std::system_error const &se ) {
 				// Error trying to lock, for now abort,
 				// maybe in the future return fail
+				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
 				std::abort( );
 			}
 		}
@@ -154,9 +155,10 @@ namespace daw::parallel {
 				lck.unlock( );
 				m_impl.m_not_full.notify_one( );
 				return result;
-			} catch( std::system_error ) {
+			} catch( std::system_error const &se ) {
 				// Error trying to lock, for now abort,
 				// maybe in the future return fail
+				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
 				std::abort( );
 			}
 		}
@@ -185,9 +187,10 @@ namespace daw::parallel {
 				lck.unlock( );
 				m_impl.m_not_full.notify_one( );
 				return result;
-			} catch( std::system_error ) {
+			} catch( std::system_error const &se ) {
 				// Error trying to lock, for now abort,
 				// maybe in the future return fail
+				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
 				std::abort( );
 			}
 		}
@@ -222,9 +225,10 @@ namespace daw::parallel {
 				}
 
 				return true;
-			} catch( std::system_error ) {
+			} catch( std::system_error const &se ) {
 				// Error trying to lock, for now abort,
 				// maybe in the future return fail
+				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
 				std::abort( );
 			}
 		}
@@ -245,9 +249,10 @@ namespace daw::parallel {
 					m_impl.m_not_empty.notify_one( );
 				}
 				return push_back_result::success;
-			} catch( std::system_error ) {
+			} catch( std::system_error const &se ) {
 				// Error trying to lock, for now abort,
 				// maybe in the future return fail
+				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
 				std::abort( );
 			}
 		}
@@ -271,9 +276,10 @@ namespace daw::parallel {
 					m_impl.m_not_empty.notify_one( );
 				}
 				return push_back_result::success;
-			} catch( std::system_error ) {
+			} catch( std::system_error const &se ) {
 				// Error trying to lock, for now abort,
 				// maybe in the future return fail
+				std::cerr << "Fatal error in pop_front( )\n" << se.what( ) << '\n';
 				std::abort( );
 			}
 		}
