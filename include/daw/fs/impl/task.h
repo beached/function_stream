@@ -37,7 +37,7 @@ namespace daw {
 			// shared to interoperate with other parts
 			::daw::shared_latch m_latch = ::daw::shared_latch( );
 
-			impl_t( ::std::function<void( )> &&func )
+			explicit impl_t( ::std::function<void( )> &&func )
 			  : m_function( ::daw::move( func ) ) {}
 
 			impl_t( ::std::function<void( )> &&func, ::daw::shared_latch &&l )

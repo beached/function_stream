@@ -31,10 +31,12 @@
 
 int main( ) {
 	//	for( size_t j = 0; j < 25U; ++j ) {
-	auto q = ::daw::parallel::locking_circular_buffer<size_t, 512>( );
-	std::array<size_t, 10> results{};
+	auto q = ::daw::parallel::spsc_bounded_queue<size_t, 512>( );
+	std::array<size_t, 100> results{};
+	auto mut_out = std::mutex( );
 
 	auto l = ::daw::latch( 1 );
+	auto l2 = ::daw::latch( 1 );
 
 	auto const producer = [&]( ) {
 		size_t count = 0;
@@ -42,16 +44,20 @@ int main( ) {
 			auto v = n;
 			auto tmp_n = n;
 			auto r =
-			  q.push_back( ::daw::move( tmp_n ), []( auto &&... ) { return true; } );
+			  push_back( q, ::daw::move( tmp_n ), []( auto &&... ) { return true; } );
 			++count;
 			while( r != ::daw::parallel::push_back_result::success ) {
 				++count;
 				n = v;
 				tmp_n = n;
-				r = q.push_back( ::daw::move( tmp_n ), []( auto &&... ) { return true; } );
+				r = push_back( q, ::daw::move( tmp_n ),
+				               []( auto &&... ) { return true; } );
 			}
 			l.notify( );
 		}
+		l2.notify( );
+		auto const lck = std::lock_guard( mut_out );
+		std::cout << "producer - done\n";
 	};
 	auto const consumer = [&]( size_t i ) {
 		results[i] = 0;
@@ -60,13 +66,24 @@ int main( ) {
 		for( size_t n = 0; n < 100; ++n ) {
 			auto val = q.try_pop_front( );
 			++count;
-			while( not val ) {
+			while( not val and not l2.try_wait( ) ) {
 				++count;
 				val = q.try_pop_front( );
 				if( val and val % 2 != 0 ) {
 					val *= 2;
-					(void)q.push_back( ::daw::move( val ), []( ) { return true; } );
+					{
+						auto const lck = std::lock_guard( mut_out );
+						std::cout << ::std::this_thread::get_id( ) << " -> adding task\n";
+					}
+					(void)push_back( q, ::daw::move( val ), []( ) { return true; } );
 				}
+			}
+			{
+				auto const lck = std::lock_guard( mut_out );
+				std::cout << ::std::this_thread::get_id( ) << " -> adding result\n";
+			}
+			if( not l2.try_wait( ) ) {
+				return;
 			}
 			results[i] += val;
 		}

@@ -83,7 +83,7 @@ namespace daw {
 
 	class task_scheduler {
 		using task_queue_t =
-		  daw::parallel::locking_circular_buffer<::daw::task_t, 512>;
+		  daw::parallel::mpmc_bounded_queue<::daw::task_t, 512>;
 
 		class task_scheduler_impl {
 			::daw::lockable_value_t<std::list<::daw::parallel::ithread>> m_threads =
@@ -93,8 +93,8 @@ namespace daw {
 			  m_thread_map = ::daw::lockable_value_t<
 			    std::unordered_map<::daw::parallel::ithread::id, size_t>>( );
 			::std::atomic_size_t m_num_threads; // from ctor
-			//::std::deque<task_queue_t> m_tasks; // from ctor
-			::std::vector<task_queue_t> m_tasks; // from ctor
+			::std::deque<task_queue_t> m_tasks; // from ctor
+			//::std::vector<task_queue_t> m_tasks; // from ctor
 			::std::atomic_size_t m_task_count = ::std::atomic_size_t( 0ULL );
 			::std::atomic_size_t m_current_id = ::std::atomic_size_t( 0ULL );
 			::std::atomic_bool m_continue = false;

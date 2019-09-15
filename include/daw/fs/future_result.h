@@ -79,11 +79,11 @@ namespace daw {
 			public:
 				using type = result_type_t;
 
-				bool explired( ) const {
+				[[nodiscard]] bool expired( ) const {
 					return m_handle.expired( );
 				}
 
-				std::optional<future_result_t> lock( ) const {
+				[[nodiscard]] std::optional<future_result_t> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
 						return future_result_t( std::move( *lck ) );
 					}
@@ -219,11 +219,11 @@ namespace daw {
 			public:
 				using type = void;
 
-				bool explired( ) const {
+				[[nodiscard]] bool expired( ) const {
 					return m_handle.expired( );
 				}
 
-				std::optional<future_result_t> lock( ) const {
+				[[nodiscard]] std::optional<future_result_t> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
 						return future_result_t( std::move( *lck ) );
 					}

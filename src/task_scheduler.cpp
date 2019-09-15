@@ -60,9 +60,10 @@ namespace daw {
 	task_scheduler::task_scheduler_impl::task_scheduler_impl(
 	  std::size_t num_threads, bool block_on_destruction )
 	  : m_num_threads( num_threads )
-	  , m_tasks( m_num_threads )
+	  , m_tasks( )
 	  , m_block_on_destruction( block_on_destruction ) {
 
+		m_tasks.resize( m_num_threads );
 		std::cout << m_tasks.size( ) << '\n';
 	}
 
@@ -116,8 +117,9 @@ namespace daw {
 		  }
 		}
 		 */
-		return m_impl->m_tasks[id].pop_front(
-		  [&]( ) { return static_cast<bool>( m_impl->m_continue ); } );
+		return pop_front( m_impl->m_tasks[id], [&]( ) {
+			return static_cast<bool>( m_impl->m_continue );
+		} );
 	}
 
 	[[nodiscard]] ::daw::task_t
@@ -140,7 +142,7 @@ namespace daw {
 				return ::daw::move( tsk );
 			}
 		}
-		return m_impl->m_tasks[id].pop_front( [&]( ) {
+		return pop_front( m_impl->m_tasks[id], [&]( ) {
 			return static_cast<bool>( m_impl->m_continue && not sem.try_wait( ) );
 		} );
 	}
@@ -300,9 +302,9 @@ namespace daw {
 				return true;
 			}
 		}
-		return m_impl->m_tasks[id].push_back( ::daw::move( tsk ), [&]( ) {
-			return static_cast<bool>( m_impl->m_continue );
-		} ) == ::daw::parallel::push_back_result::success;
+		return push_back( m_impl->m_tasks[id], ::daw::move( tsk ), [&]( ) {
+			       return static_cast<bool>( m_impl->m_continue );
+		       } ) == ::daw::parallel::push_back_result::success;
 	}
 
 	void task_scheduler::task_runner( size_t id ) {

@@ -32,6 +32,7 @@
 #include <optional>
 #include <utility>
 
+#include <daw/daw_do_n.h>
 #include <daw/fs/impl/dbg_proxy.h>
 #include <daw/parallel/daw_locked_value.h>
 #include <daw/parallel/daw_shared_mutex.h>
@@ -39,6 +40,13 @@
 #include "impl/dbg_proxy.h"
 
 namespace daw::parallel {
+#ifdef __cpp_lib_thread_hardware_interference_size
+	inline static constepxr size_t cache_line_size =
+	  ::std::hardware_destructive_interference_size;
+#else
+	inline static constexpr size_t cache_line_size = 128U; // safe default
+#endif
+
 	namespace wait_impl {
 		template<typename Waiter, typename Rep, typename Period, typename Predicate,
 		         typename ConditionalChecker>
@@ -58,36 +66,32 @@ namespace daw::parallel {
 	enum class push_back_result : bool { failed, success };
 
 	template<typename T, size_t Sz>
-	class locking_circular_buffer {
-#ifdef __cpp_lib_thread_hardware_interference_size
-		inline static constepxr size_t cache_size =
-		  ::std::hardware_destructive_interference_size;
-#else
-		inline static constexpr size_t cache_size = 128U; // safe default
-#endif
+	class spsc_bounded_queue {
 
 		static_assert( ::std::is_move_constructible_v<T> );
 		static_assert( ::std::is_move_assignable_v<T> );
 		// TODO no throw static asserts
 		static_assert( Sz >= 2 );
 		using value_type = T;
-		struct locking_circular_buffer_impl {
-			char m_front_padding[cache_size];
-			value_type *const m_values =
-			  static_cast<value_type *>( ::std::malloc( sizeof( value_type ) * Sz ) );
 
-			alignas( cache_size )::std::atomic_size_t m_front = 0;
-			alignas( cache_size )::std::atomic_size_t m_back = 0;
+		struct spsc_bounded_queue_impl {
+			char m_front_padding[cache_line_size];
+			value_type *const m_values;
+			alignas( cache_line_size )::std::atomic_size_t m_front;
+			alignas( cache_line_size )::std::atomic_size_t m_back;
 
-			char m_back_padding[cache_size - sizeof( ::std::atomic_size_t )];
+			char m_back_padding[cache_line_size - sizeof( ::std::atomic_size_t )];
 
-			locking_circular_buffer_impl( ) noexcept {
-				if( not m_values ) {
-					std::abort( );
-				}
+			spsc_bounded_queue_impl( ) noexcept
+			  : m_values( static_cast<value_type *>(
+			      ::std::malloc( sizeof( value_type ) * Sz ) ) )
+			  , m_front( 0 )
+			  , m_back( 0 ) {
+
+				assert( m_values );
 			}
 
-			~locking_circular_buffer_impl( ) noexcept {
+			~spsc_bounded_queue_impl( ) noexcept {
 				if constexpr( not std::is_trivially_destructible_v<value_type> ) {
 					try {
 						while( m_front != m_back ) {
@@ -101,20 +105,28 @@ namespace daw::parallel {
 				free( m_values );
 			}
 
-			locking_circular_buffer_impl( locking_circular_buffer_impl const & ) =
-			  delete;
-			locking_circular_buffer_impl &
-			operator=( locking_circular_buffer_impl const & ) = delete;
-			locking_circular_buffer_impl( locking_circular_buffer_impl && ) noexcept =
-			  delete;
-			locking_circular_buffer_impl &
-			operator=( locking_circular_buffer_impl && ) noexcept = delete;
+			spsc_bounded_queue_impl( spsc_bounded_queue_impl const & ) = delete;
+			spsc_bounded_queue_impl &
+			operator=( spsc_bounded_queue_impl const & ) = delete;
+			spsc_bounded_queue_impl( spsc_bounded_queue_impl && ) noexcept = delete;
+			spsc_bounded_queue_impl &
+			operator=( spsc_bounded_queue_impl && ) noexcept = delete;
 		};
 
-		locking_circular_buffer_impl m_impl = locking_circular_buffer_impl( );
+		spsc_bounded_queue_impl m_impl = spsc_bounded_queue_impl( );
+
+		void construct_value_at( size_t id, value_type &&value ) noexcept {
+			static_assert( ::std::is_nothrow_move_constructible_v<value_type> );
+			assert( id < Sz );
+			if constexpr( ::std::is_aggregate_v<value_type> ) {
+				new( &m_impl.m_values[id] ) value_type{::daw::move( value )};
+			} else {
+				new( &m_impl.m_values[id] ) value_type( ::daw::move( value ) );
+			}
+		}
 
 	public:
-		locking_circular_buffer( ) noexcept = default;
+		spsc_bounded_queue( ) noexcept = default;
 
 		[[nodiscard]] bool empty( ) const noexcept {
 			return m_impl.m_front.load( ::std::memory_order_acquire ) ==
@@ -122,8 +134,10 @@ namespace daw::parallel {
 		}
 
 		[[nodiscard]] bool full( ) const noexcept {
-			auto const next_record =
-			  ( m_impl.m_back.load( ::std::memory_order_acquire ) + 1 ) % Sz;
+			auto next_record = m_impl.m_back.load( ::std::memory_order_acquire ) + 1U;
+			if( next_record >= Sz ) {
+				next_record = 0;
+			}
 
 			return next_record == m_impl.m_front.load( ::std::memory_order_acquire );
 		}
@@ -136,7 +150,10 @@ namespace daw::parallel {
 				return {};
 			}
 
-			auto const next_front = ( current_front + 1 ) % Sz;
+			auto next_front = current_front + 1U;
+			if( next_front >= Sz ) {
+				next_front = 0;
+			}
 
 			auto result = ::daw::move( m_impl.m_values[current_front] );
 			m_impl.m_values[current_front].~value_type( );
@@ -144,61 +161,160 @@ namespace daw::parallel {
 			return result;
 		}
 
-		template<typename Predicate>
-		[[nodiscard]] T pop_front( Predicate can_continue ) noexcept {
-			static_assert( std::is_invocable_v<Predicate> );
-			auto result = try_pop_front( );
-			while( not result and can_continue( ) ) {
-				result = try_pop_front( );
-			}
-			return result;
-		}
-
-		template<typename Predicate, typename Duration>
-		[[nodiscard]] T pop_front( Predicate can_continue,
-		                           Duration timeout ) noexcept {
-			static_assert( std::is_invocable_v<Predicate> );
-			auto result = try_pop_front( );
-			if( result ) {
-				return result;
-			}
-			auto const end_time =
-			  std::chrono::high_resolution_clock::now( ) + timeout;
-
-			while( not result and can_continue( ) and
-			       std::chrono::high_resolution_clock::now( ) < end_time ) {
-				result = try_pop_front( );
-			}
-			return result;
-		}
-
 		[[nodiscard]] push_back_result
 		try_push_back( value_type &&value ) noexcept {
 			auto const current_back =
 			  m_impl.m_back.load( ::std::memory_order_relaxed );
-			auto const next_back = ( current_back + 1 ) % Sz;
+			auto next_back = current_back + 1U;
+			if( next_back >= Sz ) {
+				next_back = 0;
+			}
 			if( next_back != m_impl.m_front.load( ::std::memory_order_acquire ) ) {
-				if constexpr( ::std::is_aggregate_v<value_type> ) {
-					new( &m_impl.m_values[current_back] )
-					  value_type{::daw::move( value )};
-				} else {
-					new( &m_impl.m_values[current_back] )
-					  value_type( ::daw::move( value ) );
-				}
+				construct_value_at( current_back, ::daw::move( value ) );
 				m_impl.m_back.store( next_back, ::std::memory_order_release );
 				return push_back_result::success;
 			}
 			return push_back_result::failed;
 		}
+	};
 
-		template<typename Predicate>
-		[[nodiscard]] push_back_result push_back( value_type &&value,
-		                                          Predicate &&pred ) noexcept {
-			auto result = try_push_back( ::daw::move( value ) );
-			while( result == push_back_result::failed and pred( ) ) {
-				result = try_push_back( ::daw::move( value ) );
+	template<typename T, size_t Sz>
+	class mpmc_bounded_queue {
+		static_assert( Sz >= 2U, "Queue must be a power of 2 at least 2 large" );
+		static_assert( ( Sz & ( Sz - 1U ) ) == 0,
+		               "Queue must be a power of 2 at least 2 large" );
+		struct cell_t {
+			::std::atomic<size_t> m_sequence;
+			T m_data;
+		};
+
+		using cacheline_pad_t = char[cache_line_size];
+		using cacheline_pad_end_t =
+		  char[cache_line_size - sizeof( ::std::atomic_size_t )];
+
+		alignas( cache_line_size ) cacheline_pad_t m_padding0;
+		alignas( cache_line_size ) cell_t *const m_buffer = new cell_t[Sz];
+		size_t const m_buffer_mask = Sz - 1U;
+		cacheline_pad_t m_padding1;
+		alignas( cache_line_size ) std::atomic_size_t m_enqueue_pos = 0;
+		cacheline_pad_end_t m_padding2;
+		alignas( cache_line_size ) std::atomic_size_t m_dequeue_pos = 0;
+		cacheline_pad_end_t m_padding3;
+
+	public:
+		mpmc_bounded_queue( mpmc_bounded_queue && ) = delete;
+		mpmc_bounded_queue &operator=( mpmc_bounded_queue && ) = delete;
+		mpmc_bounded_queue( mpmc_bounded_queue const & ) = delete;
+		mpmc_bounded_queue &operator=( mpmc_bounded_queue const & ) = delete;
+
+		mpmc_bounded_queue( ) {
+			::daw::algorithm::do_n_arg<Sz>( [&]( size_t idx ) {
+				m_buffer[idx].m_sequence.store( idx, std::memory_order_relaxed );
+			} );
+		}
+
+		[[nodiscard]] bool empty( ) const noexcept {
+			return m_enqueue_pos.load( ::std::memory_order_acquire ) ==
+			       m_dequeue_pos.load( ::std::memory_order_acquire );
+		}
+
+		~mpmc_bounded_queue( ) {
+			delete[] m_buffer;
+		}
+
+		push_back_result try_push_back( T &&data ) {
+			cell_t *cell = nullptr;
+			auto pos = m_enqueue_pos.load( std::memory_order_relaxed );
+			while( true ) {
+				{
+					auto const idx = pos & m_buffer_mask;
+					cell = m_buffer + idx;
+				}
+				auto seq = cell->m_sequence.load( std::memory_order_acquire );
+
+				if( auto dif =
+				      static_cast<intptr_t>( seq ) - static_cast<intptr_t>( pos );
+				    dif == 0 ) {
+					if( m_enqueue_pos.compare_exchange_weak(
+					      pos, pos + 1, std::memory_order_relaxed ) ) {
+						break;
+					}
+				} else if( dif < 0 ) {
+					return push_back_result::failed;
+				} else {
+					pos = m_enqueue_pos.load( std::memory_order_relaxed );
+				}
 			}
+			assert( cell );
+			cell->m_data = ::daw::move( data );
+			cell->m_sequence.store( pos + 1, std::memory_order_release );
+
+			return push_back_result::success;
+		}
+
+		T try_pop_front( ) {
+			cell_t *cell = nullptr;
+			auto pos = m_dequeue_pos.load( std::memory_order_relaxed );
+			while( true ) {
+				cell = &m_buffer[pos & m_buffer_mask];
+				size_t seq = cell->m_sequence.load( std::memory_order_acquire );
+
+				auto const dif =
+				  static_cast<intmax_t>( seq ) - static_cast<intmax_t>( pos + 1 );
+				if( dif == 0 ) {
+					if( m_dequeue_pos.compare_exchange_weak(
+					      pos, pos + 1, std::memory_order_relaxed ) ) {
+						break;
+					}
+				} else if( dif < 0 ) {
+					return {};
+				} else {
+					pos = m_dequeue_pos.load( std::memory_order_relaxed );
+				}
+			}
+			assert( cell );
+			auto result = ::daw::move( cell->m_data );
+			cell->m_sequence.store( pos + m_buffer_mask + 1U,
+			                        std::memory_order_release );
+
 			return result;
 		}
 	};
+
+	template<typename Queue, typename Predicate>
+	[[nodiscard]] auto pop_front( Queue &q, Predicate can_continue ) noexcept {
+		static_assert( std::is_invocable_v<Predicate> );
+		auto result = q.try_pop_front( );
+		while( not result and can_continue( ) ) {
+			result = q.try_pop_front( );
+		}
+		return result;
+	}
+
+	template<typename Queue, typename Predicate, typename Duration>
+	[[nodiscard]] auto pop_front( Queue &q, Predicate can_continue,
+	                              Duration timeout ) noexcept {
+		static_assert( std::is_invocable_v<Predicate> );
+		auto result = q.try_pop_front( );
+		if( result ) {
+			return result;
+		}
+		auto const end_time = std::chrono::high_resolution_clock::now( ) + timeout;
+
+		while( not result and can_continue( ) and
+		       std::chrono::high_resolution_clock::now( ) < end_time ) {
+			result = q.try_pop_front( );
+		}
+		return result;
+	}
+
+	template<typename Queue, typename T, typename Predicate>
+	[[nodiscard]] push_back_result push_back( Queue &q, T &&value,
+	                                          Predicate &&pred ) noexcept {
+		auto result = q.try_push_back( ::daw::move( value ) );
+		while( result == push_back_result::failed and pred( ) ) {
+			result = q.try_push_back( ::daw::move( value ) );
+		}
+		return result;
+	}
 } // namespace daw::parallel
