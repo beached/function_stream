@@ -27,6 +27,7 @@
 
 #include <daw/daw_enable_if.h>
 #include <daw/daw_traits.h>
+#include <daw/parallel/daw_atomic_unique_ptr.h>
 #include <daw/parallel/daw_latch.h>
 
 namespace daw {
@@ -43,85 +44,66 @@ namespace daw {
 			  : m_function( ::daw::move( func ) )
 			  , m_latch( ::daw::move( l ) ) {}
 		};
-		::std::atomic<impl_t *> m_impl = nullptr;
 
-		impl_t &ref( ) noexcept {
-			return *static_cast<impl_t *>( m_impl );
-		}
-
-		impl_t const &ref( ) const noexcept {
-			return *static_cast<impl_t const *>( m_impl );
-		}
+		::daw::atomic_unique_ptr<impl_t> m_impl = nullptr;
 
 	public:
 		task_t( ) = default;
-		task_t( task_t && other ) noexcept
-		  : m_impl( other.m_impl.exchange( nullptr ) ) {}
-
-		task_t &operator=( task_t &&rhs ) noexcept {
-			auto tmp = rhs.m_impl.exchange( nullptr );
-			delete m_impl.exchange( tmp );
-			return *this;
-		}
-
-		~task_t( ) noexcept {
-			delete m_impl.exchange( nullptr );
-		}
 
 		template<typename Func,
 		         ::std::enable_if_t<
 		           not std::is_same_v<task_t, ::daw::remove_cvref_t<Func>>,
 		           ::std::nullptr_t> = nullptr>
 		explicit task_t( Func && func )
-		  : m_impl( new impl_t(
+		  : m_impl( ::daw::make_atomic_unique_ptr<impl_t>(
 		      ::std::function<void( )>( ::std::forward<Func>( func ) ) ) ) {
 
 			assert( m_impl );
-			daw::exception::precondition_check( ref( ).m_function,
+			daw::exception::precondition_check( m_impl->m_function,
 			                                    "Callable must be valid" );
 		}
 
 		template<typename Func, typename Latch>
 		task_t( Func && func, Latch l )
-		  : m_impl(
-		      new impl_t( ::std::function<void( )>( ::std::forward<Func>( func ) ),
-		                  ::daw::is_shared_latch_v<Latch>
-		                    ? ::daw::move( l )
-		                    : ::daw::shared_latch( ::daw::move( l ) ) ) ) {
+		  : m_impl( ::daw::make_atomic_unique_ptr<impl_t>(
+		      ::std::function<void( )>( ::std::forward<Func>( func ) ),
+		      ::daw::is_shared_latch_v<Latch>
+		        ? ::daw::move( l )
+		        : ::daw::shared_latch( ::daw::move( l ) ) ) ) {
 
 			assert( m_impl );
 			static_assert( daw::is_shared_latch_v<Latch> or
 			               daw::is_unique_latch_v<Latch> );
 
-			daw::exception::precondition_check( ref( ).m_function,
+			daw::exception::precondition_check( m_impl->m_function,
 			                                    "Callable must be valid" );
 		}
 
-		inline void operator( )( ) noexcept( noexcept( ref( ).m_function( ) ) ) {
+		inline void operator( )( ) noexcept( noexcept( m_impl->m_function( ) ) ) {
 			assert( m_impl );
-			daw::exception::dbg_precondition_check( ref( ).m_function,
+			daw::exception::dbg_precondition_check( m_impl->m_function,
 			                                        "Callable must be valid" );
-			ref( ).m_function( );
+			m_impl->m_function( );
 		}
 
 		inline void operator( )( )
-		  const noexcept( noexcept( ref( ).m_function( ) ) ) {
+		  const noexcept( noexcept( m_impl->m_function( ) ) ) {
 			assert( m_impl );
-			daw::exception::dbg_precondition_check( ref( ).m_function,
+			daw::exception::dbg_precondition_check( m_impl->m_function,
 			                                        "Callable must be valid" );
-			ref( ).m_function( );
+			m_impl->m_function( );
 		}
 
 		[[nodiscard]] inline bool is_ready( ) const {
 			assert( m_impl );
-			if( ref( ).m_latch ) {
-				return ref( ).m_latch.try_wait( );
+			if( m_impl->m_latch ) {
+				return m_impl->m_latch.try_wait( );
 			}
 			return true;
 		}
 
 		[[nodiscard]] inline explicit operator bool( ) const noexcept {
-			return static_cast<bool>( m_impl and ref( ).m_function );
+			return static_cast<bool>( m_impl and m_impl->m_function );
 		}
 	}; // namespace daw
 } // namespace daw

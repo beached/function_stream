@@ -27,6 +27,7 @@
 #include <type_traits>
 
 #include <daw/daw_utility.h>
+#include <daw/parallel/daw_atomic_unique_ptr.h>
 #include <daw/parallel/daw_latch.h>
 
 namespace daw::parallel {
@@ -127,8 +128,8 @@ namespace daw::parallel {
 
 	class ithread {
 
-		::std::unique_ptr<ithread_impl::ithread_impl> m_impl =
-		  ::std::unique_ptr<ithread_impl::ithread_impl>( );
+		::daw::atomic_unique_ptr<ithread_impl::ithread_impl> m_impl =
+		  ::daw::atomic_unique_ptr<ithread_impl::ithread_impl>( );
 
 	public:
 		constexpr ithread( ) noexcept = default;
@@ -140,7 +141,7 @@ namespace daw::parallel {
 		                                               Callable, Args...>,
 		                     ::std::nullptr_t> = nullptr>
 		explicit ithread( Callable &&callable, Args &&... args )
-		  : m_impl( ::std::make_unique<ithread_impl::ithread_impl>(
+		  : m_impl( ::daw::make_atomic_unique_ptr<ithread_impl::ithread_impl>(
 		      std::forward<Callable>( callable ),
 		      std::forward<Args>( args )... ) ) {}
 
