@@ -113,6 +113,7 @@ add_dependencies( check task_scheduler_test_bin )
 add_dependencies( full task_scheduler_test_bin )
 
 add_executable( message_queue_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/message_queue_test.cpp )
+target_link_libraries( message_queue_test_bin ${CMAKE_THREAD_LIBS_INIT} )
 add_test( message_queue_test message_queue_test_bin )
 add_dependencies( check message_queue_test_bin )
 add_dependencies( full message_queue_test_bin )

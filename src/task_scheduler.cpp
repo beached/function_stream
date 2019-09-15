@@ -60,7 +60,7 @@ namespace daw {
 	task_scheduler::task_scheduler_impl::task_scheduler_impl(
 	  std::size_t num_threads, bool block_on_destruction )
 	  : m_num_threads( num_threads )
-	  , m_tasks( 1U ) // m_num_threads )
+	  , m_tasks( m_num_threads )
 	  , m_block_on_destruction( block_on_destruction ) {
 
 		std::cout << m_tasks.size( ) << '\n';

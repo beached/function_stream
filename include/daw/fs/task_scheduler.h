@@ -92,7 +92,7 @@ namespace daw {
 			  std::unordered_map<::daw::parallel::ithread::id, size_t>>
 			  m_thread_map = ::daw::lockable_value_t<
 			    std::unordered_map<::daw::parallel::ithread::id, size_t>>( );
-			::std::atomic_size_t m_num_threads;               // from ctor
+			::std::atomic_size_t m_num_threads; // from ctor
 			//::std::deque<task_queue_t> m_tasks; // from ctor
 			::std::vector<task_queue_t> m_tasks; // from ctor
 			::std::atomic_size_t m_task_count = ::std::atomic_size_t( 0ULL );
@@ -117,13 +117,12 @@ namespace daw {
 			~task_scheduler_impl( );
 		};
 
-		inline static std::shared_ptr<task_scheduler_impl>
-		make_ts( size_t num_threads =
-		           1U /*::daw::parallel::ithread::hardware_concurrency( )*/,
-		         bool block_on_destruction = true ) {
+		inline static std::shared_ptr<task_scheduler_impl> make_ts(
+		  size_t num_threads = ::daw::parallel::ithread::hardware_concurrency( ),
+		  bool block_on_destruction = true ) {
 
 			auto ptr = new task_scheduler_impl( num_threads, block_on_destruction );
-			// assert( ptr->m_tasks.size( ) == num_threads );
+			assert( ptr->m_tasks.size( ) == num_threads );
 			return std::shared_ptr<task_scheduler_impl>( ptr );
 		}
 
@@ -199,7 +198,8 @@ namespace daw {
 		}
 
 		task_scheduler( );
-		explicit task_scheduler( std::size_t num_threads, bool block_on_destruction = true );
+		explicit task_scheduler( std::size_t num_threads,
+		                         bool block_on_destruction = true );
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
@@ -347,7 +347,8 @@ namespace daw {
 		               "without an arugment. "
 		               "e.g. task( )" );
 		auto sem = daw::shared_latch( );
-		if( not schedule_task( sem, std::forward<Task>( task ), daw::move( ts ) ) ) {
+		if( not schedule_task( sem, std::forward<Task>( task ),
+		                       daw::move( ts ) ) ) {
 			// TODO, I don't like this but I don't want to change the return value to
 			// express that we failed to add the task... yet
 			sem.notify( );

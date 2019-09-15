@@ -60,10 +60,10 @@ namespace daw::parallel {
 	template<typename T, size_t Sz>
 	class locking_circular_buffer {
 #ifdef __cpp_lib_thread_hardware_interference_size
-		static constepxr size_t cache_size =
+		inline static constepxr size_t cache_size =
 		  ::std::hardware_destructive_interference_size;
 #else
-		static constexpr size_t cache_size = 128U; // safe default
+		inline static constexpr size_t cache_size = 128U; // safe default
 #endif
 
 		static_assert( ::std::is_move_constructible_v<T> );
@@ -72,30 +72,19 @@ namespace daw::parallel {
 		static_assert( Sz >= 2 );
 		using value_type = T;
 		struct locking_circular_buffer_impl {
-			value_type *const m_values = make_buffer( );
+			char m_front_padding[cache_size];
+			value_type *const m_values =
+			  static_cast<value_type *>( ::std::malloc( sizeof( value_type ) * Sz ) );
 
 			alignas( cache_size )::std::atomic_size_t m_front = 0;
 			alignas( cache_size )::std::atomic_size_t m_back = 0;
 
-			locking_circular_buffer_impl( ) = default;
-			locking_circular_buffer_impl( locking_circular_buffer_impl const & ) =
-			  delete;
-			locking_circular_buffer_impl &
-			operator=( locking_circular_buffer_impl const & ) = delete;
-			locking_circular_buffer_impl( locking_circular_buffer_impl && ) noexcept =
-			  delete;
-			locking_circular_buffer_impl &
-			operator=( locking_circular_buffer_impl && ) noexcept = delete;
+			char m_back_padding[cache_size - sizeof( ::std::atomic_size_t )];
 
-			static constexpr value_type *make_buffer( ) noexcept {
-				auto result = static_cast<value_type *>(
-				  ::std::malloc( sizeof( value_type ) * Sz ) );
-
-				if( not result ) {
-					// could not allocate
+			locking_circular_buffer_impl( ) noexcept {
+				if( not m_values ) {
 					std::abort( );
 				}
-				return result;
 			}
 
 			~locking_circular_buffer_impl( ) noexcept {
@@ -107,19 +96,22 @@ namespace daw::parallel {
 								m_front = 0;
 							}
 						}
-					} catch( ... ) {
-						free( m_values );
-						throw;
-					}
+					} catch( ... ) { std::abort( ); }
 				}
 				free( m_values );
 			}
+
+			locking_circular_buffer_impl( locking_circular_buffer_impl const & ) =
+			  delete;
+			locking_circular_buffer_impl &
+			operator=( locking_circular_buffer_impl const & ) = delete;
+			locking_circular_buffer_impl( locking_circular_buffer_impl && ) noexcept =
+			  delete;
+			locking_circular_buffer_impl &
+			operator=( locking_circular_buffer_impl && ) noexcept = delete;
 		};
 
-		char m_front_padding[cache_size];
 		locking_circular_buffer_impl m_impl = locking_circular_buffer_impl( );
-		char m_back_padding[cache_size -
-		                    ( cache_size % sizeof( ::std::atomic_size_t ) )];
 
 	public:
 		locking_circular_buffer( ) noexcept = default;
