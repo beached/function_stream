@@ -437,11 +437,11 @@ namespace daw {
 					friend member_data_t;
 
 				public:
-					bool expired( ) const {
+					[[nodiscard]] bool expired( ) const {
 						return m_handle.expired( );
 					}
 
-					std::optional<member_data_t> lock( ) const {
+					[[nodiscard]] std::optional<member_data_t> lock( ) const {
 						if( auto lck = m_handle.lock( ); lck ) {
 							return member_data_t( std::move( lck ) );
 						}
@@ -677,16 +677,16 @@ namespace daw {
 					std::weak_ptr<data_t> m_handle;
 
 					explicit handle_t( std::weak_ptr<data_t> wptr )
-					  : m_handle( wptr ) {}
+					  : m_handle( ::daw::move( wptr ) ) {}
 
 					friend member_data_t;
 
 				public:
-					bool expired( ) const {
+					[[nodiscard]] bool expired( ) const {
 						return m_handle.expired( );
 					}
 
-					std::optional<member_data_t> lock( ) const {
+					[[nodiscard]] std::optional<member_data_t> lock( ) const {
 						if( auto lck = m_handle.lock( ); lck ) {
 							return member_data_t( std::move( lck ) );
 						}

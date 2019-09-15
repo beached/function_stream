@@ -94,16 +94,16 @@ namespace daw {
 			return {};
 		}
 		if( auto tsk = m_impl->m_tasks[id].try_pop_front( ); tsk ) {
-			return ::daw::move( tsk );
+			return tsk;
 		}
 		for( size_t n = id + 1; n < std::size( m_impl->m_tasks ); ++n ) {
 			if( auto tsk = m_impl->m_tasks[n].try_pop_front( ); tsk ) {
-				return ::daw::move( tsk );
+				return tsk;
 			}
 		}
 		for( size_t n = 0; n < id; ++n ) {
 			if( auto tsk = m_impl->m_tasks[n].try_pop_front( ); tsk ) {
-				return ::daw::move( tsk );
+				return tsk;
 			}
 		}
 		/*

@@ -40,12 +40,15 @@ int main( ) {
 		size_t count = 0;
 		for( size_t n = 1; n <= 100; ++n ) {
 			auto v = n;
-			auto r = q.push_back( std::move( n ), []( auto &&... ) { return true; } );
+			auto tmp_n = n;
+			auto r =
+			  q.push_back( ::daw::move( tmp_n ), []( auto &&... ) { return true; } );
 			++count;
 			while( r != ::daw::parallel::push_back_result::success ) {
 				++count;
 				n = v;
-				r = q.push_back( std::move( n ), []( auto &&... ) { return true; } );
+				tmp_n = n;
+				r = q.push_back( ::daw::move( tmp_n ), []( auto &&... ) { return true; } );
 			}
 			l.notify( );
 		}
@@ -62,7 +65,7 @@ int main( ) {
 				val = q.try_pop_front( );
 				if( val and val % 2 != 0 ) {
 					val *= 2;
-					(void)q.push_back( std::move( val ), []( ) { return true; } );
+					(void)q.push_back( ::daw::move( val ), []( ) { return true; } );
 				}
 			}
 			results[i] += val;
