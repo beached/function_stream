@@ -289,7 +289,7 @@ namespace daw::algorithm::parallel::impl {
 			srt( range.begin( ), range.end( ), cmp );
 			return;
 		}
-		auto ranges = PartitionPolicy( )( range, ts.size( ) );
+		auto ranges = PartitionPolicy( )( range, ts.size( )*2 );
 
 		auto sorters = std::vector<future_result_t<daw::view<Iterator>>>( );
 		sorters.reserve( ranges.size( ) );

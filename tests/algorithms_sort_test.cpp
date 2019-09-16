@@ -77,8 +77,6 @@ void sort_test( size_t SZ ) {
 	// daw::get_task_scheduler( );
 	auto a = daw::make_random_data<int64_t>( SZ );
 
-	auto b = a;
-
 	auto const par_test = [&ts]( auto & ary ) {
 		daw::algorithm::parallel::sort(
 		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
