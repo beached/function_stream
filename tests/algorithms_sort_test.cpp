@@ -96,12 +96,9 @@ void sort_test( size_t SZ ) {
 		daw::do_not_optimize( ary );
 	};
 
-	std::string const par_title =
-	  "Parallel " + ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's";
-	std::string const ser_title =
-	  "Serial   " + ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's";
-	auto const tpar = ::daw::bench_n_test_mbs2<5>( par_title, sizeof( int64_t ) * SZ, par_test, a );
-	auto const tseq = ::daw::bench_n_test_mbs2<5>( ser_title, sizeof( int64_t ) * SZ, ser_test, a );
+	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
+	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>( "parallel", sizeof( int64_t ) * SZ, par_test, a );
+	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>( "  serial", sizeof( int64_t ) * SZ, ser_test, a );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed << (tseq/tpar) << '\n';
 }
 
@@ -115,7 +112,7 @@ int main( ) {
 #endif
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
+	for( size_t n = 1; n <= MAX_ITEMS * 2; n *= 4 ) {
 		sort_test( n );
 		std::cout << '\n';
 	}

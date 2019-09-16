@@ -193,7 +193,7 @@ namespace daw::parallel {
 		  char[cache_line_size - sizeof( ::std::atomic_size_t )];
 
 		alignas( cache_line_size ) cacheline_pad_t m_padding0;
-		alignas( cache_line_size ) cell_t *const m_buffer = new cell_t[Sz];
+		alignas( cache_line_size ) cell_t *const m_buffer = new cell_t[Sz]( );
 		size_t const m_buffer_mask = Sz - 1U;
 		cacheline_pad_t m_padding1;
 		alignas( cache_line_size ) std::atomic_size_t m_enqueue_pos = 0;
@@ -208,6 +208,7 @@ namespace daw::parallel {
 		mpmc_bounded_queue &operator=( mpmc_bounded_queue const & ) = delete;
 
 		mpmc_bounded_queue( ) {
+			assert( m_buffer );
 			::daw::algorithm::do_n_arg<Sz>( [&]( size_t idx ) {
 				m_buffer[idx].m_sequence.store( idx, std::memory_order_relaxed );
 			} );
