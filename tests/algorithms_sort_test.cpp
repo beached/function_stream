@@ -79,10 +79,10 @@ void sort_test( size_t SZ ) {
 
 	auto b = a;
 
-	auto const par_test = [&]( ) {
+	auto const par_test = [&ts]( auto & ary ) {
 		daw::algorithm::parallel::sort(
-		  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
-		daw::do_not_optimize( a );
+		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
+		daw::do_not_optimize( ary );
 	};
 
 #ifdef HAS_PAR_STL
@@ -93,11 +93,18 @@ void sort_test( size_t SZ ) {
 	};
 #endif
 
-	auto const ser_test = [&]( ) {
-		std::sort( a.begin( ), a.end( ) );
-		daw::do_not_optimize( a );
+	auto const ser_test = []( auto & ary ) {
+		std::sort( ary.begin( ), ary.end( ) );
+		daw::do_not_optimize( ary );
 	};
 
+	std::string const par_title =
+	  "Parallel " + ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's";
+	std::string const ser_title =
+	  "Serial   " + ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's";
+	::daw::bench_n_test_mbs<3>( par_title, sizeof( int64_t ) * SZ, par_test, a );
+	::daw::bench_n_test_mbs<3>( ser_title, sizeof( int64_t ) * SZ, ser_test, a );
+	/*
 	auto const par_result_1 = daw::benchmark( par_test );
 	test_sort( a.begin( ), a.end( ), "p_result_1" );
 	a = b;
@@ -116,6 +123,7 @@ void sort_test( size_t SZ ) {
 	auto const seq_min = std::min( ser_result_1, ser_result_2 );
 
 	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
+	 */
 }
 
 extern char const *const GIT_VERSION;
