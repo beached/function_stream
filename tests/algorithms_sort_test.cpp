@@ -102,28 +102,9 @@ void sort_test( size_t SZ ) {
 	  "Parallel " + ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's";
 	std::string const ser_title =
 	  "Serial   " + ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's";
-	::daw::bench_n_test_mbs<3>( par_title, sizeof( int64_t ) * SZ, par_test, a );
-	::daw::bench_n_test_mbs<3>( ser_title, sizeof( int64_t ) * SZ, ser_test, a );
-	/*
-	auto const par_result_1 = daw::benchmark( par_test );
-	test_sort( a.begin( ), a.end( ), "p_result_1" );
-	a = b;
-
-	auto const ser_result_1 = daw::benchmark( ser_test );
-	test_sort( a.begin( ), a.end( ), "s_result_1" );
-	a = b;
-	auto const par_result_2 = daw::benchmark( par_test );
-	test_sort( a.begin( ), a.end( ), "p_result2" );
-	a = b;
-
-	auto const ser_result_2 = daw::benchmark( ser_test );
-	test_sort( a.begin( ), a.end( ), "s_result2" );
-
-	auto const par_min = std::min( par_result_1, par_result_2 );
-	auto const seq_min = std::min( ser_result_1, ser_result_2 );
-
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "sort" );
-	 */
+	auto const tpar = ::daw::bench_n_test_mbs2<5>( par_title, sizeof( int64_t ) * SZ, par_test, a );
+	auto const tseq = ::daw::bench_n_test_mbs2<5>( ser_title, sizeof( int64_t ) * SZ, ser_test, a );
+	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed << (tseq/tpar) << '\n';
 }
 
 extern char const *const GIT_VERSION;
