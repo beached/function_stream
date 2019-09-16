@@ -48,10 +48,10 @@ namespace daw {
 			mutable Handle wself;
 			mutable Task task;
 
-			constexpr task_wrapper( size_t Id, Handle hnd, Task tsk )
+			constexpr task_wrapper( size_t Id, Handle const &hnd, Task const &tsk )
 			  : id( Id )
-			  , wself( ::daw::move( hnd ) )
-			  , task( ::daw::move( tsk ) ) {}
+			  , wself( hnd )
+			  , task( tsk ) {}
 
 			constexpr void operator( )( ) const {
 				if( auto self = wself.lock( ); self ) {
@@ -82,8 +82,7 @@ namespace daw {
 	};
 
 	class task_scheduler {
-		using task_queue_t =
-		  daw::parallel::mpmc_bounded_queue<::daw::task_t, 512>;
+		using task_queue_t = daw::parallel::mpmc_bounded_queue<::daw::task_t, 512>;
 
 		class task_scheduler_impl {
 			::daw::lockable_value_t<std::list<::daw::parallel::ithread>> m_threads =
