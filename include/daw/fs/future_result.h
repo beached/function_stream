@@ -120,7 +120,7 @@ namespace daw {
 
 		template<typename R>
 		void set_value( R && value ) {
-			static_assert( daw::is_convertible_v<daw::remove_cvref_t<R>, Result>,
+			static_assert( std::is_convertible_v<daw::remove_cvref_t<R>, Result>,
 			               "Argument must convertible to a Result type" );
 			m_data.set_value( std::forward<R>( value ) );
 		}
@@ -142,7 +142,7 @@ namespace daw {
 		template<typename Function, typename... Args>
 		void from_code( Function && func, Args && ... args ) {
 			static_assert(
-			  daw::is_convertible_v<decltype( ::std::forward<Function>( func )(
+			  std::is_convertible_v<decltype( ::std::forward<Function>( func )(
 			                          ::std::forward<Args>( args )... ) ),
 			                        Result>,
 			  "Function func with Args does not return a value that is "
