@@ -127,7 +127,7 @@ namespace daw {
 		template<typename... Functions,
 		         std::enable_if_t<(sizeof...( Functions ) > 1 &&
 		                           sizeof...( Functions ) == sizeof...( Funcs ) &&
-		                           not daw::is_same_v<std::tuple<Funcs...>,
+		                           not std::is_same_v<std::tuple<Funcs...>,
 		                                           std::tuple<Functions...>>),
 		                          std::nullptr_t> = nullptr>
 		constexpr explicit future_generator_t( Functions &&... funcs ) noexcept(
@@ -246,7 +246,7 @@ namespace daw {
 	           std::enable_if_t<
 	             (sizeof...( Functions ) > 1 &&
 	              sizeof...( Functions ) == sizeof...( Funcs ) &&
-	              not daw::is_same_v<std::tuple<Funcs...>,
+	              not std::is_same_v<std::tuple<Funcs...>,
 	                              std::tuple<Functions...>>),
 	             std::nullptr_t> = nullptr>
 	  constexpr explicit future_generator_split_t( Functions &&... funcs )

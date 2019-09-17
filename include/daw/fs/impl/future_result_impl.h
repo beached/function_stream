@@ -367,7 +367,7 @@ namespace daw {
 				            std::forward<Functions>( funcs )... ) ),
 				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
 				        self = *this]( auto &&value )
-				  -> std::enable_if_t<daw::is_same_v<
+				  -> std::enable_if_t<::std::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
 					if( value.has_value( ) ) {
 						if( not ts->add_task( impl::add_fork_task( *ts, *result, *tpfuncs,
@@ -575,7 +575,7 @@ namespace daw {
 				*nxt = [result, tpfuncs = daw::move( tpfuncs ),
 				        ts = m_data->m_task_scheduler,
 				        self = *this]( auto &&value ) mutable
-				  -> std::enable_if_t<daw::is_same_v<
+				  -> std::enable_if_t<std::is_same_v<
 				    expected_result_t, daw::remove_cvref_t<decltype( value )>>> {
 					if( value.has_value( ) ) {
 						ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
@@ -625,7 +625,7 @@ namespace daw {
 				        ts = ::daw::mutable_capture( m_data->m_task_scheduler ),
 				        self = *this]( auto const &value ) {
 					static_assert(
-					  daw::is_same_v<expected_result_t,
+					  std::is_same_v<expected_result_t,
 					                 daw::remove_cvref_t<decltype( value )>> );
 					if( value.has_value( ) ) {
 						ts->add_task( impl::add_fork_task( ts, result, tpfuncs ) );

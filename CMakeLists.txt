@@ -162,7 +162,7 @@ add_dependencies( check algorithms_find_if_test_bin )
 add_dependencies( full algorithms_find_if_test_bin )
 
 add_executable( algorithms_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorithms_sort_test.cpp )
-target_link_libraries( algorithms_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( algorithms_sort_test_bin task_scheduler_lib function_stream_lib ${CMAKE_THREAD_LIBS_INIT} )
 add_test( algorithms_sort_test algorithms_sort_test_bin )
 add_dependencies( check algorithms_sort_test_bin )
 add_dependencies( full algorithms_sort_test_bin )

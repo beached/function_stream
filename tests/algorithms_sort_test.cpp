@@ -38,6 +38,8 @@
 
 #include "common.h"
 
+static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
+
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last,
                 daw::string_view label ) {
@@ -74,10 +76,12 @@ void test_sort( Iterator const first, Iterator const last,
 void sort_test( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );
 	ts.start( );
-	// daw::get_task_scheduler( );
-	auto a = daw::make_random_data<int64_t>( SZ );
+	assert( SZ <= LARGE_TEST_SZ );
+	auto const a = std::vector<int64_t>(
+	  rnd_array.begin( ),
+	  std::next( rnd_array.begin( ), static_cast<ptrdiff_t>( SZ ) ) );
 
-	auto const par_test = [&ts]( auto & ary ) {
+	auto const par_test = [&ts]( auto &ary ) {
 		daw::algorithm::parallel::sort(
 		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
 		daw::do_not_optimize( ary );
@@ -91,15 +95,18 @@ void sort_test( size_t SZ ) {
 	};
 #endif
 
-	auto const ser_test = []( auto & ary ) {
+	auto const ser_test = []( auto &ary ) {
 		std::sort( ary.begin( ), ary.end( ) );
 		daw::do_not_optimize( ary );
 	};
 
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>( "parallel", sizeof( int64_t ) * SZ, par_test, a );
-	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>( "  serial", sizeof( int64_t ) * SZ, ser_test, a );
-	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed << (tseq/tpar) << '\n';
+	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>(
+	  "parallel", sizeof( int64_t ) * SZ, par_test, a );
+	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>(
+	  "  serial", sizeof( int64_t ) * SZ, ser_test, a );
+	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
+	          << ( tseq / tpar ) << '\n';
 }
 
 extern char const *const GIT_VERSION;
