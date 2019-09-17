@@ -184,7 +184,7 @@ namespace daw::parallel {
 		static_assert( ( Sz & ( Sz - 1U ) ) == 0,
 		               "Queue must be a power of 2 at least 2 large" );
 		struct cell_t {
-			::std::atomic<size_t> m_sequence;
+			::std::atomic_size_t m_sequence;
 			T m_data;
 		};
 
@@ -209,9 +209,9 @@ namespace daw::parallel {
 
 		mpmc_bounded_queue( ) {
 			assert( m_buffer );
-			::daw::algorithm::do_n_arg<Sz>( [&]( size_t idx ) {
+			for( size_t idx = 0; idx < Sz; ++idx ) {
 				m_buffer[idx].m_sequence.store( idx, std::memory_order_relaxed );
-			} );
+			}
 		}
 
 		[[nodiscard]] bool empty( ) const noexcept {
@@ -224,18 +224,20 @@ namespace daw::parallel {
 		}
 
 		push_back_result try_push_back( T &&data ) {
+			if( not m_buffer ) {
+				return {};
+			}
 			cell_t *cell = nullptr;
 			auto pos = m_enqueue_pos.load( std::memory_order_relaxed );
 			while( true ) {
-				{
-					auto const idx = pos & m_buffer_mask;
-					cell = m_buffer + idx;
-				}
-				auto seq = cell->m_sequence.load( std::memory_order_acquire );
+				auto const idx = pos & m_buffer_mask;
+				assert( idx < Sz );
+				cell = &m_buffer[idx];
 
-				if( auto dif =
-				      static_cast<intptr_t>( seq ) - static_cast<intptr_t>( pos );
-				    dif == 0 ) {
+				auto const seq = cell->m_sequence.load( std::memory_order_acquire );
+				auto const dif =
+				  static_cast<intptr_t>( seq ) - static_cast<intptr_t>( pos );
+				if( dif == 0 ) {
 					if( m_enqueue_pos.compare_exchange_weak(
 					      pos, pos + 1, std::memory_order_relaxed ) ) {
 						break;
@@ -254,11 +256,16 @@ namespace daw::parallel {
 		}
 
 		T try_pop_front( ) {
+			if( not m_buffer ) {
+				return {};
+			}
 			cell_t *cell = nullptr;
 			auto pos = m_dequeue_pos.load( std::memory_order_relaxed );
 			while( true ) {
-				cell = &m_buffer[pos & m_buffer_mask];
-				size_t seq = cell->m_sequence.load( std::memory_order_acquire );
+				auto const idx = pos & m_buffer_mask;
+				assert( idx < Sz );
+				cell = &m_buffer[idx];
+				auto const seq = cell->m_sequence.load( std::memory_order_acquire );
 
 				auto const dif =
 				  static_cast<intmax_t>( seq ) - static_cast<intmax_t>( pos + 1 );
