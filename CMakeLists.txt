@@ -6,6 +6,20 @@ enable_testing( )
 
 find_package( Threads REQUIRED )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+if( NOT MSVC )
+	find_package( TBB )
+	if( TBB_LIBRARIES )
+		message( "Found TBB" )
+		add_definitions( ${TBB_DEFINITIONS} -DHAS_PAR_STL )
+		include_directories( SYSTEM ${TBB_INCLUDE_DIRS})
+		link_libraries( ${TBB_LIBRARIES})
+	else( )
+		message( "TBB not found" )
+	endif( )
+endif( )
+
 set( CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ standard whose features are requested.")
 
 include( "${CMAKE_SOURCE_DIR}/dependent_projects/CMakeListsCompiler.txt" )
@@ -165,8 +179,8 @@ add_executable( algorithms_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/algorit
 if( MSVC ) 
 	target_link_libraries( algorithms_sort_test_bin task_scheduler_lib function_stream_lib ${CMAKE_THREAD_LIBS_INIT} )
 else( )
-	target_link_libraries( algorithms_sort_test_bin task_scheduler_lib function_stream_lib ${CMAKE_THREAD_LIBS_INIT} )
-	#target_link_libraries( algorithms_sort_test_bin task_scheduler_lib function_stream_lib tbb ${CMAKE_THREAD_LIBS_INIT} )
+	#target_link_libraries( algorithms_sort_test_bin task_scheduler_lib function_stream_lib ${CMAKE_THREAD_LIBS_INIT} )
+	target_link_libraries( algorithms_sort_test_bin task_scheduler_lib function_stream_lib ${TBB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 endif( )
 add_test( algorithms_sort_test algorithms_sort_test_bin )
 add_dependencies( check algorithms_sort_test_bin )
@@ -176,8 +190,8 @@ add_executable( algorithms_stable_sort_test_bin EXCLUDE_FROM_ALL ${TEST_FOLDER}/
 if( MSVC ) 
 	target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
 else( )
-	target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
-	#target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib tbb ${CMAKE_THREAD_LIBS_INIT} )
+	#target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib  ${CMAKE_THREAD_LIBS_INIT} )
+	target_link_libraries( algorithms_stable_sort_test_bin task_scheduler_lib display_info_lib function_stream_lib ${TBB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 endif( )
 
 add_test( algorithms_stable_sort_test algorithms_stable_sort_test_bin )

@@ -26,7 +26,12 @@
 #include <iostream>
 
 #if defined( _MSC_VER ) and defined( __cpp_lib_parallel_algorithm )
+#ifndef HAS_PAR_STL
 #define HAS_PAR_STL
+#endif
+#endif
+
+#ifdef HAS_PAR_STL
 #include <execution>
 #endif
 
@@ -38,11 +43,10 @@
 
 #include "common.h"
 
-std::vector<int64_t> const & get_rnd_array( ) {
+std::vector<int64_t> const &get_rnd_array( ) {
 	static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
 	return rnd_array;
 }
-
 
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last,
