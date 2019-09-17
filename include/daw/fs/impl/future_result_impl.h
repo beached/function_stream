@@ -766,7 +766,7 @@ class [[nodiscard]] future_group_result_t {
 public:
 	template<
 	  typename... Fs,
-	  daw::enable_if_t<(
+	  daw::enable_when_t<(
 	    sizeof...( Fs ) != 1 or
 	    not std::is_same_v<future_group_result_t,
 	                    daw::remove_cvref_t<daw::traits::first_type<Fs...>>> )> =
