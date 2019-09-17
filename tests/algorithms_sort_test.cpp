@@ -25,7 +25,7 @@
 #include <cstdint>
 #include <iostream>
 
-#ifdef _WIN32
+#ifdef __cpp_lib_parallel_algorithm
 #define HAS_PAR_STL
 #include <execution>
 #endif
