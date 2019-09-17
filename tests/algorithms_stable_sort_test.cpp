@@ -119,6 +119,8 @@ void sort_test( size_t SZ ) {
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
 	          << ( tseq / tpar ) << '\n';
 #ifdef HAS_PAR_STL
+	std::cout << "Serial:ParStl perf " << std::setprecision( 1 ) << std::fixed
+	          << ( tseq / tpstl ) << '\n';
 	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
 	          << ( tpstl / tpar ) << '\n';
 #endif
