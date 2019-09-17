@@ -85,6 +85,7 @@ namespace daw::algorithm::parallel::impl {
 			}
 			return results;
 		}
+
 		template<typename Iterator>
 		[[nodiscard]] std::vector<daw::view<Iterator>> operator( )(
 		  daw::view<Iterator> rng, size_t const max_parts ) const {

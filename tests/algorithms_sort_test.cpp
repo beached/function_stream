@@ -30,6 +30,9 @@
 #define HAS_PAR_STL
 #endif
 #endif
+#if not defined( __cpp_lib_parallel_algorithm )
+#undef HAS_PAR_STL
+#endif
 
 #ifdef HAS_PAR_STL
 #include <execution>
