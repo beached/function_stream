@@ -25,7 +25,7 @@
 #include <cstdint>
 #include <iostream>
 
-#ifdef _WIN32
+#ifdef __cpp_lib_parallel_algorithm
 #define HAS_PAR_STL
 #include <execution>
 #endif
@@ -37,6 +37,8 @@
 #include "daw/fs/algorithms.h"
 
 #include "common.h"
+
+static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
 
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last,
@@ -71,73 +73,70 @@ void test_sort( Iterator const first, Iterator const last,
 	}
 }
 
-void sort_test( size_t SZ, unsigned ThreadCount ) {
-	auto ts = daw::task_scheduler( ThreadCount, true );
+void sort_test( size_t SZ ) {
+	auto ts = ::daw::get_task_scheduler( );
 	ts.start( );
-	// daw::get_task_scheduler( );
-	auto a = daw::make_random_data<int64_t>( SZ );
+	assert( SZ <= LARGE_TEST_SZ );
+	auto const a = std::vector<int64_t>(
+	  rnd_array.begin( ),
+	  std::next( rnd_array.begin( ), static_cast<ptrdiff_t>( SZ ) ) );
 
-	auto b = a;
-
-	auto const par_test = [&]( ) {
+	auto const par_test = [&ts]( auto &ary ) {
 		daw::algorithm::parallel::stable_sort(
-		  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
-		daw::do_not_optimize( a );
+		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
+		daw::do_not_optimize( ary );
+		return &ary;
 	};
 
 #ifdef HAS_PAR_STL
-	auto const par_stl_test = [&]( ) {
-		std::sort( std::execution::par, a.data( ),
-		           a.data( ) + static_cast<ptrdiff_t>( a.size( ) ) );
-		daw::do_not_optimize( a );
+	auto const par_stl_test = []( auto &ary ) {
+		std::stable_sort( std::execution::par, ary.data( ),
+		                  ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ) );
+		daw::do_not_optimize( ary );
+		return &ary;
 	};
 #endif
 
-	auto const ser_test = [&]( ) {
-		std::sort( a.begin( ), a.end( ) );
-		daw::do_not_optimize( a );
+	auto const ser_test = []( auto &ary ) {
+		std::stable_sort( ary.begin( ), ary.end( ) );
+		daw::do_not_optimize( ary );
+		return &ary;
 	};
-
-	auto const par_result_1 = daw::benchmark( par_test );
-	test_sort( a.begin( ), a.end( ), "p_result_1" );
-	a = b;
-
-	auto const ser_result_1 = daw::benchmark( ser_test );
-	test_sort( a.begin( ), a.end( ), "s_result_1" );
-	a = b;
-	auto const par_result_2 = daw::benchmark( par_test );
-	test_sort( a.begin( ), a.end( ), "p_result2" );
-	a = b;
-
-	auto const ser_result_2 = daw::benchmark( ser_test );
-	test_sort( a.begin( ), a.end( ), "s_result2" );
-
-	auto const par_min = std::min( par_result_1, par_result_2 );
-	auto const seq_min = std::min( ser_result_1, ser_result_2 );
-
-	display_info( seq_min, par_min, SZ, sizeof( int64_t ), "stable_sort" );
+	static_assert( std::is_const_v<decltype( a )> );
+	auto const vld = []( auto const &v ) {
+		auto tmp = v.get( );
+		return std::is_sorted( tmp->begin( ), tmp->end( ) );
+	};
+	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
+	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>(
+	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
+#ifdef HAS_PAR_STL
+	auto const tpstl = ::daw::bench_n_test_mbs2<5, ','>(
+	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
+#endif
+	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>(
+	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
+	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
+	          << ( tseq / tpar ) << '\n';
+#ifdef HAS_PAR_STL
+	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
+	          << ( tpstl / tpar ) << '\n';
+#endif
 }
 
-int main( int argc, char const **argv ) {
-#ifdef DEBUG
+extern char const *const GIT_VERSION;
+char const *const GIT_VERSION = SOURCE_CONTROL_REVISION;
+
+int main( ) {
+#if not defined( NDEBUG ) or defined( DEBUG )
 	std::cout << "Debug build\n";
+	std::cout << GIT_VERSION << '\n';
 #endif
-	if( argc > 1 and std::string( argv[1] ) == "is_full" ) {
-		for( unsigned t = 2; t <= std::thread::hardware_concurrency( ) * 2U; ++t ) {
-			std::cout << "stable_sort tests - int64_t - " << t << " threads\n";
-			for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
-				sort_test( n, t );
-				std::cout << '\n';
-			}
-			sort_test( LARGE_TEST_SZ, t );
-		}
-		return 0;
-	}
-	auto const t = std::thread::hardware_concurrency( );
-	std::cout << "stable_sort tests - int64_t - " << t << " threads\n";
-	for( size_t n = 1024; n < MAX_ITEMS * 2; n *= 2 ) {
-		sort_test( n, t );
+	std::cout << "sort tests - int64_t - "
+	          << ::std::thread::hardware_concurrency( ) << " threads\n";
+	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
+		sort_test( n );
 		std::cout << '\n';
 	}
-	sort_test( LARGE_TEST_SZ, t );
+	sort_test( LARGE_TEST_SZ );
 }
