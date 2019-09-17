@@ -34,7 +34,7 @@ using real_t = double;
 
 real_t fib( uintmax_t n ) {
 	if( n <= 1 ) {
-		return n;
+		return static_cast<real_t>( n );
 	}
 	real_t last = 1;
 	real_t result = 1;
@@ -51,7 +51,7 @@ void test_task_scheduler( ) {
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 
-	auto const nums = []( ) {
+	auto const nums = [&]( ) {
 		auto result = std::vector<uintmax_t>( );
 		for( intmax_t n = 0; n < ITEMS; ++n ) {
 			result.push_back( daw::randint<uintmax_t>( 500, 9999 ) );
