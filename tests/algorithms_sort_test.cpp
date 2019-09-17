@@ -88,10 +88,10 @@ void sort_test( size_t SZ ) {
 	};
 
 #ifdef HAS_PAR_STL
-	auto const par_stl_test = [&]( ) {
-		std::sort( std::execution::par, a.data( ),
-		           a.data( ) + static_cast<ptrdiff_t>( a.size( ) ) );
-		daw::do_not_optimize( a );
+	auto const par_stl_test = []( auto &ary ) {
+		std::sort( std::execution::par, ary.data( ),
+		           ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ) );
+		daw::do_not_optimize( ary );
 	};
 #endif
 
@@ -101,25 +101,33 @@ void sort_test( size_t SZ ) {
 	};
 
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>(
-	  "parallel", sizeof( int64_t ) * SZ, par_test, a );
 	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, ser_test, a );
+	#ifdef HAS_PAR_STL
+	auto const tpstl = ::daw::bench_n_test_mbs2<5, ','>(
+	  " par stl", sizeof( int64_t ) * SZ, par_stl_test, a );
+	#endif
+	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>(
+	  "parallel", sizeof( int64_t ) * SZ, par_test, a );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
 	          << ( tseq / tpar ) << '\n';
+	#ifdef HAS_PAR_STL
+	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
+	          << ( tpstl / tpar ) << '\n';
+	#endif
 }
 
 extern char const *const GIT_VERSION;
 char const *const GIT_VERSION = SOURCE_CONTROL_REVISION;
 
 int main( ) {
-#ifdef DEBUG
+#if not defined( NDEBUG ) or defined( DEBUG )
 	std::cout << "Debug build\n";
 	std::cout << GIT_VERSION << '\n';
 #endif
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 1; n <= MAX_ITEMS * 2; n *= 4 ) {
+	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
 		sort_test( n );
 		std::cout << '\n';
 	}
