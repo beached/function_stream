@@ -25,7 +25,7 @@
 #include <cstdint>
 #include <iostream>
 
-#ifdef __cpp_lib_parallel_algorithm
+#if defined( _MSC_VER ) and defined( __cpp_lib_parallel_algorithm )
 #define HAS_PAR_STL
 #include <execution>
 #endif
@@ -38,7 +38,10 @@
 
 #include "common.h"
 
-static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
+std::vector<int64_t> const & get_rnd_array( ) {
+	static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
+	return rnd_array;
+}
 
 template<typename Iterator>
 void test_sort( Iterator const first, Iterator const last,
@@ -78,8 +81,8 @@ void sort_test( size_t SZ ) {
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 	auto const a = std::vector<int64_t>(
-	  rnd_array.begin( ),
-	  std::next( rnd_array.begin( ), static_cast<ptrdiff_t>( SZ ) ) );
+	  get_rnd_array( ).begin( ),
+	  std::next( get_rnd_array( ).begin( ), static_cast<ptrdiff_t>( SZ ) ) );
 
 	auto const par_test = [&ts]( auto &ary ) {
 		daw::algorithm::parallel::sort(
