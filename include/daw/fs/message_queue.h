@@ -200,7 +200,6 @@ namespace daw::parallel {
 		cacheline_pad_end_t m_padding2;
 		alignas( cache_line_size ) std::atomic_size_t m_dequeue_pos = 0;
 		cacheline_pad_end_t m_padding3;
-
 	public:
 		mpmc_bounded_queue( mpmc_bounded_queue && ) = delete;
 		mpmc_bounded_queue &operator=( mpmc_bounded_queue && ) = delete;
