@@ -42,7 +42,7 @@ namespace daw::algorithm::parallel::impl {
 
 		static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
 
-		struct {
+		struct part_info_result_t {
 			size_t size = 0;
 			size_t count = 0;
 		} result{};
@@ -74,16 +74,8 @@ namespace daw::algorithm::parallel::impl {
 		[[nodiscard]] std::vector<daw::view<Iterator>> operator( )(
 		  Iterator first, Iterator last, size_t const max_parts ) const {
 
-			daw::view rng( first, last );
-
-			std::vector<daw::view<Iterator>> results{};
-
-			auto const part_info = get_part_info<min_range_size>( rng, max_parts );
-
-			while( not rng.empty( ) ) {
-				results.push_back( rng.pop_front( part_info.size ) );
-			}
-			return results;
+			return ::daw::algorithm::partition_range<MinRangeSize>( first, last,
+			                                                        max_parts );
 		}
 
 		template<typename Iterator>
@@ -290,15 +282,8 @@ namespace daw::algorithm::parallel::impl {
 			srt( range.begin( ), range.end( ), cmp );
 			return;
 		}
-		//auto ranges = PartitionPolicy( )( range, ts.size( ) );
-		auto ranges = ::std::vector<::daw::view<Iterator>>( );
-		auto sz = range.size( )/1024;
-		ranges.reserve( sz + 1 );
-		while( sz > 0 ) {
-			ranges.push_back( range.pop_front( 1024 ) );
-			--sz;
-		}
-		ranges.push_back( range );
+		auto ranges = PartitionPolicy( )( range, ts.size( ) );
+
 		auto sorters = std::vector<future_result_t<daw::view<Iterator>>>( );
 		sorters.reserve( ranges.size( ) );
 
@@ -572,6 +557,7 @@ namespace daw::algorithm::parallel::impl {
 	                                         UnaryPredicate &&pred,
 	                                         task_scheduler ts ) {
 
+		/*
 		auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
 		auto results =
 		  std::vector<std::optional<Iterator>>( ranges.size( ), range_in.end( ) );
@@ -582,36 +568,63 @@ namespace daw::algorithm::parallel::impl {
 		  ranges,
 		  [&results, pred, &has_found, &mut_found]( daw::view<Iterator> range,
 		                                            size_t pos ) {
-			  size_t const stride = std::thread::hardware_concurrency( ) * 100;
-			  size_t m = 0;
-			  for( size_t n = 0; n < range.size( ); n += stride ) {
-				  auto const last_val =
-				    ( n + stride < range.size( ) ) ? n + stride : range.size( );
-				  for( m = n; m < last_val; ++m ) {
-					  if( pred( range[m] ) ) {
-						  results[pos] = std::next(
-						    range.begin( ),
-						    static_cast<
-						      typename std::iterator_traits<Iterator>::difference_type>(
-						      m ) );
-						  std::lock_guard<daw::spin_lock> has_found_lck{mut_found};
-						  // TODO: why is this atomic?
-						  if( pos < has_found.load( std::memory_order_relaxed ) ) {
-							  has_found.store( pos, std::memory_order_relaxed );
-						  }
-						  return;
-					  }
-				  }
-				  if( pos > has_found.load( std::memory_order_relaxed ) ) {
-					  return;
-				  }
-			  }
+		    size_t const stride = std::thread::hardware_concurrency( ) * 100;
+		    size_t m = 0;
+		    for( size_t n = 0; n < range.size( ); n += stride ) {
+		      auto const last_val =
+		        ( n + stride < range.size( ) ) ? n + stride : range.size( );
+		      for( m = n; m < last_val; ++m ) {
+		        if( pred( range[m] ) ) {
+		          results[pos] = std::next(
+		            range.begin( ),
+		            static_cast<
+		              typename std::iterator_traits<Iterator>::difference_type>(
+		              m ) );
+		          std::lock_guard<daw::spin_lock> has_found_lck{mut_found};
+		          // TODO: why is this atomic?
+		          if( pos < has_found.load( std::memory_order_relaxed ) ) {
+		            has_found.store( pos, std::memory_order_relaxed );
+		          }
+		          return;
+		        }
+		      }
+		      if( pos > has_found.load( std::memory_order_relaxed ) ) {
+		        return;
+		      }
+		    }
 		  },
 		  ts ) );
 
 		for( auto const &it : results ) {
-			if( it ) {
-				return *it;
+		  if( it ) {
+		    return *it;
+		  }
+		}
+		return range_in.end( );
+		 */
+
+		if( PartitionPolicy::min_range_size > range_in.size( ) ) {
+			return ::std::find_if( range_in.begin( ), range_in.end( ), pred );
+		}
+		auto ranges = PartitionPolicy( )( range_in, ts.size( ) );
+
+		auto results = ::std::vector<future_result_t<Iterator>>( );
+		results.reserve( ranges.size( ) );
+
+		auto const find_fn =
+		  [pred = mutable_capture( pred )]( ::daw::view<Iterator> r ) {
+			  return ::std::find_if( r.begin( ), r.end( ), *pred );
+		  };
+
+		daw::algorithm::transform(
+		  ranges.begin( ), ranges.end( ), std::back_inserter( results ),
+		  [ts = daw::mutable_capture( ts ), find_fn]( ::daw::view<Iterator> rng ) {
+			  return make_future_result( *ts, find_fn, rng );
+		  } );
+
+		for( size_t n = 0; n < results.size( ); ++n ) {
+			if( results[n].get( ) != ranges[n].end( ) ) {
+				return results[n].get( );
 			}
 		}
 		return range_in.end( );
