@@ -608,23 +608,30 @@ namespace daw::algorithm::parallel::impl {
 		}
 		auto ranges = PartitionPolicy( )( range_in, ts.size( ) );
 
-		auto results = ::std::vector<future_result_t<Iterator>>( );
+		auto results = ::std::vector<future_result_t<::std::optional<Iterator>>>( );
 		results.reserve( ranges.size( ) );
 
 		auto const find_fn =
-		  [pred = mutable_capture( pred )]( ::daw::view<Iterator> r ) {
-			  return ::std::find_if( r.begin( ), r.end( ), *pred );
-		  };
+		  [pred = mutable_capture( pred )](
+		    ::daw::view<Iterator> r ) -> ::std::optional<Iterator> {
+			auto ret = ::std::find_if( r.begin( ), r.end( ), *pred );
+			if( ret != r.end( ) ) {
+				return ret;
+			}
+			return {};
+		};
 
 		daw::algorithm::transform(
 		  ranges.begin( ), ranges.end( ), std::back_inserter( results ),
-		  [ts = daw::mutable_capture( ts ), find_fn]( ::daw::view<Iterator> rng ) {
+		  [ts = daw::mutable_capture( ts ), find_fn]( ::daw::view<Iterator> rng )
+		    -> future_result_t<::std::optional<Iterator>> {
+
 			  return make_future_result( *ts, find_fn, rng );
 		  } );
 
 		for( size_t n = 0; n < results.size( ); ++n ) {
-			if( results[n].get( ) != ranges[n].end( ) ) {
-				return results[n].get( );
+			if( results[n].get( ) ) {
+				return *( results[n].get( ) );
 			}
 		}
 		return range_in.end( );
