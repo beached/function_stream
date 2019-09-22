@@ -51,6 +51,7 @@ std::vector<int64_t> const &get_rnd_array( ) {
 	return rnd_array;
 }
 
+template<size_t Count>
 void find_if_test( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );
 	ts.start( );
@@ -96,13 +97,13 @@ void find_if_test( size_t SZ ) {
 	};
 
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>(
+	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
 #ifdef HAS_PAR_STL
-	auto const tpstl = ::daw::bench_n_test_mbs2<5, ','>(
+	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
 	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
 #endif
-	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>(
+	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
 	          << ( tseq / tpar ) << '\n';
@@ -125,8 +126,8 @@ int main( ) {
 	std::cout << "find_if tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
 	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
-		find_if_test( n );
+		find_if_test<30>( n );
 		std::cout << '\n';
 	}
-	find_if_test( LARGE_TEST_SZ );
+	find_if_test<6>( LARGE_TEST_SZ );
 }
