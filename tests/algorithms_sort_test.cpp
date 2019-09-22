@@ -52,6 +52,35 @@ std::vector<int64_t> const &get_rnd_array( ) {
 	return rnd_array;
 }
 
+template<typename Container>
+void show_times( Container const &times ) {
+	auto first = std::begin( times );
+	auto const last = std::end( times );
+	assert( first != last );
+	std::cout << '[' << daw::utility::format_seconds( *first, 2 );
+	auto avg = *first;
+	size_t count = 1;
+	++first;
+	while( first != last ) {
+		std::cout << ", " << daw::utility::format_seconds( *first, 2 );
+		avg += *first;
+		++count;
+		++first;
+	}
+	std::cout << "]\n";
+	avg /= static_cast<double>( count );
+	first = std::begin( times );
+	double std_dev = abs( *first - avg );
+	++first;
+	while( first != last ) {
+		std_dev += abs( *first - avg );
+		++first;
+	}
+	std_dev /= static_cast<double>( count );
+	std::cout << "avg= " << daw::utility::format_seconds( avg )
+	          << " std_dev=" << daw::utility::format_seconds( std_dev ) << '\n';
+}
+
 template<size_t Count>
 void sort_test( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );
@@ -92,19 +121,25 @@ void sort_test( size_t SZ ) {
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
 	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
+	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
+	show_times( tseq );
 #ifdef HAS_PAR_STL
 	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
 	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
+	auto const tpstl_min = *std::min_element( tpstl.begin( ), tpstl.end( ) );
+	show_times( tpstl );
 #endif
 	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
+	auto const tpar_min = *std::min_element( tpar.begin( ), tpar.end( ) );
+	show_times( tpar );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq / tpar ) << '\n';
+	          << ( tseq_min / tpar_min ) << '\n';
 #ifdef HAS_PAR_STL
 	std::cout << "Serial:ParStl perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq / tpstl ) << '\n';
+	          << ( tseq_min / tpstl_min ) << '\n';
 	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tpstl / tpar ) << '\n';
+	          << ( tpstl_min / tpar_min ) << '\n';
 #endif
 }
 
