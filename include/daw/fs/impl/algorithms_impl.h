@@ -37,39 +37,10 @@
 #include "../task_scheduler.h"
 
 namespace daw::algorithm::parallel::impl {
-	template<size_t MinRangeSize, typename Iterator>
-	[[nodiscard]] auto get_part_info( daw::view<Iterator> rng,
-	                                  size_t max_parts ) noexcept {
-
-		static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
-
-		struct part_info_result_t {
-			size_t size = 0;
-			size_t count = 0;
-		} result{};
-
-		result.size = [&]( ) {
-			auto r = rng.size( ) / max_parts;
-			if( r < MinRangeSize ) {
-				r = MinRangeSize;
-			}
-			return r;
-		}( );
-		result.count = rng.size( ) / result.size;
-		if( result.count == 0 )
-			if( result.count == 0 ) {
-				result.count = 1;
-			}
-		if( rng.size( ) > ( result.count * result.size ) ) {
-			++result.count;
-		}
-		return result;
-	}
-
 	template<size_t MinRangeSize = 1>
 	struct [[nodiscard]] split_range_t {
 		static_assert( MinRangeSize != 0, "Minimum range size must be > 0" );
-		static constexpr size_t min_range_size = MinRangeSize;
+		[[maybe_unused]] static constexpr size_t min_range_size = MinRangeSize;
 
 		template<typename Iterator>
 		[[nodiscard]] std::vector<daw::view<Iterator>> operator( )(
@@ -144,18 +115,23 @@ namespace daw::algorithm::parallel::impl {
 			return {};
 		}
 		auto const ranges = PartitionPolicy{}( range, ts.size( ) );
-		auto sem = daw::shared_latch( ranges.size( ) );
-		bool status = true;
+		auto sem = daw::shared_latch( 0 );
 		for( auto rng : ranges ) {
-			status &= schedule_task(
-			  sem,
-			  [func = daw::mutable_capture( std::forward<Func>( func ) ), rng]( ) {
-				  ( *func )( rng.begin( ), rng.end( ) );
-			  },
-			  ts );
-		}
-		if( not status ) {
-			throw ::daw::unable_to_add_task_exception{};
+			sem.add_notifier( );
+			try {
+				if( not schedule_task(
+				      sem,
+				      [func = daw::mutable_capture( std::forward<Func>( func ) ),
+				       rng]( ) { ( *func )( rng.begin( ), rng.end( ) ); },
+				      ts ) ) {
+
+					sem.notify( );
+					::std::abort( );
+				}
+			} catch( ... ) {
+				sem.notify( );
+				::std::abort( );
+			}
 		}
 		return sem;
 	}
@@ -211,37 +187,6 @@ namespace daw::algorithm::parallel::impl {
 		  },
 		  ts )
 		  .wait( );
-	}
-
-	template<typename Iterator, typename Function>
-	void merge_reduce_range( std::vector<daw::view<Iterator>> ranges,
-	                         Function func, task_scheduler ts ) {
-		while( ranges.size( ) > 1 ) {
-			auto const count =
-			  ( ranges.size( ) % 2 == 0 ? ranges.size( ) : ranges.size( ) - 1 );
-			std::vector<view<Iterator>> next_ranges;
-			next_ranges.reserve( count );
-			auto sem = daw::latch( count / 2 );
-			for( size_t n = 1; n < count; n += 2 ) {
-				next_ranges.push_back( {ranges[n - 1].begin( ), ranges[n].end( )} );
-			}
-			if( count != ranges.size( ) ) {
-				next_ranges.push_back( ranges.back( ) );
-			}
-			for( size_t n = 1; n < count; n += 2 ) {
-				if( not ts.add_task(
-				      [func = mutable_capture( func ), &ranges, n, &sem]( ) {
-					      ( *func )( ranges[n - 1].begin( ), ranges[n].begin( ),
-					                 ranges[n].end( ) );
-					      sem.notify( );
-				      } ) ) {
-
-					throw ::daw::unable_to_add_task_exception{};
-				}
-			}
-			sem.wait( );
-			std::swap( ranges, next_ranges );
-		}
 	}
 
 	template<typename Compare>
@@ -347,15 +292,6 @@ namespace daw::algorithm::parallel::impl {
 		return result;
 	}
 
-	template<typename Type1, typename Type2, typename Compare>
-	[[nodiscard]] Type1 compare_value( Type1 const &lhs, Type2 const &rhs,
-	                                   Compare cmp ) {
-		if( cmp( lhs, rhs ) ) {
-			return lhs;
-		}
-		return rhs;
-	}
-
 	template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 	         typename Compare>
 	[[nodiscard]] Iterator parallel_min_element( daw::view<Iterator> range,
@@ -369,7 +305,7 @@ namespace daw::algorithm::parallel::impl {
 			Compare c;
 
 			inline void operator( )( daw::view<Iterator> rng, size_t n ) const {
-				r[n] = std::min_element( rng.cbegin( ), rng.cend( ), c );
+				r[n] = ::std::min_element( rng.cbegin( ), rng.cend( ), c );
 			}
 		};
 		auto const ranges = PartitionPolicy{}( range, ts.size( ) );

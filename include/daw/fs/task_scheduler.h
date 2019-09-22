@@ -351,6 +351,7 @@ namespace daw {
 			// TODO, I don't like this but I don't want to change the return value to
 			// express that we failed to add the task... yet
 			sem.notify( );
+			std::abort( );
 		}
 		return sem;
 	}

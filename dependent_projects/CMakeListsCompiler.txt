@@ -34,7 +34,7 @@ else( )
 
 	# GCC/Clang warning options
 	if( ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" )
-		add_compile_options( -Weverything -Wextra -pedantic -Wno-c++98-compat -Wno-covered-switch-default -Wnull-dereference -Wno-exit-time-destructors -Wno-c++98-compat-pedantic -Wno-missing-prototypes -Wno-disabled-macro-expansion -Wno-missing-braces )
+		add_compile_options( -Weverything -Wextra -pedantic -Wno-c++98-compat -Wno-covered-switch-default -Wnull-dereference -Wno-return-std-move-in-c++11 -Wno-exit-time-destructors -Wno-c++98-compat-pedantic -Wno-missing-prototypes -Wno-disabled-macro-expansion -Wno-missing-braces )
 	    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-padded" )
 	    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-padded" )
 	elseif( ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" )
