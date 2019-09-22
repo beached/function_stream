@@ -207,7 +207,7 @@ int main( ) {
 		equal_test<30>( n );
 		std::cout << '\n';
 	}
-	equal_test<10>( LARGE_TEST_SZ );
+	equal_test<30>( LARGE_TEST_SZ );
 
 	std::cout << "equal tests - string - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
