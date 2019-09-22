@@ -555,19 +555,15 @@ namespace daw::algorithm::parallel::impl {
 	template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 	         typename UnaryPredicate>
 	[[nodiscard]] Iterator parallel_find_if( daw::view<Iterator> range_in,
-	                                          UnaryPredicate &&pred,
-	                                          task_scheduler ts ) {
+	                                         UnaryPredicate &&pred,
+	                                         task_scheduler ts ) {
 
 		auto const ranges = PartitionPolicy{}( range_in, ts.size( ) );
 		auto results = std::vector<std::optional<Iterator>>( ranges.size( ) );
 
-		auto all_done = ::daw::latch( ranges.size( ) );
-
 		ts.wait_for( partition_range_pos(
 		  ranges,
-		  [&results, pred, &all_done]( daw::view<Iterator> range, size_t pos ) {
-			  auto const ae =
-			    ::daw::on_scope_exit( [&]( ) { all_done.notify_one( ); } );
+		  [&results, pred]( daw::view<Iterator> range, size_t pos ) {
 			  auto it = ::std::find_if( range.begin( ), range.end( ), pred );
 			  if( it != range.end( ) ) {
 				  results[pos] = it;
@@ -575,7 +571,6 @@ namespace daw::algorithm::parallel::impl {
 		  },
 		  ts ) );
 
-		all_done.wait( );
 		for( auto const &it : results ) {
 			if( it ) {
 				return *it;
@@ -594,36 +589,18 @@ namespace daw::algorithm::parallel::impl {
 		}
 		auto const ranges1 = PartitionPolicy{}( first1, last1, ts.size( ) );
 		auto const ranges2 = PartitionPolicy{}( first2, last2, ts.size( ) );
-		std::atomic_bool is_equal{true};
+		::std::atomic_int all_equal = static_cast<int>( true );
+
 		ts.wait_for( partition_range_pos(
 		  ranges1,
-		  [pred, &is_equal, &ranges2]( daw::view<Iterator1> range1, size_t pos ) {
+		  [&ranges2, pred, &all_equal]( daw::view<Iterator1> range1, size_t pos ) {
 			  auto range2 = ranges2[pos];
-
-			  size_t const stride = daw::max(
-			    static_cast<size_t>( std::thread::hardware_concurrency( ) ) * 100ULL,
-			    static_cast<size_t>( PartitionPolicy::min_range_size ) );
-			  size_t m = 0;
-			  for( size_t n = 0;
-			       n < range1.size( ) && is_equal.load( std::memory_order_relaxed );
-			       n += stride ) {
-				  auto const last_val = [&]( ) {
-					  auto const lv_res = n + stride;
-					  if( lv_res > range1.size( ) ) {
-						  return range1.size( );
-					  }
-					  return lv_res;
-				  }( );
-				  for( m = n; m < last_val; ++m ) {
-					  if( not pred( range1[m], range2[m] ) ) {
-						  is_equal.store( false, std::memory_order_relaxed );
-						  return;
-					  }
-				  }
-			  }
+			  all_equal.fetch_and( ::std::equal( range1.cbegin( ), range1.cend( ),
+			                                     range2.cbegin( ), range2.cend( ),
+			                                     pred ) );
 		  },
 		  ts ) );
-		return is_equal.load( std::memory_order_relaxed );
+		return static_cast<bool>( all_equal );
 	}
 
 	template<typename PartitionPolicy = split_range_t<2>, typename RandomIterator,
