@@ -228,7 +228,7 @@ void equal_test_str( size_t SZ ) {
 		return *v;
 	};
 
-	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
+	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " ::std::string\n";
 	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a, b );
 #ifdef HAS_PAR_STL
@@ -258,7 +258,7 @@ int main( ) {
 
 	std::cout << "equal tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
+	for( size_t n = 10240; n <= MAX_ITEMS * 4; n *= 4 ) {
 		equal_test<30>( n );
 		std::cout << '\n';
 	}
@@ -266,7 +266,7 @@ int main( ) {
 
 	std::cout << "equal tests - string - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
+	for( size_t n = 10240; n <= MAX_ITEMS * 4; n *= 4 ) {
 		equal_test_str<30>( n );
 		std::cout << '\n';
 	}
