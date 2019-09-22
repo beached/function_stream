@@ -589,15 +589,15 @@ namespace daw::algorithm::parallel::impl {
 		}
 		auto const ranges1 = PartitionPolicy{}( first1, last1, ts.size( ) );
 		auto const ranges2 = PartitionPolicy{}( first2, last2, ts.size( ) );
-		::std::atomic_int all_equal = static_cast<int>( true );
+
+		::std::atomic_char all_equal = static_cast<char>( true );
 
 		ts.wait_for( partition_range_pos(
 		  ranges1,
 		  [&ranges2, pred, &all_equal]( daw::view<Iterator1> range1, size_t pos ) {
 			  auto range2 = ranges2[pos];
-			  all_equal.fetch_and( ::std::equal( range1.cbegin( ), range1.cend( ),
-			                                     range2.cbegin( ), range2.cend( ),
-			                                     pred ) );
+			  all_equal &= ::std::equal( range1.cbegin( ), range1.cend( ),
+			                             range2.cbegin( ), range2.cend( ), pred );
 		  },
 		  ts ) );
 		return static_cast<bool>( all_equal );
