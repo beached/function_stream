@@ -202,7 +202,7 @@ namespace daw {
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
-		[[nodiscard]] decltype( auto ) add_task( Task &&task ) {
+		[[nodiscard]] bool add_task( Task &&task ) {
 			static_assert(
 			  std::is_invocable_v<Task>,
 			  "Task must be callable without arguments (e.g. task( );)" );
@@ -322,7 +322,7 @@ namespace daw {
 	/// @param task Task of form void( ) to run
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
-	[[nodiscard]] decltype( auto )
+	[[nodiscard]] bool
 	schedule_task( daw::shared_latch sem, Task &&task,
 	               task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( std::is_invocable_v<Task>,

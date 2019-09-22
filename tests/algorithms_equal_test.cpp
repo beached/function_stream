@@ -60,13 +60,13 @@ void equal_test( size_t SZ ) {
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 
-	auto const a = [SZ]( ) {
-		auto result = ::daw::make_random_data<int64_t>( SZ, -50, 50 );
+	alignas(128) auto const a = [SZ]( ) {
+		alignas(128) auto result = ::daw::make_random_data<int64_t>( SZ, -50, 50 );
 		result.back( ) = 100;
 		return result;
 	}( );
 
-	auto const b = [&a]( ) {
+	alignas(128) auto const b = [&a]( ) {
 		auto result = a;
 		daw::do_not_optimize( result );
 		return result;
@@ -129,13 +129,13 @@ void equal_test_str( size_t SZ ) {
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 
-	auto const a = [SZ]( ) {
+	alignas(128) auto const a = [SZ]( ) {
 		auto result = ::daw::make_random_data<char, std::string>( SZ, 'a', 'z' );
 		daw::do_not_optimize( result );
 		return result;
 	}( );
 
-	auto const b = [&a]( ) {
+	alignas(128) auto const b = [&a]( ) {
 		auto result = a;
 		daw::do_not_optimize( result );
 		return result;

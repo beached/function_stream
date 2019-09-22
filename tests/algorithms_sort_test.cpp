@@ -47,52 +47,22 @@
 #include "common.h"
 
 std::vector<int64_t> const &get_rnd_array( ) {
-	static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
+	alignas( 128 ) static auto const rnd_array =
+	  daw::make_random_data<int64_t>( LARGE_TEST_SZ );
 	return rnd_array;
-}
-
-template<typename Iterator>
-void test_sort( Iterator const first, Iterator const last,
-                daw::string_view label ) {
-	if( first == last ) {
-		return;
-	}
-	auto it = first;
-	auto last_val = *it;
-	++it;
-	for( ; it != last; ++it ) {
-		if( *it < last_val ) {
-			auto const pos = std::distance( first, it );
-			std::cerr << "Sequence '" << label << "' not sorted at position ("
-			          << std::distance( first, it ) << '/'
-			          << std::distance( first, last ) << ")\n";
-
-			auto start = pos > 10 ? std::next( first, pos - 10 ) : first;
-			auto const end =
-			  std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
-			if( std::distance( start, end ) > 0 ) {
-				std::cerr << '[' << *start;
-				++start;
-				for( ; start != end; ++start ) {
-					std::cerr << ", " << *start;
-				}
-				std::cerr << " ]\n";
-			}
-			break;
-		}
-		last_val = *it;
-	}
 }
 
 void sort_test( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
-	auto const a = std::vector<int64_t>(
+	alignas( 128 ) auto const a = std::vector<int64_t>(
 	  get_rnd_array( ).begin( ),
 	  std::next( get_rnd_array( ).begin( ), static_cast<ptrdiff_t>( SZ ) ) );
 
-	auto const par_test = [&ts]( auto &ary ) {
+	char padding[128];
+	daw::do_not_optimize( padding );
+	alignas( 128 ) auto const par_test = [&ts]( auto &ary ) {
 		daw::algorithm::parallel::sort(
 		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
 		daw::do_not_optimize( ary );
@@ -147,7 +117,7 @@ int main( ) {
 #endif
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
+	for( size_t n = 4096; n <= MAX_ITEMS * 4; n *= 4 ) {
 		sort_test( n );
 		std::cout << '\n';
 	}

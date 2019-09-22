@@ -108,17 +108,29 @@ namespace daw::algorithm::parallel::impl {
 	template<typename RandomIterator, typename Func>
 	[[nodiscard]] daw::shared_latch
 	partition_range_pos( std::vector<daw::view<RandomIterator>> ranges, Func func,
-	                     task_scheduler ts, size_t const start_pos = 0 ) {
-		auto sem = daw::shared_latch( ranges.size( ) - start_pos );
+	                     task_scheduler ts,
+	                     size_t const start_pos = 0 ) noexcept {
+		auto sem = daw::shared_latch( 0 );
 		for( size_t n = start_pos; n < ranges.size( ); ++n ) {
-			if( not schedule_task(
-			      sem,
-			      [func = daw::mutable_capture( func ), rng = ranges[n], n]( ) {
-				      ( *func )( rng, n );
-			      },
-			      ts ) ) {
+			sem.add_notifier( );
+			try {
+				if( not schedule_task(
+				      sem,
+				      [func = daw::mutable_capture( func ), rng = ranges[n], n]( ) {
+					      ( *func )( rng, n );
+				      },
+				      ts ) ) {
 
-				throw ::daw::unable_to_add_task_exception{};
+					// Unable to add task, consider a better error mechanism like optional
+					// with the latch reduced to match the number of items
+					sem.notify( );
+					std::abort( );
+				}
+			} catch( ... ) {
+				// Unable to add task, consider a better error mechanism like optional
+				// with the latch reduced to match the number of items
+				sem.notify( );
+				std::abort( );
 			}
 		}
 		return sem;
@@ -127,7 +139,7 @@ namespace daw::algorithm::parallel::impl {
 	template<typename PartitionPolicy, typename RandomIterator, typename Func>
 	[[nodiscard]] daw::shared_latch
 	partition_range( daw::view<RandomIterator> range, Func &&func,
-	                 task_scheduler ts ) {
+	                 task_scheduler ts ) noexcept {
 		if( range.empty( ) ) {
 			return {};
 		}
@@ -155,7 +167,7 @@ namespace daw::algorithm::parallel::impl {
 
 		static_assert( std::is_invocable_v<Func, decltype( rng.front( ) )> );
 
-		partition_range<PartitionPolicy>(
+		ts.wait_for( partition_range<PartitionPolicy>(
 		  rng,
 		  [func = daw::mutable_capture( std::forward<Func>( func ) )](
 		    auto &&first, auto &&last ) {
@@ -164,21 +176,19 @@ namespace daw::algorithm::parallel::impl {
 				  ++first;
 			  }
 		  },
-		  ts )
-		  .wait( );
+		  ts ) );
 	}
 
 	template<typename Ranges, typename Func>
 	void parallel_for_each( Ranges &ranges, Func func, task_scheduler ts ) {
-		partition_range(
+		ts.wait_for( partition_range(
 		  ranges,
 		  [func]( auto f, auto l ) mutable {
 			  for( auto it = f; it != l; ++it ) {
 				  func( *it );
 			  }
 		  },
-		  ts )
-		  .wait( );
+		  ts ) );
 	}
 
 	template<typename PartitionPolicy = split_range_t<>, typename RandomIterator,
