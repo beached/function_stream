@@ -60,8 +60,9 @@ namespace daw {
 			result_t m_result;
 			bool m_continue_on_result_destruction;
 
-			constexpr package_impl_t( bool continueonclientdestruction, result_t result,
-			                     functions_t functions, Args &&... args )
+			constexpr package_impl_t( bool continueonclientdestruction,
+			                          result_t result, functions_t functions,
+			                          Args &&... args )
 			  : m_function_list( daw::move( functions ) )
 			  , m_targs( std::forward<Args>( args )... )
 			  , m_result( result )
@@ -78,7 +79,8 @@ namespace daw {
 		//	weak_ptr_type_t<result_t>;
 
 	private:
-		daw::value_ptr<impl::package_impl_t<functions_t, arguments_t, result_t, Args...>>
+		daw::value_ptr<
+		  impl::package_impl_t<functions_t, arguments_t, result_t, Args...>>
 		  m_impl;
 
 	public:
@@ -92,12 +94,12 @@ namespace daw {
 		constexpr package_t( bool continueonclientdestruction, result_t result,
 		                     functions_t &&functions, Args &&... args )
 		  : m_impl( continueonclientdestruction, daw::move( result ),
-		             daw::move( functions ), std::forward<Args>( args )... ) {}
+		            daw::move( functions ), std::forward<Args>( args )... ) {}
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
 		                     functions_t const &functions, Args &&... args )
 		  : m_impl( continueonclientdestruction, daw::move( result ), functions,
-		             std::forward<Args>( args )... ) {}
+		            std::forward<Args>( args )... ) {}
 
 		[[nodiscard]] constexpr functions_t const &function_list( ) const noexcept {
 			return m_impl->m_function_list;
@@ -126,13 +128,6 @@ namespace daw {
 			                            daw::move( m_impl->m_function_list ),
 			                            std::forward<NewArgs>( nargs )... );
 		}
-
-		/*
-		 * TODO: remove
-		[[nodiscard]] constexpr bool destination_expired( ) const {
-		  return result( ).expired( );
-		}
-		 */
 
 		[[nodiscard]] constexpr arguments_t const &targs( ) const noexcept {
 			return m_impl->m_targs;

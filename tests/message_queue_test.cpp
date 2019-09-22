@@ -24,6 +24,7 @@
 #include <iostream>
 #include <numeric>
 #include <thread>
+#include <vector>
 
 #include <daw/parallel/daw_latch.h>
 

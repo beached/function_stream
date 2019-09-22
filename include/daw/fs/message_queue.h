@@ -22,22 +22,11 @@
 
 #pragma once
 
-#include <array>
-#include <cassert>
-#include <condition_variable>
 #include <cstddef>
 #include <memory>
 #include <mutex>
 #include <new>
-#include <optional>
 #include <utility>
-
-#include <daw/daw_do_n.h>
-#include <daw/fs/impl/dbg_proxy.h>
-#include <daw/parallel/daw_locked_value.h>
-#include <daw/parallel/daw_shared_mutex.h>
-
-#include "impl/dbg_proxy.h"
 
 namespace daw::parallel {
 #ifdef __cpp_lib_thread_hardware_interference_size
@@ -75,12 +64,13 @@ namespace daw::parallel {
 		using value_type = T;
 
 		struct spsc_bounded_queue_impl {
-			char m_front_padding[cache_line_size];
+			[[maybe_unused]] char m_front_padding[cache_line_size];
 			value_type *const m_values;
 			alignas( cache_line_size )::std::atomic_size_t m_front;
 			alignas( cache_line_size )::std::atomic_size_t m_back;
 
-			char m_back_padding[cache_line_size - sizeof( ::std::atomic_size_t )];
+			[[maybe_unused]] char
+			  m_back_padding[cache_line_size - sizeof( ::std::atomic_size_t )];
 
 			spsc_bounded_queue_impl( ) noexcept
 			  : m_values( static_cast<value_type *>(
@@ -192,14 +182,15 @@ namespace daw::parallel {
 		using cacheline_pad_end_t =
 		  char[cache_line_size - sizeof( ::std::atomic_size_t )];
 
-		alignas( cache_line_size ) cacheline_pad_t m_padding0;
+		[[maybe_unused]] alignas( cache_line_size ) cacheline_pad_t m_padding0;
 		alignas( cache_line_size ) cell_t *const m_buffer = new cell_t[Sz]( );
 		size_t const m_buffer_mask = Sz - 1U;
-		cacheline_pad_t m_padding1;
+		[[maybe_unused]] cacheline_pad_t m_padding1;
 		alignas( cache_line_size ) std::atomic_size_t m_enqueue_pos = 0;
-		cacheline_pad_end_t m_padding2;
+		[[maybe_unused]] cacheline_pad_end_t m_padding2;
 		alignas( cache_line_size ) std::atomic_size_t m_dequeue_pos = 0;
-		cacheline_pad_end_t m_padding3;
+		[[maybe_unused]] cacheline_pad_end_t m_padding3;
+
 	public:
 		mpmc_bounded_queue( mpmc_bounded_queue && ) = delete;
 		mpmc_bounded_queue &operator=( mpmc_bounded_queue && ) = delete;
