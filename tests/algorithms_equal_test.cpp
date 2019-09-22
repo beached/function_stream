@@ -123,59 +123,6 @@ void equal_test( size_t SZ ) {
 #endif
 }
 
-/*
-void equal_test_str( size_t SZ ) {
-  auto ts = daw::get_task_scheduler( );
-  std::vector<std::string> a;
-  a.reserve( SZ );
-  std::string const blah = "AAAAAAAA";
-  std::fill_n( std::back_inserter( a ), SZ, blah );
-  std::vector<std::string> b;
-  b.reserve( SZ );
-  std::copy( a.cbegin( ), a.cend( ), std::back_inserter( b ) );
-
-  auto const pred = []( auto const &lhs, auto const &rhs ) noexcept {
-    auto const result = lhs == rhs;
-    if( result ) {
-      return true;
-    }
-    return false;
-  };
-
-  bool b1 = false;
-  bool b2 = false;
-  auto const result_1 = daw::benchmark( [&]( ) {
-    b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ),
-                                          b.cend( ), pred, ts );
-    daw::do_not_optimize( b1 );
-  } );
-  auto const result_2 = daw::benchmark( [&]( ) {
-    b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
-    daw::do_not_optimize( b2 );
-  } );
-  daw::expecting( b1, b2 );
-
-  a[3 * ( a.size( ) / 4 ) + 1] =
-    std::string{"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"};
-  b1 = false;
-  b2 = false;
-  auto const result_3 = daw::benchmark( [&]( ) {
-    b1 = daw::algorithm::parallel::equal( a.cbegin( ), a.cend( ), b.cbegin( ),
-                                          b.cend( ), pred, ts );
-    daw::do_not_optimize( b1 );
-  } );
-  auto const result_4 = daw::benchmark( [&]( ) {
-    b2 = std::equal( a.cbegin( ), a.cend( ), b.cbegin( ), b.cend( ), pred );
-    daw::do_not_optimize( b2 );
-  } );
-  daw::expecting( b1, b2 );
-
-  auto const par_max = std::max( result_1, result_3 );
-  auto const seq_max = std::max( result_2, result_4 );
-  display_info( seq_max, par_max, SZ, blah.size( ), "equal" );
-}
-*/
-
 template<size_t Count>
 void equal_test_str( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );
