@@ -562,6 +562,7 @@ namespace daw::algorithm::parallel::impl {
 		auto results = std::vector<std::optional<Iterator>>( ranges.size( ) );
 
 		auto all_done = ::daw::latch( ranges.size( ) );
+
 		ts.wait_for( partition_range_pos(
 		  ranges,
 		  [&results, pred, &all_done]( daw::view<Iterator> range, size_t pos ) {
