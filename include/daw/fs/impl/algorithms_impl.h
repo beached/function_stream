@@ -554,7 +554,7 @@ namespace daw::algorithm::parallel::impl {
 
 	template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 	         typename UnaryPredicate>
-	[[nodiscard]] Iterator parallel_find_if2( daw::view<Iterator> range_in,
+	[[nodiscard]] Iterator parallel_find_if( daw::view<Iterator> range_in,
 	                                          UnaryPredicate &&pred,
 	                                          task_scheduler ts ) {
 
@@ -578,44 +578,6 @@ namespace daw::algorithm::parallel::impl {
 		for( auto const &it : results ) {
 			if( it ) {
 				return *it;
-			}
-		}
-		return range_in.end( );
-	}
-	template<typename PartitionPolicy = split_range_t<>, typename Iterator,
-	         typename UnaryPredicate>
-	[[nodiscard]] Iterator parallel_find_if( daw::view<Iterator> range_in,
-	                                         UnaryPredicate &&pred,
-	                                         task_scheduler ts ) {
-
-		if( PartitionPolicy::min_range_size > range_in.size( ) ) {
-			return ::std::find_if( range_in.begin( ), range_in.end( ), pred );
-		}
-		auto ranges = PartitionPolicy( )( range_in, ts.size( ) );
-
-		auto results = ::std::vector<future_result_t<::std::optional<Iterator>>>( );
-		results.reserve( ranges.size( ) );
-
-		auto const find_fn =
-		  [pred = mutable_capture( pred )](
-		    ::daw::view<Iterator> r ) -> ::std::optional<Iterator> {
-			auto ret = ::std::find_if( r.begin( ), r.end( ), *pred );
-			if( ret != r.end( ) ) {
-				return ret;
-			}
-			return {};
-		};
-
-		daw::algorithm::transform(
-		  ranges.begin( ), ranges.end( ), std::back_inserter( results ),
-		  [ts = daw::mutable_capture( ts ), find_fn]( ::daw::view<Iterator> rng )
-		    -> future_result_t<::std::optional<Iterator>> {
-			  return make_future_result( *ts, find_fn, rng );
-		  } );
-
-		for( size_t n = 0; n < results.size( ); ++n ) {
-			if( results[n].get( ) ) {
-				return *( results[n].get( ) );
 			}
 		}
 		return range_in.end( );

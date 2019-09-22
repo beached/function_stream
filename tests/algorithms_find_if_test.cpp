@@ -129,5 +129,5 @@ int main( ) {
 		find_if_test<30>( n );
 		std::cout << '\n';
 	}
-	find_if_test<6>( LARGE_TEST_SZ );
+	find_if_test<30>( LARGE_TEST_SZ );
 }
