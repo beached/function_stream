@@ -52,6 +52,7 @@ std::vector<int64_t> const &get_rnd_array( ) {
 	return rnd_array;
 }
 
+template<size_t Count>
 void sort_test( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );
 	ts.start( );
@@ -89,13 +90,13 @@ void sort_test( size_t SZ ) {
 		return std::is_sorted( tmp->begin( ), tmp->end( ) );
 	};
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>(
+	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
 #ifdef HAS_PAR_STL
-	auto const tpstl = ::daw::bench_n_test_mbs2<5, ','>(
+	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
 	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
 #endif
-	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>(
+	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
 	          << ( tseq / tpar ) << '\n';
@@ -118,8 +119,8 @@ int main( ) {
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
 	for( size_t n = 4096; n <= MAX_ITEMS * 4; n *= 4 ) {
-		sort_test( n );
+		sort_test<30>( n );
 		std::cout << '\n';
 	}
-	sort_test( LARGE_TEST_SZ );
+	sort_test<10>( LARGE_TEST_SZ );
 }
