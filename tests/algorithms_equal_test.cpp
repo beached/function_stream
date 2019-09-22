@@ -81,7 +81,6 @@ void equal_test( size_t SZ ) {
 	};
 
 #ifdef HAS_PAR_STL
-	auto it_std_par = a.end( );
 	auto const par_stl_test = []( auto const &ary0, auto const &ary1 ) {
 		auto result =
 		  ::std::equal( ::std::execution::par, ary0.begin( ), ary0.end( ),
@@ -204,7 +203,6 @@ void equal_test_str( size_t SZ ) {
 	};
 
 #ifdef HAS_PAR_STL
-	auto it_std_par = a.end( );
 	auto const par_stl_test = []( auto const &ary0, auto const &ary1 ) {
 		auto result =
 		  ::std::equal( ::std::execution::par, ary0.begin( ), ary0.end( ),
