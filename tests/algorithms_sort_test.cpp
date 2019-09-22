@@ -122,5 +122,5 @@ int main( ) {
 		sort_test<30>( n );
 		std::cout << '\n';
 	}
-	sort_test<10>( LARGE_TEST_SZ );
+	sort_test<5>( LARGE_TEST_SZ );
 }
