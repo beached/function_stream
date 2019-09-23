@@ -83,10 +83,12 @@ void sort_test( size_t SZ ) {
 	};
 
 	auto const ser_result_1 = daw::benchmark( ser_test );
+	daw::do_not_optimize( ser_result_1 );
 	test_sort( a.begin( ), a.end( ), "s_result_1" );
 	a = b;
 
 	auto const ser_result_2 = daw::benchmark( ser_test );
+	daw::do_not_optimize( ser_result_2 );
 	test_sort( a.begin( ), a.end( ), "s_result2" );
 }
 

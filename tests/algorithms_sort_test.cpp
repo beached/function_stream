@@ -52,35 +52,6 @@ std::vector<int64_t> const &get_rnd_array( ) {
 	return rnd_array;
 }
 
-template<typename Container>
-void show_times( Container const &times ) {
-	auto first = std::begin( times );
-	auto const last = std::end( times );
-	assert( first != last );
-	std::cout << '[' << daw::utility::format_seconds( *first, 2 );
-	auto avg = *first;
-	size_t count = 1;
-	++first;
-	while( first != last ) {
-		std::cout << ", " << daw::utility::format_seconds( *first, 2 );
-		avg += *first;
-		++count;
-		++first;
-	}
-	std::cout << "]\n";
-	avg /= static_cast<double>( count );
-	first = std::begin( times );
-	double std_dev = abs( *first - avg );
-	++first;
-	while( first != last ) {
-		std_dev += abs( *first - avg );
-		++first;
-	}
-	std_dev /= static_cast<double>( count );
-	std::cout << "avg= " << daw::utility::format_seconds( avg )
-	          << " std_dev=" << daw::utility::format_seconds( std_dev ) << '\n';
-}
-
 template<size_t Count>
 void sort_test( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );

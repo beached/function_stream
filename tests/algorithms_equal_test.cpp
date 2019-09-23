@@ -60,13 +60,14 @@ void equal_test( size_t SZ ) {
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 
-	alignas(128) auto const a = [SZ]( ) {
-		alignas(128) auto result = ::daw::make_random_data<int64_t>( SZ, -50, 50 );
+	alignas( 128 ) auto const a = [SZ]( ) {
+		alignas( 128 ) auto result =
+		  ::daw::make_random_data<int64_t>( SZ, -50, 50 );
 		result.back( ) = 100;
 		return result;
 	}( );
 
-	alignas(128) auto const b = [&a]( ) {
+	alignas( 128 ) auto const b = [&a]( ) {
 		auto result = a;
 		daw::do_not_optimize( result );
 		return result;
@@ -107,19 +108,25 @@ void equal_test( size_t SZ ) {
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
 	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a, b );
+	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
+	show_times( tseq );
 #ifdef HAS_PAR_STL
 	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
 	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a, b );
+	auto const tpstl_min = *std::min_element( tseq.begin( ), tseq.end( ) );
+	show_times( tpstl );
 #endif
 	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a, b );
+	auto const tpar_min = *std::min_element( tseq.begin( ), tseq.end( ) );
+	show_times( tpar );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq / tpar ) << '\n';
+	          << ( tseq_min / tpar_min ) << '\n';
 #ifdef HAS_PAR_STL
 	std::cout << "Serial:ParStl perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq / tpstl ) << '\n';
+	          << ( tseq_min / tpstl_min ) << '\n';
 	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tpstl / tpar ) << '\n';
+	          << ( tpstl_min / tpar_min ) << '\n';
 #endif
 }
 
@@ -129,13 +136,13 @@ void equal_test_str( size_t SZ ) {
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 
-	alignas(128) auto const a = [SZ]( ) {
+	alignas( 128 ) auto const a = [SZ]( ) {
 		auto result = ::daw::make_random_data<char, std::string>( SZ, 'a', 'z' );
 		daw::do_not_optimize( result );
 		return result;
 	}( );
 
-	alignas(128) auto const b = [&a]( ) {
+	alignas( 128 ) auto const b = [&a]( ) {
 		auto result = a;
 		daw::do_not_optimize( result );
 		return result;
@@ -176,19 +183,25 @@ void equal_test_str( size_t SZ ) {
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " ::std::string\n";
 	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a, b );
+	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
+	show_times( tseq );
 #ifdef HAS_PAR_STL
 	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
 	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a, b );
+	auto const tpstl_min = *std::min_element( tpstl.begin( ), tpstl.end( ) );
+	show_times( tpstl );
 #endif
 	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
 	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a, b );
+	auto const tpar_min = *std::min_element( tpar.begin( ), tpar.end( ) );
+	show_times( tpar );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq / tpar ) << '\n';
+	          << ( tseq_min / tpar_min ) << '\n';
 #ifdef HAS_PAR_STL
 	std::cout << "Serial:ParStl perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq / tpstl ) << '\n';
+	          << ( tseq_min / tpstl_min ) << '\n';
 	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tpstl / tpar ) << '\n';
+	          << ( tpstl_min / tpar_min ) << '\n';
 #endif
 }
 

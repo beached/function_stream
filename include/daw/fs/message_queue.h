@@ -123,6 +123,7 @@ namespace daw::parallel {
 			       m_impl.m_back.load( ::std::memory_order_acquire );
 		}
 
+		/*
 		[[nodiscard]] bool full( ) const noexcept {
 			auto next_record = m_impl.m_back.load( ::std::memory_order_acquire ) + 1U;
 			if( next_record >= Sz ) {
@@ -130,7 +131,7 @@ namespace daw::parallel {
 			}
 
 			return next_record == m_impl.m_front.load( ::std::memory_order_acquire );
-		}
+		}*/
 
 		[[nodiscard]] T try_pop_front( ) noexcept {
 			auto const current_front =
@@ -241,7 +242,6 @@ namespace daw::parallel {
 			assert( cell );
 			cell->m_data = ::daw::move( data );
 			cell->m_sequence.store( pos + 1, std::memory_order_release );
-
 			return push_back_result::success;
 		}
 
@@ -274,7 +274,6 @@ namespace daw::parallel {
 			auto result = ::daw::move( cell->m_data );
 			cell->m_sequence.store( pos + m_buffer_mask + 1U,
 			                        std::memory_order_release );
-
 			return result;
 		}
 	};
