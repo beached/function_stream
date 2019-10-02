@@ -118,6 +118,7 @@ extern char const *const GIT_VERSION;
 char const *const GIT_VERSION = SOURCE_CONTROL_REVISION;
 
 int main( ) {
+	std::ios::sync_with_stdio( false );
 #if not defined( NDEBUG ) or defined( DEBUG )
 	std::cout << "Debug build\n";
 	std::cout << GIT_VERSION << '\n';
