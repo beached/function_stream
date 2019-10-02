@@ -117,7 +117,7 @@ void sort_test( size_t SZ ) {
 extern char const *const GIT_VERSION;
 char const *const GIT_VERSION = SOURCE_CONTROL_REVISION;
 
-int main( ) {
+int main( int argc, char ** ) {
 	std::ios::sync_with_stdio( false );
 #if not defined( NDEBUG ) or defined( DEBUG )
 	std::cout << "Debug build\n";
@@ -125,9 +125,11 @@ int main( ) {
 #endif
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 4096; n <= MAX_ITEMS * 4; n *= 4 ) {
-		sort_test<30>( n );
-		std::cout << '\n';
+	if( argc < 2 ) {
+		for( size_t n = 4096; n <= MAX_ITEMS * 4; n *= 4 ) {
+			sort_test<30>( n );
+			std::cout << '\n';
+		}
 	}
 	sort_test<5>( LARGE_TEST_SZ );
 }
