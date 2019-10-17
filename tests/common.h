@@ -61,7 +61,7 @@ namespace {
 	static constexpr size_t const MAX_ITEMS = 4'194'304;
 	// static constexpr size_t const MAX_ITEMS = 14'217'728;
 	// static constexpr size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
-	static constexpr size_t const LARGE_TEST_SZ = 134'217'728;
+	static constexpr size_t const LARGE_TEST_SZ = 134'217'7280;
 #else
 	static constexpr size_t const MAX_ITEMS = 4'194'304;
 	static constexpr size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;

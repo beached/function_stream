@@ -126,7 +126,7 @@ int main( int argc, char ** ) {
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
 	if( argc < 2 ) {
-		for( size_t n = 4096; n <= MAX_ITEMS * 4; n *= 4 ) {
+		for( size_t n = 65536; n <= MAX_ITEMS * 4; n *= 4 ) {
 			sort_test<30>( n );
 			std::cout << '\n';
 		}
