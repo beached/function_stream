@@ -54,7 +54,7 @@ namespace daw {
 		         ::std::enable_if_t<
 		           not std::is_same_v<task_t, ::daw::remove_cvref_t<Func>>,
 		           ::std::nullptr_t> = nullptr>
-		explicit task_t( Func && func )
+		explicit task_t( Func &&func )
 		  : m_impl( ::daw::make_atomic_unique_ptr<impl_t>(
 		      ::std::function<void( )>( ::std::forward<Func>( func ) ) ) ) {
 
@@ -64,7 +64,7 @@ namespace daw {
 		}
 
 		template<typename Func, typename Latch>
-		task_t( Func && func, Latch l )
+		task_t( Func &&func, Latch l )
 		  : m_impl( ::daw::make_atomic_unique_ptr<impl_t>(
 		      ::std::function<void( )>( ::std::forward<Func>( func ) ),
 		      ::daw::is_shared_latch_v<Latch>
@@ -79,15 +79,14 @@ namespace daw {
 			                                    "Callable must be valid" );
 		}
 
-		inline void operator( )( ) noexcept( noexcept( m_impl->m_function( ) ) ) {
+		inline void operator( )( ) {
 			assert( m_impl );
 			daw::exception::dbg_precondition_check( m_impl->m_function,
 			                                        "Callable must be valid" );
 			m_impl->m_function( );
 		}
 
-		inline void operator( )( )
-		  const noexcept( noexcept( m_impl->m_function( ) ) ) {
+		inline void operator( )( ) const {
 			assert( m_impl );
 			daw::exception::dbg_precondition_check( m_impl->m_function,
 			                                        "Callable must be valid" );
@@ -102,7 +101,7 @@ namespace daw {
 			return true;
 		}
 
-		[[nodiscard]] inline explicit operator bool( ) const noexcept {
+		[[nodiscard]] inline explicit operator bool( ) const {
 			return static_cast<bool>( m_impl and m_impl->m_function );
 		}
 	}; // namespace daw

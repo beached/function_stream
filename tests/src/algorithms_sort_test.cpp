@@ -56,14 +56,15 @@ template<size_t Count>
 void sort_test( size_t SZ ) {
 	auto ts = ::daw::get_task_scheduler( );
 	ts.start( );
+	using test_data_t = std::vector<int64_t>;
 	assert( SZ <= LARGE_TEST_SZ );
-	alignas( 128 ) auto const a = std::vector<int64_t>(
+	alignas( 128 ) auto const test_data = test_data_t(
 	  get_rnd_array( ).begin( ),
 	  std::next( get_rnd_array( ).begin( ), static_cast<ptrdiff_t>( SZ ) ) );
 
 	char padding[128];
 	daw::do_not_optimize( padding );
-	alignas( 128 ) auto const par_test = [&ts]( auto &ary ) {
+	alignas( 128 ) auto const par_test = [&ts]( test_data_t &ary ) {
 		daw::algorithm::parallel::sort(
 		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
 		daw::do_not_optimize( ary );
@@ -71,7 +72,7 @@ void sort_test( size_t SZ ) {
 	};
 
 #ifdef HAS_PAR_STL
-	auto const par_stl_test = []( auto &ary ) {
+	auto const par_stl_test = []( test_data_t &ary ) {
 		std::sort( std::execution::par, ary.data( ),
 		           ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ) );
 		daw::do_not_optimize( ary );
@@ -79,29 +80,34 @@ void sort_test( size_t SZ ) {
 	};
 #endif
 
-	auto const ser_test = []( auto &ary ) {
+	auto const ser_test = []( test_data_t &ary ) {
 		std::sort( ary.begin( ), ary.end( ) );
 		daw::do_not_optimize( ary );
 		return &ary;
 	};
-	static_assert( std::is_const_v<decltype( a )> );
-	auto const vld = []( auto const &v ) {
-		auto tmp = v.get( );
-		return std::is_sorted( tmp->begin( ), tmp->end( ) );
+	static_assert( std::is_const_v<decltype( test_data )> );
+	auto const validator = []( test_data_t const * v ) {
+		// Test backwards to catch if the parallel version breaks and doesn't wait
+		// for completion
+		if( not v ) {
+			return false;
+		}
+		auto tmp = test_data_t( v->rbegin( ), v->rend( ) );
+		return std::is_sorted( tmp.rbegin( ), tmp.rend( ) );
 	};
 	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
 	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
-	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
+	  "  serial", sizeof( int64_t ) * SZ, validator, ser_test, test_data );
 	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
 	show_times( tseq );
 #ifdef HAS_PAR_STL
 	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
-	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
+	  " par stl", sizeof( int64_t ) * SZ, validator, par_stl_test, test_data );
 	auto const tpstl_min = *std::min_element( tpstl.begin( ), tpstl.end( ) );
 	show_times( tpstl );
 #endif
 	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
-	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
+	  "parallel", sizeof( int64_t ) * SZ, validator, par_test, test_data );
 	auto const tpar_min = *std::min_element( tpar.begin( ), tpar.end( ) );
 	show_times( tpar );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
@@ -127,7 +133,7 @@ int main( int argc, char ** ) {
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
 	if( argc < 2 ) {
 		for( size_t n = 65536; n <= MAX_ITEMS * 4; n *= 4 ) {
-			sort_test<30>( n );
+			sort_test<50>( n );
 			std::cout << '\n';
 		}
 	}

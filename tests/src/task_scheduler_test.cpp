@@ -51,7 +51,7 @@ void test_task_scheduler( ) {
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 
-	auto const nums = [&]( ) {
+	auto const nums = [&] {
 		auto result = std::vector<uintmax_t>( );
 		for( intmax_t n = 0; n < ITEMS; ++n ) {
 			result.push_back( daw::randint<uintmax_t>( 500, 9999 ) );
@@ -59,15 +59,23 @@ void test_task_scheduler( ) {
 		return result;
 	}( );
 
-	auto ts = daw::get_task_scheduler( );
+	auto ts = daw::task_scheduler( 1 ); // get_task_scheduler( );
+	ts.start( );
 	daw::expecting( ts.started( ) );
 	daw::bench_n_test<3>( "parallel", [&]( ) {
-		auto results = daw::locked_stack_t<real_t>( );
+		auto results = std::vector<real_t>( );
+		results.reserve( nums.size( ) );
+		auto mut = std::mutex{ };
 		auto sem = daw::latch( ITEMS );
 		for( auto i : nums ) {
-			(void)ts.add_task( [&results, &sem, i, &ts]( ) {
-				ts.wait_for_scope( [&]( ) { results.push_back( fib( i ) ); } );
-				sem.notify( );
+			(void)ts.add_task( [&results, &sem, i, &ts, &mut]( ) {
+				ts.wait_for_scope( [&, i]( ) {
+					{
+						auto const lck = std::scoped_lock<std::mutex>( mut );
+						results.push_back( fib( i ) );
+					}
+					sem.notify( );
+				} );
 			} );
 		}
 		sem.wait( );

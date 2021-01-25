@@ -55,6 +55,40 @@ namespace daw::algorithm::parallel::impl {
 		  daw::view<Iterator> rng, size_t const max_parts ) const {
 			return operator( )( rng.begin( ), rng.end( ), max_parts );
 		}
+	}; // namespace daw::algorithm::parallel::impl
+
+	template<size_t BlockSize = 4096>
+	struct [[nodiscard]] split_fixed_t {
+		static inline constexpr size_t min_range_size = BlockSize;
+		template<typename Iterator>
+		[[nodiscard]] std::vector<daw::view<Iterator>> operator( )(
+		  Iterator first, Iterator last, size_t ) const {
+
+			auto result = std::vector<daw::view<Iterator>>( );
+			constexpr auto const part_size = static_cast<ptrdiff_t>( BlockSize );
+			auto const sz = static_cast<size_t>( std::distance( first, last ) );
+			auto const num_parts = sz / BlockSize;
+			auto const left_over =
+			  static_cast<ptrdiff_t>( sz - ( BlockSize * num_parts ) );
+			result.reserve( num_parts + ( left_over == 0 ? 0 : 1 ) );
+			ptrdiff_t pos = 0;
+			for( size_t n = 0; n < num_parts; ++n ) {
+				result.push_back(
+				  {std::next( first, pos ), std::next( first, pos + part_size )} );
+				pos += part_size;
+			}
+			if( left_over > 0 ) {
+				result.push_back(
+				  {std::next( first, pos ), std::next( first, pos + left_over )} );
+			}
+			return result;
+		}
+
+		template<typename Iterator>
+		[[nodiscard]] std::vector<daw::view<Iterator>> operator( )(
+		  daw::view<Iterator> rng, size_t const max_parts ) const {
+			return operator( )( rng.begin( ), rng.end( ), max_parts );
+		}
 	};
 
 	template<typename RandomIterator, typename Func>
@@ -230,7 +264,7 @@ namespace daw::algorithm::parallel::impl {
 	template<typename Compare>
 	parallel_sort_merger( Compare cmp )->parallel_sort_merger<Compare>;
 
-	template<typename PartitionPolicy = split_range_t<>, typename Iterator,
+	template<typename PartitionPolicy = split_fixed_t<>, typename Iterator,
 	         typename Sort, typename Compare>
 	void parallel_sort( daw::view<Iterator> range, Sort &&srt, Compare &&cmp,
 	                    task_scheduler ts ) {
@@ -255,9 +289,8 @@ namespace daw::algorithm::parallel::impl {
 		  [ts = daw::mutable_capture( ts ), sort_fn]( daw::view<Iterator> rng ) {
 			  return make_future_result( *ts, sort_fn, rng );
 		  } );
-
-		ts.wait_for( reduce_futures( sorters.begin( ), sorters.end( ),
-		                             parallel_sort_merger{cmp} ) );
+		auto sem = reduce_futures( sorters.begin( ), sorters.end( ), parallel_sort_merger{cmp});
+		ts.wait_for( sem );
 	}
 
 	template<typename PartitionPolicy = split_range_t<>, typename T,

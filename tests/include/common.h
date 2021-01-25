@@ -51,7 +51,9 @@ namespace {
 		}
 		std_dev /= static_cast<double>( count );
 		std::cout << "avg= " << daw::utility::format_seconds( avg )
-		          << " std_dev=" << daw::utility::format_seconds( std_dev ) << '\n';
+		          << " std_dev=" << daw::utility::format_seconds( std_dev )
+		          << ' ' << std::setprecision( 2 ) << abs( 100.0 * ( std_dev / avg ) )
+		          << "%\n";
 	}
 
 	// static constexpr size_t const MAX_ITEMS = 134'217'728;
