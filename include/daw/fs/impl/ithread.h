@@ -22,13 +22,14 @@
 
 #pragma once
 
+#include "daw_latch.h"
+
+#include <daw/daw_move.h>
+#include <daw/daw_utility.h>
+
 #include <memory>
 #include <thread>
 #include <type_traits>
-
-#include <daw/daw_utility.h>
-#include <daw/parallel/daw_atomic_unique_ptr.h>
-#include <daw/parallel/daw_latch.h>
 
 namespace daw::parallel {
 	class interrupt_token_owner;
@@ -70,114 +71,87 @@ namespace daw::parallel {
 		}
 	};
 
-	namespace ithread_impl {
-		struct ithread_impl {
-			interrupt_token_owner m_continue;
-			::std::thread m_thread;
-			::daw::latch m_sem = ::daw::latch( 1 );
-
-			template<typename Callable, typename... Args,
-			         ::std::enable_if_t<
-			           ::std::is_invocable_v<Callable, interrupt_token, Args...>,
-			           ::std::nullptr_t> = nullptr>
-			explicit ithread_impl( Callable &&callable, Args &&... args )
-			  : m_continue( )
-			  , m_thread( std::forward<Callable>( callable ),
-			              m_continue.get_interrupt_token( ),
-			              std::forward<Args>( args )... ) {
-
-				m_thread.detach( );
-			}
-
-			template<typename Callable, typename... Args,
-			         ::std::enable_if_t<
-			           ::daw::all_true_v<
-			             not::std::is_invocable_v<Callable, interrupt_token, Args...>,
-			             ::std::is_invocable_v<Callable, Args...>>,
-			           ::std::nullptr_t> = nullptr>
-			explicit ithread_impl( Callable &&callable, Args &&... args )
-			  : m_continue( )
-			  , m_thread(
-			      [&, callable = ::daw::mutable_capture( std::forward<Callable>(
-			            callable ) )]( auto &&... arguments ) {
-				      auto const on_exit =
-				        ::daw::on_scope_exit( [&]( ) { m_sem.notify( ); } );
-				      return ::daw::move( *callable )(
-				        std::forward<decltype( arguments )>( arguments )... );
-			      },
-			      std::forward<Args>( args )... ) {}
-
-			ithread_impl( ithread_impl && ) = delete;
-			ithread_impl( ithread_impl const & ) = delete;
-			ithread_impl &operator=( ithread_impl && ) = delete;
-			ithread_impl &operator=( ithread_impl const & ) = delete;
-
-			inline ~ithread_impl( ) noexcept {
-				try {
-					m_continue.stop( );
-					if( m_thread.joinable( ) ) {
-						m_thread.join( );
-					}
-					m_sem.wait( );
-				} catch( ... ) {
-					// Do not let an exception take us down
-				}
-			}
-		};
-	} // namespace ithread_impl
-
 	class ithread {
-
-		::std::unique_ptr<ithread_impl::ithread_impl> m_impl =
-		  ::std::unique_ptr<ithread_impl::ithread_impl>( );
+		interrupt_token_owner m_continue{ };
+		::daw::latch m_sem = ::daw::latch( 1 );
+		::std::thread m_thread;
 
 	public:
-		constexpr ithread( ) noexcept = default;
-
 		using id = ::std::thread::id;
+
 		template<
 		  typename Callable, typename... Args,
-		  ::std::enable_if_t<::std::is_constructible_v<ithread_impl::ithread_impl,
-		                                               Callable, Args...>,
-		                     ::std::nullptr_t> = nullptr>
-		explicit ithread( Callable &&callable, Args &&... args )
-		  : m_impl( ::std::make_unique<ithread_impl::ithread_impl>(
-		      std::forward<Callable>( callable ),
-		      std::forward<Args>( args )... ) ) {}
+		  std::enable_if_t<std::is_invocable_v<Callable, interrupt_token, Args...>,
+		                   std::nullptr_t> = nullptr>
+		explicit ithread( Callable &&callable, Args &&...args )
+		  : m_thread( DAW_FWD( callable ), m_continue.get_interrupt_token( ),
+		              DAW_FWD( args )... ) {
 
-		[[nodiscard]] inline bool joinable( ) const noexcept {
-			assert( m_impl );
-			return m_impl->m_sem.try_wait( );
+			m_thread.detach( );
+		}
+
+		template<typename Callable, typename... Args,
+		         ::std::enable_if_t<
+		           ::daw::all_true_v<
+		             not ::std::is_invocable_v<Callable, interrupt_token, Args...>,
+		             ::std::is_invocable_v<Callable, Args...>>,
+		           ::std::nullptr_t> = nullptr>
+		explicit ithread( Callable &&callable, Args &&...args )
+		  : m_continue( )
+		  , m_thread(
+		      [this, callable = mutable_capture( DAW_FWD( callable ) )](
+		        auto &&...lambda_args ) {
+			      auto const on_exit =
+			        ::daw::on_scope_exit( [&] { m_sem.notify( ); } );
+			      auto &func = *callable;
+			      return func( DAW_FWD( lambda_args )... );
+		      },
+		      DAW_FWD( args )... ) {}
+
+		ithread( ithread && ) = delete;
+		ithread( ithread const & ) = delete;
+		ithread &operator=( ithread && ) = delete;
+		ithread &operator=( ithread const & ) = delete;
+
+		inline ~ithread( ) {
+			try {
+				m_continue.stop( );
+				if( m_thread.joinable( ) ) {
+					m_thread.join( );
+				}
+				m_sem.wait( );
+			} catch( ... ) {
+				// Do not let an exception take us down
+			}
+		}
+
+		[[nodiscard]] inline bool joinable( ) const {
+			return m_sem.try_wait( );
 		}
 
 		[[nodiscard]] inline std::thread::id get_id( ) const noexcept {
-			assert( m_impl );
-			return m_impl->m_thread.get_id( );
+			return m_thread.get_id( );
 		}
 
-		inline static unsigned int hardware_concurrency( ) noexcept {
+		[[nodiscard]] inline static unsigned hardware_concurrency( ) noexcept {
 			return std::thread::hardware_concurrency( );
 		}
 
-		void stop( ) {
-			assert( m_impl );
-			m_impl->m_continue.stop( );
+		inline void stop( ) {
+			m_continue.stop( );
 		}
 
 		inline void join( ) {
-			assert( m_impl );
-			m_impl->m_sem.wait( );
+			m_sem.wait( );
 		}
 
-		void stop_and_wait( ) {
-			assert( m_impl );
+		inline void stop_and_wait( ) {
 			stop( );
 			join( );
 		}
 
 		inline void detach( ) {
-			assert( m_impl );
-			m_impl->m_sem.reset( 0 );
+			m_sem.reset( 0 );
 		}
 	};
 } // namespace daw::parallel

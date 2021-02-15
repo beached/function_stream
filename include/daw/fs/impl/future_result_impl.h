@@ -33,7 +33,7 @@
 #include <daw/daw_move.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
-#include <daw/parallel/daw_latch.h>
+#include "daw_latch.h"
 
 #include "../task_scheduler.h"
 
@@ -184,7 +184,7 @@ namespace daw {
 			explicit member_data_t( task_scheduler ts )
 			  : m_data( std::make_shared<data_t>( daw::move( ts ) ) ) {}
 
-			member_data_t( daw::shared_latch sem, task_scheduler ts )
+			explicit member_data_t( daw::shared_latch sem, task_scheduler ts )
 			  : m_data(
 			      std::make_shared<data_t>( daw::move( sem ), daw::move( ts ) ) ) {}
 
@@ -194,7 +194,7 @@ namespace daw {
 
 			[[nodiscard]] decltype( auto ) pass_next( expected_result_t && value ) {
 				auto nxt = m_data->m_next.get( );
-				::daw::exception::precondition_check(
+				daw::exception::precondition_check(
 				  *nxt, "Attempt to call next function on empty function" );
 
 				return ( *nxt )( std::move( value ) );

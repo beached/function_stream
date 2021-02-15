@@ -59,17 +59,17 @@ void test_task_scheduler( ) {
 		return result;
 	}( );
 
-	auto ts = daw::task_scheduler( 1 ); // get_task_scheduler( );
+	auto ts = daw::task_scheduler( ); // get_task_scheduler( );
 	ts.start( );
 	daw::expecting( ts.started( ) );
 	daw::bench_n_test<3>( "parallel", [&]( ) {
+		auto mut = std::mutex{ };
+		auto sem = daw::shared_latch( ITEMS );
 		auto results = std::vector<real_t>( );
 		results.reserve( nums.size( ) );
-		auto mut = std::mutex{ };
-		auto sem = daw::latch( ITEMS );
 		for( auto i : nums ) {
-			(void)ts.add_task( [&results, &sem, i, &ts, &mut]( ) {
-				ts.wait_for_scope( [&, i]( ) {
+			(void)ts.add_task( [=, &mut]( ) mutable {
+				ts.wait_for_scope( [=, &mut]( ) mutable {
 					{
 						auto const lck = std::scoped_lock<std::mutex>( mut );
 						results.push_back( fib( i ) );
@@ -79,7 +79,6 @@ void test_task_scheduler( ) {
 			} );
 		}
 		sem.wait( );
-		daw::do_not_optimize( results );
 	} );
 
 	daw::bench_n_test<3>( "sequential", [&]( ) {
