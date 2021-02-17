@@ -92,8 +92,7 @@ namespace daw {
 		inline void wait( ) const {
 			std::ptrdiff_t current = m_count.load( std::memory_order_acquire );
 			while( current != 0 ) {
-				std::atomic_wait_explicit( &m_count, current,
-				                           std::memory_order_relaxed );
+				std::atomic_wait( &m_count, current );
 				current = m_count.load( std::memory_order_acquire );
 			}
 		}
@@ -102,10 +101,9 @@ namespace daw {
 		inline void wait( Predicate &&pred ) {
 			std::ptrdiff_t current = m_count.load( std::memory_order_acquire );
 			while( current != 0 and not pred( ) ) {
-				daw::parallel::atomic_wait_pred(
-				  &m_count,
-				  [&]( std::ptrdiff_t value ) { return value == 0 and pred( ); },
-				  std::memory_order_relaxed );
+				daw::parallel::atomic_wait_pred( &m_count, [&]( std::ptrdiff_t value ) {
+					return value == 0 and pred( );
+				} );
 				current = m_count.load( std::memory_order_acquire );
 			}
 		}

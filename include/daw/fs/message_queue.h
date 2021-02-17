@@ -65,7 +65,7 @@ namespace daw::parallel {
 	class mpmc_bounded_queue {
 		static_assert( Sz >= 2U, "Queue must be at least 2 large" );
 		static_assert( ( Sz & ( Sz - 1U ) ) == 0, "Queue must be a power of 2" );
-		boost::lockfree::queue<T *> m_data = boost::lockfree::queue<T *>( Sz );
+		boost::lockfree::queue<T *, boost::lockfree::capacity<Sz>> m_data{ };
 
 	public:
 		mpmc_bounded_queue( ) noexcept = default;
@@ -100,10 +100,10 @@ namespace daw::parallel {
 		}
 
 		template<typename Predicate>
-		[[nodiscard]] std::unique_ptr<T> pop_front( Predicate &&pred ) {
+		[[nodiscard]] std::unique_ptr<T> pop_front( Predicate &&can_continue ) {
 			static_assert( std::is_invocable_v<Predicate> );
 			T *result = nullptr;
-			while( not pred( ) ) {
+			while( can_continue( ) ) {
 				if( not m_data.pop( result ) ) {
 					std::this_thread::yield( );
 					std::this_thread::sleep_for( std::chrono::nanoseconds( 2 ) );
@@ -118,10 +118,10 @@ namespace daw::parallel {
 
 		template<typename Predicate>
 		[[nodiscard]] push_back_result push_back( std::unique_ptr<T> &&ptr,
-		                                          Predicate &&pred ) {
+		                                          Predicate &&can_continue ) {
 			static_assert( std::is_invocable_v<Predicate> );
 			assert( ptr );
-			while( not pred( ) ) {
+			while( can_continue( ) ) {
 				if( not m_data.push( ptr.get( ) ) ) {
 					std::this_thread::yield( );
 					std::this_thread::sleep_for( std::chrono::nanoseconds( 2 ) );
@@ -143,8 +143,8 @@ namespace daw::parallel {
 	template<typename T, std::size_t Sz, typename Predicate>
 	[[nodiscard]] inline push_back_result push_back( mpmc_bounded_queue<T, Sz> &q,
 	                                                 std::unique_ptr<T> &&value,
-	                                                 Predicate &&pred ) {
+	                                                 Predicate &&can_continue ) {
 
-		return q.push_back( daw::move( value ), DAW_FWD( pred ) );
+		return q.push_back( daw::move( value ), DAW_FWD( can_continue ) );
 	}
 } // namespace daw::parallel

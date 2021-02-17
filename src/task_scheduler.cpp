@@ -106,7 +106,7 @@ namespace daw {
 				return tsk;
 			}
 		}
-		if( id > queue_count ) {
+		if( id >= queue_count ) {
 			return m_impl->m_tasks[q_id].try_pop_front( );
 		}
 		return pop_front( m_impl->m_tasks[q_id], [&]( ) {
@@ -344,7 +344,7 @@ namespace daw {
 			}
 			if( tsk ) {
 				run_task( daw::move( tsk ) );
-			} else if( id > std::size( self->m_impl->m_tasks ) ) {
+			} else if( id >= std::size( self->m_impl->m_tasks ) ) {
 				return;
 			}
 		}

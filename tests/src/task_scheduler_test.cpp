@@ -33,8 +33,6 @@
 using real_t = double;
 
 real_t fib( uintmax_t n ) {
-	return n * n;
-	/*
 	if( n <= 1 ) {
 		return static_cast<real_t>( n );
 	}
@@ -46,7 +44,6 @@ real_t fib( uintmax_t n ) {
 		last = new_last;
 	}
 	return result;
-	 */
 }
 
 void test_task_scheduler( ) {
