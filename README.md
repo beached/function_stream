@@ -111,15 +111,15 @@ bool equal( Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2
 
 [Examples](./tests/task_scheduler_test.cpp)
 
-Implementation of a task stealing work queue.  The default is to have 1 thread per core and block on destruction.
+Implementation of a task stealing work m_queue.  The default is to have 1 thread per core and block on destruction.
 
 ### get default task scheduler
 ``` C++
 task_scheduler get_task_scheduler( );
 ```
 
-### adding a task to queue
-Add a simple task of the form void( ) to the queue.  
+### adding a task to m_queue
+Add a simple task of the form void( ) to the m_queue.  
 ``` C++
 template<typename Task>
 void task_scheduler::add_task( Task task ) noexcept;
@@ -132,7 +132,7 @@ void task_scheduler::start( );
 
 ### stopping task scheduler
 ``` C++
-void task_scheduler::stop( bool block = true );
+void task_scheduler::request_stop( bool block = true );
 ```
 
 ### check if task scheduler is started

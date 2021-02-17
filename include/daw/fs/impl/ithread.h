@@ -27,85 +27,111 @@
 #include <daw/daw_move.h>
 #include <daw/daw_utility.h>
 
+#include <atomic>
+#include <atomic_wait>
 #include <memory>
 #include <thread>
 #include <type_traits>
 
 namespace daw::parallel {
-	class interrupt_token_owner;
+	class stop_token_owner;
+	class ithread;
 
-	class interrupt_token {
-		::daw::latch const *m_condition;
+	class stop_token {
+		std::weak_ptr<stop_token_owner> m_owner;
 
-		friend class ::daw::parallel::interrupt_token_owner;
+		friend class ::daw::parallel::stop_token_owner;
 
-		explicit interrupt_token( ::daw::latch const &cond ) noexcept
-		  : m_condition( &cond ) {}
+		inline explicit stop_token( std::weak_ptr<stop_token_owner> owner ) noexcept
+		  : m_owner( daw::move( owner ) ) {}
 
 	public:
-		[[nodiscard]] bool can_continue( ) const {
-			return m_condition->try_wait( );
+		[[nodiscard]] inline bool can_continue( ) const;
+		[[nodiscard]] inline explicit operator bool( ) const;
+		inline void wait( ) const;
+		inline void stop( );
+	};
+
+	class stop_token_owner
+	  : public std::enable_shared_from_this<stop_token_owner> {
+		std::atomic<std::ptrdiff_t> m_keep_going{ 1 };
+
+	public:
+		stop_token_owner( ) = default;
+
+		inline stop_token get_interrupt_token( ) noexcept {
+			return stop_token( this->shared_from_this( ) );
 		}
 
-		[[nodiscard]] explicit operator bool( ) const {
-			return m_condition->try_wait( );
+		inline bool request_stop( ) {
+			std::ptrdiff_t expected = 1;
+			bool result = m_keep_going.compare_exchange_strong(
+			  expected, 0, std::memory_order_release );
+			std::atomic_notify_all( &m_keep_going );
+			return result;
 		}
 
-		void wait( ) const {
-			m_condition->wait( );
+		inline bool can_continue( ) const {
+			return m_keep_going.load( std::memory_order_acquire ) == 1;
+		}
+
+		inline void wait( ) const {
+			auto current = m_keep_going.load( std::memory_order_acquire );
+			while( current != 0 ) {
+				std::atomic_wait_explicit( &m_keep_going, current,
+				                           std::memory_order_relaxed );
+				current = m_keep_going.load( std::memory_order_acquire );
+			}
 		}
 	};
 
-	class interrupt_token_owner {
-		::daw::latch m_condition = ::daw::latch( 1 );
-
-	public:
-		interrupt_token_owner( ) = default;
-
-		interrupt_token get_interrupt_token( ) const noexcept {
-			return interrupt_token( m_condition );
+	inline bool stop_token::can_continue( ) const {
+		if( auto p = m_owner.lock( ); p ) {
+			return p->can_continue( );
+		} else {
+			return false;
 		}
+	}
 
-		void stop( ) {
-			m_condition.notify( );
+	inline stop_token::operator bool( ) const {
+		return can_continue( );
+	}
+
+	inline void stop_token::wait( ) const {
+		if( auto p = m_owner.lock( ); p ) {
+			p->wait( );
 		}
-	};
+	}
+
+	inline void stop_token::stop( ) {
+		if( auto p = m_owner.lock( ); p ) {
+			p->request_stop( );
+		}
+	}
 
 	class ithread {
-		interrupt_token_owner m_continue{ };
-		::daw::latch m_sem = ::daw::latch( 1 );
+		std::shared_ptr<stop_token_owner> m_continue =
+		  std::make_shared<stop_token_owner>( );
 		::std::thread m_thread;
 
 	public:
 		using id = ::std::thread::id;
 
-		template<
-		  typename Callable, typename... Args,
-		  std::enable_if_t<std::is_invocable_v<Callable, interrupt_token, Args...>,
-		                   std::nullptr_t> = nullptr>
-		explicit ithread( Callable &&callable, Args &&...args )
-		  : m_thread( DAW_FWD( callable ), m_continue.get_interrupt_token( ),
-		              DAW_FWD( args )... ) {
-
-			m_thread.detach( );
-		}
-
 		template<typename Callable, typename... Args,
-		         ::std::enable_if_t<
-		           ::daw::all_true_v<
-		             not ::std::is_invocable_v<Callable, interrupt_token, Args...>,
-		             ::std::is_invocable_v<Callable, Args...>>,
-		           ::std::nullptr_t> = nullptr>
+		         std::enable_if_t<
+		           not std::is_same_v<daw::remove_cvref_t<Callable>, ithread>,
+		           std::nullptr_t> = nullptr>
 		explicit ithread( Callable &&callable, Args &&...args )
-		  : m_continue( )
-		  , m_thread(
-		      [this, callable = mutable_capture( DAW_FWD( callable ) )](
-		        auto &&...lambda_args ) {
-			      auto const on_exit =
-			        ::daw::on_scope_exit( [&] { m_sem.notify( ); } );
-			      auto &func = *callable;
-			      return func( DAW_FWD( lambda_args )... );
+		  : m_thread(
+		      []( auto func, stop_token ic, auto... lambda_args ) {
+			      auto const on_exit = daw::on_scope_exit( [&] { ic.stop( ); } );
+			      if constexpr( std::is_invocable_v<Callable, stop_token, Args...> ) {
+				      return func( ic, lambda_args... );
+			      } else {
+				      return func( lambda_args... );
+			      }
 		      },
+		      DAW_FWD( callable ), m_continue->get_interrupt_token( ),
 		      DAW_FWD( args )... ) {}
 
 		ithread( ithread && ) = delete;
@@ -115,18 +141,17 @@ namespace daw::parallel {
 
 		inline ~ithread( ) {
 			try {
-				m_continue.stop( );
+				m_continue->request_stop( );
 				if( m_thread.joinable( ) ) {
 					m_thread.join( );
 				}
-				m_sem.wait( );
 			} catch( ... ) {
 				// Do not let an exception take us down
 			}
 		}
 
 		[[nodiscard]] inline bool joinable( ) const {
-			return m_sem.try_wait( );
+			return m_continue->can_continue( ) and m_thread.joinable( );
 		}
 
 		[[nodiscard]] inline std::thread::id get_id( ) const noexcept {
@@ -138,11 +163,12 @@ namespace daw::parallel {
 		}
 
 		inline void stop( ) {
-			m_continue.stop( );
+			m_continue->request_stop( );
 		}
 
 		inline void join( ) {
-			m_sem.wait( );
+			m_continue->wait( );
+			m_thread.join( );
 		}
 
 		inline void stop_and_wait( ) {
@@ -151,7 +177,7 @@ namespace daw::parallel {
 		}
 
 		inline void detach( ) {
-			m_sem.reset( 0 );
+			m_thread.detach( );
 		}
 	};
 } // namespace daw::parallel

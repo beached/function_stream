@@ -38,7 +38,7 @@
 #include <execution>
 #endif
 
-#include <daw/daw_benchmark.h>
+#include <daw/benchmark.h>
 #include <daw/daw_random.h>
 #include <daw/daw_string_view.h>
 
@@ -58,13 +58,10 @@ void sort_test( size_t SZ ) {
 	ts.start( );
 	using test_data_t = std::vector<int64_t>;
 	assert( SZ <= LARGE_TEST_SZ );
-	alignas( 128 ) auto const test_data = test_data_t(
+	auto const test_data = test_data_t(
 	  get_rnd_array( ).begin( ),
 	  std::next( get_rnd_array( ).begin( ), static_cast<ptrdiff_t>( SZ ) ) );
-
-	char padding[128];
-	daw::do_not_optimize( padding );
-	alignas( 128 ) auto const par_test = [&ts]( test_data_t &ary ) {
+	auto const par_test = [&ts]( test_data_t &ary ) -> test_data_t const * {
 		daw::algorithm::parallel::sort(
 		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
 		daw::do_not_optimize( ary );
@@ -80,13 +77,13 @@ void sort_test( size_t SZ ) {
 	};
 #endif
 
-	auto const ser_test = []( test_data_t &ary ) {
+	auto const ser_test = []( test_data_t &ary ) -> test_data_t const * {
 		std::sort( ary.begin( ), ary.end( ) );
 		daw::do_not_optimize( ary );
 		return &ary;
 	};
 	static_assert( std::is_const_v<decltype( test_data )> );
-	auto const validator = []( test_data_t const * v ) {
+	auto const validator = []( test_data_t const *v ) -> bool {
 		// Test backwards to catch if the parallel version breaks and doesn't wait
 		// for completion
 		if( not v ) {
@@ -121,7 +118,11 @@ void sort_test( size_t SZ ) {
 }
 
 extern char const *const GIT_VERSION;
+#ifdef SOURCE_CONTROL_REVISION
 char const *const GIT_VERSION = SOURCE_CONTROL_REVISION;
+#else
+char const *const GIT_VERSION = "unknown";
+#endif
 
 int main( int argc, char ** ) {
 	std::ios::sync_with_stdio( false );
@@ -132,7 +133,7 @@ int main( int argc, char ** ) {
 	std::cout << "sort tests - int64_t - "
 	          << ::std::thread::hardware_concurrency( ) << " threads\n";
 	if( argc < 2 ) {
-		for( size_t n = 65536; n <= MAX_ITEMS * 4; n *= 4 ) {
+		for( size_t n = 65536; n <= MAX_ITEMS ; n *= 4 ) {
 			sort_test<50>( n );
 			std::cout << '\n';
 		}

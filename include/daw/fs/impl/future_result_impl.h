@@ -28,12 +28,13 @@
 #include <type_traits>
 #include <utility>
 
+#include "daw_latch.h"
 #include <daw/cpp_17.h>
 #include <daw/daw_expected.h>
 #include <daw/daw_move.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
-#include "daw_latch.h"
+#include <daw/parallel/daw_locked_value.h>
 
 #include "../task_scheduler.h"
 
@@ -67,8 +68,8 @@ namespace daw {
 			  , m_semaphore( std::move( sem ) ) {}
 
 			template<typename Rep, typename Period>
-			[[nodiscard]] future_status wait_for(
-			  std::chrono::duration<Rep, Period> rel_time ) {
+			[[nodiscard]] future_status
+			wait_for( std::chrono::duration<Rep, Period> rel_time ) {
 				if( future_status::deferred == m_status or
 				    future_status::ready == m_status ) {
 					return m_status;
@@ -80,8 +81,8 @@ namespace daw {
 			}
 
 			template<typename Clock, typename Duration>
-			[[nodiscard]] future_status wait_until(
-			  std::chrono::time_point<Clock, Duration> timeout_time ) {
+			[[nodiscard]] future_status
+			wait_until( std::chrono::time_point<Clock, Duration> timeout_time ) {
 				if( future_status::deferred == m_status or
 				    future_status::ready == m_status ) {
 					return m_status;
@@ -165,7 +166,7 @@ namespace daw {
 			if( not add_fork_task_impl<0>( sem, ts, results, funcs,
 			                               std::forward<Arg>( arg ) ) ) {
 
-				throw ::daw::unable_to_add_task_exception{};
+				throw ::daw::unable_to_add_task_exception{ };
 			}
 			return sem;
 		}
@@ -189,10 +190,10 @@ namespace daw {
 			      std::make_shared<data_t>( daw::move( sem ), daw::move( ts ) ) ) {}
 
 		private:
-			explicit member_data_t( std::shared_ptr<data_t> && dptr ) noexcept
+			explicit member_data_t( std::shared_ptr<data_t> &&dptr ) noexcept
 			  : m_data( daw::move( dptr ) ) {}
 
-			[[nodiscard]] decltype( auto ) pass_next( expected_result_t && value ) {
+			[[nodiscard]] decltype( auto ) pass_next( expected_result_t &&value ) {
 				auto nxt = m_data->m_next.get( );
 				daw::exception::precondition_check(
 				  *nxt, "Attempt to call next function on empty function" );
@@ -200,8 +201,8 @@ namespace daw {
 				return ( *nxt )( std::move( value ) );
 			}
 
-			[[nodiscard]] decltype( auto ) pass_next(
-			  expected_result_t const &value ) {
+			[[nodiscard]] decltype( auto )
+			pass_next( expected_result_t const &value ) {
 
 				auto nxt = m_data->m_next.get( );
 				::daw::exception::precondition_check(
@@ -211,7 +212,7 @@ namespace daw {
 			}
 
 		public:
-			void set_value( expected_result_t && value ) {
+			void set_value( expected_result_t &&value ) {
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( daw::move( value ) );
 					return;
@@ -231,7 +232,7 @@ namespace daw {
 				m_data->notify( );
 			}
 
-			void set_value( base_result_t && value ) {
+			void set_value( base_result_t &&value ) {
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next(
 					  ::daw::construct_a<expected_result_t>( ::daw::move( value ) ) );
@@ -292,7 +293,7 @@ namespace daw {
 			}
 
 			template<typename Function, typename... Args>
-			void from_code( Function && func, Args && ... args ) {
+			void from_code( Function &&func, Args &&...args ) {
 				try {
 					set_value( expected_from_code( std::forward<Function>( func ),
 					                               std::forward<Args>( args )... ) );
@@ -303,7 +304,7 @@ namespace daw {
 			         std::enable_if_t<
 			           not std::is_function_v<std::remove_reference_t<Function>>,
 			           std::nullptr_t> = nullptr>
-			[[nodiscard]] auto next( Function && func ) {
+			[[nodiscard]] auto next( Function &&func ) {
 				assert( m_data );
 				auto nxt = m_data->m_next.get( );
 				assert( not( *nxt ) ); // can only set next function once
@@ -329,7 +330,7 @@ namespace daw {
 						      result->from_code( daw::move( *func ), daw::move( *v ) );
 					      } ) ) {
 
-						throw ::daw::unable_to_add_task_exception{};
+						throw ::daw::unable_to_add_task_exception{ };
 					}
 				};
 				if( future_status::ready == m_data->status( ) ) {
@@ -344,19 +345,19 @@ namespace daw {
 			}
 
 			template<typename... Functions>
-			[[nodiscard]] auto fork( Functions && ... funcs ) {
+			[[nodiscard]] auto fork( Functions &&...funcs ) {
 				assert( m_data );
 				auto nxt = m_data->m_next.get( );
 				assert( not( *nxt ) ); // can only set next function once
 
 				using result_t =
-				  std::tuple<future_result_t<daw::remove_cvref_t<decltype(
-				    funcs( std::declval<expected_result_t>( ).get( ) ) )>>...>;
+				  std::tuple<future_result_t<daw::remove_cvref_t<decltype( funcs(
+				    std::declval<expected_result_t>( ).get( ) ) )>>...>;
 
 				auto const construct_future = [&]( auto &&f ) {
 					Unused( f );
-					using fut_t = future_result_t<decltype(
-					  f( std::declval<expected_result_t>( ).get( ) ) )>;
+					using fut_t = future_result_t<decltype( f(
+					  std::declval<expected_result_t>( ).get( ) ) )>;
 
 					return fut_t( m_data->m_task_scheduler );
 				};
@@ -373,7 +374,7 @@ namespace daw {
 						if( not ts->add_task( impl::add_fork_task( *ts, *result, *tpfuncs,
 						                                           value.get( ) ) ) ) {
 
-							throw ::daw::unable_to_add_task_exception{};
+							throw ::daw::unable_to_add_task_exception{ };
 						}
 					} else {
 						daw::tuple::apply( *result,
@@ -393,8 +394,7 @@ namespace daw {
 			}
 
 			template<typename Function, typename... Functions>
-			[[nodiscard]] auto fork_join( Function && joiner,
-			                              Functions && ... funcs ) {
+			[[nodiscard]] auto fork_join( Function &&joiner, Functions &&...funcs ) {
 
 				// TODO: finish implementing
 				Unused( joiner );
@@ -403,11 +403,11 @@ namespace daw {
 				auto nxt = m_data->m_next.get( );
 				assert( *nxt ); // can only set next function once
 
-				static_assert( (
-				  std::is_invocable_v<Functions,
-				                      decltype(
-				                        std::declval<expected_result_t>( ).get( ) )> and
-				  ... ) );
+				static_assert(
+				  ( std::is_invocable_v<
+				      Functions,
+				      decltype( std::declval<expected_result_t>( ).get( ) )> and
+				    ... ) );
 
 				/* TODO Finish
 				using result_temp_t =
@@ -445,7 +445,7 @@ namespace daw {
 						if( auto lck = m_handle.lock( ); lck ) {
 							return member_data_t( std::move( lck ) );
 						}
-						return {};
+						return { };
 					}
 				};
 
@@ -473,10 +473,10 @@ namespace daw {
 			      std::make_shared<data_t>( daw::move( sem ), daw::move( ts ) ) ) {}
 
 		private:
-			explicit member_data_t( std::shared_ptr<data_t> && dptr ) noexcept
+			explicit member_data_t( std::shared_ptr<data_t> &&dptr ) noexcept
 			  : m_data( daw::move( dptr ) ) {}
 
-			void pass_next( expected_result_t && value ) {
+			void pass_next( expected_result_t &&value ) {
 				auto nxt = m_data->m_next.get( );
 				daw::exception::precondition_check(
 				  *nxt, "Attempt to call next function on empty function" );
@@ -505,7 +505,7 @@ namespace daw {
 			void set_exception( );
 
 			template<typename Function, typename... Args>
-			void from_code( Function && func, Args && ... args ) {
+			void from_code( Function &&func, Args &&...args ) {
 				static_assert( traits::is_callable_v<Function, Args...>,
 				               "Cannot call func with args provided" );
 				try {
@@ -515,9 +515,9 @@ namespace daw {
 			}
 
 			template<typename Function>
-			[[nodiscard]] auto next( Function && func ) {
+			[[nodiscard]] auto next( Function &&func ) {
 				auto nxt = m_data->m_next.get( );
-				daw::exception::precondition_check( not*nxt,
+				daw::exception::precondition_check( not *nxt,
 				                                    "Can only set next function once" );
 				using next_result_t =
 				  decltype( std::declval<std::remove_reference_t<Function>>( )( ) );
@@ -536,7 +536,7 @@ namespace daw {
 							      result->from_code( daw::move( *func ) );
 						      } ) ) {
 
-							throw ::daw::unable_to_add_task_exception{};
+							throw ::daw::unable_to_add_task_exception{ };
 						}
 					} else {
 						result->set_exception( value.get_exception_ptr( ) );
@@ -554,7 +554,7 @@ namespace daw {
 			}
 
 			template<typename... Functions>
-			[[nodiscard]] auto fork( Functions && ... funcs ) {
+			[[nodiscard]] auto fork( Functions &&...funcs ) {
 				auto nxt = m_data->m_next.get( );
 				daw::exception::precondition_check( not( *nxt ),
 				                                    "Can only set next function once" );
@@ -598,8 +598,7 @@ namespace daw {
 			}
 
 			template<typename Function, typename... Functions>
-			[[nodiscard]] auto fork_join( Function && joiner,
-			                              Functions && ... funcs ) {
+			[[nodiscard]] auto fork_join( Function &&joiner, Functions &&...funcs ) {
 				// TODO: finish implementing
 				Unused( joiner );
 				static_assert( ( std::is_invocable_v<Functions> and ... ) );
@@ -690,7 +689,7 @@ namespace daw {
 						if( auto lck = m_handle.lock( ); lck ) {
 							return member_data_t( std::move( lck ) );
 						}
-						return {};
+						return { };
 					}
 				};
 
@@ -702,10 +701,10 @@ namespace daw {
 			future_result_base_t( ) noexcept = default;
 			future_result_base_t( future_result_base_t const & ) noexcept = default;
 			future_result_base_t( future_result_base_t && ) noexcept = default;
-			future_result_base_t &operator=( future_result_base_t const & ) noexcept =
-			  default;
-			future_result_base_t &operator=( future_result_base_t && ) noexcept =
-			  default;
+			future_result_base_t &
+			operator=( future_result_base_t const & ) noexcept = default;
+			future_result_base_t &
+			operator=( future_result_base_t && ) noexcept = default;
 
 			virtual ~future_result_base_t( ) noexcept;
 			virtual void wait( ) const = 0;
@@ -713,108 +712,109 @@ namespace daw {
 		}; // future_result_base_t
 
 		template<size_t N, size_t SZ, typename... Callables>
-		struct [[nodiscard]] apply_many_t{
-		  template<typename... ResultTypes, typename... Args> void operator( )(
-		    daw::task_scheduler &ts, daw::shared_latch sem,
-		    std::tuple<ResultTypes...> &results,
-		    std::tuple<Callables...> const &callables,
-		    std::shared_ptr<std::tuple<Args...>> const &tp_args ){
+		struct [[nodiscard]] apply_many_t {
+			template<typename... ResultTypes, typename... Args>
+			void operator( )( daw::task_scheduler &ts, daw::shared_latch sem,
+			                  std::tuple<ResultTypes...> &results,
+			                  std::tuple<Callables...> const &callables,
+			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
 
-		    // TODO this looks weird
-		    if( not schedule_task(
-		          sem,
-		          [results = daw::mutable_capture( results ),
-		           callables = daw::mutable_capture( std::cref( callables ) ),
-		           tp_args = mutable_capture( std::cref( tp_args ) )]( ) {
-			          try {
-				          std::get<N>( *results ) = std::apply(
-				            std::get<N>( callables->get( ) ), *( tp_args->get( ) ) );
-			          } catch( ... ) { std::get<N>( *results ).set_exception( ); }
-		          },
-		          ts ) ){
+				// TODO this looks weird
+				if( not schedule_task(
+				      sem,
+				      [results = daw::mutable_capture( results ),
+				       callables = daw::mutable_capture( std::cref( callables ) ),
+				       tp_args = mutable_capture( std::cref( tp_args ) )]( ) {
+					      try {
+						      std::get<N>( *results ) = std::apply(
+						        std::get<N>( callables->get( ) ), *( tp_args->get( ) ) );
+					      } catch( ... ) { std::get<N>( *results ).set_exception( ); }
+				      },
+				      ts ) ) {
 
-		      throw ::daw::unable_to_add_task_exception{};
-	} // namespace impl
+					throw ::daw::unable_to_add_task_exception{ };
+				} // namespace impl
 
-	apply_many_t<N + 1, SZ, Callables...>{}( ts, sem, results, callables,
-	                                         tp_args );
-} // namespace daw
-}
-;
-
-template<size_t SZ, typename... Functions>
-struct [[nodiscard]] apply_many_t<SZ, SZ, Functions...>{
-  template<typename Results, typename... Args> constexpr void operator( )(
-    daw::task_scheduler const &, daw::shared_latch const &, Results const &,
-    std::tuple<Functions...> const &,
-    std::shared_ptr<std::tuple<Args...>> const
-      & ){}}; // apply_many_t<SZ, SZ, Functions..>
-
-template<typename Result, typename... Functions, typename... Args>
-void apply_many( daw::task_scheduler &ts, daw::shared_latch sem, Result &result,
-                 std::tuple<Functions...> const &callables,
-                 std::shared_ptr<std::tuple<Args...>> tp_args ) {
-
-	apply_many_t<0, sizeof...( Functions ), Functions...>{}( ts, sem, result,
-	                                                         callables, tp_args );
-}
-
-template<typename... Functions>
-class [[nodiscard]] future_group_result_t {
-	std::tuple<Functions...> tp_functions;
-
-public:
-	template<
-	  typename... Fs,
-	  daw::enable_when_t<(
-	    sizeof...( Fs ) != 1 or
-	    not std::is_same_v<future_group_result_t,
-	                    daw::remove_cvref_t<daw::traits::first_type<Fs...>>> )> =
-	    nullptr>
-	explicit constexpr future_group_result_t( Fs && ... fs )
-	  : tp_functions( std::forward<Fs>( fs )... ) {}
-
-	template<typename... Args>
-	[[nodiscard]] auto operator( )( Args &&... args ) {
-		using result_tp_t = std::tuple<daw::expected_t<daw::remove_cvref_t<decltype(
-		  std::declval<Functions>( )( std::forward<Args>( args )... ) )>>...>;
-
-		// Copy arguments to const, non-ref, non-volatile versions in a
-		// shared_pointer so that only one copy is ever created
-		auto tp_args = std::make_shared<
-		  std::tuple<std::add_const_t<daw::remove_cvref_t<Args>>...>>(
-		  std::forward<Args>( args )... );
-
-		auto ts = get_task_scheduler( );
-		auto sem = daw::shared_latch( sizeof...( Functions ) );
-		auto result = future_result_t<result_tp_t>( sem, ts );
-
-		auto th_worker = [result = daw::mutable_capture( result ),
-		                  sem = daw::mutable_capture( sem ),
-		                  tp_functions = daw::mutable_capture( tp_functions ),
-		                  ts = daw::mutable_capture( ts ),
-		                  tp_args =
-		                    daw::mutable_capture( daw::move( tp_args ) )]( ) {
-			auto const oe = ::daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
-
-			auto tp_result = result_tp_t( );
-			impl::apply_many( *ts, *sem, tp_result, daw::move( *tp_functions ),
-			                  daw::move( *tp_args ) );
-
-			sem->wait( );
-			result->set_value( daw::move( tp_result ) );
+				apply_many_t<N + 1, SZ, Callables...>{ }( ts, sem, results, callables,
+				                                          tp_args );
+			} // namespace daw
 		};
-		try {
-			if( not ts.add_task( daw::move( th_worker ) ) ) {
-				throw ::daw::unable_to_add_task_exception{};
-			}
-		} catch( std::system_error const &e ) {
-			std::cerr << "Error creating thread, aborting.\n Error code: "
-			          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
-			std::abort( );
+
+		template<size_t SZ, typename... Functions>
+		struct [[nodiscard]] apply_many_t<SZ, SZ, Functions...> {
+			template<typename Results, typename... Args>
+			constexpr void
+			operator( )( daw::task_scheduler const &, daw::shared_latch const &,
+			             Results const &, std::tuple<Functions...> const &,
+			             std::shared_ptr<std::tuple<Args...>> const & ) {}
+		}; // apply_many_t<SZ, SZ, Functions..>
+
+		template<typename Result, typename... Functions, typename... Args>
+		void apply_many( daw::task_scheduler &ts, daw::shared_latch sem,
+		                 Result &result, std::tuple<Functions...> const &callables,
+		                 std::shared_ptr<std::tuple<Args...>> tp_args ) {
+
+			apply_many_t<0, sizeof...( Functions ), Functions...>{ }(
+			  ts, sem, result, callables, tp_args );
 		}
-		return result;
-	}
-};
-} // namespace impl
+
+		template<typename... Functions>
+		class [[nodiscard]] future_group_result_t {
+			std::tuple<Functions...> tp_functions;
+
+		public:
+			template<
+			  typename... Fs,
+			  daw::enable_when_t<
+			    ( sizeof...( Fs ) != 1 or
+			      not std::is_same_v<
+			        future_group_result_t,
+			        daw::remove_cvref_t<daw::traits::first_type<Fs...>>> )> = nullptr>
+			explicit constexpr future_group_result_t( Fs &&...fs )
+			  : tp_functions( std::forward<Fs>( fs )... ) {}
+
+			template<typename... Args>
+			[[nodiscard]] auto operator( )( Args &&...args ) {
+				using result_tp_t = std::tuple<daw::expected_t<
+				  daw::remove_cvref_t<decltype( std::declval<Functions>( )(
+				    std::forward<Args>( args )... ) )>>...>;
+
+				// Copy arguments to const, non-ref, non-volatile versions in a
+				// shared_pointer so that only one copy is ever created
+				auto tp_args = std::make_shared<
+				  std::tuple<std::add_const_t<daw::remove_cvref_t<Args>>...>>(
+				  std::forward<Args>( args )... );
+
+				auto ts = get_task_scheduler( );
+				auto sem = daw::shared_latch( sizeof...( Functions ) );
+				auto result = future_result_t<result_tp_t>( sem, ts );
+
+				auto th_worker = [result = daw::mutable_capture( result ),
+				                  sem = daw::mutable_capture( sem ),
+				                  tp_functions = daw::mutable_capture( tp_functions ),
+				                  ts = daw::mutable_capture( ts ),
+				                  tp_args =
+				                    daw::mutable_capture( daw::move( tp_args ) )]( ) {
+					auto const oe = ::daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
+
+					auto tp_result = result_tp_t( );
+					impl::apply_many( *ts, *sem, tp_result, daw::move( *tp_functions ),
+					                  daw::move( *tp_args ) );
+
+					sem->wait( );
+					result->set_value( daw::move( tp_result ) );
+				};
+				try {
+					if( not ts.add_task( daw::move( th_worker ) ) ) {
+						throw ::daw::unable_to_add_task_exception{ };
+					}
+				} catch( std::system_error const &e ) {
+					std::cerr << "Error creating thread, aborting.\n Error code: "
+					          << e.code( ) << "\nMessage: " << e.what( ) << std::endl;
+					std::abort( );
+				}
+				return result;
+			}
+		};
+	} // namespace impl
 } // namespace daw

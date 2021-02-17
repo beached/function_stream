@@ -22,18 +22,20 @@
 
 #pragma once
 
+#include "daw/daw_fixed_array.h"
 #include "impl/daw_latch.h"
 #include "impl/ithread.h"
 #include "impl/task.h"
 #include "message_queue.h"
 
 #include <daw/daw_move.h>
+#include <daw/daw_ring_adaptor.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
-#include <daw/parallel/daw_locked_value.h>
 
 #include <deque>
 #include <exception>
+#include <list>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -82,52 +84,16 @@ namespace daw {
 		[[nodiscard]] char const *what( ) const noexcept override;
 	};
 
-	template<typename T>
-	struct ring_dequeu {
-		std::deque<T> queue{ };
-
-		explicit ring_dequeu( ) = default;
-		inline explicit ring_dequeu( std::size_t count )
-		  : queue( count ) {}
-
-		inline T &operator[]( std::size_t idx ) {
-			return queue[idx % queue.size( )];
-		}
-
-		inline T const &operator[]( std::size_t idx ) const {
-			return queue[idx % queue.size( )];
-		}
-
-		inline std::size_t size( ) const {
-			return queue.size( );
-		}
-
-		decltype( auto ) begin( ) const {
-			return queue.begin( );
-		}
-
-		decltype( auto ) begin( ) {
-			return queue.begin( );
-		}
-
-		decltype( auto ) end( ) const {
-			return queue.end( );
-		}
-
-		decltype( auto ) end( ) {
-			return queue.end( );
-		}
-	};
-
 	class task_scheduler {
-		using task_queue_t = daw::parallel::mpmc_bounded_queue<::daw::task_t, 512>;
+		using task_queue_t = daw::parallel::mpmc_bounded_queue<daw::task_t, 512>;
 
-		class task_scheduler_impl {
+		class task_scheduler_impl
+		  : std::enable_shared_from_this<task_scheduler_impl> {
 			std::mutex m_threads_mutex{ };
-			std::deque<std::unique_ptr<daw::parallel::ithread>> m_threads{ };
+			std::deque<daw::parallel::ithread> m_threads{ };
 
-			std::atomic_size_t m_num_threads{ };  // from ctor
-			ring_dequeu<task_queue_t> m_tasks{ }; // from ctor
+			std::atomic_size_t m_num_threads{ };    // from ctor
+			daw::fixed_array<task_queue_t> m_tasks; // from ctor
 			std::atomic_size_t m_task_count = std::atomic_size_t( 0ULL );
 			std::atomic_size_t m_current_id = std::atomic_size_t( 0ULL );
 			std::atomic_bool m_continue = false;
@@ -160,22 +126,21 @@ namespace daw {
 			class handle_t {
 				std::weak_ptr<task_scheduler_impl> m_handle;
 
-				inline explicit handle_t( ::std::shared_ptr<task_scheduler_impl> &sptr )
-				  : m_handle( sptr ) {}
+				inline explicit handle_t( std::weak_ptr<task_scheduler_impl> wptr )
+				  : m_handle( daw::move( wptr ) ) {}
 
 				friend task_scheduler;
+				friend std::optional<task_scheduler>;
 
 			public:
 				[[nodiscard]] inline bool expired( ) const {
 					return m_handle.expired( );
 				}
 
-				friend std::optional<task_scheduler>;
-
 				[[nodiscard]] inline std::optional<task_scheduler> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
-						return ::std::optional<task_scheduler>( std::in_place,
-						                                        ::daw::move( lck ) );
+						return std::optional<task_scheduler>( std::in_place,
+						                                      daw::move( lck ) );
 					}
 					return { };
 				}
@@ -183,15 +148,59 @@ namespace daw {
 			return handle_t( m_impl );
 		}
 
-		[[nodiscard]] daw::task_t wait_for_task_from_pool( size_t id );
-		[[nodiscard]] daw::task_t
-		wait_for_task_from_pool( size_t id, ::daw::shared_latch sem );
+		[[nodiscard]] std::unique_ptr<daw::task_t>
+		wait_for_task_from_pool( size_t id );
 
-		[[nodiscard]] bool send_task( std::unique_ptr<daw::task_t> tsk, size_t id );
+		[[nodiscard]] std::unique_ptr<daw::task_t>
+		wait_for_task_from_pool( size_t id, daw::shared_latch sem );
+
+		template<typename Predicate,
+		         std::enable_if_t<std::is_invocable_r_v<bool, Predicate>,
+		                          std::nullptr_t> = nullptr>
+		[[nodiscard]] std::unique_ptr<daw::task_t>
+		wait_for_task_from_pool( size_t id, Predicate &&pred ) {
+			if( not pred( ) ) {
+				return nullptr;
+			}
+			std::size_t const sz = std::size( m_impl->m_tasks );
+			std::size_t qid = id % sz;
+			bool const is_tmp_worker = id != qid;
+
+			for( auto m = ( qid + 1 ) % sz; m != qid and pred( );
+			     m = ( m + 1 ) % sz ) {
+
+				if( auto tsk = m_impl->m_tasks[m].try_pop_front( ); tsk ) {
+					if( not pred( ) ) {
+						return nullptr;
+					}
+					return tsk;
+				}
+			}
+			if( is_tmp_worker ) {
+				while( pred( ) ) {
+					if( auto tsk = m_impl->m_tasks[qid].try_pop_front( ); tsk ) {
+						if( not pred( ) ) {
+							return nullptr;
+						}
+						return tsk;
+					}
+					qid = ( qid + 1 ) % sz;
+				}
+				return nullptr;
+			} else {
+				return pop_front( m_impl->m_tasks[qid], DAW_FWD( pred ) );
+			}
+		}
+
+		[[nodiscard]] std::unique_ptr<daw::task_t>
+		wait_for_task_from_pool( size_t id, daw::parallel::stop_token tok );
+
+		[[nodiscard]] bool send_task( std::unique_ptr<daw::task_t> &&tsk,
+		                              size_t id );
 
 		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
 		                                         std::nullptr_t> = nullptr>
-		[[nodiscard]] bool add_task( Task &&task, size_t id ) {
+		[[nodiscard]] inline bool add_task( Task &&task, size_t id ) {
 			return send_task( std::make_unique<daw::task_t>( impl::task_wrapper(
 			                    id, get_handle( ), DAW_FWD( task ) ) ),
 			                  id );
@@ -213,6 +222,7 @@ namespace daw {
 
 		void task_runner( size_t id );
 		void task_runner( size_t id, daw::shared_latch &sem );
+		void task_runner( size_t id, daw::parallel::stop_token token );
 		void run_task( std::unique_ptr<daw::task_t> &&tsk );
 
 		[[nodiscard]] size_t get_task_id( );
@@ -256,7 +266,7 @@ namespace daw {
 		[[nodiscard]] bool started( ) const;
 
 		[[nodiscard]] size_t size( ) const {
-			return m_impl->m_tasks.size( );
+			return std::size( m_impl->m_tasks );
 		}
 
 	private:
@@ -283,7 +293,7 @@ namespace daw {
 			}
 		};
 
-		[[nodiscard]] temp_task_runner start_temp_task_runner( );
+		[[nodiscard]] daw::parallel::ithread start_temp_task_runner( );
 
 		struct empty_task {
 			constexpr void operator( )( ) const noexcept {}
@@ -309,7 +319,7 @@ namespace daw {
 			if( not has_empty_queue( ) ) {
 				add_queue( m_impl->m_num_threads++ );
 			}
-			// auto const tmp_runner = start_temp_task_runner( );
+			auto const tmp_runner = start_temp_task_runner( );
 			return DAW_FWD( func )( );
 		}
 
@@ -378,7 +388,8 @@ namespace daw {
 	/// Run concurrent tasks and return when completed
 	///
 	/// @param tasks callable items of the form void( )
-	/// @returns a semaphore that will stop waiting when all tasks complete
+	/// @returns a semaphore that will request_stop waiting when all tasks
+	/// complete
 	template<typename... Tasks>
 	[[nodiscard]] daw::shared_latch create_task_group( Tasks &&...tasks ) {
 		static_assert( are_tasks_v<Tasks...>,

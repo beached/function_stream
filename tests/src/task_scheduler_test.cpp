@@ -26,13 +26,15 @@
 #include <daw/daw_benchmark.h>
 #include <daw/daw_random.h>
 #include <daw/parallel/daw_locked_stack.h>
-#include <daw/parallel/daw_semaphore.h>
+#include "daw/fs/impl/daw_latch.h"
 
 #include "daw/fs/task_scheduler.h"
 
 using real_t = double;
 
 real_t fib( uintmax_t n ) {
+	return n * n;
+	/*
 	if( n <= 1 ) {
 		return static_cast<real_t>( n );
 	}
@@ -44,6 +46,7 @@ real_t fib( uintmax_t n ) {
 		last = new_last;
 	}
 	return result;
+	 */
 }
 
 void test_task_scheduler( ) {
@@ -64,15 +67,16 @@ void test_task_scheduler( ) {
 	daw::expecting( ts.started( ) );
 	daw::bench_n_test<3>( "parallel", [&]( ) {
 		auto mut = std::mutex{ };
-		auto sem = daw::shared_latch( ITEMS );
+		auto sem = daw::shared_latch( std::size( nums ) );
 		auto results = std::vector<real_t>( );
 		results.reserve( nums.size( ) );
 		for( auto i : nums ) {
-			(void)ts.add_task( [=, &mut]( ) mutable {
-				ts.wait_for_scope( [=, &mut]( ) mutable {
+			(void)ts.add_task( [=, &mut, &results]( ) mutable {
+				ts.wait_for_scope( [=, &mut, &results]( ) mutable {
 					{
-						auto const lck = std::scoped_lock<std::mutex>( mut );
-						results.push_back( fib( i ) );
+						auto result = fib( i );
+						auto const lck = std::unique_lock<std::mutex>( mut );
+						results.push_back( result );
 					}
 					sem.notify( );
 				} );

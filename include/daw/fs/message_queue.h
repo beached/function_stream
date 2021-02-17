@@ -27,6 +27,7 @@
 #include <daw/daw_move.h>
 #include <daw/daw_utility.h>
 
+#include <boost/lockfree/queue.hpp>
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
@@ -64,18 +65,7 @@ namespace daw::parallel {
 	class mpmc_bounded_queue {
 		static_assert( Sz >= 2U, "Queue must be at least 2 large" );
 		static_assert( ( Sz & ( Sz - 1U ) ) == 0, "Queue must be a power of 2" );
-		std::array<std::unique_ptr<T>, Sz> m_data{ };
-		daw::condition_variable m_cond{ };
-		std::size_t m_head = 0;
-		std::size_t m_tail = 0;
-
-		[[nodiscard]] inline bool empty_impl( ) const {
-			return m_head == m_tail;
-		}
-
-		[[nodiscard]] inline bool full_impl( ) const {
-			return ( ( m_head % Sz ) - ( m_tail % Sz ) ) == 1;
-		}
+		boost::lockfree::queue<T *> m_data = boost::lockfree::queue<T *>( Sz );
 
 	public:
 		mpmc_bounded_queue( ) noexcept = default;
@@ -86,81 +76,75 @@ namespace daw::parallel {
 		mpmc_bounded_queue &operator=( mpmc_bounded_queue && ) = delete;
 		~mpmc_bounded_queue( ) = default;
 
-		[[nodiscard]] inline bool empty( ) {
-			auto const lck = m_cond.get_lock( );
-			return empty_impl( );
+		[[nodiscard]] inline bool is_empty( ) const {
+			return m_data.empty( );
 		}
 
 		[[nodiscard]] inline push_back_result
-		try_push_back( std::unique_ptr<T>&& ptr ) {
+		try_push_back( std::unique_ptr<T> &&ptr ) {
 			assert( ptr );
-			auto const lck = m_cond.get_lock( );
-			if( full_impl( ) ) {
+			if( not m_data.push( ptr.get( ) ) ) {
 				return push_back_result::failed;
 			}
-			std::unique_ptr<T> &item = m_data[m_tail++];
-			assert( not item );
-			item.reset( ptr.release( ) );
-			m_cond.notify_all( );
+			(void)ptr.release( );
 			return push_back_result::success;
 		}
 
 		[[nodiscard]] std::unique_ptr<T> try_pop_front( ) {
-			auto const lck = m_cond.get_lock( );
-			if( empty_impl( ) ) {
-				return { };
+			T *result = nullptr;
+			if( not m_data.pop( result ) ) {
+				return nullptr;
 			}
-			std::unique_ptr<T> &item = m_data[m_head++];
-			assert( static_cast<bool>( item ) );
-			m_cond.notify_all( );
-			return daw::move( item );
+			assert( result );
+			return std::unique_ptr<T>( result );
 		}
 
 		template<typename Predicate>
-		[[nodiscard]] std::unique_ptr<T> pop_front( Predicate pred ) {
+		[[nodiscard]] std::unique_ptr<T> pop_front( Predicate &&pred ) {
 			static_assert( std::is_invocable_v<Predicate> );
-			auto const lck =
-			  m_cond.wait( [&, p = daw::mutable_capture( std::move( pred ) )]( ) {
-				  return ( *p )( ) and not empty_impl( );
-			  } );
-			if( empty_impl( ) ) {
-				return { };
+			T *result = nullptr;
+			while( not pred( ) ) {
+				if( not m_data.pop( result ) ) {
+					std::this_thread::yield( );
+					std::this_thread::sleep_for( std::chrono::nanoseconds( 2 ) );
+					result = nullptr;
+					continue;
+				}
+				assert( result );
+				return std::unique_ptr<T>( result );
 			}
-			std::unique_ptr<T> &item = m_data[m_head++];
-			assert( item );
-			m_cond.notify_all( );
-			return std::move( item );
+			return nullptr;
 		}
 
 		template<typename Predicate>
-		[[nodiscard]] push_back_result push_back( std::unique_ptr<T> &&value,
-		                                          Predicate pred ) {
+		[[nodiscard]] push_back_result push_back( std::unique_ptr<T> &&ptr,
+		                                          Predicate &&pred ) {
 			static_assert( std::is_invocable_v<Predicate> );
-			auto const lck = m_cond.wait( [&, p = std::move( pred )]( ) mutable {
-				return p( ) and not full_impl( );
-			} );
-			if( not full_impl( ) ) {
-				return push_back_result::failed;
+			assert( ptr );
+			while( not pred( ) ) {
+				if( not m_data.push( ptr.get( ) ) ) {
+					std::this_thread::yield( );
+					std::this_thread::sleep_for( std::chrono::nanoseconds( 2 ) );
+					continue;
+				}
+				(void)ptr.release( );
+				return push_back_result::success;
 			}
-			std::unique_ptr<T> &item = m_data[m_tail++];
-			assert( not item );
-			item = daw::move( value );
-			m_cond.notify_one( );
-			return push_back_result::success;
+			return push_back_result::failed;
 		}
 	};
 
 	template<typename T, std::size_t Sz, typename Predicate>
 	[[nodiscard]] inline std::unique_ptr<T>
-	pop_front( mpmc_bounded_queue<T, Sz> &q, Predicate can_continue ) {
-		return q.pop_front( daw::move( can_continue ) );
+	pop_front( mpmc_bounded_queue<T, Sz> &q, Predicate &&can_continue ) {
+		return q.pop_front( DAW_FWD( can_continue ) );
 	}
 
 	template<typename T, std::size_t Sz, typename Predicate>
 	[[nodiscard]] inline push_back_result push_back( mpmc_bounded_queue<T, Sz> &q,
-	                                                 std::unique_ptr<T>&& value,
-	                                                 Predicate pred ) {
+	                                                 std::unique_ptr<T> &&value,
+	                                                 Predicate &&pred ) {
 
-		return q.push_back( daw::move( value ), daw::move( pred ) );
+		return q.push_back( daw::move( value ), DAW_FWD( pred ) );
 	}
 } // namespace daw::parallel

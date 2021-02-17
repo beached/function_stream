@@ -39,7 +39,7 @@ namespace daw {
 		std::unique_lock<Mutex> wait( Predicate &&pred ) {
 			auto lock = get_lock( );
 			m_condition.wait( lock, pred );
-			return daw::move( lock );
+			return lock;
 		}
 
 		template<typename Rep, typename Period, typename Predicate>

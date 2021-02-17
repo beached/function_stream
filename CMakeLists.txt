@@ -61,7 +61,7 @@ target_sources(display_info
 
 add_library(task_scheduler)
 add_library(daw::task_scheduler ALIAS task_scheduler)
-target_link_libraries(task_scheduler daw::header_libraries ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(task_scheduler daw::header_libraries atomic_wait::atomic_wait ${CMAKE_THREAD_LIBS_INIT})
 target_compile_features(task_scheduler INTERFACE cxx_std_17)
 target_include_directories(task_scheduler
         PUBLIC

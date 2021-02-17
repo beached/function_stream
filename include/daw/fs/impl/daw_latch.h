@@ -10,13 +10,16 @@
 
 #include "daw_condition_variable.h"
 
+#include <daw/atomic_wait_predicate.h>
 #include <daw/cpp_17.h>
 #include <daw/daw_exception.h>
 #include <daw/daw_move.h>
 
 #include <atomic>
+#include <atomic_wait>
 #include <cassert>
 #include <ciso646>
+#include <condition_variable>
 #include <cstdint>
 #include <memory>
 
@@ -41,255 +44,236 @@ namespace daw {
 	inline constexpr bool is_shared_latch_v =
 	  is_shared_latch<daw::remove_cvref_t<T>>::value;
 
-	template<typename Mutex, typename ConditionVariable>
-	class basic_latch {
-		using cond_t = daw::basic_condition_variable<Mutex, ConditionVariable>;
-
-		mutable cond_t m_condition{ };
-		intmax_t m_count = 1;
-
-		[[nodiscard]] auto stop_waiting( ) const {
-			return [&]( ) -> bool { return static_cast<intmax_t>( m_count ) <= 0; };
-		}
-
-		void decrement( ) {
-			auto const lck = m_condition.get_lock( );
-			--m_count;
-		}
+	class latch {
+		std::atomic<std::ptrdiff_t> m_count{ 1 };
 
 	public:
-		basic_latch( ) = default;
+		inline latch( ) = default;
 
 		template<typename Integer,
 		         std::enable_if_t<std::is_integral_v<daw::remove_cvref_t<Integer>>,
 		                          std::nullptr_t> = nullptr>
-		explicit basic_latch( Integer count ) noexcept(
-		  std::is_nothrow_default_constructible_v<std::atomic_intmax_t>
-		    and std::is_nothrow_default_constructible_v<ConditionVariable> )
-		  : m_count( static_cast<intmax_t>( count ) ) {}
-
-		void reset( ) {
-			auto const lck = m_condition.get_lock( );
-			m_count = 1;
+		inline explicit latch( Integer count )
+		  : m_count( static_cast<std::ptrdiff_t>( count ) ) {
+			assert( count > 0 );
 		}
 
-		template<typename Integer,
-		         std::enable_if_t<std::is_integral_v<daw::remove_cvref_t<Integer>>,
-		                          std::nullptr_t> = nullptr>
-		void reset( Integer count ) {
-			auto const lck = m_condition.get_lock( );
-			m_count = static_cast<intmax_t>( count );
+		inline void reset( ) {
+			m_count.store( 1, std::memory_order_release );
 		}
 
-		void add_notifier( ) {
-			auto const lck = m_condition.get_lock( );
-			++m_count;
+		template<typename Integer, std::enable_if_t<std::is_integral_v<Integer>,
+		                                            std::nullptr_t> = nullptr>
+		inline void reset( Integer count ) {
+			m_count.store( static_cast<std::ptrdiff_t>( count ),
+			               std::memory_order_release );
 		}
 
-		void notify( ) {
-			decrement( );
-			m_condition.notify_all( );
+		inline void add_notifier( ) {
+			(void)m_count.fetch_add( 1, std::memory_order_release );
 		}
 
-		void notify_one( ) {
-			decrement( );
-			m_condition.notify_one( );
-		}
-
-		void wait( ) const {
-			// Try a spin before we use the heavy guns
-			for( size_t n = 0; n < 100; ++n ) {
-				if( try_wait( ) ) {
-					return;
-				}
+		inline void notify( ) {
+			std::ptrdiff_t current =
+			  m_count.fetch_sub( 1, std::memory_order_release );
+			if( current == 0 ) {
+				std::atomic_notify_all( &m_count );
 			}
-			m_condition.wait( stop_waiting( ) );
 		}
 
-		[[nodiscard]] bool try_wait( ) const {
-			auto const lck = m_condition.get_lock( );
-			return stop_waiting( )( );
+		inline void notify_one( ) {
+			std::ptrdiff_t current =
+			  m_count.fetch_sub( 1, std::memory_order_release );
+			if( current == 0 ) {
+				std::atomic_notify_one( &m_count );
+			}
+		}
+
+		inline void wait( ) const {
+			std::ptrdiff_t current = m_count.load( std::memory_order_acquire );
+			while( current != 0 ) {
+				std::atomic_wait_explicit( &m_count, current,
+				                           std::memory_order_relaxed );
+				current = m_count.load( std::memory_order_acquire );
+			}
+		}
+
+		template<typename Predicate>
+		inline void wait( Predicate &&pred ) {
+			std::ptrdiff_t current = m_count.load( std::memory_order_acquire );
+			while( current != 0 and not pred( ) ) {
+				daw::parallel::atomic_wait_pred(
+				  &m_count,
+				  [&]( std::ptrdiff_t value ) { return value == 0 and pred( ); },
+				  std::memory_order_relaxed );
+				current = m_count.load( std::memory_order_acquire );
+			}
+		}
+
+		[[nodiscard]] inline bool try_wait( ) const {
+			std::ptrdiff_t const current = m_count.load( std::memory_order_acquire );
+			assert( current >= 0 );
+			return current == 0;
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] decltype( auto )
-		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
-			return m_condition.wait_for( rel_time, stop_waiting( ) );
+		inline void wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+			return wait_until( std::chrono::steady_clock::now( ) + rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] decltype( auto ) wait_until(
-		  std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
-			return m_condition.wait_until( timeout_time, stop_waiting( ) );
+		inline void
+		wait_until( std::chrono::time_point<Clock, Duration> timeout_time ) const {
+			while( not try_wait( ) and Clock::now( ) < timeout_time ) {
+				daw::parallel::atomic_wait_pred( &m_count,
+				                                 [timeout_time]( std::ptrdiff_t p ) {
+					                                 if( p == 0 ) {
+						                                 return true;
+					                                 }
+					                                 return Clock::now( ) < timeout_time;
+				                                 } );
+			}
 		}
-	}; // basic_latch
+	}; // latch
 
-	template<typename Mutex, typename ConditionVariable>
-	struct is_latch<basic_latch<Mutex, ConditionVariable>> : std::true_type {};
+	template<>
+	struct is_latch<latch> : std::true_type {};
 
-	using latch = basic_latch<std::mutex, std::condition_variable>;
-
-	template<typename Mutex, typename ConditionVariable>
-	class basic_unique_latch {
-		using latch_t = basic_latch<Mutex, ConditionVariable>;
-		std::unique_ptr<latch_t> latch = std::make_unique<latch_t>( );
+	class unique_latch {
+		std::unique_ptr<latch> m_latch = std::make_unique<latch>( );
 
 	public:
-		constexpr basic_unique_latch( ) = default;
+		constexpr unique_latch( ) = default;
 
 		template<typename Integer,
 		         std::enable_if_t<std::is_integral_v<daw::remove_cvref_t<Integer>>,
 		                          std::nullptr_t> = nullptr>
-		explicit basic_unique_latch( Integer count ) noexcept(
-		  std::is_nothrow_default_constructible_v<std::atomic_intmax_t>
-		    and std::is_nothrow_default_constructible_v<ConditionVariable> )
-		  : latch( std::make_unique<latch_t>( count ) ) {}
+		explicit inline unique_latch( Integer count )
+		  : m_latch( std::make_unique<latch>( count ) ) {}
 
 		template<typename Integer,
 		         std::enable_if_t<std::is_integral_v<daw::remove_cvref_t<Integer>>,
 		                          std::nullptr_t> = nullptr>
-		basic_unique_latch( Integer count, bool latched ) noexcept(
-		  std::is_nothrow_default_constructible_v<std::atomic_intmax_t>
-		    and std::is_nothrow_default_constructible_v<ConditionVariable> )
-		  : latch( std::make_unique<latch_t>( count, latched ) ) {}
+		explicit inline unique_latch( Integer count, bool latched )
+		  : m_latch( std::make_unique<latch>( count, latched ) ) {}
 
-		basic_latch<Mutex, ConditionVariable> *release( ) {
-			return latch.release( );
+		inline class latch *release( ) {
+			return m_latch.release( );
 		}
 
-		void add_notifier( ) {
-			assert( latch );
-			latch->add_notifier( );
+		inline void add_notifier( ) {
+			assert( m_latch );
+			m_latch->add_notifier( );
 		}
 
-		void notify( ) {
-			assert( latch );
-			latch->notify( );
+		inline void notify( ) {
+			assert( m_latch );
+			m_latch->notify( );
 		}
 
-		void set_latch( ) {
-			assert( latch );
-			latch->set_latch( );
+		inline void wait( ) const {
+			assert( m_latch );
+			m_latch->wait( );
 		}
 
-		void wait( ) const {
-			assert( latch );
-			latch->wait( );
-		}
-
-		[[nodiscard]] bool try_wait( ) const {
-			assert( latch );
-			return latch->try_wait( );
+		[[nodiscard]] inline bool try_wait( ) const {
+			assert( m_latch );
+			return m_latch->try_wait( );
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] decltype( auto )
+		[[nodiscard]] inline decltype( auto )
 		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
-			assert( latch );
-			return latch->wait_for( rel_time );
+			assert( m_latch );
+			return m_latch->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] decltype( auto ) wait_until(
+		[[nodiscard]] inline decltype( auto ) wait_until(
 		  std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
-			assert( latch );
-			return latch->wait_until( timeout_time );
+			assert( m_latch );
+			return m_latch->wait_until( timeout_time );
 		}
 
-		[[nodiscard]] explicit operator bool( ) const noexcept {
-			return static_cast<bool>( latch );
+		[[nodiscard]] explicit inline operator bool( ) const noexcept {
+			return static_cast<bool>( m_latch );
 		}
-	}; // basic_unique_latch
+	}; // unique_latch
 
-	template<typename Mutex, typename ConditionVariable>
-	struct is_unique_latch<basic_unique_latch<Mutex, ConditionVariable>>
-	  : std::true_type {};
+	template<>
+	struct is_unique_latch<unique_latch> : std::true_type {};
 
-	using unique_latch = basic_unique_latch<std::mutex, std::condition_variable>;
-
-	template<typename Mutex, typename ConditionVariable>
-	class basic_shared_latch {
-		using latch_t = basic_latch<Mutex, ConditionVariable>;
-		std::shared_ptr<latch_t> latch = std::make_shared<latch_t>( );
+	class shared_latch {
+		std::shared_ptr<latch> m_latch = std::make_shared<latch>( );
 
 	public:
-		basic_shared_latch( ) = default;
+		shared_latch( ) = default;
 
 		template<typename Integer,
 		         std::enable_if_t<std::is_integral_v<daw::remove_cvref_t<Integer>>,
 		                          std::nullptr_t> = nullptr>
-		explicit basic_shared_latch( Integer count ) noexcept(
-		  std::is_nothrow_default_constructible_v<std::atomic_intmax_t>
-		    and std::is_nothrow_default_constructible_v<ConditionVariable> )
-		  : latch( std::make_shared<latch_t>( count ) ) {}
+		explicit inline shared_latch( Integer count )
+		  : m_latch( std::make_shared<latch>( count ) ) {}
 
 		template<typename Integer,
 		         std::enable_if_t<std::is_integral_v<daw::remove_cvref_t<Integer>>,
 		                          std::nullptr_t> = nullptr>
-		basic_shared_latch( Integer count, bool latched ) noexcept(
-		  std::is_nothrow_default_constructible_v<std::atomic_intmax_t>
-		    and std::is_nothrow_default_constructible_v<ConditionVariable> )
-		  : latch( std::make_shared<latch_t>( count, latched ) ) {}
+		explicit inline shared_latch( Integer count, bool latched )
+		  : m_latch( std::make_shared<latch>( count, latched ) ) {}
 
-		explicit basic_shared_latch(
-		  basic_unique_latch<Mutex, ConditionVariable> &&other ) noexcept
-		  : latch( other.release( ) ) {}
+		explicit inline shared_latch( unique_latch &&other ) noexcept
+		  : m_latch( other.release( ) ) {}
 
-		void add_notifier( ) {
-			assert( latch );
-			latch->add_notifier( );
+		inline void add_notifier( ) {
+			assert( m_latch );
+			m_latch->add_notifier( );
 		}
 
-		void notify( ) {
-			assert( latch );
-			latch->notify( );
+		inline void notify( ) {
+			assert( m_latch );
+			m_latch->notify( );
 		}
 
-		void set_latch( ) {
-			assert( latch );
-			latch->notify( );
+		inline void set_latch( ) {
+			assert( m_latch );
+			m_latch->notify( );
 		}
 
-		void wait( ) const {
-			assert( latch );
-			latch->wait( );
+		inline void wait( ) const {
+			assert( m_latch );
+			m_latch->wait( );
 		}
 
-		[[nodiscard]] bool try_wait( ) const {
-			assert( latch );
-			return latch->try_wait( );
+		[[nodiscard]] inline bool try_wait( ) const {
+			assert( m_latch );
+			return m_latch->try_wait( );
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] decltype( auto )
+		[[nodiscard]] inline decltype( auto )
 		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
-			assert( latch );
-			return latch->wait_for( rel_time );
+			assert( m_latch );
+			return m_latch->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] decltype( auto ) wait_until(
+		[[nodiscard]] inline decltype( auto ) wait_until(
 		  std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
-			assert( latch );
-			return latch->wait_until( timeout_time );
+			assert( m_latch );
+			return m_latch->wait_until( timeout_time );
 		}
 
-		[[nodiscard]] explicit operator bool( ) const noexcept {
-			return static_cast<bool>( latch );
+		[[nodiscard]] inline explicit operator bool( ) const noexcept {
+			return static_cast<bool>( m_latch );
 		}
-	}; // basic_shared_latch
+	}; // shared_latch
 
-	template<typename Mutex, typename ConditionVariable>
-	struct is_shared_latch<basic_shared_latch<Mutex, ConditionVariable>>
-	  : std::true_type {};
+	template<>
+	struct is_shared_latch<shared_latch> : std::true_type {};
 
-	using shared_latch = basic_shared_latch<std::mutex, std::condition_variable>;
-
-	template<typename Mutex, typename ConditionVariable>
-	void wait_all(
-	  std::initializer_list<basic_latch<Mutex, ConditionVariable>> semaphores ) {
+	inline void wait_all( std::initializer_list<latch> semaphores ) {
 		for( auto &sem : semaphores ) {
-			sem->wait( );
+			sem.wait( );
 		}
 	}
 } // namespace daw

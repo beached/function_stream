@@ -14,9 +14,15 @@ endif( )
 
 include( FetchContent )
 set( FETCHCONTENT_UPDATES_DISCONNECTED ON )
+
 FetchContent_Declare(
 	daw_header_libraries
 	GIT_REPOSITORY https://github.com/beached/header_libraries.git
+)
+
+FetchContent_Declare(
+		atomic_wait
+		GIT_REPOSITORY https://github.com/beached/atomic_wait.git
 )
 
 option( ENABLE_DATE_TESTING "" OFF )
@@ -26,5 +32,5 @@ FetchContent_Declare(
 	GIT_REPOSITORY https://github.com/howardhinnant/date.git
 )
 
-FetchContent_MakeAvailable(daw_header_libraries date)
+FetchContent_MakeAvailable(daw_header_libraries atomic_wait date)
 
