@@ -11,25 +11,27 @@ set(DAW_ENABLE_TESTING OFF)
 
 include(FetchContent)
 
-FetchContent_Declare(
-        daw-header-libraries
-        GIT_REPOSITORY https://github.com/beached/header_libraries.git
-)
+if (NOT TARGET daw::daw-header-libraries)
+    FetchContent_Declare(
+            daw-header-libraries
+            GIT_REPOSITORY https://github.com/beached/header_libraries.git
+    )
+    FetchContent_MakeAvailable(daw-header-libraries)
+endif ()
 
-FetchContent_Declare(
-        daw-synchro
-        GIT_REPOSITORY https://github.com/beached/atomic_wait.git
-)
+if (NOT TARGET daw::daw-synchro)
+    FetchContent_Declare(
+            daw-synchro
+            GIT_REPOSITORY https://github.com/beached/atomic_wait.git
+    )
+    FetchContent_MakeAvailable(daw-synchro)
+endif ()
 
-FetchContent_Declare(
-        daw-parallel
-        GIT_REPOSITORY https://github.com/beached/parallel.git
-        GIT_TAG main
-)
-
-FetchContent_MakeAvailable(
-        daw-header-libraries
-        daw-parallel
-        daw-synchro
-)
-
+if (NOT TARGET daw::daw-parallel)
+    FetchContent_Declare(
+            daw-parallel
+            GIT_REPOSITORY https://github.com/beached/parallel.git
+            GIT_TAG main
+    )
+    FetchContent_MakeAvailable(daw-parallel)
+endif ()

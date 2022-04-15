@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project("function_stream"
-        VERSION "0.1.0"
+        VERSION "0.1.1"
         HOMEPAGE_URL "https://github.com/beached/function_stream"
         LANGUAGES C CXX)
 
