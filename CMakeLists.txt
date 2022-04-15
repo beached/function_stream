@@ -5,7 +5,6 @@ project("function_stream"
         HOMEPAGE_URL "https://github.com/beached/function_stream"
         LANGUAGES C CXX)
 
-set(DAW_TARGET_FUNCTION_STREAM ON CACHE STRING "Flag to indicate that library is included")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ standard whose features are requested.")
 option(DAW_ENABLE_TESTING "Build unit tests" OFF)
 
