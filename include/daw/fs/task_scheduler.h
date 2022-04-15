@@ -23,8 +23,6 @@
 #pragma once
 
 #include "daw/daw_fixed_array.h"
-#include "impl/daw_latch.h"
-#include "impl/ithread.h"
 #include "impl/task.h"
 #include "message_queue.h"
 
@@ -32,6 +30,17 @@
 #include <daw/daw_ring_adaptor.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
+#include <daw/parallel/daw_latch.h>
+
+#if defined( __has_include ) and __has_include( <version> )
+#include <version>
+#endif
+
+#if defined( __cpp_lib_atomic_wait )
+#include <atomic_wait>
+#else
+#include <daw/parallel/ithread.h>
+#endif
 
 #include <deque>
 #include <exception>

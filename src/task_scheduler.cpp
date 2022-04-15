@@ -22,11 +22,10 @@
 
 #include <iostream>
 
-#include <daw/daw_scope_guard.h>
-
-#include "daw/fs/impl/daw_latch.h"
-#include "daw/fs/impl/ithread.h"
 #include "daw/fs/task_scheduler.h"
+
+#include <daw/daw_scope_guard.h>
+#include <daw/parallel/daw_latch.h>
 
 namespace daw {
 	task_scheduler get_task_scheduler( ) {
@@ -267,6 +266,9 @@ namespace daw {
 		m_continue.store( false, std::memory_order_release );
 		try {
 			auto const th_lck = std::lock_guard( m_threads_mutex );
+			for( auto &q : m_tasks ) {
+				q.clear( );
+			}
 			for( auto &th : m_threads ) {
 				try {
 					if( block_on_destruction ) {

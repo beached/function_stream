@@ -22,11 +22,10 @@
 
 #pragma once
 
-#include "daw_latch.h"
-
 #include <daw/daw_enable_if.h>
 #include <daw/daw_move.h>
 #include <daw/daw_traits.h>
+#include <daw/parallel/daw_latch.h>
 
 #include <functional>
 #include <type_traits>

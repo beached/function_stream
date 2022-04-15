@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include "impl/daw_latch.h"
 #include "impl/future_result_impl.h"
 #include "task_scheduler.h"
 
@@ -31,6 +30,7 @@
 #include <daw/daw_expected.h>
 #include <daw/daw_function.h>
 #include <daw/daw_traits.h>
+#include <daw/parallel/daw_latch.h>
 
 #include <chrono>
 #include <list>

@@ -1,32 +1,26 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.20)
 
 project("function_stream"
         VERSION "0.1.0"
         HOMEPAGE_URL "https://github.com/beached/function_stream"
         LANGUAGES C CXX)
 
+set(DAW_TARGET_FUNCTION_STREAM ON CACHE STRING "Flag to indicate that library is included")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ standard whose features are requested.")
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-message("CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}")
-
-add_subdirectory(extern)
 option(DAW_ENABLE_TESTING "Build unit tests" OFF)
 
-find_package(Threads REQUIRED)
+if (NOT DAW_USE_PACKAGE_MANAGEMENT)
+    add_subdirectory(extern)
+else ()
+    find_package(daw-header-libraries REQUIRED)
+endif ()
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+find_package(Threads REQUIRED)
+find_package(date CONFIG REQUIRED)
 
 if (NOT MSVC)
+    # Used for gcc parallel STL
     find_package(TBB)
-    if (TBB_LIBRARIES)
-        message("Found TBB")
-        add_definitions(${TBB_DEFINITIONS} -DHAS_PAR_STL)
-        include_directories(SYSTEM ${TBB_INCLUDE_DIRS})
-        link_libraries(${TBB_LIBRARIES})
-    else ()
-        message("TBB not found")
-    endif ()
 endif ()
 
 include(GNUInstallDirs)
@@ -41,9 +35,9 @@ set(HEADER_FOLDER "include")
 set(SOURCE_FOLDER "src")
 set(TEST_FOLDER "tests")
 
-add_library(display_info)
+add_library(display_info )
 add_library(daw::display_info ALIAS display_info)
-target_link_libraries(display_info daw::header_libraries date::date)
+target_link_libraries(display_info daw::daw-header-libraries date::date)
 target_compile_features(display_info INTERFACE cxx_std_17)
 target_include_directories(display_info
         PUBLIC
@@ -58,10 +52,9 @@ target_sources(display_info
         ${SOURCE_FOLDER}/display_info.cpp
         )
 
-
 add_library(task_scheduler)
 add_library(daw::task_scheduler ALIAS task_scheduler)
-target_link_libraries(task_scheduler daw::header_libraries atomic_wait::atomic_wait ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(task_scheduler daw::daw-header-libraries daw::daw-parallel ${CMAKE_THREAD_LIBS_INIT})
 target_compile_features(task_scheduler INTERFACE cxx_std_17)
 target_include_directories(task_scheduler
         PUBLIC
@@ -78,7 +71,7 @@ target_sources(task_scheduler
 
 add_library(function_stream)
 add_library(daw::function_stream ALIAS function_stream)
-target_link_libraries(function_stream daw::header_libraries daw::task_scheduler ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(function_stream daw::daw-header-libraries daw::daw-parallel ${CMAKE_THREAD_LIBS_INIT})
 target_compile_features(function_stream INTERFACE cxx_std_17)
 target_include_directories(function_stream
         PUBLIC
@@ -97,7 +90,6 @@ target_sources(function_stream
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/algorithms_impl.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/concept_checks.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/dbg_proxy.h
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/ithread.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/function_stream_impl.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/future_result_impl.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/task.h

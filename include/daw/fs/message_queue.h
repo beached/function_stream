@@ -22,10 +22,9 @@
 
 #pragma once
 
-#include "impl/daw_condition_variable.h"
-
 #include <daw/daw_move.h>
 #include <daw/daw_utility.h>
+#include <daw/parallel/daw_condition_variable.h>
 
 #include <boost/lockfree/queue.hpp>
 #include <cstddef>
@@ -33,6 +32,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <thread>
 #include <utility>
 
 namespace daw::parallel {
@@ -66,6 +66,8 @@ namespace daw::parallel {
 		static_assert( Sz >= 2U, "Queue must be at least 2 large" );
 		static_assert( ( Sz & ( Sz - 1U ) ) == 0, "Queue must be a power of 2" );
 		boost::lockfree::queue<T *, boost::lockfree::capacity<Sz>> m_data{ };
+		std::mutex m_mutex{ };
+		std::condition_variable m_cv{ };
 
 	public:
 		mpmc_bounded_queue( ) noexcept = default;
@@ -87,6 +89,7 @@ namespace daw::parallel {
 				return push_back_result::failed;
 			}
 			(void)ptr.release( );
+			m_cv.notify_all( );
 			return push_back_result::success;
 		}
 
@@ -95,7 +98,7 @@ namespace daw::parallel {
 			if( not m_data.pop( result ) ) {
 				return nullptr;
 			}
-			assert( result );
+			m_cv.notify_all( );
 			return std::unique_ptr<T>( result );
 		}
 
@@ -103,17 +106,23 @@ namespace daw::parallel {
 		[[nodiscard]] std::unique_ptr<T> pop_front( Predicate &&can_continue ) {
 			static_assert( std::is_invocable_v<Predicate> );
 			T *result = nullptr;
-			while( can_continue( ) ) {
-				if( not m_data.pop( result ) ) {
-					std::this_thread::yield( );
-					std::this_thread::sleep_for( std::chrono::nanoseconds( 2 ) );
-					result = nullptr;
-					continue;
+			for( int n = 0; n < 16 and can_continue( ); ++n ) {
+				if( m_data.pop( result ) ) {
+					m_cv.notify_all( );
+					return std::unique_ptr<T>( result );
 				}
-				assert( result );
-				return std::unique_ptr<T>( result );
+				std::this_thread::yield( );
 			}
-			return nullptr;
+			{
+				auto lck = std::unique_lock( m_mutex );
+				m_cv.template wait( lck, [&] {
+					return not( can_continue( ) and m_data.pop( result ) );
+				} );
+			}
+			if( result ) {
+				m_cv.notify_all( );
+			}
+			return std::unique_ptr<T>( result );
 		}
 
 		template<typename Predicate>
@@ -121,16 +130,33 @@ namespace daw::parallel {
 		                                          Predicate &&can_continue ) {
 			static_assert( std::is_invocable_v<Predicate> );
 			assert( ptr );
-			while( can_continue( ) ) {
-				if( not m_data.push( ptr.get( ) ) ) {
-					std::this_thread::yield( );
-					std::this_thread::sleep_for( std::chrono::nanoseconds( 2 ) );
-					continue;
+			for( int n = 0; n < 16 and can_continue( ); ++n ) {
+				if( m_data.push( ptr.get( ) ) ) {
+					(void)ptr.release( );
+					m_cv.notify_all( );
+					return push_back_result::success;
 				}
+				std::this_thread::yield( );
+			}
+			bool has_pushed = false;
+			{
+				auto lck = std::unique_lock( m_mutex );
+				m_cv.template wait( lck, [&] {
+					return not( can_continue( ) and
+					            ( has_pushed = m_data.push( ptr.get( ) ) ) );
+				} );
+			}
+			if( has_pushed ) {
+				m_cv.notify_all( );
 				(void)ptr.release( );
 				return push_back_result::success;
 			}
 			return push_back_result::failed;
+		}
+
+		void clear( ) {
+			m_data.template consume_all( []( T *ptr ) { delete ptr; } );
+			m_cv.notify_all( );
 		}
 	};
 
@@ -147,4 +173,5 @@ namespace daw::parallel {
 
 		return q.push_back( daw::move( value ), DAW_FWD( can_continue ) );
 	}
+
 } // namespace daw::parallel

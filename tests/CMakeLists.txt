@@ -3,7 +3,7 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt)
 #
-# Official repository: https://github.com/beached/parse_json
+# Official repository: https://github.com/beached/function_stream
 #
 
 include(cmake/test_compiler_options.cmake)
@@ -17,7 +17,7 @@ add_test(task_scheduler_test task_scheduler_test_bin)
 add_dependencies(full task_scheduler_test_bin)
 
 add_executable(message_queue_test_bin EXCLUDE_FROM_ALL src/message_queue_test.cpp)
-target_link_libraries(message_queue_test_bin daw::header_libraries ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(message_queue_test_bin daw::daw-header-libraries ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(message_queue_test_bin PRIVATE include)
 add_test(message_queue_test message_queue_test_bin)
 add_dependencies(full message_queue_test_bin)

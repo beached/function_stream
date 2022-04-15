@@ -7,30 +7,29 @@
 #
 
 # This prevents tests running on dependencies
-option( DAW_ENABLE_TESTING "Build unit tests" OFF )
-if( DAW_ENABLE_TESTING )
-	set( DAW_ENABLE_TESTING OFF )
-endif( )
+set(DAW_ENABLE_TESTING OFF)
 
-include( FetchContent )
-set( FETCHCONTENT_UPDATES_DISCONNECTED ON )
+include(FetchContent)
 
 FetchContent_Declare(
-	daw_header_libraries
-	GIT_REPOSITORY https://github.com/beached/header_libraries.git
+        daw-header-libraries
+        GIT_REPOSITORY https://github.com/beached/header_libraries.git
 )
 
 FetchContent_Declare(
-		atomic_wait
-		GIT_REPOSITORY https://github.com/beached/atomic_wait.git
+        daw-synchro
+        GIT_REPOSITORY https://github.com/beached/atomic_wait.git
 )
 
-option( ENABLE_DATE_TESTING "" OFF )
-option( USE_SYSTEM_TZ_DB "" ON )
 FetchContent_Declare(
-	date
-	GIT_REPOSITORY https://github.com/howardhinnant/date.git
+        daw-parallel
+        GIT_REPOSITORY https://github.com/beached/parallel.git
+        GIT_TAG main
 )
 
-FetchContent_MakeAvailable(daw_header_libraries atomic_wait date)
+FetchContent_MakeAvailable(
+        daw-header-libraries
+        daw-parallel
+        daw-synchro
+)
 
