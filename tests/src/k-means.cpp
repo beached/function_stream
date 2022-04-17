@@ -57,7 +57,7 @@ void k_means_run( daw::span<T> view, daw::span<size_t> labels,
           if( auto tmp_dist =
                 dist_func( view[range[n]], view[centres[m]] ) < cur_dist ) {
             cur_cent = m;
-            cur_dist = daw::move( tmp_dist );
+            cur_dist = DAW_MOVE( tmp_dist );
           }
         }
         range[n] = m;
@@ -79,7 +79,7 @@ constexpr decltype( auto ) random_value( Iterator first, size_t const &count,
                                          Position const &max_dist ) {
 	auto const range =
 	  ( max_dist - cur_dist ) / static_cast<Position>( N - count );
-	auto const pos = ::daw::randint<Position>( cur_dist, cur_dist + range );
+	auto const pos = daw::randint<Position>( cur_dist, cur_dist + range );
 	std::advance( first, pos );
 	cur_dist += pos;
 	return *first;
@@ -96,8 +96,8 @@ constexpr auto random_values( Iterator first, LastType last,
 template<size_t N, typename Values,
          typename Indices = std::make_index_sequence<N>>
 constexpr auto random_values( Values &&values ) {
-	using ::std::begin;
-	using ::std::end;
+	using std::begin;
+	using std::end;
 	return random_values<N>( begin( values ), end( values ), Indices{} );
 }
 
@@ -116,13 +116,13 @@ auto k_means( Values const &values ) {
 
 int main( int, char ** ) {
 	std::cout << "k-means test\n";
-	auto points = ::std::vector<std::pair<int64_t, int64_t>>( );
+	auto points = std::vector<std::pair<int64_t, int64_t>>( );
 	points.resize( 10'000'000 );
 	for( auto &p : points ) {
-		p.first = ::daw::randint<int64_t>( -100, 100 );
-		p.second = ::daw::randint<int64_t>( -100, 100 );
+		p.first = daw::randint<int64_t>( -100, 100 );
+		p.second = daw::randint<int64_t>( -100, 100 );
 	}
 	auto result = k_means<3>( points );
-	::daw::do_not_optimize( result );
+	daw::do_not_optimize( result );
 	return EXIT_SUCCESS;
 }

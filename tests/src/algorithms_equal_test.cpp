@@ -56,13 +56,13 @@
 
 template<size_t Count>
 void equal_test( size_t SZ ) {
-	auto ts = ::daw::get_task_scheduler( );
+	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 
 	alignas( 128 ) auto const a = [SZ]( ) {
 		alignas( 128 ) auto result =
-		  ::daw::make_random_data<int64_t>( SZ, -50, 50 );
+		  daw::make_random_data<int64_t>( SZ, -50, 50 );
 		result.back( ) = 100;
 		return result;
 	}( );
@@ -74,9 +74,9 @@ void equal_test( size_t SZ ) {
 	}( );
 
 	auto const par_test = [&]( auto const &ary0, auto const &ary1 ) {
-		auto result = ::daw::algorithm::parallel::equal( ary0.begin( ), ary0.end( ),
+		auto result = daw::algorithm::parallel::equal( ary0.begin( ), ary0.end( ),
 		                                                 ary1.begin( ), ary1.end( ),
-		                                                 ::std::equal_to{}, ts );
+		                                                 std::equal_to{}, ts );
 		daw::do_not_optimize( result );
 		return result;
 	};
@@ -84,16 +84,16 @@ void equal_test( size_t SZ ) {
 #ifdef HAS_PAR_STL
 	auto const par_stl_test = []( auto const &ary0, auto const &ary1 ) {
 		auto result =
-		  ::std::equal( ::std::execution::par, ary0.begin( ), ary0.end( ),
-		                ary1.begin( ), ary1.end( ), ::std::equal_to{} );
+		  std::equal( std::execution::par, ary0.begin( ), ary0.end( ),
+		                ary1.begin( ), ary1.end( ), std::equal_to{} );
 		daw::do_not_optimize( result );
 		return result;
 	};
 #endif
 
 	auto const ser_test = []( auto const &ary0, auto const &ary1 ) {
-		auto result = ::std::equal( ary0.begin( ), ary0.end( ), ary1.begin( ),
-		                            ary1.end( ), ::std::equal_to{} );
+		auto result = std::equal( ary0.begin( ), ary0.end( ), ary1.begin( ),
+		                            ary1.end( ), std::equal_to{} );
 		daw::do_not_optimize( result );
 		return result;
 	};
@@ -105,18 +105,18 @@ void equal_test( size_t SZ ) {
 		return *v;
 	};
 
-	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
+	std::cout << daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
+	auto const tseq = daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a, b );
 	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
 	show_times( tseq );
 #ifdef HAS_PAR_STL
-	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
+	auto const tpstl = daw::bench_n_test_mbs2<Count, ','>(
 	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a, b );
 	auto const tpstl_min = *std::min_element( tseq.begin( ), tseq.end( ) );
 	show_times( tpstl );
 #endif
-	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
+	auto const tpar = daw::bench_n_test_mbs2<Count, ','>(
 	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a, b );
 	auto const tpar_min = *std::min_element( tseq.begin( ), tseq.end( ) );
 	show_times( tpar );
@@ -132,12 +132,12 @@ void equal_test( size_t SZ ) {
 
 template<size_t Count>
 void equal_test_str( size_t SZ ) {
-	auto ts = ::daw::get_task_scheduler( );
+	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 
 	alignas( 128 ) auto const a = [SZ]( ) {
-		auto result = ::daw::make_random_data<char, std::string>( SZ, 'a', 'z' );
+		auto result = daw::make_random_data<char, std::string>( SZ, 'a', 'z' );
 		daw::do_not_optimize( result );
 		return result;
 	}( );
@@ -149,9 +149,9 @@ void equal_test_str( size_t SZ ) {
 	}( );
 
 	auto const par_test = [&]( auto const &ary0, auto const &ary1 ) {
-		auto result = ::daw::algorithm::parallel::equal( ary0.begin( ), ary0.end( ),
+		auto result = daw::algorithm::parallel::equal( ary0.begin( ), ary0.end( ),
 		                                                 ary1.begin( ), ary1.end( ),
-		                                                 ::std::equal_to{}, ts );
+		                                                 std::equal_to{}, ts );
 		daw::do_not_optimize( result );
 		return result;
 	};
@@ -159,16 +159,16 @@ void equal_test_str( size_t SZ ) {
 #ifdef HAS_PAR_STL
 	auto const par_stl_test = []( auto const &ary0, auto const &ary1 ) {
 		auto result =
-		  ::std::equal( ::std::execution::par, ary0.begin( ), ary0.end( ),
-		                ary1.begin( ), ary1.end( ), ::std::equal_to{} );
+		  std::equal( std::execution::par, ary0.begin( ), ary0.end( ),
+		                ary1.begin( ), ary1.end( ), std::equal_to{} );
 		daw::do_not_optimize( result );
 		return result;
 	};
 #endif
 
 	auto const ser_test = []( auto const &ary0, auto const &ary1 ) {
-		auto result = ::std::equal( ary0.begin( ), ary0.end( ), ary1.begin( ),
-		                            ary1.end( ), ::std::equal_to{} );
+		auto result = std::equal( ary0.begin( ), ary0.end( ), ary1.begin( ),
+		                            ary1.end( ), std::equal_to{} );
 		daw::do_not_optimize( result );
 		return result;
 	};
@@ -180,18 +180,18 @@ void equal_test_str( size_t SZ ) {
 		return *v;
 	};
 
-	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " ::std::string\n";
-	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
+	std::cout << daw::utility::to_bytes_per_second( SZ ) + " std::string\n";
+	auto const tseq = daw::bench_n_test_mbs2<Count, ','>(
 	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a, b );
 	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
 	show_times( tseq );
 #ifdef HAS_PAR_STL
-	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
+	auto const tpstl = daw::bench_n_test_mbs2<Count, ','>(
 	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a, b );
 	auto const tpstl_min = *std::min_element( tpstl.begin( ), tpstl.end( ) );
 	show_times( tpstl );
 #endif
-	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
+	auto const tpar = daw::bench_n_test_mbs2<Count, ','>(
 	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a, b );
 	auto const tpar_min = *std::min_element( tpar.begin( ), tpar.end( ) );
 	show_times( tpar );
@@ -215,7 +215,7 @@ int main( ) {
 #endif
 
 	std::cout << "equal tests - int64_t - "
-	          << ::std::thread::hardware_concurrency( ) << " threads\n";
+	          << std::thread::hardware_concurrency( ) << " threads\n";
 	for( size_t n = 10240; n <= MAX_ITEMS * 4; n *= 4 ) {
 		equal_test<30>( n );
 		std::cout << '\n';
@@ -223,7 +223,7 @@ int main( ) {
 	equal_test<10>( LARGE_TEST_SZ );
 
 	std::cout << "equal tests - string - "
-	          << ::std::thread::hardware_concurrency( ) << " threads\n";
+	          << std::thread::hardware_concurrency( ) << " threads\n";
 	for( size_t n = 10240; n <= MAX_ITEMS * 4; n *= 4 ) {
 		equal_test_str<30>( n );
 		std::cout << '\n';

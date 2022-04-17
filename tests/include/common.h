@@ -24,6 +24,10 @@
 
 #include "display_info.h"
 
+#include <daw/daw_benchmark.h>
+#include <iostream>
+#include <iterator>
+
 namespace {
 	template<typename Container>
 	[[maybe_unused]] void show_times( Container const &times ) {
@@ -51,21 +55,19 @@ namespace {
 		}
 		std_dev /= static_cast<double>( count );
 		std::cout << "avg= " << daw::utility::format_seconds( avg )
-		          << " std_dev=" << daw::utility::format_seconds( std_dev )
-		          << ' ' << std::setprecision( 2 ) << abs( 100.0 * ( std_dev / avg ) )
-		          << "%\n";
+		          << " std_dev=" << daw::utility::format_seconds( std_dev ) << '\n';
 	}
 
 	// static constexpr size_t const MAX_ITEMS = 134'217'728;
 	// static constexpr size_t const LARGE_TEST_SZ = 268'435'456;
 
-#if false and not defined( DEBUG )
+#if not defined( DEBUG )
 	static constexpr size_t const MAX_ITEMS = 4'194'304;
 	// static constexpr size_t const MAX_ITEMS = 14'217'728;
 	// static constexpr size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 	static constexpr size_t const LARGE_TEST_SZ = 134'217'728;
 #else
-	static constexpr size_t const MAX_ITEMS = 256000;// 4'194'304;
+	static constexpr size_t const MAX_ITEMS = 4'194'304;
 	static constexpr size_t const LARGE_TEST_SZ = 2 * MAX_ITEMS;
 #endif
 

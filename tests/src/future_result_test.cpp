@@ -35,7 +35,8 @@ double fib( double n ) noexcept {
 	}
 	double last = 1;
 	double result = 1;
-	for( uintmax_t m = 2; m < n; ++m ) {
+	auto const n_u64 = static_cast<std::uint64_t>( n );
+	for( std::uint64_t m = 2; m < n_u64; ++m ) {
 		auto tmp = result;
 		result += last;
 		last = tmp;
@@ -48,8 +49,7 @@ void future_result_test_001( ) {
 	double const expected_value =
 	  139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125.0;
 	double const actual_value = f1.get( );
-	daw::expecting(
-	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
+	daw::expecting( daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
 void future_result_test_002( ) {
@@ -57,16 +57,14 @@ void future_result_test_002( ) {
 	auto f2 = f1.next( fib );
 	double const expected_value = 21;
 	double const actual_value = f2.get( );
-	daw::expecting(
-	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
+	daw::expecting( daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
 void future_result_test_003( ) {
 	auto f2 = daw::async( fib, 6 ).next( fib ).next( fib );
 	double const expected_value = 10946;
 	double const actual_value = f2.get( );
-	daw::expecting(
-	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
+	daw::expecting( daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
 void future_result_test_004( ) {
@@ -74,7 +72,7 @@ void future_result_test_004( ) {
 	auto fib2 = [&count]( double d ) {
 		++count;
 		if( d > 200 ) {
-			throw std::exception{};
+			throw std::exception{ };
 		}
 		return fib( d );
 	};
@@ -82,8 +80,7 @@ void future_result_test_004( ) {
 	auto fib4 = fib2;
 	auto fib5 = fib2;
 
-	auto f3 =
-	  daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
+	auto f3 = daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
 
 	daw::expecting( f3.is_exception( ) );
 	daw::expecting( 3, count );
@@ -95,7 +92,7 @@ void future_result_test_005( ) {
 	auto fib2 = [&count]( double d ) {
 		++count;
 		if( d > 200 ) {
-			throw std::exception{};
+			throw std::exception{ };
 		}
 		return fib( d );
 	};
@@ -103,8 +100,7 @@ void future_result_test_005( ) {
 	auto fib4 = fib2;
 	auto fib5 = fib2;
 
-	auto const f4 =
-	  daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
+	auto const f4 = daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
 
 	daw::expecting( f4.is_exception( ) );
 	daw::expecting( 3, count );
@@ -134,34 +130,33 @@ void future_result_test_007( ) {
 }
 
 void future_result_test_008( ) {
-	auto const f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) |
-	                []( ) { return 5; } | []( int i ) {
-		                std::cout << "done " << i << '\n';
-		                return i;
-	                };
+	auto const f5 =
+	  daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) | []( ) { return 5; } | []( int i ) {
+		  std::cout << "done " << i << '\n';
+		  return i;
+	  };
 
 	daw::expecting( 5, f5.get( ) );
 }
 
 void future_result_test_009( ) {
-	auto f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) |
-	          []( ) { return 5; } | []( int i ) {
-		          std::cout << "done " << i << '\n';
-		          return i;
-	          };
+	auto f5 =
+	  daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) | []( ) { return 5; } | []( int i ) {
+		  std::cout << "done " << i << '\n';
+		  return i;
+	  };
 
 	daw::expecting( 5, f5.get( ) );
 }
 
 void future_result_test_010( ) {
-	auto const f5 =
-	  daw::async(
-	    []( int i ) {
-		    std::cout << i << '\n';
-		    return i * 6;
-	    },
-	    6 )
-	    .fork( []( int i ) { return i / 6; }, []( int i ) { return i; } );
+	auto const f5 = daw::async(
+	                  []( int i ) {
+		                  std::cout << i << '\n';
+		                  return i * 6;
+	                  },
+	                  6 )
+	                  .fork( []( int i ) { return i / 6; }, []( int i ) { return i; } );
 
 	std::get<0>( f5 ).wait( );
 	std::get<1>( f5 ).wait( );

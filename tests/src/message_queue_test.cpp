@@ -32,26 +32,27 @@
 
 int main( ) {
 	//	for( size_t j = 0; j < 25U; ++j ) {
-	auto q = ::daw::parallel::spsc_bounded_queue<size_t, 512>( );
+	auto q = daw::parallel::spsc_bounded_queue<size_t, 512>( );
 	std::array<size_t, 100> results{};
 	auto mut_out = std::mutex( );
 
-	auto l = ::daw::latch( 1 );
-	auto l2 = ::daw::latch( 1 );
+	auto l = daw::latch( 1 );
+	auto l2 = daw::latch( 1 );
 
 	auto const producer = [&]( ) {
 		size_t count = 0;
+		(void)count;
 		for( size_t n = 1; n <= 100; ++n ) {
 			auto v = n;
 			auto tmp_n = n;
 			auto r =
-			  push_back( q, ::daw::move( tmp_n ), []( auto &&... ) { return true; } );
+			  push_back( q, DAW_MOVE( tmp_n ), []( auto &&... ) { return true; } );
 			++count;
-			while( r != ::daw::parallel::push_back_result::success ) {
+			while( r != daw::parallel::push_back_result::success ) {
 				++count;
 				n = v;
 				tmp_n = n;
-				r = push_back( q, ::daw::move( tmp_n ),
+				r = push_back( q, DAW_MOVE( tmp_n ),
 				               []( auto &&... ) { return true; } );
 			}
 			l.notify( );
@@ -63,6 +64,7 @@ int main( ) {
 	auto const consumer = [&]( size_t i ) {
 		results[i] = 0;
 		size_t count = 0;
+		(void)count;
 		l.wait( );
 		for( size_t n = 0; n < 100; ++n ) {
 			auto val = q.try_pop_front( );
@@ -74,14 +76,14 @@ int main( ) {
 					val *= 2;
 					{
 						auto const lck = std::lock_guard( mut_out );
-						std::cout << ::std::this_thread::get_id( ) << " -> adding task\n";
+						std::cout << std::this_thread::get_id( ) << " -> adding task\n";
 					}
-					(void)push_back( q, ::daw::move( val ), []( ) { return true; } );
+					(void)push_back( q, DAW_MOVE( val ), []( ) { return true; } );
 				}
 			}
 			{
 				auto const lck = std::lock_guard( mut_out );
-				std::cout << ::std::this_thread::get_id( ) << " -> adding result\n";
+				std::cout << std::this_thread::get_id( ) << " -> adding result\n";
 			}
 			if( not l2.try_wait( ) ) {
 				return;
@@ -90,7 +92,7 @@ int main( ) {
 		}
 	};
 
-	auto t0 = ::std::thread( producer );
+	auto t0 = std::thread( producer );
 	auto consumers = std::vector<std::thread>( );
 	for( size_t n = 0; n < results.size( ); ++n ) {
 		consumers.emplace_back( consumer, n );

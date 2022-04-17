@@ -52,8 +52,7 @@ std::vector<int64_t> const &get_rnd_array( ) {
 }
 
 template<typename Iterator>
-void test_sort( Iterator const first, Iterator const last,
-                daw::string_view label ) {
+void test_sort( Iterator const first, Iterator const last, daw::string_view label ) {
 	if( first == last ) {
 		return;
 	}
@@ -64,12 +63,10 @@ void test_sort( Iterator const first, Iterator const last,
 		if( *it < last_val ) {
 			auto const pos = std::distance( first, it );
 			std::cerr << "Sequence '" << label << "' not sorted at position ("
-			          << std::distance( first, it ) << '/'
-			          << std::distance( first, last ) << ")\n";
+			          << std::distance( first, it ) << '/' << std::distance( first, last ) << ")\n";
 
 			auto start = pos > 10 ? std::next( first, pos - 10 ) : first;
-			auto const end =
-			  std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
+			auto const end = std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
 			if( std::distance( start, end ) > 0 ) {
 				std::cerr << '[' << *start;
 				++start;
@@ -85,52 +82,51 @@ void test_sort( Iterator const first, Iterator const last,
 }
 
 void sort_test( size_t SZ ) {
-	auto ts = ::daw::get_task_scheduler( );
+	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
-	auto const a = std::vector<int64_t>(
-	  get_rnd_array( ).begin( ),
-	  std::next( get_rnd_array( ).begin( ), static_cast<ptrdiff_t>( SZ ) ) );
+	auto const a =
+	  std::vector<int64_t>( get_rnd_array( ).begin( ),
+	                        std::next( get_rnd_array( ).begin( ), static_cast<ptrdiff_t>( SZ ) ) );
 
 	auto const par_test = [&ts]( auto &ary ) {
-		daw::algorithm::parallel::stable_sort(
-		  ary.data( ), ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ), ts );
+		daw::algorithm::parallel::stable_sort( ary.data( ),
+		                                       ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ),
+		                                       ts );
 		daw::do_not_optimize( ary );
 		return &ary;
 	};
 
 #ifdef HAS_PAR_STL
 	auto const par_stl_test = []( auto &ary ) {
-		std::stable_sort( std::execution::par, ary.data( ),
+		std::stable_sort( std::execution::par,
+		                  ary.data( ),
 		                  ary.data( ) + static_cast<ptrdiff_t>( ary.size( ) ) );
 		daw::do_not_optimize( ary );
 		return &ary;
 	};
 #endif
 
-	auto const ser_test = []( auto &ary ) {
+	auto const ser_test = []( auto ary ) {
 		std::stable_sort( ary.begin( ), ary.end( ) );
 		daw::do_not_optimize( ary );
 		return &ary;
 	};
 	static_assert( std::is_const_v<decltype( a )> );
-	auto const vld = []( auto const &v ) {
-		auto tmp = v.get( );
-		return std::is_sorted( tmp->begin( ), tmp->end( ) );
-	};
-	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tseq = ::daw::bench_n_test_mbs2<5, ','>(
-	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
+	auto const vld = []( auto const &v ) { return std::is_sorted( v->begin( ), v->end( ) ); };
+	std::cout << daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
+	auto const tseq =
+	  daw::bench_n_test_mbs2<5, ','>( "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
 	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
 	show_times( tseq );
 #ifdef HAS_PAR_STL
-	auto const tpstl = ::daw::bench_n_test_mbs2<5, ','>(
-	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
+	auto const tpstl =
+	  daw::bench_n_test_mbs2<5, ','>( " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
 	auto const tpstl_min = *std::min_element( tpstl.begin( ), tpstl.end( ) );
 	show_times( tpstl );
 #endif
-	auto const tpar = ::daw::bench_n_test_mbs2<5, ','>(
-	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
+	auto const tpar =
+	  daw::bench_n_test_mbs2<5, ','>( "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
 	auto const tpar_min = *std::min_element( tpar.begin( ), tpar.end( ) );
 	show_times( tpar );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
@@ -151,8 +147,7 @@ int main( ) {
 	std::cout << "Debug build\n";
 	std::cout << GIT_VERSION << '\n';
 #endif
-	std::cout << "sort tests - int64_t - "
-	          << ::std::thread::hardware_concurrency( ) << " threads\n";
+	std::cout << "sort tests - int64_t - " << std::thread::hardware_concurrency( ) << " threads\n";
 	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
 		sort_test( n );
 		std::cout << '\n';

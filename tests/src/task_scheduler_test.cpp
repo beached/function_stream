@@ -26,7 +26,7 @@
 #include <daw/daw_benchmark.h>
 #include <daw/daw_random.h>
 #include <daw/parallel/daw_locked_stack.h>
-#include "daw/fs/impl/daw_latch.h"
+#include <daw/parallel/daw_semaphore.h>
 
 #include "daw/fs/task_scheduler.h"
 
@@ -51,7 +51,7 @@ void test_task_scheduler( ) {
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 
-	auto const nums = [&] {
+	auto const nums = [&]( ) {
 		auto result = std::vector<uintmax_t>( );
 		for( intmax_t n = 0; n < ITEMS; ++n ) {
 			result.push_back( daw::randint<uintmax_t>( 500, 9999 ) );
@@ -59,27 +59,19 @@ void test_task_scheduler( ) {
 		return result;
 	}( );
 
-	auto ts = daw::task_scheduler( ); // get_task_scheduler( );
-	ts.start( );
+	auto ts = daw::get_task_scheduler( );
 	daw::expecting( ts.started( ) );
 	daw::bench_n_test<3>( "parallel", [&]( ) {
-		auto mut = std::mutex{ };
-		auto sem = daw::shared_latch( std::size( nums ) );
-		auto results = std::vector<real_t>( );
-		results.reserve( nums.size( ) );
+		auto results = daw::locked_stack_t<real_t>( );
+		auto sem = daw::latch( ITEMS );
 		for( auto i : nums ) {
-			(void)ts.add_task( [=, &mut, &results]( ) mutable {
-				ts.wait_for_scope( [=, &mut, &results]( ) mutable {
-					{
-						auto result = fib( i );
-						auto const lck = std::unique_lock<std::mutex>( mut );
-						results.push_back( result );
-					}
-					sem.notify( );
-				} );
+			(void)ts.add_task( [&results, &sem, i, &ts]( ) {
+				ts.wait_for_scope( [&]( ) { results.push_back( fib( i ) ); } );
+				sem.notify( );
 			} );
 		}
 		sem.wait( );
+		daw::do_not_optimize( results );
 	} );
 
 	daw::bench_n_test<3>( "sequential", [&]( ) {

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -20,15 +20,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <chrono>
-#include <iostream>
-#include <string>
-#include <utility>
+#include "daw/fs/function_stream.h"
 
 #include <daw/daw_benchmark.h>
 #include <daw/daw_size_literals.h>
 
-#include "daw/fs/function_stream.h"
+#include <chrono>
+#include <iostream>
+#include <string>
+#include <utility>
 
 using namespace daw::size_literals;
 
@@ -43,14 +43,14 @@ void composable_function_stream_test_001( ) {
 
 	auto const sort_values = []( auto values ) {
 		std::sort( values.begin( ), values.end( ) );
-		return daw::move( values );
+		return DAW_MOVE( values );
 	};
 
 	auto const odd_values = []( auto values ) {
-		values.erase( std::remove_if( values.begin( ), values.end( ),
-		                              []( auto const &i ) { return i % 2 == 0; } ),
-		              values.end( ) );
-		return daw::move( values );
+		values.erase(
+		  std::remove_if( values.begin( ), values.end( ), []( auto const &i ) { return i % 2 == 0; } ),
+		  values.end( ) );
+		return DAW_MOVE( values );
 	};
 
 	auto const sum_values = []( auto values ) {
@@ -63,38 +63,36 @@ void composable_function_stream_test_001( ) {
 
 	auto const show_value = []( auto value ) {
 		std::cout << value << '\n';
-		return daw::move( value );
+		return DAW_MOVE( value );
 	};
 
 	auto const values = make_values( 75_MB );
 
 	auto t1 = daw::benchmark( [&]( ) {
-		auto const par_comp = daw::compose_future( ) | sort_values | odd_values |
-		                      sum_values | show_value;
-		wait_for_function_streams( par_comp( values ), par_comp( values ),
-		                           par_comp( values ), par_comp( values ) );
+		auto const par_comp =
+		  daw::compose_future( ) | sort_values | odd_values | sum_values | show_value;
+		wait_for_function_streams( par_comp( values ),
+		                           par_comp( values ),
+		                           par_comp( values ),
+		                           par_comp( values ) );
 	} );
 
-	std::cout << "Parallel stream time " << daw::utility::format_seconds( t1, 2 )
-	          << '\n';
+	std::cout << "Parallel stream time " << daw::utility::format_seconds( t1, 2 ) << '\n';
 
 	auto t2 = daw::benchmark( [&]( ) {
-		auto const seq_comp =
-		  daw::compose( ) | sort_values | odd_values | sum_values | show_value;
+		auto const seq_comp = daw::compose( ) | sort_values | odd_values | sum_values | show_value;
 		daw::do_not_optimize( seq_comp( values ) );
 		daw::do_not_optimize( seq_comp( values ) );
 		daw::do_not_optimize( seq_comp( values ) );
 		daw::do_not_optimize( seq_comp( values ) );
 	} );
 
-	std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 )
-	          << '\n';
+	std::cout << "Sequential time " << daw::utility::format_seconds( t2, 2 ) << '\n';
 	std::cout << "Diff " << ( t2 / t1 ) << '\n';
 
 	constexpr auto const do_nothing = daw::compose( );
 	do_nothing( );
-	auto const func =
-	  daw::compose_future( ) | sort_values | odd_values | sum_values | show_value;
+	auto const func = daw::compose_future( ) | sort_values | odd_values | sum_values | show_value;
 	auto result = func( values );
 	result.wait( );
 }
@@ -118,34 +116,32 @@ struct C {
 };
 
 void composable_function_stream_test_002( ) {
-	constexpr auto fs = daw::compose_future( ) | A{} | B{} | C{};
+	constexpr auto fs = daw::compose_future( ) | A{ } | B{ } | C{ };
 	auto fut = fs( 3 );
 	auto result = fut.get( );
 	std::cout << result << '\n';
 }
 
 void composable_function_stream_test_003( ) {
-	constexpr auto fs = daw::compose_future( ) | A{} | B{} | C{};
-	constexpr auto fs2 = daw::compose_future( ) | A{} | B{} | C{};
+	constexpr auto fs = daw::compose_future( ) | A{ } | B{ } | C{ };
+	constexpr auto fs2 = daw::compose_future( ) | A{ } | B{ } | C{ };
 	constexpr auto fs3 = fs.join( fs2 );
 	auto fut1 = fs( 3 );
 	auto fut2 = fs2( 3 );
 	auto fut3 = fs3( 3 );
 
-	std::cout << fut1.get( ) << ", " << fut2.get( ) << ", " << fut3.get( )
-	          << '\n';
+	std::cout << fut1.get( ) << ", " << fut2.get( ) << ", " << fut3.get( ) << '\n';
 }
 
 void composable_function_stream_test_004( ) {
-	constexpr auto fs = daw::compose_future( ) | A{} | B{} | C{};
-	constexpr auto fs2 = daw::compose_future( ) | A{} | B{} | C{};
-	constexpr auto fs3 = fs | fs2 | A{} | fs;
+	constexpr auto fs = daw::compose_future( ) | A{ } | B{ } | C{ };
+	constexpr auto fs2 = daw::compose_future( ) | A{ } | B{ } | C{ };
+	constexpr auto fs3 = fs | fs2 | A{ } | fs;
 	auto fut1 = fs( 3 );
 	auto fut2 = fs2( 3 );
 	auto fut3 = fs3( 3 );
 
-	std::cout << fut1.get( ) << ", " << fut2.get( ) << ", " << fut3.get( )
-	          << '\n';
+	std::cout << fut1.get( ) << ", " << fut2.get( ) << ", " << fut3.get( ) << '\n';
 }
 
 int main( ) {

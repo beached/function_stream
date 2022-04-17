@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -33,14 +33,15 @@
 using namespace daw::size_literals;
 
 namespace part1 {
-	constexpr double operator"" _R( long double d ) {
+	constexpr double operator""_R( long double d ) {
 		return static_cast<double>( d );
 	}
 
-	constexpr uintmax_t fib( double n ) noexcept {
-		uintmax_t last = 0;
-		uintmax_t result = 1;
-		for( uintmax_t m = 1; m < n; ++m ) {
+	constexpr std::uint64_t fib( std::uint64_t n ) noexcept {
+		std::uint64_t last = 0;
+		std::uint64_t result = 1;
+		auto const n_u64 = static_cast<std::uint64_t>( n );
+		for( std::uint64_t m = 1; m < n_u64; ++m ) {
 			auto new_last = result;
 			result += result + last;
 			last = new_last;
@@ -78,15 +79,14 @@ namespace part1 {
 
 	struct D {
 		std::string operator( )( int ) const {
-			return std::string{"Hello"};
+			return std::string{ "Hello" };
 		}
 	};
 
 	bool function_composer_test( ) {
-		daw::impl::function_composer_t<A, B, D> fc{A{}, B{}, D{}};
-		static_assert(
-		  std::is_same<decltype( fc.apply( 3 ) ), decltype( D{}( 3 ) )>::value,
-		  "function_composer_t is not returning the correct type" );
+		daw::impl::function_composer_t<A, B, D> fc{ A{ }, B{ }, D{} };
+		static_assert( std::is_same<decltype( fc.apply( 3 ) ), decltype( D{ }( 3 ) )>::value,
+		               "function_composer_t is not returning the correct type" );
 		auto const result = fc.apply( 4 );
 		daw::expecting( result == "Hello" );
 		return true;
@@ -100,15 +100,14 @@ namespace part1 {
 	}
 
 	template<typename T, typename... Ts>
-	std::vector<T> create_vector( T &&value, Ts &&... values ) {
-		return std::vector<T>{std::initializer_list<T>{
-		  std::forward<T>( value ), std::forward<Ts>( values )...}};
+	std::vector<T> create_vector( T &&value, Ts &&...values ) {
+		return std::vector<T>{ std::initializer_list<T>{ DAW_FWD( value ), DAW_FWD( values )... } };
 	}
 
 	bool function_stream_test_002( ) {
 		constexpr auto fs2 = daw::make_function_stream( &fib, &fib );
-		auto result = fs2( 3 ).get( );
-		daw::expecting( result, 29 );
+		auto result = fs2( 3U ).get( );
+		daw::expecting( result, 29U );
 
 		auto const fib2 = []( ) { return fib( 10 ); };
 

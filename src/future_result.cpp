@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -22,16 +22,18 @@
 
 #include "daw/fs/future_result.h"
 
+#include <daw/daw_move.h>
+
 namespace daw {
 	namespace impl {
-		future_result_base_t::~future_result_base_t( ) noexcept = default;
+		future_result_base_t::~future_result_base_t( ) = default;
 
 		void member_data_t<void>::set_value(
 		  member_data_t<void>::expected_result_t result ) {
-			m_data->m_result = daw::move( result );
+			m_data->m_result = DAW_MOVE( result );
 
 			if( auto nxt = m_data->m_next.get( ); *nxt ) {
-				pass_next( daw::move( m_data->m_result ) );
+				pass_next( DAW_MOVE( m_data->m_result ) );
 				return;
 			}
 			m_data->status( future_status::ready );
@@ -41,7 +43,7 @@ namespace daw {
 		void member_data_t<void>::set_value( ) {
 			expected_result_t result;
 			result = true;
-			set_value( daw::move( result ) );
+			set_value( DAW_MOVE( result ) );
 		}
 
 		void member_data_t<void>::set_exception( ) {
@@ -49,16 +51,16 @@ namespace daw {
 		}
 
 		void member_data_t<void>::set_exception( std::exception_ptr ptr ) {
-			set_value( expected_result_t{ptr} );
+			set_value( expected_result_t{ ptr } );
 		}
 	} // namespace impl
 
 	future_result_t<void>::future_result_t( task_scheduler ts )
-	  : m_data( daw::move( ts ) ) {}
+	  : m_data( DAW_MOVE( ts ) ) {}
 
 	future_result_t<void>::future_result_t( daw::shared_latch sem,
 	                                        task_scheduler ts )
-	  : m_data( daw::move( sem ), daw::move( ts ) ) {}
+	  : m_data( DAW_MOVE( sem ), DAW_MOVE( ts ) ) {}
 
 	/* TODO: Remove
 std::weak_ptr<future_result_t<void>::m_data_t>

@@ -5,7 +5,7 @@ project("function_stream"
         HOMEPAGE_URL "https://github.com/beached/function_stream"
         LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ standard whose features are requested.")
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "The C++ standard whose features are requested.")
 option(DAW_ENABLE_TESTING "Build unit tests" OFF)
 
 if (NOT DAW_USE_PACKAGE_MANAGEMENT)
@@ -14,13 +14,11 @@ else ()
     find_package(daw-header-libraries REQUIRED)
 endif ()
 
-find_package(Threads REQUIRED)
+set(Boost_NO_WARN_NEW_VERSIONS ON)
+find_package(Boost 1.70 COMPONENTS system REQUIRED)
 find_package(date CONFIG REQUIRED)
+find_package(Threads REQUIRED)
 
-if (NOT MSVC)
-    # Used for gcc parallel STL
-    find_package(TBB)
-endif ()
 
 include(GNUInstallDirs)
 set(function_stream_INSTALL_CMAKEDIR
@@ -34,64 +32,69 @@ set(HEADER_FOLDER "include")
 set(SOURCE_FOLDER "src")
 set(TEST_FOLDER "tests")
 
-add_library(display_info )
-add_library(daw::display_info ALIAS display_info)
-target_link_libraries(display_info daw::daw-header-libraries date::date)
-target_compile_features(display_info INTERFACE cxx_std_17)
-target_include_directories(display_info
+add_library(daw-display-info)
+add_library(daw::daw-display-info ALIAS daw-display-info)
+target_link_libraries(daw-display-info PUBLIC daw::daw-header-libraries date::date)
+target_compile_features(daw-display-info INTERFACE cxx_std_20)
+target_include_directories(daw-display-info
         PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
         )
 
-target_sources(display_info
+target_sources(daw-display-info
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/display_info.h
         PRIVATE
         ${SOURCE_FOLDER}/display_info.cpp
         )
 
-add_library(task_scheduler)
-add_library(daw::task_scheduler ALIAS task_scheduler)
-target_link_libraries(task_scheduler daw::daw-header-libraries daw::daw-parallel ${CMAKE_THREAD_LIBS_INIT})
-target_compile_features(task_scheduler INTERFACE cxx_std_17)
-target_include_directories(task_scheduler
+add_library(daw-task-scheduler)
+add_library(daw::daw-task-scheduler ALIAS daw-task-scheduler)
+target_link_libraries(daw-task-scheduler PUBLIC Boost::system daw::daw-header-libraries daw::daw-parallel ${CMAKE_THREAD_LIBS_INIT})
+target_compile_features(daw-task-scheduler INTERFACE cxx_std_20)
+target_include_directories(daw-task-scheduler
         PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
         )
 
-target_sources(task_scheduler
+target_sources(daw-task-scheduler
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/task_scheduler.h
         PRIVATE
         ${SOURCE_FOLDER}/task_scheduler.cpp
         )
 
-add_library(function_stream)
-add_library(daw::function_stream ALIAS function_stream)
-target_link_libraries(function_stream daw::daw-header-libraries daw::daw-parallel ${CMAKE_THREAD_LIBS_INIT})
-target_compile_features(function_stream INTERFACE cxx_std_17)
-target_include_directories(function_stream
+add_library(daw-function-stream)
+add_library(daw::daw-function-stream ALIAS daw-function-stream)
+target_link_libraries(daw-function-stream PUBLIC
+        ${CMAKE_THREAD_LIBS_INIT}
+        Boost::system
+        daw::daw-header-libraries
+        daw::daw-parallel
+        )
+target_compile_features(daw-function-stream INTERFACE cxx_std_20)
+target_include_directories(daw-function-stream
         PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
         )
 
-target_sources(function_stream
+target_sources(daw-function-stream
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/algorithms.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/function_stream.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/future_result.h
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/package.h
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/message_queue.h
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/task_scheduler.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/algorithms_impl.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/concept_checks.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/dbg_proxy.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/function_stream_impl.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/future_result_impl.h
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/impl/task.h
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/message_queue.h
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/package.h
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/daw/fs/task_scheduler.h
         PRIVATE
         ${SOURCE_FOLDER}/future_result.cpp
         )

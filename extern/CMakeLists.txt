@@ -19,14 +19,6 @@ if (NOT TARGET daw::daw-header-libraries)
     FetchContent_MakeAvailable(daw_header_libraries)
 endif ()
 
-if (NOT TARGET daw::daw-synchro)
-    FetchContent_Declare(
-            daw_synchro
-            GIT_REPOSITORY https://github.com/beached/atomic_wait.git
-    )
-    FetchContent_MakeAvailable(daw_synchro)
-endif ()
-
 if (NOT TARGET daw::daw-parallel)
     FetchContent_Declare(
             daw_parallel

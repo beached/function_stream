@@ -74,14 +74,14 @@ namespace daw::impl {
 	void call( Package &&package ) {
 		if( not get_task_scheduler( ).add_task(
 		      [package =
-		         daw::mutable_capture( std::forward<Package>( package ) )]( ) {
+		         daw::mutable_capture( DAW_FWD( package ) )]( ) {
 			      using which_t = typename impl::which_type_t<
 			        pos, decltype( ( *package )->function_list( ) )>::category;
 
-			      call_task<pos>( daw::move( *package ), which_t{} );
+			      call_task<pos>( DAW_MOVE( *package ), which_t{} );
 		      } ) ) {
 
-			throw ::daw::unable_to_add_task_exception( );
+			throw daw::unable_to_add_task_exception( );
 		}
 	}
 
@@ -94,9 +94,9 @@ namespace daw::impl {
 		auto client_data = package->result( ).lock( );
 		if( client_data ) {
 			client_data->from_code(
-			  [&]( ) { return daw::apply( func, daw::move( package->targs( ) ) ); } );
+			  [&]( ) { return std::apply( func, DAW_MOVE( package->targs( ) ) ); } );
 		} else {
-			(void)daw::apply( func, daw::move( package->targs( ) ) );
+			(void)std::apply( func, DAW_MOVE( package->targs( ) ) );
 		}
 	}
 
@@ -108,7 +108,7 @@ namespace daw::impl {
 		auto func = std::get<pos>( package->function_list( ) );
 		try {
 			call<pos + 1>( package->next_package(
-			  daw::apply( func, daw::move( package->targs( ) ) ) ) );
+			  std::apply( func, DAW_MOVE( package->targs( ) ) ) ) );
 		} catch( ... ) {
 			auto result = package->result( ).lock( );
 			if( result ) {
@@ -125,8 +125,8 @@ namespace daw::impl {
 		  pos == daw::tuple_size_v<std::remove_reference_t<TFunctions>> - 1,
 		  "last_function_tag should only be retuned for last item in tuple" );
 
-		return std::get<pos>( std::forward<TFunctions>( funcs ) )(
-		  std::forward<Args>( args )... );
+		return std::get<pos>( DAW_FWD( funcs ) )(
+		  DAW_FWD( args )... );
 	}
 
 	template<size_t pos, typename TFunctions, typename... Args>
@@ -143,10 +143,10 @@ namespace daw::impl {
 		// arugment the result of the previous function
 
 		return function_composer_impl<pos + 1>(
-		  std::forward<TFunctions>( funcs ), which_t{},
+		  DAW_FWD( funcs ), which_t{},
 
-		  std::get<pos>( std::forward<TFunctions>( funcs ) )(
-		    std::forward<Args>( args )... ) );
+		  std::get<pos>( DAW_FWD( funcs ) )(
+		    DAW_FWD( args )... ) );
 	}
 
 	template<typename... Functions>
@@ -158,13 +158,13 @@ namespace daw::impl {
 		         std::enable_if_t<std::is_constructible_v<tfunction_t, Fs...>,
 		                          std::nullptr_t> = nullptr>
 		constexpr explicit function_composer_t( Fs && ... fs ) noexcept
-		  : funcs( std::forward<Fs>( fs )... ) {}
+		  : funcs( DAW_FWD( fs )... ) {}
 
 	private:
 		template<typename... Fs>
 		[[nodiscard]] static constexpr function_composer_t<Fs...>
 		make_function_composer_t( std::tuple<Fs...> && tpfuncs ) noexcept {
-			return function_composer_t<Fs...>( daw::move( tpfuncs ) );
+			return function_composer_t<Fs...>( DAW_MOVE( tpfuncs ) );
 		}
 
 		template<typename... Fs>
@@ -179,10 +179,10 @@ namespace daw::impl {
 			if constexpr( not is_empty_tuple_v<tfunction_t> ) {
 				using which_t = typename which_type_t<0, tfunction_t>::category;
 				return function_composer_impl<0>( funcs, which_t{},
-				                                  std::forward<Args>( args )... );
+				                                  DAW_FWD( args )... );
 			} else if constexpr( sizeof...( Args ) == 1 ) {
 				return std::get<0>(
-				  std::forward_as_tuple( std::forward<Args>( args )... ) );
+				  std::forward_as_tuple( DAW_FWD( args )... ) );
 			} else if constexpr( sizeof...( Args ) == 0 ) {
 				return;
 			}
@@ -193,11 +193,11 @@ namespace daw::impl {
 		[[nodiscard]] constexpr decltype( auto ) apply( Args && ... args ) && {
 			if constexpr( not is_empty_tuple_v<tfunction_t> ) {
 				using which_t = typename which_type_t<0, tfunction_t>::category;
-				return function_composer_impl<0>( daw::move( funcs ), which_t{},
-				                                  std::forward<Args>( args )... );
+				return function_composer_impl<0>( DAW_MOVE( funcs ), which_t{},
+				                                  DAW_FWD( args )... );
 			} else if constexpr( sizeof...( Args ) == 1 ) {
 				return std::get<0>(
-				  std::forward_as_tuple( std::forward<Args>( args )... ) );
+				  std::forward_as_tuple( DAW_FWD( args )... ) );
 			} else if constexpr( sizeof...( Args ) == 0 ) {
 				return;
 			}
@@ -207,12 +207,12 @@ namespace daw::impl {
 		template<typename... Args>
 		[[nodiscard]] constexpr decltype( auto ) operator( )( Args &&... args )
 		  const & {
-			return apply( std::forward<Args>( args )... );
+			return apply( DAW_FWD( args )... );
 		}
 
 		template<typename... Args>
 		[[nodiscard]] constexpr decltype( auto ) operator( )( Args &&... args ) && {
-			return apply( std::forward<Args>( args )... );
+			return apply( DAW_FWD( args )... );
 		}
 
 		template<typename... NextFunctions>
@@ -220,7 +220,7 @@ namespace daw::impl {
 		  NextFunctions && ... next_functions ) const &noexcept {
 			return make_function_composer_t( std::tuple_cat(
 			  funcs, std::make_tuple( daw::make_callable(
-			           std::forward<NextFunctions>( next_functions ) )... ) ) );
+			           DAW_FWD( next_functions ) )... ) ) );
 		}
 
 		template<typename... NextFunctions>
@@ -228,9 +228,9 @@ namespace daw::impl {
 		                                                 ... next_functions ) &&
 		  noexcept {
 			return make_function_composer_t( std::tuple_cat(
-			  daw::move( funcs ),
+			  DAW_MOVE( funcs ),
 			  std::make_tuple( daw::make_callable(
-			    std::forward<NextFunctions>( next_functions ) )... ) ) );
+			    DAW_FWD( next_functions ) )... ) ) );
 		}
 	};
 
@@ -238,13 +238,13 @@ namespace daw::impl {
 	[[nodiscard]] constexpr decltype( auto )
 	operator|( function_composer_t<Functions...> const &lhs,
 	           NextFunction &&next_func ) noexcept {
-		return lhs.next( std::forward<NextFunction>( next_func ) );
+		return lhs.next( DAW_FWD( next_func ) );
 	}
 
 	template<typename NextFunction, typename... Functions>
 	[[nodiscard]] constexpr decltype( auto )
 	operator|( function_composer_t<Functions...> &&lhs,
 	           NextFunction &&next_func ) noexcept {
-		return daw::move( lhs ).next( std::forward<NextFunction>( next_func ) );
+		return DAW_MOVE( lhs ).next( DAW_FWD( next_func ) );
 	}
 } // namespace daw::impl

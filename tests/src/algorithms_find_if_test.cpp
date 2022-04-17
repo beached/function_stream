@@ -53,22 +53,19 @@ std::vector<int64_t> const &get_rnd_array( ) {
 
 template<size_t Count>
 void find_if_test( size_t SZ ) {
-	auto ts = ::daw::get_task_scheduler( );
+	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	assert( SZ <= LARGE_TEST_SZ );
 	auto const a = [SZ]( ) {
-		auto result = ::daw::make_random_data<int64_t>( SZ, -50, 50 );
+		auto result = daw::make_random_data<int64_t>( SZ, -50, 50 );
 		result.back( ) = 100;
 		return result;
 	}( );
 
-	constexpr auto const pred = []( auto const &value ) noexcept {
-		return value == 100;
-	};
+	constexpr auto const pred = []( auto const &value ) noexcept { return value == 100; };
 
 	auto const par_test = [&]( auto const &ary ) {
-		auto it =
-		  daw::algorithm::parallel::find_if( ary.cbegin( ), ary.cend( ), pred, ts );
+		auto it = daw::algorithm::parallel::find_if( ary.cbegin( ), ary.cend( ), pred, ts );
 		daw::do_not_optimize( it );
 		return it;
 	};
@@ -76,8 +73,7 @@ void find_if_test( size_t SZ ) {
 #ifdef HAS_PAR_STL
 	auto it_std_par = a.end( );
 	auto const par_stl_test = [&pred]( auto const &ary ) {
-		auto it =
-		  std::find_if( std::execution::par, ary.cbegin( ), ary.cend( ), pred );
+		auto it = std::find_if( std::execution::par, ary.cbegin( ), ary.cend( ), pred );
 		daw::do_not_optimize( it );
 		return it;
 	};
@@ -89,26 +85,29 @@ void find_if_test( size_t SZ ) {
 		return it;
 	};
 
-	auto const vld = []( auto const &v ) {
-		if( not v ) {
+	auto const vld = [&a]( auto const &v ) {
+		if( v == a.end( ) ) {
 			return false;
 		}
-		return *( *v ) == 100;
+		return *v == 100;
 	};
 
-	std::cout << ::daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tseq = ::daw::bench_n_test_mbs2<Count, ','>(
-	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
+	std::cout << daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
+	auto const tseq =
+	  daw::bench_n_test_mbs2<Count, ','>( "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a );
 	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
 	show_times( tseq );
 #ifdef HAS_PAR_STL
-	auto const tpstl = ::daw::bench_n_test_mbs2<Count, ','>(
-	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a );
+	auto const tpstl = daw::bench_n_test_mbs2<Count, ','>( " par stl",
+	                                                         sizeof( int64_t ) * SZ,
+	                                                         vld,
+	                                                         par_stl_test,
+	                                                         a );
 	auto const tpstl_min = *std::min_element( tpstl.begin( ), tpstl.end( ) );
 	show_times( tpstl );
 #endif
-	auto const tpar = ::daw::bench_n_test_mbs2<Count, ','>(
-	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
+	auto const tpar =
+	  daw::bench_n_test_mbs2<Count, ','>( "parallel", sizeof( int64_t ) * SZ, vld, par_test, a );
 	auto const tpar_min = *std::min_element( tpar.begin( ), tpar.end( ) );
 	show_times( tpar );
 	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
@@ -129,8 +128,8 @@ int main( ) {
 	std::cout << "Debug build\n";
 	std::cout << GIT_VERSION << '\n';
 #endif
-	std::cout << "find_if tests - int64_t - "
-	          << ::std::thread::hardware_concurrency( ) << " threads\n";
+	std::cout << "find_if tests - int64_t - " << std::thread::hardware_concurrency( )
+	          << " threads\n";
 	for( size_t n = 10240; n <= MAX_ITEMS * 2; n *= 4 ) {
 		find_if_test<30>( n );
 		std::cout << '\n';

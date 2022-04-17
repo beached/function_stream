@@ -1,8 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
   "name": "daw-function-stream",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "dependencies": [
+    "boost",
+    "benchmark",
     "date",
     "tbb"
   ]
