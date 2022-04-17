@@ -37,7 +37,7 @@
 #endif
 
 std::vector<int64_t> const &get_rnd_array( ) {
-	alignas( 128 ) static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
+	static auto const rnd_array = daw::make_random_data<int64_t>( LARGE_TEST_SZ );
 	return rnd_array;
 }
 
@@ -46,37 +46,33 @@ static void bench_daw_par_sort( benchmark::State &s ) {
 	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	auto const &big_vec = get_rnd_array( );
-	alignas( 128 ) auto const a =
-	  std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ );
 	for( auto _ : s ) {
-		[=]( std::vector<int64_t> v ) __attribute__( ( noinline ) ) {
+		[&ts]( std::vector<int64_t> v ) __attribute__( ( noinline ) ) {
 			daw::algorithm::parallel::sort( std::data( v ), daw::data_end( v ), ts );
 			benchmark::ClobberMemory( );
 		}
-		( a );
+		( std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ ) );
 	}
 }
-/*
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 1'024 );
+/*
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 4'096 );
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 16'384 );
-*/
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 65'536 );
-
+*/
+/*
 #if defined( HAS_PAR_STL )
 template<std::ptrdiff_t SZ>
 static void bench_par_stl_sort( benchmark::State &s ) {
 	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	auto const &big_vec = get_rnd_array( );
-	alignas( 128 ) auto const a =
-	  std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ );
 	for( auto _ : s ) {
-		[=]( std::vector<int64_t> v ) __attribute__( ( noinline ) ) {
+		[]( std::vector<int64_t> v ) {
 			std::sort( std::execution::par, std::data( v ), daw::data_end( v ) );
 			benchmark::ClobberMemory( );
 		}
-		( a );
+		( std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ ) );
 	}
 }
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 1'024 );
@@ -84,26 +80,24 @@ BENCHMARK_TEMPLATE( bench_par_stl_sort, 4'096 );
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 16'384 );
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 65'536 );
 #endif
-
+*/
 template<std::ptrdiff_t SZ>
 static void bench_stl_sort( benchmark::State &s ) {
 	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	auto const &big_vec = get_rnd_array( );
-	alignas( 128 ) auto const a =
-	  std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ );
 	for( auto _ : s ) {
-		[=]( std::vector<int64_t> v ) __attribute__( ( noinline ) ) {
+		[]( std::vector<int64_t> v ) __attribute__( ( noinline ) ) {
 			std::sort( std::data( v ), daw::data_end( v ) );
 			benchmark::ClobberMemory( );
 		}
-		( a );
+	  ( std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ ) );
 	}
 }
-/*
 BENCHMARK_TEMPLATE( bench_stl_sort, 1'024 );
+/*
 BENCHMARK_TEMPLATE( bench_stl_sort, 4'096 );
 BENCHMARK_TEMPLATE( bench_stl_sort, 16'384 );
-*/
 BENCHMARK_TEMPLATE( bench_stl_sort, 65'536 );
+*/
 

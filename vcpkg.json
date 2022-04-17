@@ -5,7 +5,6 @@
   "dependencies": [
     "boost",
     "benchmark",
-    "date",
-    "tbb"
+    "date"
   ]
 }
