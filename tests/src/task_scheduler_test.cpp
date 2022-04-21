@@ -32,13 +32,13 @@
 
 using real_t = double;
 
-real_t fib( uintmax_t n ) {
+real_t fib( std::uint64_t n ) {
 	if( n <= 1 ) {
 		return static_cast<real_t>( n );
 	}
 	real_t last = 1;
 	real_t result = 1;
-	for( uintmax_t m = 2; m < n; ++m ) {
+	for( std::uint64_t m = 2; m < n; ++m ) {
 		auto new_last = result;
 		result += last;
 		last = new_last;
@@ -47,14 +47,14 @@ real_t fib( uintmax_t n ) {
 }
 
 void test_task_scheduler( ) {
-	constexpr intmax_t const ITEMS = 100u;
+	constexpr std::int64_t const ITEMS = 100u;
 
 	std::cout << "Using " << std::thread::hardware_concurrency( ) << " threads\n";
 
 	auto const nums = [&]( ) {
-		auto result = std::vector<uintmax_t>( );
-		for( intmax_t n = 0; n < ITEMS; ++n ) {
-			result.push_back( daw::randint<uintmax_t>( 500, 9999 ) );
+		auto result = std::vector<std::uint64_t>( );
+		for( std::int64_t n = 0; n < ITEMS; ++n ) {
+			result.push_back( daw::randint<std::uint64_t>( 500, 9999 ) );
 		}
 		return result;
 	}( );

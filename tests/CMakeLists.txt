@@ -16,7 +16,6 @@ endif ()
 add_custom_target(full)
 
 
-
 add_executable(task_scheduler_test_bin src/task_scheduler_test.cpp)
 target_link_libraries(task_scheduler_test_bin daw::daw-task-scheduler ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(task_scheduler_test_bin PRIVATE include)
@@ -73,7 +72,6 @@ add_dependencies(full algorithms_find_if_test_bin)
 
 add_executable(algorithms_sort_test_bin src/algorithms_sort_test.cpp)
 target_link_libraries(algorithms_sort_test_bin
-        ${CMAKE_THREAD_LIBS_INIT}
         benchmark::benchmark
         benchmark::benchmark_main
         daw::daw-function-stream
@@ -84,9 +82,13 @@ add_test(algorithms_sort_test algorithms_sort_test_bin)
 add_dependencies(full algorithms_sort_test_bin)
 
 add_executable(algorithms_stable_sort_test_bin src/algorithms_stable_sort_test.cpp)
-target_link_libraries(algorithms_stable_sort_test_bin daw::daw-task-scheduler daw::daw-display-info daw::daw-function-stream ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(algorithms_stable_sort_test_bin
+        benchmark::benchmark
+        benchmark::benchmark_main
+        daw::daw-function-stream
+        daw::daw-task-scheduler
+        )
 target_include_directories(algorithms_stable_sort_test_bin PRIVATE include)
-
 add_test(algorithms_stable_sort_test algorithms_stable_sort_test_bin)
 add_dependencies(full algorithms_stable_sort_test_bin)
 
@@ -133,7 +135,12 @@ add_test(algorithms_scan_test algorithms_scan_test_bin)
 add_dependencies(full algorithms_scan_test_bin)
 
 add_executable(algorithms_equal_test_bin src/algorithms_equal_test.cpp)
-target_link_libraries(algorithms_equal_test_bin daw::daw-task-scheduler daw::daw-display-info daw::daw-function-stream ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(algorithms_equal_test_bin
+        benchmark::benchmark
+        benchmark::benchmark_main
+        daw::daw-task-scheduler
+        daw::daw-function-stream
+        )
 target_include_directories(algorithms_equal_test_bin PRIVATE include)
 add_test(algorithms_equal_test algorithms_equal_test_bin)
 add_dependencies(full algorithms_equal_test_bin)

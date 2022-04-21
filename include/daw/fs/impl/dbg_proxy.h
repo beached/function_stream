@@ -34,42 +34,35 @@ namespace daw {
 		Container m_data;
 
 	public:
-		template<
-		  typename... Args,
-		  std::enable_if_t<not daw::traits::is_first_type_v<dbg_proxy, Args...>,
-		                     std::nullptr_t> = nullptr>
-		constexpr dbg_proxy( Args &&... args ) noexcept(
-		  std::is_nothrow_constructible_v<Container, Args...> )
+		template<typename... Args>
+		requires( not daw::traits::is_first_type_v<dbg_proxy, Args...> ) //
+		  constexpr dbg_proxy( Args &&...args ) noexcept(
+		    std::is_nothrow_constructible_v<Container, Args...> )
 		  : m_data( DAW_FWD( args )... ) {
 
 			daw::exception::precondition_check( m_data );
 		}
 
-		explicit constexpr operator bool( ) const
-		  noexcept( noexcept( m_data.operator bool( ) ) ) {
+		explicit constexpr operator bool( ) const noexcept( noexcept( m_data.operator bool( ) ) ) {
 			return static_cast<bool>( m_data );
 		}
 
-		constexpr decltype( auto )
-		operator*( ) noexcept( noexcept( m_data.operator*( ) ) ) {
+		constexpr decltype( auto ) operator*( ) noexcept( noexcept( m_data.operator*( ) ) ) {
 			daw::exception::precondition_check( m_data );
 			return m_data.operator*( );
 		}
 
-		constexpr decltype( auto ) operator*( ) const
-		  noexcept( noexcept( m_data.operator*( ) ) ) {
+		constexpr decltype( auto ) operator*( ) const noexcept( noexcept( m_data.operator*( ) ) ) {
 			daw::exception::precondition_check( m_data );
 			return m_data.operator*( );
 		}
 
-		constexpr decltype( auto )
-		operator-> ( ) noexcept( noexcept( m_data.operator->( ) ) ) {
+		constexpr decltype( auto ) operator->( ) noexcept( noexcept( m_data.operator->( ) ) ) {
 			daw::exception::precondition_check( m_data );
 			return m_data.operator->( );
 		}
 
-		constexpr decltype( auto ) operator-> ( ) const
-		  noexcept( noexcept( m_data.operator->( ) ) ) {
+		constexpr decltype( auto ) operator->( ) const noexcept( noexcept( m_data.operator->( ) ) ) {
 			daw::exception::precondition_check( m_data );
 			return m_data.operator->( );
 		}
@@ -79,14 +72,12 @@ namespace daw {
 			return m_data.get( );
 		}
 
-		constexpr decltype( auto ) get( ) const
-		  noexcept( noexcept( m_data.get( ) ) ) {
+		constexpr decltype( auto ) get( ) const noexcept( noexcept( m_data.get( ) ) ) {
 			daw::exception::precondition_check( m_data );
 			return m_data.get( );
 		}
 
-		constexpr decltype( auto )
-		reset( ) noexcept( noexcept( m_data.reset( ) ) ) {
+		constexpr decltype( auto ) reset( ) noexcept( noexcept( m_data.reset( ) ) ) {
 			return m_data.reset( );
 		}
 	};

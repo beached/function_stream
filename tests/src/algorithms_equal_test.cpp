@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2017-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -20,213 +20,111 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <algorithm>
-#include <chrono>
-#include <cstdint>
-#include <cstdlib>
-#include <date/date.h>
-#include <iostream>
-#include <numeric>
-#include <string>
-#include <thread>
-#include <vector>
-
-#include <daw/daw_benchmark.h>
-#include <daw/daw_math.h>
-#include <daw/daw_random.h>
-#include <daw/daw_string_view.h>
-#include <daw/daw_utility.h>
-
+#include "common.h"
 #include "daw/fs/algorithms.h"
 
-#include "common.h"
+#include <daw/daw_random.h>
+#include <daw/daw_string_view.h>
 
-#if defined( _MSC_VER ) and defined( __cpp_lib_parallel_algorithm )
-#ifndef HAS_PAR_STL
+#include <algorithm>
+#include <benchmark/benchmark.h>
+#include <cstdint>
+#include <vector>
+
+#if defined( __cpp_lib_parallel_algorithm )
 #define HAS_PAR_STL
-#endif
-#endif
-#if not defined( __cpp_lib_parallel_algorithm )
-#undef HAS_PAR_STL
-#endif
-
-#ifdef HAS_PAR_STL
 #include <execution>
 #endif
 
-template<size_t Count>
-void equal_test( size_t SZ ) {
-	auto ts = daw::get_task_scheduler( );
-	ts.start( );
-	assert( SZ <= LARGE_TEST_SZ );
-
-	alignas( 128 ) auto const a = [SZ]( ) {
-		alignas( 128 ) auto result =
-		  daw::make_random_data<int64_t>( SZ, -50, 50 );
+template<std::ptrdiff_t SZ>
+std::tuple<std::vector<int64_t>, std::vector<int64_t>> random_get( ) {
+	static auto const a = [] {
+		auto result = daw::make_random_data<int64_t>( static_cast<std::size_t>( SZ ), -50, 50 );
 		result.back( ) = 100;
 		return result;
 	}( );
 
-	alignas( 128 ) auto const b = [&a]( ) {
+	static auto const b = [] {
 		auto result = a;
-		daw::do_not_optimize( result );
+		benchmark::DoNotOptimize( result );
 		return result;
 	}( );
 
-	auto const par_test = [&]( auto const &ary0, auto const &ary1 ) {
-		auto result = daw::algorithm::parallel::equal( ary0.begin( ), ary0.end( ),
-		                                                 ary1.begin( ), ary1.end( ),
-		                                                 std::equal_to{}, ts );
-		daw::do_not_optimize( result );
-		return result;
-	};
-
-#ifdef HAS_PAR_STL
-	auto const par_stl_test = []( auto const &ary0, auto const &ary1 ) {
-		auto result =
-		  std::equal( std::execution::par, ary0.begin( ), ary0.end( ),
-		                ary1.begin( ), ary1.end( ), std::equal_to{} );
-		daw::do_not_optimize( result );
-		return result;
-	};
-#endif
-
-	auto const ser_test = []( auto const &ary0, auto const &ary1 ) {
-		auto result = std::equal( ary0.begin( ), ary0.end( ), ary1.begin( ),
-		                            ary1.end( ), std::equal_to{} );
-		daw::do_not_optimize( result );
-		return result;
-	};
-
-	auto const vld = []( auto const &v ) {
-		if( not v ) {
-			return false;
-		}
-		return *v;
-	};
-
-	std::cout << daw::utility::to_bytes_per_second( SZ ) + " of int64_t's\n";
-	auto const tseq = daw::bench_n_test_mbs2<Count, ','>(
-	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a, b );
-	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
-	show_times( tseq );
-#ifdef HAS_PAR_STL
-	auto const tpstl = daw::bench_n_test_mbs2<Count, ','>(
-	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a, b );
-	auto const tpstl_min = *std::min_element( tseq.begin( ), tseq.end( ) );
-	show_times( tpstl );
-#endif
-	auto const tpar = daw::bench_n_test_mbs2<Count, ','>(
-	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a, b );
-	auto const tpar_min = *std::min_element( tseq.begin( ), tseq.end( ) );
-	show_times( tpar );
-	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq_min / tpar_min ) << '\n';
-#ifdef HAS_PAR_STL
-	std::cout << "Serial:ParStl perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq_min / tpstl_min ) << '\n';
-	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tpstl_min / tpar_min ) << '\n';
-#endif
+	return { a, b };
 }
 
-template<size_t Count>
-void equal_test_str( size_t SZ ) {
+template<std::ptrdiff_t SZ>
+static void bench_daw_par_equal( benchmark::State &s ) {
+	auto const ary = random_get<SZ>( );
 	auto ts = daw::get_task_scheduler( );
 	ts.start( );
-	assert( SZ <= LARGE_TEST_SZ );
-
-	alignas( 128 ) auto const a = [SZ]( ) {
-		auto result = daw::make_random_data<char, std::string>( SZ, 'a', 'z' );
-		daw::do_not_optimize( result );
-		return result;
-	}( );
-
-	alignas( 128 ) auto const b = [&a]( ) {
-		auto result = a;
-		daw::do_not_optimize( result );
-		return result;
-	}( );
-
-	auto const par_test = [&]( auto const &ary0, auto const &ary1 ) {
-		auto result = daw::algorithm::parallel::equal( ary0.begin( ), ary0.end( ),
-		                                                 ary1.begin( ), ary1.end( ),
-		                                                 std::equal_to{}, ts );
-		daw::do_not_optimize( result );
-		return result;
-	};
-
-#ifdef HAS_PAR_STL
-	auto const par_stl_test = []( auto const &ary0, auto const &ary1 ) {
-		auto result =
-		  std::equal( std::execution::par, ary0.begin( ), ary0.end( ),
-		                ary1.begin( ), ary1.end( ), std::equal_to{} );
-		daw::do_not_optimize( result );
-		return result;
-	};
-#endif
-
-	auto const ser_test = []( auto const &ary0, auto const &ary1 ) {
-		auto result = std::equal( ary0.begin( ), ary0.end( ), ary1.begin( ),
-		                            ary1.end( ), std::equal_to{} );
-		daw::do_not_optimize( result );
-		return result;
-	};
-
-	auto const vld = []( auto const &v ) {
-		if( not v ) {
-			return false;
+	for( auto _ : s ) {
+		[&, &a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) __attribute__( ( noinline ) ) {
+			benchmark::DoNotOptimize( a );
+			benchmark::DoNotOptimize( b );
+			auto result = daw::algorithm::parallel::equal( a.begin( ),
+			                                               a.end( ),
+			                                               b.begin( ),
+			                                               b.end( ),
+			                                               std::equal_to<>{ },
+			                                               ts );
+			benchmark::DoNotOptimize( result );
+			benchmark::ClobberMemory( );
 		}
-		return *v;
-	};
-
-	std::cout << daw::utility::to_bytes_per_second( SZ ) + " std::string\n";
-	auto const tseq = daw::bench_n_test_mbs2<Count, ','>(
-	  "  serial", sizeof( int64_t ) * SZ, vld, ser_test, a, b );
-	auto const tseq_min = *std::min_element( tseq.begin( ), tseq.end( ) );
-	show_times( tseq );
-#ifdef HAS_PAR_STL
-	auto const tpstl = daw::bench_n_test_mbs2<Count, ','>(
-	  " par stl", sizeof( int64_t ) * SZ, vld, par_stl_test, a, b );
-	auto const tpstl_min = *std::min_element( tpstl.begin( ), tpstl.end( ) );
-	show_times( tpstl );
-#endif
-	auto const tpar = daw::bench_n_test_mbs2<Count, ','>(
-	  "parallel", sizeof( int64_t ) * SZ, vld, par_test, a, b );
-	auto const tpar_min = *std::min_element( tpar.begin( ), tpar.end( ) );
-	show_times( tpar );
-	std::cout << "Serial:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq_min / tpar_min ) << '\n';
-#ifdef HAS_PAR_STL
-	std::cout << "Serial:ParStl perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tseq_min / tpstl_min ) << '\n';
-	std::cout << "ParStl:Parallel perf " << std::setprecision( 1 ) << std::fixed
-	          << ( tpstl_min / tpar_min ) << '\n';
-#endif
-}
-
-extern char const *const GIT_VERSION;
-char const *const GIT_VERSION = SOURCE_CONTROL_REVISION;
-
-int main( ) {
-#if not defined( NDEBUG ) or defined( DEBUG )
-	std::cout << "Debug build\n";
-	std::cout << GIT_VERSION << '\n';
-#endif
-
-	std::cout << "equal tests - int64_t - "
-	          << std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 10240; n <= MAX_ITEMS * 4; n *= 4 ) {
-		equal_test<30>( n );
-		std::cout << '\n';
+		( );
 	}
-	equal_test<10>( LARGE_TEST_SZ );
-
-	std::cout << "equal tests - string - "
-	          << std::thread::hardware_concurrency( ) << " threads\n";
-	for( size_t n = 10240; n <= MAX_ITEMS * 4; n *= 4 ) {
-		equal_test_str<30>( n );
-		std::cout << '\n';
-	}
-	equal_test_str<10>( LARGE_TEST_SZ );
 }
+BENCHMARK_TEMPLATE( bench_daw_par_equal, 1'024 );
+BENCHMARK_TEMPLATE( bench_daw_par_equal, 4'096 );
+BENCHMARK_TEMPLATE( bench_daw_par_equal, 16'384 );
+BENCHMARK_TEMPLATE( bench_daw_par_equal, 65'536 );
+BENCHMARK_TEMPLATE( bench_daw_par_equal, 2'097'152 );
+/*
+#if defined( HAS_PAR_STL )
+template<std::ptrdiff_t SZ>
+static void bench_par_stl_equal( benchmark::State &s ) {
+  auto const ary = random_get<SZ>( );
+
+  for( auto _ : s ) {
+    [&a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) __attribute__( ( noinline ) ) {
+      benchmark::DoNotOptimize( a );
+      benchmark::DoNotOptimize( b );
+      std::equal( std::execution::par,
+                  a.begin( ),
+                  a.end( ),
+                  b.begin( ),
+                  b.end( ),
+                  std::equal_to<>{ } );
+      benchmark::DoNotOptimize( result );
+      benchmark::ClobberMemory( );
+    }
+    ( );
+  }
+}
+BENCHMARK_TEMPLATE( bench_par_stl_equal, 1'024 );
+BENCHMARK_TEMPLATE( bench_par_stl_equal, 4'096 );
+BENCHMARK_TEMPLATE( bench_par_stl_equal, 16'384 );
+BENCHMARK_TEMPLATE( bench_par_stl_equal, 65'536 );
+BENCHMARK_TEMPLATE( bench_par_stl_equal, 2'097'152 );
+#endif
+*/
+template<std::ptrdiff_t SZ>
+static void bench_stl_equal( benchmark::State &s ) {
+	auto const ary = random_get<SZ>( );
+	for( auto _ : s ) {
+		[&a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) __attribute__( ( noinline ) ) {
+			benchmark::DoNotOptimize( a );
+			benchmark::DoNotOptimize( b );
+			auto result = std::equal( a.begin( ), a.end( ), b.begin( ), b.end( ), std::equal_to<>{ } );
+			benchmark::DoNotOptimize( result );
+			benchmark::ClobberMemory( );
+		}
+		( );
+	}
+}
+BENCHMARK_TEMPLATE( bench_stl_equal, 1'024 );
+BENCHMARK_TEMPLATE( bench_stl_equal, 4'096 );
+BENCHMARK_TEMPLATE( bench_stl_equal, 16'384 );
+BENCHMARK_TEMPLATE( bench_stl_equal, 65'536 );
+BENCHMARK_TEMPLATE( bench_stl_equal, 2'097'152 );
+

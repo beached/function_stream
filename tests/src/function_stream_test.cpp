@@ -20,15 +20,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <iostream>
-#include <string>
+#include "daw/fs/function_stream.h"
+#include "daw/fs/future_result.h"
 
 #include <daw/daw_benchmark.h>
 #include <daw/daw_random.h>
 #include <daw/daw_size_literals.h>
 
-#include "daw/fs/function_stream.h"
-#include "daw/fs/future_result.h"
+#include <iostream>
+#include <string>
+#include <tuple>
 
 using namespace daw::size_literals;
 

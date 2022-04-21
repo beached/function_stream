@@ -22,26 +22,27 @@
 
 #pragma once
 
-#include <functional>
-#include <type_traits>
+#include "daw_latch.h"
 
 #include <daw/daw_enable_if.h>
 #include <daw/daw_traits.h>
 #include <daw/parallel/daw_atomic_unique_ptr.h>
-#include <daw/parallel/daw_latch.h>
+
+#include <functional>
+#include <type_traits>
 
 namespace daw {
 	class [[nodiscard]] task_t {
 		struct impl_t {
 			std::function<void( )> m_function; // from ctor
 			// shared to interoperate with other parts
-			daw::shared_latch m_latch = daw::shared_latch( );
+			daw::shared_latch m_latch{ 1 };
 
-			explicit impl_t( std::function<void( )> &&func )
-			  : m_function( DAW_MOVE( func ) ) {}
+			explicit impl_t( invocable auto &&func )
+			  : m_function( DAW_FWD( func ) ) {}
 
-			impl_t( std::function<void( )> &&func, daw::shared_latch &&l )
-			  : m_function( DAW_MOVE( func ) )
+			impl_t( invocable auto &&func, daw::shared_latch &&l )
+			  : m_function( DAW_FWD( func ) )
 			  , m_latch( DAW_MOVE( l ) ) {}
 		};
 
@@ -50,47 +51,32 @@ namespace daw {
 	public:
 		task_t( ) = default;
 
-		template<typename Func,
-		         std::enable_if_t<
-		           not std::is_same_v<task_t, daw::remove_cvref_t<Func>>,
-		           std::nullptr_t> = nullptr>
-		explicit task_t( Func && func )
-		  : m_impl( daw::make_atomic_unique_ptr<impl_t>(
-		      std::function<void( )>( DAW_FWD( func ) ) ) ) {
+		template<not_cvref_of<task_t> Func>
+		requires( invocable<Func> ) //
+		  explicit task_t( Func &&func )
+		  : m_impl( daw::make_atomic_unique_ptr<impl_t>( std::function<void( )>( DAW_FWD( func ) ) ) ) {
 
 			assert( m_impl );
-			daw::exception::precondition_check( m_impl->m_function,
-			                                    "Callable must be valid" );
+			daw::exception::precondition_check( m_impl->m_function, "Callable must be valid" );
 		}
 
-		template<typename Func, typename Latch>
-		task_t( Func && func, Latch l )
-		  : m_impl( daw::make_atomic_unique_ptr<impl_t>(
-		      std::function<void( )>( DAW_FWD( func ) ),
-		      daw::is_shared_latch_v<Latch>
-		        ? DAW_MOVE( l )
-		        : daw::shared_latch( DAW_MOVE( l ) ) ) ) {
-
+		explicit task_t( invocable auto &&func, LatchTypes auto &&l )
+		  : m_impl( daw::make_atomic_unique_ptr<impl_t>( DAW_FWD( func ),
+		                                                 daw::shared_latch( DAW_MOVE( l ) ) ) ) {
 			assert( m_impl );
-			static_assert( daw::is_shared_latch_v<Latch> or
-			               daw::is_unique_latch_v<Latch> );
 
-			daw::exception::precondition_check( m_impl->m_function,
-			                                    "Callable must be valid" );
+			daw::exception::precondition_check( m_impl->m_function, "Callable must be valid" );
 		}
 
-		inline void operator( )( ) noexcept( noexcept( m_impl->m_function( ) ) ) {
+		inline void operator( )( ) {
 			assert( m_impl );
-			daw::exception::dbg_precondition_check( m_impl->m_function,
-			                                        "Callable must be valid" );
+			daw::exception::dbg_precondition_check( m_impl->m_function, "Callable must be valid" );
 			m_impl->m_function( );
 		}
 
-		inline void operator( )( )
-		  const noexcept( noexcept( m_impl->m_function( ) ) ) {
+		inline void operator( )( ) const {
 			assert( m_impl );
-			daw::exception::dbg_precondition_check( m_impl->m_function,
-			                                        "Callable must be valid" );
+			daw::exception::dbg_precondition_check( m_impl->m_function, "Callable must be valid" );
 			m_impl->m_function( );
 		}
 

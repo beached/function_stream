@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2017-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -22,26 +22,33 @@
 
 #pragma once
 
+#include <boost/container/devector.hpp>
+#include <condition_variable>
 #include <cstddef>
+#include <deque>
 #include <memory>
 #include <mutex>
-#include <new>
+#include <optional>
 #include <utility>
 
 namespace daw::parallel {
 #ifdef __cpp_lib_thread_hardware_interference_size
-	inline static constepxr size_t cache_line_size =
-	  std::hardware_destructive_interference_size;
+	inline static constepxr size_t cache_line_size = std::hardware_destructive_interference_size;
 #else
 	inline static constexpr size_t cache_line_size = 128U; // safe default
 #endif
 
 	namespace wait_impl {
-		template<typename Waiter, typename Rep, typename Period, typename Predicate,
+		template<typename Waiter,
+		         typename Rep,
+		         typename Period,
+		         typename Predicate,
 		         typename ConditionalChecker>
-		bool wait_for( Waiter &wt, std::unique_lock<std::mutex> &lock,
+		bool wait_for( Waiter &wt,
+		               std::unique_lock<std::mutex> &lock,
 		               std::chrono::duration<Rep, Period> const &timeout,
-		               Predicate pred, ConditionalChecker cond ) {
+		               Predicate pred,
+		               ConditionalChecker cond ) {
 
 			static_assert( std::is_invocable_v<Predicate> );
 			static_assert( std::is_invocable_v<ConditionalChecker> );
@@ -64,17 +71,15 @@ namespace daw::parallel {
 		using value_type = T;
 
 		struct spsc_bounded_queue_impl {
-			[[maybe_unused]] char m_front_padding[cache_line_size];
+			char m_front_padding[cache_line_size];
 			value_type *const m_values;
-			alignas( cache_line_size )std::atomic_size_t m_front;
-			alignas( cache_line_size )std::atomic_size_t m_back;
+			alignas( cache_line_size ) std::atomic_size_t m_front;
+			alignas( cache_line_size ) std::atomic_size_t m_back;
 
-			[[maybe_unused]] char
-			  m_back_padding[cache_line_size - sizeof( std::atomic_size_t )];
+			char m_back_padding[cache_line_size - sizeof( std::atomic_size_t )];
 
 			spsc_bounded_queue_impl( ) noexcept
-			  : m_values( static_cast<value_type *>(
-			      std::malloc( sizeof( value_type ) * Sz ) ) )
+			  : m_values( static_cast<value_type *>( std::malloc( sizeof( value_type ) * Sz ) ) )
 			  , m_front( 0 )
 			  , m_back( 0 ) {
 
@@ -96,11 +101,9 @@ namespace daw::parallel {
 			}
 
 			spsc_bounded_queue_impl( spsc_bounded_queue_impl const & ) = delete;
-			spsc_bounded_queue_impl &
-			operator=( spsc_bounded_queue_impl const & ) = delete;
+			spsc_bounded_queue_impl &operator=( spsc_bounded_queue_impl const & ) = delete;
 			spsc_bounded_queue_impl( spsc_bounded_queue_impl && ) noexcept = delete;
-			spsc_bounded_queue_impl &
-			operator=( spsc_bounded_queue_impl && ) noexcept = delete;
+			spsc_bounded_queue_impl &operator=( spsc_bounded_queue_impl && ) noexcept = delete;
 		};
 
 		spsc_bounded_queue_impl m_impl = spsc_bounded_queue_impl( );
@@ -109,7 +112,7 @@ namespace daw::parallel {
 			static_assert( std::is_nothrow_move_constructible_v<value_type> );
 			assert( id < Sz );
 			if constexpr( std::is_aggregate_v<value_type> ) {
-				new( &m_impl.m_values[id] ) value_type{DAW_MOVE( value )};
+				new( &m_impl.m_values[id] ) value_type{ DAW_MOVE( value ) };
 			} else {
 				new( &m_impl.m_values[id] ) value_type( DAW_MOVE( value ) );
 			}
@@ -125,20 +128,19 @@ namespace daw::parallel {
 
 		/*
 		[[nodiscard]] bool full( ) const noexcept {
-			auto next_record = m_impl.m_back.load( std::memory_order_acquire ) + 1U;
-			if( next_record >= Sz ) {
-				next_record = 0;
-			}
+		  auto next_record = m_impl.m_back.load( std::memory_order_acquire ) + 1U;
+		  if( next_record >= Sz ) {
+		    next_record = 0;
+		  }
 
-			return next_record == m_impl.m_front.load( std::memory_order_acquire );
+		  return next_record == m_impl.m_front.load( std::memory_order_acquire );
 		}*/
 
 		[[nodiscard]] T try_pop_front( ) noexcept {
-			auto const current_front =
-			  m_impl.m_front.load( std::memory_order_relaxed );
+			auto const current_front = m_impl.m_front.load( std::memory_order_relaxed );
 			if( current_front == m_impl.m_back.load( std::memory_order_acquire ) ) {
 				// queue is empty
-				return {};
+				return { };
 			}
 
 			auto next_front = current_front + 1U;
@@ -152,10 +154,8 @@ namespace daw::parallel {
 			return result;
 		}
 
-		[[nodiscard]] push_back_result
-		try_push_back( value_type &&value ) noexcept {
-			auto const current_back =
-			  m_impl.m_back.load( std::memory_order_relaxed );
+		[[nodiscard]] push_back_result try_push_back( value_type &&value ) noexcept {
+			auto const current_back = m_impl.m_back.load( std::memory_order_relaxed );
 			auto next_back = current_back + 1U;
 			if( next_back >= Sz ) {
 				next_back = 0;
@@ -169,28 +169,11 @@ namespace daw::parallel {
 		}
 	};
 
-	template<typename T, size_t Sz>
+	template<typename T>
 	class mpmc_bounded_queue {
-		static_assert( Sz >= 2U, "Queue must be a power of 2 at least 2 large" );
-		static_assert( ( Sz & ( Sz - 1U ) ) == 0,
-		               "Queue must be a power of 2 at least 2 large" );
-		struct cell_t {
-			std::atomic_size_t m_sequence;
-			T m_data;
-		};
-
-		using cacheline_pad_t = char[cache_line_size];
-		using cacheline_pad_end_t =
-		  char[cache_line_size - sizeof( std::atomic_size_t )];
-
-		[[maybe_unused]] alignas( cache_line_size ) cacheline_pad_t m_padding0;
-		alignas( cache_line_size ) cell_t *const m_buffer = new cell_t[Sz]( );
-		size_t const m_buffer_mask = Sz - 1U;
-		[[maybe_unused]] cacheline_pad_t m_padding1;
-		alignas( cache_line_size ) std::atomic_size_t m_enqueue_pos = 0;
-		[[maybe_unused]] cacheline_pad_end_t m_padding2;
-		alignas( cache_line_size ) std::atomic_size_t m_dequeue_pos = 0;
-		[[maybe_unused]] cacheline_pad_end_t m_padding3;
+		mutable std::mutex m_mut{ };
+		std::condition_variable m_cv{ };
+		boost::container::devector<T> m_queue{ };
 
 	public:
 		mpmc_bounded_queue( mpmc_bounded_queue && ) = delete;
@@ -199,82 +182,66 @@ namespace daw::parallel {
 		mpmc_bounded_queue &operator=( mpmc_bounded_queue const & ) = delete;
 
 		mpmc_bounded_queue( ) {
-			assert( m_buffer );
-			for( size_t idx = 0; idx < Sz; ++idx ) {
-				m_buffer[idx].m_sequence.store( idx, std::memory_order_relaxed );
-			}
+			static constexpr auto def_cap = 4096 / sizeof( T ) > 128U ? 4096U / sizeof( T ) : 128U;
+			m_queue.reserve( def_cap );
 		}
 
-		[[nodiscard]] bool empty( ) const noexcept {
-			return m_enqueue_pos.load( std::memory_order_acquire ) ==
-			       m_dequeue_pos.load( std::memory_order_acquire );
-		}
+		~mpmc_bounded_queue( ) {}
 
-		~mpmc_bounded_queue( ) {
-			delete[] m_buffer;
-		}
-
-		push_back_result try_push_back( T &&data ) {
-			if( not m_buffer ) {
-				return {};
+		[[nodiscard]] push_back_result try_push_back( T &&data ) {
+			auto lck = std::unique_lock( m_mut, std::try_to_lock );
+			if( not lck ) {
+				return push_back_result::failed;
 			}
-			cell_t *cell = nullptr;
-			auto pos = m_enqueue_pos.load( std::memory_order_relaxed );
-			while( true ) {
-				auto const idx = pos & m_buffer_mask;
-				assert( idx < Sz );
-				cell = &m_buffer[idx];
-
-				auto const seq = cell->m_sequence.load( std::memory_order_acquire );
-				auto const dif =
-				  static_cast<intptr_t>( seq ) - static_cast<intptr_t>( pos );
-				if( dif == 0 ) {
-					if( m_enqueue_pos.compare_exchange_weak(
-					      pos, pos + 1, std::memory_order_relaxed ) ) {
-						break;
-					}
-				} else if( dif < 0 ) {
-					return push_back_result::failed;
-				} else {
-					pos = m_enqueue_pos.load( std::memory_order_relaxed );
-				}
-			}
-			assert( cell );
-			cell->m_data = DAW_MOVE( data );
-			cell->m_sequence.store( pos + 1, std::memory_order_release );
+			m_queue.push_back( DAW_MOVE( data ) );
+			m_cv.notify_one( );
 			return push_back_result::success;
 		}
 
-		T try_pop_front( ) {
-			if( not m_buffer ) {
-				return {};
-			}
-			cell_t *cell = nullptr;
-			auto pos = m_dequeue_pos.load( std::memory_order_relaxed );
-			while( true ) {
-				auto const idx = pos & m_buffer_mask;
-				assert( idx < Sz );
-				cell = &m_buffer[idx];
-				auto const seq = cell->m_sequence.load( std::memory_order_acquire );
+		void push_back( T &&data ) {
+			auto lck = std::unique_lock( m_mut );
+			m_queue.push_back( DAW_MOVE( data ) );
+			m_cv.notify_one( );
+		}
 
-				auto const dif =
-				  static_cast<intmax_t>( seq ) - static_cast<intmax_t>( pos + 1 );
-				if( dif == 0 ) {
-					if( m_dequeue_pos.compare_exchange_weak(
-					      pos, pos + 1, std::memory_order_relaxed ) ) {
-						break;
-					}
-				} else if( dif < 0 ) {
-					return {};
-				} else {
-					pos = m_dequeue_pos.load( std::memory_order_relaxed );
-				}
+		[[nodiscard]] std::optional<T> try_pop_front( ) {
+			auto lck = std::unique_lock( m_mut, std::try_to_lock );
+			if( not lck or m_queue.empty( ) ) {
+				return { };
 			}
-			assert( cell );
-			auto result = DAW_MOVE( cell->m_data );
-			cell->m_sequence.store( pos + m_buffer_mask + 1U,
-			                        std::memory_order_release );
+			auto result = DAW_MOVE( m_queue.front( ) );
+			m_queue.pop_front( );
 			return result;
+		}
+
+		[[nodiscard]] bool try_pop_front( T &value ) {
+			auto lck = std::unique_lock( m_mut, std::try_to_lock );
+			if( not lck or m_queue.empty( ) ) {
+				return false;
+			}
+			value = DAW_MOVE( m_queue.front( ) );
+			m_queue.pop_front( );
+			return true;
+		}
+
+		void pop_front( T &value ) {
+			auto lck = std::unique_lock( m_mut );
+			m_cv.wait( lck, [&] { return not m_queue.empty( ); } );
+			value = DAW_MOVE( m_queue.front( ) );
+			m_queue.pop_front( );
+		}
+
+		[[nodiscard]] std::optional<T> pop_front( ) {
+			auto lck = std::unique_lock( m_mut );
+			m_cv.wait( lck, [&] { return not m_queue.empty( ); } );
+			auto result = std::optional<T>( DAW_MOVE( m_queue.front( ) ) );
+			m_queue.pop_front( );
+			return result;
+		}
+
+		[[nodiscard]] bool empty( ) const {
+			auto lck = std::unique_lock( m_mut );
+			return m_queue.empty( );
 		}
 	};
 
@@ -289,8 +256,7 @@ namespace daw::parallel {
 	}
 
 	template<typename Queue, typename Predicate, typename Duration>
-	[[nodiscard]] auto pop_front( Queue &q, Predicate can_continue,
-	                              Duration timeout ) noexcept {
+	[[nodiscard]] auto pop_front( Queue &q, Predicate can_continue, Duration timeout ) noexcept {
 		static_assert( std::is_invocable_v<Predicate> );
 		auto result = q.try_pop_front( );
 		if( result ) {
@@ -306,8 +272,7 @@ namespace daw::parallel {
 	}
 
 	template<typename Queue, typename T, typename Predicate>
-	[[nodiscard]] push_back_result push_back( Queue &q, T &&value,
-	                                          Predicate &&pred ) noexcept {
+	[[nodiscard]] push_back_result push_back( Queue &q, T &&value, Predicate &&pred ) noexcept {
 		auto result = q.try_push_back( DAW_MOVE( value ) );
 		while( result == push_back_result::failed and pred( ) ) {
 			result = q.try_push_back( DAW_MOVE( value ) );

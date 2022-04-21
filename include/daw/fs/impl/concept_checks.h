@@ -28,9 +28,10 @@
 
 namespace daw::concept_checks {
 	template<typename BinaryPredicate, typename Iterator1, typename Iterator2>
-	inline constexpr bool is_binary_predicate_v = traits::is_binary_predicate<
-	  BinaryPredicate, typename std::iterator_traits<Iterator1>::value_type,
-	  typename std::iterator_traits<Iterator2>::value_type>;
+	inline constexpr bool is_binary_predicate_v =
+	  traits::is_binary_predicate<BinaryPredicate,
+	                              typename std::iterator_traits<Iterator1>::value_type,
+	                              typename std::iterator_traits<Iterator2>::value_type>;
 
 	template<typename BinaryPredicate, typename Iterator1, typename Iterator2>
 	constexpr bool is_binary_predicate_test( ) noexcept {
@@ -42,8 +43,9 @@ namespace daw::concept_checks {
 	}
 
 	template<typename UnaryPredicate, typename Iterator1>
-	inline constexpr bool is_unary_predicate_v = traits::is_unary_predicate_v<
-	  UnaryPredicate, typename std::iterator_traits<Iterator1>::value_type>;
+	inline constexpr bool is_unary_predicate_v =
+	  traits::is_unary_predicate_v<UnaryPredicate,
+	                               typename std::iterator_traits<Iterator1>::value_type>;
 
 	template<typename UnaryPredicate, typename Iterator1>
 	constexpr bool is_unary_predicate_test( ) noexcept {
@@ -56,9 +58,8 @@ namespace daw::concept_checks {
 
 	template<typename Iterator1, typename Iterator2>
 	inline constexpr bool is_equality_comparable_v =
-	  traits::is_equality_comparable_v<
-	    typename std::iterator_traits<Iterator1>::value_type,
-	    typename std::iterator_traits<Iterator2>::value_type>;
+	  traits::is_equality_comparable_v<typename std::iterator_traits<Iterator1>::value_type,
+	                                   typename std::iterator_traits<Iterator2>::value_type>;
 
 	template<typename Iterator1, typename Iterator2>
 	constexpr bool is_equality_comparable_test( ) noexcept {
@@ -77,6 +78,8 @@ namespace daw::concept_checks {
 	  std::is_invocable_v<Operator, value_of_deref_t<Iterators>...>;
 
 	template<typename Operator, typename... Iterators>
-	using is_callable_t =
-	  traits::is_callable_t<Operator, value_of_deref_t<Iterators>...>;
+	using is_callable_t = traits::is_callable_t<Operator, value_of_deref_t<Iterators>...>;
+
+	template<typename T>
+	concept Function = std::is_function_v<T>;
 } // namespace daw::concept_checks

@@ -22,13 +22,14 @@
 
 #pragma once
 
+#include "daw_fs_concepts.h"
+#include "impl/daw_latch.h"
 #include "impl/ithread.h"
 #include "impl/task.h"
 #include "message_queue.h"
 
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
-#include <daw/parallel/daw_latch.h>
 #include <daw/parallel/daw_locked_value.h>
 
 #include <atomic>
@@ -54,10 +55,10 @@ namespace daw {
 			mutable Handle wself;
 			mutable Task task;
 
-			constexpr task_wrapper( size_t Id, Handle const &hnd, Task const &tsk )
+			constexpr task_wrapper( size_t Id, Handle const &hnd, Task &&tsk )
 			  : id( Id )
 			  , wself( hnd )
-			  , task( tsk ) {}
+			  , task( DAW_MOVE( tsk ) ) {}
 
 			constexpr void operator( )( ) const {
 				if( auto self = wself.lock( ); self ) {
@@ -71,15 +72,8 @@ namespace daw {
 		task_wrapper( size_t, Handle, Task ) -> task_wrapper<Handle, Task>;
 	} // namespace impl
 
-	template<typename... Tasks>
-	constexpr bool are_tasks_v = daw::all_true_v<std::is_invocable_v<Tasks>...>;
-
-	template<typename Waitable>
-	using is_waitable_detector = decltype( std::declval<Waitable &>( ).wait( ) );
-
-	template<typename Waitable>
-	constexpr bool is_waitable_v =
-	  daw::is_detected_v<is_waitable_detector, std::remove_reference_t<Waitable>>;
+	template<typename... T>
+	concept Tasks = ( invocable<T> and ... );
 
 	struct unable_to_add_task_exception : std::exception {
 		unable_to_add_task_exception( ) = default;
@@ -88,15 +82,13 @@ namespace daw {
 	};
 
 	class task_scheduler {
-		using task_queue_t = daw::parallel::mpmc_bounded_queue<daw::task_t, 512>;
+		using task_queue_t = daw::parallel::mpmc_bounded_queue<daw::task_t>;
 
 		class task_scheduler_impl {
 			daw::lockable_value_t<std::list<daw::parallel::ithread>> m_threads =
 			  daw::lockable_value_t<std::list<daw::parallel::ithread>>( );
-			daw::lockable_value_t<
-			  std::unordered_map<daw::parallel::ithread::id, size_t>>
-			  m_thread_map = daw::lockable_value_t<
-			    std::unordered_map<daw::parallel::ithread::id, size_t>>( );
+			daw::lockable_value_t<std::unordered_map<daw::parallel::ithread::id, size_t>> m_thread_map =
+			  daw::lockable_value_t<std::unordered_map<daw::parallel::ithread::id, size_t>>( );
 			std::atomic_size_t m_num_threads; // from ctor
 			std::deque<task_queue_t> m_tasks; // from ctor
 			// std::vector<task_queue_t> m_tasks; // from ctor
@@ -122,9 +114,9 @@ namespace daw {
 			~task_scheduler_impl( );
 		};
 
-		inline static std::shared_ptr<task_scheduler_impl> make_ts(
-		  size_t num_threads = daw::parallel::ithread::hardware_concurrency( ),
-		  bool block_on_destruction = true ) {
+		inline static std::shared_ptr<task_scheduler_impl>
+		make_ts( size_t num_threads = daw::parallel::ithread::hardware_concurrency( ),
+		         bool block_on_destruction = true ) {
 
 			auto ptr = new task_scheduler_impl( num_threads, block_on_destruction );
 			assert( ptr->m_tasks.size( ) == num_threads );
@@ -150,8 +142,7 @@ namespace daw {
 				friend std::optional<task_scheduler>;
 				[[nodiscard]] inline std::optional<task_scheduler> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
-						return std::optional<task_scheduler>( std::in_place,
-						                                      DAW_MOVE( lck ) );
+						return std::optional<task_scheduler>( std::in_place, DAW_MOVE( lck ) );
 					}
 					return { };
 				}
@@ -161,30 +152,22 @@ namespace daw {
 		}
 
 		[[nodiscard]] daw::task_t wait_for_task_from_pool( size_t id );
-		[[nodiscard]] daw::task_t wait_for_task_from_pool( size_t id,
-		                                                   daw::shared_latch sem );
+		[[nodiscard]] daw::task_t wait_for_task_from_pool( size_t id, daw::shared_latch sem );
 
 		[[nodiscard]] bool send_task( daw::task_t &&tsk, size_t id );
 
-		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
-		                                         std::nullptr_t> = nullptr>
-		[[nodiscard]] bool add_task( Task &&task, size_t id ) {
-			return send_task( daw::task_t( impl::task_wrapper(
-			                    id, get_handle( ), DAW_FWD( task ) ) ),
+		[[nodiscard]] bool add_task( invocable auto &&task, size_t id ) {
+			return send_task( daw::task_t( impl::task_wrapper( id, get_handle( ), DAW_FWD( task ) ) ),
 			                  id );
 		}
 
 		template<typename, typename>
 		friend struct daw::impl::task_wrapper;
 
-		template<typename Task>
-		[[nodiscard]] bool add_task( Task &&task, daw::shared_latch sem,
-		                             size_t id ) {
+		[[nodiscard]] bool add_task( invocable auto &&task, daw::shared_latch sem, size_t id ) {
 
 			return send_task(
-			  daw::task_t(
-			    impl::task_wrapper( id, get_handle( ), DAW_FWD( task ) ),
-			    DAW_MOVE( sem ) ),
+			  daw::task_t( impl::task_wrapper( id, get_handle( ), DAW_FWD( task ) ), DAW_MOVE( sem ) ),
 			  id );
 		}
 
@@ -195,35 +178,25 @@ namespace daw {
 		[[nodiscard]] size_t get_task_id( );
 
 	public:
-		inline explicit task_scheduler(
-		  std::shared_ptr<task_scheduler_impl> &&sptr )
+		inline explicit task_scheduler( std::shared_ptr<task_scheduler_impl> &&sptr )
 		  : m_impl( DAW_MOVE( sptr ) ) {
 
 			assert( m_impl );
 		}
 
 		task_scheduler( );
-		explicit task_scheduler( std::size_t num_threads,
-		                         bool block_on_destruction = true );
+		explicit task_scheduler( std::size_t num_threads, bool block_on_destruction = true );
 
-		template<typename Task, std::enable_if_t<std::is_invocable_v<Task>,
-		                                         std::nullptr_t> = nullptr>
-		[[nodiscard]] bool add_task( Task &&task ) {
-			static_assert(
-			  std::is_invocable_v<Task>,
-			  "Task must be callable without arguments (e.g. task( );)" );
-
+		[[nodiscard]] bool add_task( invocable auto &&task ) {
 			return add_task( DAW_FWD( task ), get_task_id( ) );
 		}
 
 		template<typename Task>
 		[[nodiscard]] bool add_task( Task &&task, daw::shared_latch sem ) {
-			static_assert(
-			  std::is_invocable_v<Task>,
-			  "Task must be callable without arguments (e.g. task( );)" );
+			static_assert( std::is_invocable_v<Task>,
+			               "Task must be callable without arguments (e.g. task( );)" );
 
-			return add_task( DAW_FWD( task ), DAW_MOVE( sem ),
-			                 get_task_id( ) );
+			return add_task( DAW_FWD( task ), DAW_MOVE( sem ), get_task_id( ) );
 		}
 
 		[[nodiscard]] bool run_next_task( size_t id );
@@ -242,8 +215,7 @@ namespace daw {
 			daw::parallel::ithread th;
 			daw::shared_latch sem;
 
-			temp_task_runner( daw::parallel::ithread &&t,
-			                  daw::shared_latch s ) noexcept
+			temp_task_runner( daw::parallel::ithread &&t, daw::shared_latch s ) noexcept
 			  : th( DAW_MOVE( t ) )
 			  , sem( DAW_MOVE( s ) ) {
 
@@ -267,13 +239,11 @@ namespace daw {
 		};
 
 	public:
-		[[nodiscard]] inline decltype( auto )
-		add_task( daw::shared_latch &&sem ) noexcept {
+		[[nodiscard]] inline decltype( auto ) add_task( daw::shared_latch &&sem ) noexcept {
 			return add_task( empty_task( ), DAW_MOVE( sem ) );
 		}
 
-		[[nodiscard]] inline decltype( auto )
-		add_task( daw::shared_latch const &sem ) noexcept {
+		[[nodiscard]] inline decltype( auto ) add_task( daw::shared_latch const &sem ) noexcept {
 			return add_task( empty_task( ), sem );
 		}
 
@@ -283,13 +253,7 @@ namespace daw {
 		void add_queue( size_t n );
 
 	public:
-		template<typename Function>
-		[[nodiscard]] auto wait_for_scope( Function &&func )
-		  -> decltype( DAW_FWD( func )( ) ) {
-			static_assert( std::is_invocable_v<Function>,
-			               "Function passed to wait_for_scope must be callable "
-			               "without an arugment. e.g. func( )" );
-
+		[[nodiscard]] auto wait_for_scope( invocable auto &&func ) -> decltype( DAW_FWD( func )( ) ) {
 			if( not has_empty_queue( ) ) {
 				add_queue( m_impl->m_num_threads++ );
 			}
@@ -297,12 +261,8 @@ namespace daw {
 			return DAW_FWD( func )( );
 		}
 
-		template<typename Waitable>
+		template<Waitable Waitable>
 		void wait_for( Waitable &&waitable ) {
-			static_assert(
-			  is_waitable_v<Waitable>,
-			  "Waitable must have a wait( ) member. e.g. waitable.wait( )" );
-
 			struct wait_for_scope_helper {
 				mutable std::remove_reference_t<Waitable> w;
 
@@ -310,8 +270,7 @@ namespace daw {
 					w.wait( );
 				}
 			};
-			wait_for_scope(
-			  wait_for_scope_helper{ DAW_FWD( waitable ) } );
+			wait_for_scope( wait_for_scope_helper{ DAW_FWD( waitable ) } );
 		}
 
 		[[nodiscard]] explicit operator bool( ) const noexcept {
@@ -329,14 +288,12 @@ namespace daw {
 	/// @param ts task_scheduler to add task to
 	template<typename Task>
 	[[nodiscard]] bool
-	schedule_task( daw::shared_latch sem, Task &&task,
-	               task_scheduler ts = get_task_scheduler( ) ) {
+	schedule_task( daw::shared_latch sem, Task &&task, task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( std::is_invocable_v<Task>,
 		               "Task task passed to schedule_task must be callable without "
 		               "an arugment. e.g. task( )" );
 
-		return ts.add_task( [task =
-		                       daw::mutable_capture( DAW_FWD( task ) ),
+		return ts.add_task( [task = daw::mutable_capture( DAW_FWD( task ) ),
 		                     sem = daw::mutable_capture( DAW_MOVE( sem ) )]( ) {
 			auto const at_exit = daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
 			DAW_MOVE ( *task )( );
@@ -345,8 +302,7 @@ namespace daw {
 
 	template<typename Task>
 	[[nodiscard]] daw::shared_latch
-	create_waitable_task( Task &&task,
-	                      task_scheduler ts = get_task_scheduler( ) ) {
+	create_waitable_task( Task &&task, task_scheduler ts = get_task_scheduler( ) ) {
 		static_assert( std::is_invocable_v<Task>,
 		               "Task task passed to create_waitable_task must be callable "
 		               "without an arugment. "
@@ -365,17 +321,12 @@ namespace daw {
 	///
 	/// @param tasks callable items of the form void( )
 	/// @returns a semaphore that will stop waiting when all tasks complete
-	template<typename... Tasks>
-	[[nodiscard]] daw::shared_latch create_task_group( Tasks &&...tasks ) {
-		static_assert( are_tasks_v<Tasks...>,
-		               "Tasks passed to create_task_group must be callable without "
-		               "an arugment. e.g. task( )" );
+	[[nodiscard]] daw::shared_latch create_task_group( Tasks auto &&...tasks ) {
 		auto ts = get_task_scheduler( );
 		auto sem = daw::shared_latch( sizeof...( tasks ) );
 
 		auto const st = [&]( auto &&task ) {
-			if( not schedule_task( sem, std::forward<decltype( task )>( task ),
-			                       ts ) ) {
+			if( not schedule_task( sem, std::forward<decltype( task )>( task ), ts ) ) {
 				// TODO, I don't like this but I don't want to change the return value
 				// to express that we failed to add the task... yet
 				sem.notify( );
@@ -396,20 +347,12 @@ namespace daw {
 		ts.wait_for( create_task_group( DAW_FWD( tasks )... ) );
 	}
 
-	template<typename... Tasks>
-	void invoke_tasks( Tasks &&...tasks ) {
-		static_assert( are_tasks_v<Tasks...>,
-		               "Tasks passed to invoke_tasks must be callable without an "
-		               "arugment. e.g. task( )" );
+	void invoke_tasks( Tasks auto &&...tasks ) {
 		invoke_tasks( get_task_scheduler( ), DAW_FWD( tasks )... );
 	}
 
-	template<typename Function>
-	[[nodiscard]] decltype( auto )
-	wait_for_scope( Function &&func, task_scheduler ts = get_task_scheduler( ) ) {
-		static_assert( std::is_invocable_v<Function>,
-		               "Function passed to wait_for_scope must be callable without "
-		               "an arugment. e.g. func( )" );
+	[[nodiscard]] decltype( auto ) wait_for_scope( invocable auto &&func,
+	                                               task_scheduler ts = get_task_scheduler( ) ) {
 		return ts.wait_for_scope( DAW_FWD( func ) );
 	}
 } // namespace daw

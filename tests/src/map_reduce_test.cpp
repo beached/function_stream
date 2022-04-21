@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2017-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -20,6 +20,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "daw/fs/algorithms.h"
+#include "daw/fs/function_stream.h"
+#include "daw/fs/message_queue.h"
+
+#include <daw/daw_benchmark.h>
+#include <daw/daw_memory_mapped_file.h>
+#include <daw/daw_string_view.h>
+#include <daw/parallel/daw_semaphore.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
@@ -28,31 +37,19 @@
 #include <string>
 #include <vector>
 
-#include <daw/daw_benchmark.h>
-#include <daw/daw_memory_mapped_file.h>
-#include <daw/daw_span.h>
-#include <daw/daw_string_view.h>
-#include <daw/parallel/daw_semaphore.h>
-
-#include "daw/fs/algorithms.h"
-#include "daw/fs/function_stream.h"
-#include "daw/fs/message_queue.h"
-
 template<size_t max_find, typename Function>
 constexpr void find_commas( daw::string_view line, Function on_commas ) {
-	std::array<size_t, max_find> result{};
+	auto result = std::array<size_t, max_find>{ };
 	bool in_quote = false;
-	size_t count = 0;
-	for( auto it = line.cbegin( ); it != line.cend( ) && count <= max_find;
-	     ++it ) {
+	std::size_t count = 0;
+	for( auto it = line.cbegin( ); it != line.cend( ) and count <= max_find; ++it ) {
 		switch( *it ) {
 		case '"':
-			in_quote = !in_quote;
+			in_quote = not in_quote;
 			break;
 		case ',':
-			if( !in_quote ) {
-				result[count++] =
-				  static_cast<size_t>( std::distance( line.cbegin( ), it ) );
+			if( not in_quote ) {
+				result[count++] = static_cast<size_t>( std::distance( line.cbegin( ), it ) );
 			}
 			break;
 		default:
@@ -64,14 +61,14 @@ constexpr void find_commas( daw::string_view line, Function on_commas ) {
 	}
 }
 
-template<typename T, typename Emitter>
-constexpr void find_newlines( daw::span<T> str, Emitter emitter ) {
+template<typename Emitter>
+constexpr void find_newlines( daw::string_view str, Emitter emitter ) {
 	auto const last = str.cend( );
 	auto last_pos = str.cbegin( );
 	str.remove_prefix( );
-	while( !str.empty( ) ) {
+	while( not str.empty( ) ) {
 		if( str.front( ) == '\n' ) {
-			emitter( daw::make_string_view_it( last_pos, str.cbegin( ) ) );
+			emitter( daw::string_view( last_pos, str.cbegin( ) ) );
 			str.remove_prefix( );
 			last_pos = str.data( );
 			continue;
@@ -79,7 +76,7 @@ constexpr void find_newlines( daw::span<T> str, Emitter emitter ) {
 		str.remove_prefix( );
 	}
 	if( last_pos < last ) {
-		emitter( daw::make_string_view_it( last_pos, last ) );
+		emitter( daw::string_view( last_pos, last ) );
 	}
 }
 
@@ -89,14 +86,13 @@ constexpr bool is_number( Char c ) noexcept {
 }
 
 template<typename CharT>
-constexpr intmax_t to_number( CharT val ) noexcept {
+constexpr std::int64_t to_number( CharT val ) noexcept {
 	return val - '0';
 }
 
 template<typename Function>
 constexpr void parse_int( daw::string_view str, Function on_number ) {
-	while( !str.empty( ) &&
-	       !( is_number( str.front( ) ) || str.front( ) == '-' ) ) {
+	while( not str.empty( ) and not( is_number( str.front( ) ) or str.front( ) == '-' ) ) {
 		str.remove_prefix( );
 	}
 	if( str.empty( ) ) {
@@ -106,14 +102,14 @@ constexpr void parse_int( daw::string_view str, Function on_number ) {
 	if( is_negative ) {
 		str.remove_prefix( );
 	}
-	if( str.empty( ) || !is_number( str.front( ) ) ) {
+	if( str.empty( ) or not is_number( str.front( ) ) ) {
 		return;
 	}
-	intmax_t result = to_number( str.pop_front( ) );
-	while( !str.empty( ) && is_number( str.front( ) ) ) {
+	std::int64_t result = to_number( str.pop_front( ) );
+	while( not str.empty( ) and is_number( str.front( ) ) ) {
 		result *= 10;
 		result += to_number( str.pop_front( ) );
-		if( !str.empty( ) && str.front( ) == ',' ) {
+		if( not str.empty( ) and str.front( ) == ',' ) {
 			str.remove_prefix( );
 		}
 	}
@@ -132,49 +128,39 @@ inline void parse_line( daw::string_view line, Function value_cb ) {
 }
 
 template<typename Range>
-daw::future_result_t<intmax_t> parse_file( Range str, daw::task_scheduler ts ) {
-	daw::parallel::spsc_msg_queue_t<daw::string_view> str_lines_result{
-	  daw::parallel::use_autosize{}};
+daw::future_result_t<std::int64_t> parse_file( Range str, daw::task_scheduler ts ) {
+	auto str_lines_result = daw::parallel::mpmc_bounded_queue<daw::string_view>{ };
 
-	ts.add_task( [str = DAW_MOVE( str ), str_lines_result]( ) mutable {
-		auto const at_exit = daw::on_scope_exit(
-		  [str_lines_result]( ) mutable { str_lines_result.notify_completed( ); } );
-
-		find_newlines( str, [str_lines_result = DAW_MOVE( str_lines_result )](
-		                      daw::string_view line ) mutable {
-			while( !str_lines_result.send( line ) ) {
-				using namespace std::chrono_literals;
-				std::this_thread::sleep_for( 1ns );
+	(void)ts.add_task( [&, str = DAW_MOVE( str )]( ) {
+		find_newlines( str, [&]( daw::string_view line ) mutable {
+			while( str_lines_result.try_push_back( DAW_MOVE( line ) ) !=
+			       daw::parallel::push_back_result::success ) {
+				std::this_thread::yield( );
 			}
 		} );
 	} );
 
-	daw::parallel::spsc_msg_queue_t<intmax_t> parsed_lines_result{
-	  daw::parallel::use_autosize{}};
+	auto parsed_lines_result = daw::parallel::mpmc_bounded_queue<std::int64_t>{ };
 
-	ts.add_task( [str_lines_result, parsed_lines_result]( ) mutable {
-		auto const at_exit = daw::on_scope_exit( [parsed_lines_result]( ) mutable {
-			parsed_lines_result.notify_completed( );
-		} );
-		while( str_lines_result.has_more( ) ) {
-			daw::string_view cur_line;
-			while( !str_lines_result.receive( cur_line ) ) {
-				using namespace std::chrono_literals;
-				std::this_thread::sleep_for( 1ns );
+	(void)ts.add_task( [&] {
+		while( not str_lines_result.empty( ) ) {
+			auto cur_line = str_lines_result.try_pop_front( );
+			while( not cur_line ) {
+				std::this_thread::yield( );
+				cur_line = str_lines_result.try_pop_front( );
 			}
-			parse_line( cur_line, [&parsed_lines_result]( intmax_t v ) {
-				parsed_lines_result.send( v );
+			parse_line( *cur_line, [&parsed_lines_result]( std::int64_t v ) {
+				parsed_lines_result.push_back( DAW_MOVE( v ) );
 			} );
 		}
 	} );
 
-	auto result = daw::make_future_result( [parsed_lines_result]( ) mutable {
-		intmax_t cur_min = std::numeric_limits<intmax_t>::max( );
-		intmax_t cur_value = std::numeric_limits<intmax_t>::max( );
-		while( parsed_lines_result.has_more( ) ) {
-			while( !parsed_lines_result.receive( cur_value ) ) {
-				using namespace std::chrono_literals;
-				std::this_thread::sleep_for( 1ns );
+	auto result = daw::make_future_result( [&parsed_lines_result]( ) {
+		std::int64_t cur_min = std::numeric_limits<std::int64_t>::max( );
+		std::int64_t cur_value = std::numeric_limits<std::int64_t>::max( );
+		while( not parsed_lines_result.empty( ) ) {
+			while( not parsed_lines_result.try_pop_front( cur_value ) ) {
+				std::this_thread::yield( );
 			}
 			cur_min = std::min( cur_min, cur_value );
 		}
@@ -190,43 +176,35 @@ int main( int argc, char **argv ) {
 		exit( EXIT_FAILURE );
 	}
 
-	daw::filesystem::memory_mapped_file_t<char> mmf{argv[1]};
-	daw::exception::daw_throw_on_false( mmf,
-	                                    "Could not open input file for reading" );
+	daw::filesystem::memory_mapped_file_t<char> mmf{ argv[1] };
+	daw::exception::daw_throw_on_false( mmf, "Could not open input file for reading" );
 
 	auto time1 = std::numeric_limits<double>::max( );
 	auto time2 = std::numeric_limits<double>::max( );
 	auto const sz = mmf.size( );
 	{
-		auto view = daw::span( mmf.data( ), sz );
+		auto view = daw::string_view( mmf.data( ), sz );
 		auto result = parse_file( view, daw::get_task_scheduler( ) );
 		time1 = daw::benchmark( [&result]( ) { result.wait( ); } );
 
 		std::cout << "File test\n";
-		std::cout << "Processed " << daw::utility::to_bytes_per_second( sz )
-		          << " bytes in " << daw::utility::format_seconds( time1, 3 )
-		          << " seconds\n";
-		std::cout << "Speed " << daw::utility::to_bytes_per_second( sz, time1 )
-		          << "/s\n";
+		std::cout << "Processed " << daw::utility::to_bytes_per_second( sz ) << " bytes in "
+		          << daw::utility::format_seconds( time1, 3 ) << " seconds\n";
+		std::cout << "Speed " << daw::utility::to_bytes_per_second( sz, time1 ) << "/s\n";
 		std::cout << "Minimum surplus is ";
 		std::cout << result.get( ) << '\n';
 	}
 
 	{
-		std::vector<char> mem_data;
-		mem_data.reserve( sz );
-		std::copy( mmf.cbegin( ), mmf.cend( ), std::back_inserter( mem_data ) );
-		mmf.close( );
-		auto view = daw::span( mem_data.data( ), mem_data.size( ) );
+		auto mem_data = std::vector<char>( std::data( mmf ), daw::data_end( mmf ) );
+		auto view = daw::string_view( mem_data.data( ), mem_data.size( ) );
 		auto result = parse_file( view, daw::get_task_scheduler( ) );
 		time2 = daw::benchmark( [&result]( ) { result.wait( ); } );
 
 		std::cout << "Memory test\n";
-		std::cout << "Processed " << daw::utility::to_bytes_per_second( sz )
-		          << " bytes in " << daw::utility::format_seconds( time2, 3 )
-		          << " seconds\n";
-		std::cout << "Speed " << daw::utility::to_bytes_per_second( sz, time2 )
-		          << "/s\n";
+		std::cout << "Processed " << daw::utility::to_bytes_per_second( sz ) << " bytes in "
+		          << daw::utility::format_seconds( time2, 3 ) << " seconds\n";
+		std::cout << "Speed " << daw::utility::to_bytes_per_second( sz, time2 ) << "/s\n";
 		std::cout << "Minimum surplus is ";
 		std::cout << result.get( ) << '\n';
 	}

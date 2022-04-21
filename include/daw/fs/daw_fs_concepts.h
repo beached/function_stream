@@ -26,13 +26,9 @@
 #include <daw/daw_traits.h>
 
 #include <type_traits>
-
 namespace daw {
-	template<typename, typename...>
-	inline constexpr bool not_me_v = true;
-
-	template<typename Me, typename... Ts>
-	  requires( sizeof...( Ts ) == 1 )
-	inline constexpr bool not_me_v<Me, Ts...> =
-	  not_me<Me, std::remove_cvref_t<daw::traits::first_type<Ts...>>>;
+	template<typename T>
+	concept Waitable = requires( T &&waitable ) {
+		waitable.wait( );
+	};
 } // namespace daw

@@ -22,10 +22,12 @@
 
 #pragma once
 
+#include "daw_latch.h"
+
 #include <daw/daw_concepts.h>
+#include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
 #include <daw/parallel/daw_atomic_unique_ptr.h>
-#include <daw/parallel/daw_latch.h>
 
 #include <memory>
 #include <thread>
@@ -78,27 +80,24 @@ namespace daw::parallel {
 			daw::latch m_sem = daw::latch( 1 );
 
 			template<typename Callable, typename... Args>
-			  requires( invocable<Callable, interrupt_token, Args...> )
-			explicit ithread_impl( Callable &&callable, Args &&...args )
+			requires( invocable<Callable, interrupt_token, Args...> ) explicit ithread_impl(
+			  Callable &&callable,
+			  Args &&...args )
 			  : m_continue( )
-			  , m_thread( DAW_FWD( callable ), m_continue.get_interrupt_token( ),
-			              DAW_FWD( args )... ) {
+			  , m_thread( DAW_FWD( callable ), m_continue.get_interrupt_token( ), DAW_FWD( args )... ) {
 
 				m_thread.detach( );
 			}
 
 			template<typename Callable, typename... Args>
-			  requires( not invocable<Callable, interrupt_token, Args...> and
-			            invocable<Callable, Args...> )
-			explicit ithread_impl( Callable &&callable, Args &&...args )
+			requires( not invocable<Callable, interrupt_token, Args...> and
+			          invocable<Callable, Args...> ) explicit ithread_impl( Callable &&callable,
+			                                                                Args &&...args )
 			  : m_continue( )
 			  , m_thread(
-			      [&, callable = daw::mutable_capture( DAW_FWD( callable ) )](
-			        auto &&...arguments ) {
-				      auto const on_exit =
-				        daw::on_scope_exit( [&]( ) { m_sem.notify( ); } );
-				      return DAW_MOVE( *callable )(
-				        std::forward<decltype( arguments )>( arguments )... );
+			      [&, callable = daw::mutable_capture( DAW_FWD( callable ) )]( auto &&...arguments ) {
+				      auto const on_exit = daw::on_scope_exit( [&]( ) { m_sem.notify( ); } );
+				      return DAW_MOVE( *callable )( std::forward<decltype( arguments )>( arguments )... );
 			      },
 			      DAW_FWD( args )... ) {}
 
@@ -130,13 +129,11 @@ namespace daw::parallel {
 		constexpr ithread( ) noexcept = default;
 
 		using id = std::thread::id;
-		template<typename Callable, typename... Args,
-		         std::enable_if_t<std::is_constructible_v<
-		                            ithread_impl::ithread_impl, Callable, Args...>,
-		                          std::nullptr_t> = nullptr>
-		explicit ithread( Callable &&callable, Args &&...args )
-		  : m_impl( std::make_unique<ithread_impl::ithread_impl>(
-		      DAW_FWD( callable ), DAW_FWD( args )... ) ) {}
+		template<typename Callable, typename... Args>
+		requires( std::is_constructible_v<ithread_impl::ithread_impl, Callable, Args...> ) //
+		  explicit ithread( Callable &&callable, Args &&...args )
+		  : m_impl( std::make_unique<ithread_impl::ithread_impl>( DAW_FWD( callable ),
+		                                                          DAW_FWD( args )... ) ) {}
 
 		[[nodiscard]] inline bool joinable( ) const noexcept {
 			assert( m_impl );
@@ -170,7 +167,7 @@ namespace daw::parallel {
 
 		inline void detach( ) {
 			assert( m_impl );
-			m_impl->m_sem.reset( 0 );
+			m_impl->m_thread.detach( );
 		}
 	};
 } // namespace daw::parallel

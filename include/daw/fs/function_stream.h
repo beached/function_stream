@@ -29,6 +29,7 @@
 #include "task_scheduler.h"
 
 #include <daw/cpp_17.h>
+#include <daw/daw_concepts.h>
 
 #include <tuple>
 #include <type_traits>
@@ -45,13 +46,13 @@ namespace daw {
 	public:
 		bool continue_on_result_destruction = true;
 
-		template<not_me<function_stream> F, typename... Fs>
-		  requires(
-		    daw::all_true_v<
-		      not std::is_same_v<std::tuple<Functions...>, std::remove_cvref_t<F>>,
-		      not daw::any_true_v<std::is_function_v<F>,
-		                          std::is_function_v<Fs>...>> )
-		explicit constexpr function_stream( F &&f, Fs &&...funcs )
+		template<not_cvref_of<function_stream> F, typename... Fs>
+		requires( daw::all_true_v<
+		          not std::is_same_v<std::tuple<Functions...>, std::remove_cvref_t<F>>,
+		          not daw::any_true_v<
+		            std::is_function_v<F>,
+		            std::is_function_v<Fs>...>> ) explicit constexpr function_stream( F &&f,
+		                                                                              Fs &&...funcs )
 		  : m_funcs( DAW_FWD( f ), DAW_FWD( funcs )... ) {}
 
 		explicit constexpr function_stream( std::tuple<Functions...> &&funcs )
@@ -62,19 +63,18 @@ namespace daw {
 
 		template<typename... Args>
 		[[nodiscard]] auto operator( )( Args &&...args ) const {
-			using func_result_t =
-			  decltype( std::declval<func_comp_t>( ).apply( args... ) );
+			using func_result_t = decltype( std::declval<func_comp_t>( ).apply( args... ) );
 			future_result_t<func_result_t> result{ };
 			impl::call<0>( make_shared_package( continue_on_result_destruction,
-			                                    result.get_handle( ), m_funcs,
+			                                    result.get_handle( ),
+			                                    m_funcs,
 			                                    DAW_FWD( args )... ) );
 			return result;
 		}
 	}; // function_stream
 
 	template<typename... Functions>
-	function_stream( Functions &&... )
-	  -> function_stream<std::remove_cvref_t<Functions>...>;
+	function_stream( Functions &&... ) -> function_stream<std::remove_cvref_t<Functions>...>;
 
 	template<typename... Functions>
 	function_stream( std::tuple<Functions> &&... )
@@ -84,12 +84,9 @@ namespace daw {
 	function_stream( std::tuple<Functions> const &... )
 	  -> function_stream<std::remove_cvref_t<Functions>...>;
 
-	template<typename T>
-	concept Waitable = requires( T &&waitable ) { waitable.wait( ); };
-
 	template<typename... Functions>
 	constexpr auto make_function_stream( Functions &&...funcs ) noexcept {
-		return function_stream( std::make_tuple( daw::make_callable( funcs )... ) );
+		return function_stream( std::make_tuple( fs::impl::make_callable( funcs )... ) );
 	}
 
 	template<Waitable... Waitables>
@@ -118,37 +115,35 @@ namespace daw {
 
 	public:
 		template<typename... Functions>
-		  requires(
-		    sizeof...( Functions ) > 1 &&
-		    sizeof...( Functions ) == sizeof...( Funcs ) &&
-		    not std::is_same_v<std::tuple<Funcs...>, std::tuple<Functions...>> )
-		explicit constexpr future_generator_t( Functions &&...funcs ) noexcept(
-		  noexcept( std::tuple<Funcs...>{ DAW_FWD( funcs )... } ) )
+		requires(
+		  sizeof...( Functions ) > 1 && sizeof...( Functions ) == sizeof...( Funcs ) &&
+		  not std::is_same_v<
+		    std::tuple<Funcs...>,
+		    std::tuple<
+		      Functions...>> ) explicit constexpr future_generator_t( Functions
+		                                                                &&...funcs ) noexcept( noexcept( std::tuple<Funcs...>{
+		  DAW_FWD( funcs )... } ) )
 		  : m_funcs{ DAW_FWD( funcs )... } {}
 
-		explicit constexpr future_generator_t(
-		  std::tuple<Funcs...> const &tp_funcs )
+		explicit constexpr future_generator_t( std::tuple<Funcs...> const &tp_funcs )
 		  : m_funcs{ tp_funcs } {}
 
 		explicit constexpr future_generator_t( std::tuple<Funcs...> &&tp_funcs )
 		  : m_funcs{ DAW_MOVE( tp_funcs ) } {}
 
 		template<typename... Args>
-		[[nodiscard]] constexpr decltype( auto )
-		operator( )( Args &&...args ) const {
+		[[nodiscard]] constexpr decltype( auto ) operator( )( Args &&...args ) const {
 			return get_function_stream( )( DAW_FWD( args )... );
 		}
 
-		[[nodiscard]] constexpr function_stream<Funcs...>
-		get_function_stream( ) const {
+		[[nodiscard]] constexpr function_stream<Funcs...> get_function_stream( ) const {
 			return function_stream<Funcs...>( m_funcs );
 		}
 
 		template<typename... NextFunctions>
-		[[nodiscard]] constexpr auto
-		next( NextFunctions &&...next_functions ) const {
-			return make_future_generator( std::tuple_cat(
-			  m_funcs, std::make_tuple( DAW_FWD( next_functions )... ) ) );
+		[[nodiscard]] constexpr auto next( NextFunctions &&...next_functions ) const {
+			return make_future_generator(
+			  std::tuple_cat( m_funcs, std::make_tuple( DAW_FWD( next_functions )... ) ) );
 		}
 
 		template<typename... NextFuncs>
@@ -201,14 +196,12 @@ namespace daw {
 
 	template<typename... Functions>
 	[[nodiscard]] constexpr auto compose_functions( Functions &&...functions ) {
-		return impl::function_composer_t<std::remove_cv_t<Functions>...>{
-		  DAW_FWD( functions )... };
+		return impl::function_composer_t<std::remove_cv_t<Functions>...>{ DAW_FWD( functions )... };
 	}
 
 	template<typename... Functions>
 	[[nodiscard]] constexpr auto compose( Functions &&...funcs ) noexcept {
-		return impl::function_composer_t<std::remove_cv_t<Functions>...>(
-		  DAW_FWD( funcs )... );
+		return impl::function_composer_t<std::remove_cv_t<Functions>...>( DAW_FWD( funcs )... );
 	}
 
 	template<typename... Functions>
