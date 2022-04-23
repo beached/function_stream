@@ -32,8 +32,8 @@
 
 int main( ) {
 	//	for( size_t j = 0; j < 25U; ++j ) {
-	auto q = daw::parallel::spsc_bounded_queue<size_t, 512>( );
-	std::array<size_t, 100> results{};
+	auto q = daw::parallel::concurrent_queue<size_t>( );
+	std::array<size_t, 100> results{ };
 	auto mut_out = std::mutex( );
 
 	auto l = daw::latch( 1 );
@@ -45,15 +45,13 @@ int main( ) {
 		for( size_t n = 1; n <= 100; ++n ) {
 			auto v = n;
 			auto tmp_n = n;
-			auto r =
-			  push_back( q, DAW_MOVE( tmp_n ), []( auto &&... ) { return true; } );
+			auto r = push_back( q, DAW_MOVE( tmp_n ), []( auto &&... ) { return true; } );
 			++count;
 			while( r != daw::parallel::push_back_result::success ) {
 				++count;
 				n = v;
 				tmp_n = n;
-				r = push_back( q, DAW_MOVE( tmp_n ),
-				               []( auto &&... ) { return true; } );
+				r = push_back( q, DAW_MOVE( tmp_n ), []( auto &&... ) { return true; } );
 			}
 			l.notify( );
 		}
@@ -67,18 +65,18 @@ int main( ) {
 		(void)count;
 		l.wait( );
 		for( size_t n = 0; n < 100; ++n ) {
-			auto val = q.try_pop_front( );
+			auto val = q.pop_front( );
 			++count;
 			while( not val and not l2.try_wait( ) ) {
 				++count;
 				val = q.try_pop_front( );
-				if( val and val % 2 != 0 ) {
-					val *= 2;
+				if( val and ( *val % 2 != 0 ) ) {
+					*val *= 2;
 					{
 						auto const lck = std::lock_guard( mut_out );
 						std::cout << std::this_thread::get_id( ) << " -> adding task\n";
 					}
-					(void)push_back( q, DAW_MOVE( val ), []( ) { return true; } );
+					(void)push_back( q, DAW_MOVE( *val ), []( ) { return true; } );
 				}
 			}
 			{
@@ -88,7 +86,7 @@ int main( ) {
 			if( not l2.try_wait( ) ) {
 				return;
 			}
-			results[i] += val;
+			results[i] += *val;
 		}
 	};
 

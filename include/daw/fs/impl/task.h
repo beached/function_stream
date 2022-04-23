@@ -23,12 +23,15 @@
 #pragma once
 
 #include "daw_latch.h"
+#include "daw_locked_ptr.h"
 
 #include <daw/daw_enable_if.h>
 #include <daw/daw_traits.h>
-#include <daw/parallel/daw_atomic_unique_ptr.h>
+#include <daw/parallel/daw_locked_value.h>
 
+#include <atomic>
 #include <functional>
+#include <memory>
 #include <type_traits>
 
 namespace daw {
@@ -46,7 +49,7 @@ namespace daw {
 			  , m_latch( DAW_MOVE( l ) ) {}
 		};
 
-		daw::atomic_unique_ptr<impl_t> m_impl = nullptr;
+		lockable_ptr_t<impl_t> m_tsk_impl = { };
 
 	public:
 		task_t( ) = default;
@@ -54,42 +57,54 @@ namespace daw {
 		template<not_cvref_of<task_t> Func>
 		requires( invocable<Func> ) //
 		  explicit task_t( Func &&func )
-		  : m_impl( daw::make_atomic_unique_ptr<impl_t>( std::function<void( )>( DAW_FWD( func ) ) ) ) {
+		  : m_tsk_impl( new impl_t( std::function<void( )>( DAW_FWD( func ) ) ) ) {
 
-			assert( m_impl );
-			daw::exception::precondition_check( m_impl->m_function, "Callable must be valid" );
+			assert( m_tsk_impl );
+#ifndef NDEBUG
+			auto const ti = m_tsk_impl.get( );
+			assert( ti->m_function );
+#endif
 		}
 
 		explicit task_t( invocable auto &&func, LatchTypes auto &&l )
-		  : m_impl( daw::make_atomic_unique_ptr<impl_t>( DAW_FWD( func ),
-		                                                 daw::shared_latch( DAW_MOVE( l ) ) ) ) {
-			assert( m_impl );
+		  : m_tsk_impl( new impl_t( DAW_FWD( func ), daw::shared_latch( DAW_MOVE( l ) ) ) ) {
 
-			daw::exception::precondition_check( m_impl->m_function, "Callable must be valid" );
+#ifndef NDEBUG
+			auto const ti = m_tsk_impl.get( );
+			assert( ti );
+			assert( ti->m_function );
+#endif
 		}
 
 		inline void operator( )( ) {
-			assert( m_impl );
-			daw::exception::dbg_precondition_check( m_impl->m_function, "Callable must be valid" );
-			m_impl->m_function( );
+			assert( m_tsk_impl );
+			auto ti = m_tsk_impl.get( );
+			assert( ti->m_function );
+			ti->m_function( );
 		}
 
 		inline void operator( )( ) const {
-			assert( m_impl );
-			daw::exception::dbg_precondition_check( m_impl->m_function, "Callable must be valid" );
-			m_impl->m_function( );
+			assert( m_tsk_impl );
+			auto const ti = m_tsk_impl.get( );
+			assert( ti->m_function );
+			ti->m_function( );
 		}
 
 		[[nodiscard]] inline bool is_ready( ) const {
-			assert( m_impl );
-			if( m_impl->m_latch ) {
-				return m_impl->m_latch.try_wait( );
+			assert( m_tsk_impl );
+			auto const ti = m_tsk_impl.get( );
+			if( ti->m_latch ) {
+				return ti->m_latch.try_wait( );
 			}
 			return true;
 		}
 
 		[[nodiscard]] inline explicit operator bool( ) const noexcept {
-			return static_cast<bool>( m_impl and m_impl->m_function );
+			if( not m_tsk_impl ) {
+				return false;
+			}
+			auto const ti = m_tsk_impl.get( );
+			return static_cast<bool>( ti->m_function );
 		}
 	}; // namespace daw
 } // namespace daw

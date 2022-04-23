@@ -25,9 +25,10 @@
 #include "daw_latch.h"
 
 #include <daw/daw_concepts.h>
+#include <daw/daw_move.h>
+#include <daw/daw_not_null.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_utility.h>
-#include <daw/parallel/daw_atomic_unique_ptr.h>
 
 #include <memory>
 #include <thread>
@@ -37,24 +38,38 @@ namespace daw::parallel {
 	class interrupt_token_owner;
 
 	class interrupt_token {
-		daw::latch const *m_condition;
+		daw::not_null<daw::latch const *> m_condition;
 
 		friend class daw::parallel::interrupt_token_owner;
 
-		explicit interrupt_token( daw::latch const &cond ) noexcept
+		explicit inline interrupt_token( daw::latch const &cond ) noexcept
 		  : m_condition( &cond ) {}
 
 	public:
-		[[nodiscard]] bool can_continue( ) const {
-			return m_condition->try_wait( );
+		[[nodiscard]] inline bool can_continue( ) const {
+			return not try_wait( );
 		}
 
-		[[nodiscard]] explicit operator bool( ) const {
-			return m_condition->try_wait( );
+		[[nodiscard]] explicit inline operator bool( ) const {
+			return not try_wait( );
 		}
 
-		void wait( ) const {
+		inline void wait( ) const {
 			m_condition->wait( );
+		}
+
+		[[nodiscard]] inline bool try_wait( ) const {
+			return m_condition->try_wait( );
+		}
+
+		template<typename Rep, typename Period>
+		[[nodiscard]] auto wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+			return m_condition->wait_for( rel_time );
+		}
+
+		template<typename Clock, typename Duration>
+		[[nodiscard]] auto wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+			m_condition->wait_until( timeout_time );
 		}
 	};
 
@@ -64,85 +79,155 @@ namespace daw::parallel {
 	public:
 		interrupt_token_owner( ) = default;
 
-		interrupt_token get_interrupt_token( ) const noexcept {
+		~interrupt_token_owner( ) {
+			stop( );
+		}
+
+		[[nodiscard]] interrupt_token get_interrupt_token( ) const noexcept {
 			return interrupt_token( m_condition );
 		}
 
 		void stop( ) {
-			m_condition.notify( );
+			m_condition.reset( 0 );
 		}
 	};
 
-	namespace ithread_impl {
-		struct ithread_impl {
-			interrupt_token_owner m_continue;
-			std::thread m_thread;
-			daw::latch m_sem = daw::latch( 1 );
-
-			template<typename Callable, typename... Args>
-			requires( invocable<Callable, interrupt_token, Args...> ) explicit ithread_impl(
-			  Callable &&callable,
-			  Args &&...args )
-			  : m_continue( )
-			  , m_thread( DAW_FWD( callable ), m_continue.get_interrupt_token( ), DAW_FWD( args )... ) {
-
-				m_thread.detach( );
+	namespace impl {
+		/// Create a thread that can optionally take an interrupt token and signals when complete
+		template<typename Function, typename... Args>
+		std::thread
+		make_thread( latch &sem, interrupt_token_owner &token, Function &&function, Args &&...args ) {
+			if constexpr( std::is_invocable_v<Function, interrupt_token, Args...> ) {
+				return std::thread(
+				  [&sem, &token]( interrupt_token it, auto func, auto... arguments ) {
+					  auto const on_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
+					  return DAW_MOVE( func )( it, DAW_MOVE( arguments )... );
+				  },
+				  DAW_FWD( function ),
+				  token.get_interrupt_token( ),
+				  DAW_FWD( args )... );
+			} else {
+				static_assert( std::is_invocable_v<Function, Args...>,
+				               "Function is not invocalle with supplied parameters." );
+				return std::thread(
+				  [&sem]( auto func, auto... arguments ) {
+					  auto const on_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
+					  return DAW_MOVE( func )( DAW_MOVE( arguments )... );
+				  },
+				  DAW_FWD( function ),
+				  DAW_FWD( args )... );
 			}
+		}
 
-			template<typename Callable, typename... Args>
-			requires( not invocable<Callable, interrupt_token, Args...> and
-			          invocable<Callable, Args...> ) explicit ithread_impl( Callable &&callable,
-			                                                                Args &&...args )
-			  : m_continue( )
-			  , m_thread(
-			      [&, callable = daw::mutable_capture( DAW_FWD( callable ) )]( auto &&...arguments ) {
-				      auto const on_exit = daw::on_scope_exit( [&]( ) { m_sem.notify( ); } );
-				      return DAW_MOVE( *callable )( std::forward<decltype( arguments )>( arguments )... );
-			      },
-			      DAW_FWD( args )... ) {}
+		template<typename T, typename Other>
+		using NotDecayOf = std::enable_if_t<not std::is_same_v<T, std::decay_t<Other>>, std::nullptr_t>;
+	} // namespace impl
 
-			ithread_impl( ithread_impl && ) = delete;
-			ithread_impl( ithread_impl const & ) = delete;
-			ithread_impl &operator=( ithread_impl && ) = delete;
-			ithread_impl &operator=( ithread_impl const & ) = delete;
+	class fixed_ithread {
+		interrupt_token_owner m_continue{ };
+		daw::latch m_sem = daw::latch( 1 );
+		std::thread m_thread;
 
-			inline ~ithread_impl( ) noexcept {
+	public:
+		template<typename Func, typename... Args, impl::NotDecayOf<fixed_ithread, Func> = nullptr>
+		explicit fixed_ithread( Func &&func, Args &&...args )
+		  : m_thread( impl::make_thread( m_sem, m_continue, DAW_FWD( func ), DAW_FWD( args )... ) ) {}
+
+		fixed_ithread( fixed_ithread && ) = delete;
+		fixed_ithread( fixed_ithread const & ) = delete;
+		fixed_ithread &operator=( fixed_ithread && ) = delete;
+		fixed_ithread &operator=( fixed_ithread const & ) = delete;
+
+		inline ~fixed_ithread( ) {
+			stop( );
+			wait( );
+			if( joinable( ) ) {
 				try {
-					m_continue.stop( );
-					if( m_thread.joinable( ) ) {
-						m_thread.join( );
-					}
-					m_sem.wait( );
+					join( );
 				} catch( ... ) {
 					// Do not let an exception take us down
 				}
 			}
-		};
-	} // namespace ithread_impl
+		}
 
-	class ithread {
+		[[nodiscard]] inline bool joinable( ) const {
+			return m_thread.joinable( );
+		}
 
-		std::unique_ptr<ithread_impl::ithread_impl> m_impl =
-		  std::unique_ptr<ithread_impl::ithread_impl>( );
+		[[nodiscard]] inline std::thread::id get_id( ) const {
+			return m_thread.get_id( );
+		}
+
+		inline void join( ) {
+			m_thread.join( );
+		}
+
+		inline void wait( ) const {
+			m_sem.wait( );
+		}
+
+		[[nodiscard]] inline bool try_wait( ) const {
+			return m_sem.try_wait( );
+		}
+
+		template<typename Rep, typename Period>
+		[[nodiscard]] auto wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+			return m_sem.wait_for( rel_time );
+		}
+
+		template<typename Clock, typename Duration>
+		[[nodiscard]] auto wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+			m_sem.wait_until( timeout_time );
+		}
+
+		inline void stop( ) {
+			m_continue.stop( );
+		}
+
+		inline void detach( ) {
+			m_thread.detach( );
+		}
+
+		inline void stop_and_wait( ) {
+			stop( );
+			wait( );
+		}
+
+		template<typename Rep, typename Period>
+		[[nodiscard]] auto stop_and_wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+			stop( );
+			return wait_for( rel_time );
+		}
+
+		template<typename Clock, typename Duration>
+		[[nodiscard]] auto
+		stop_and_wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+			stop( );
+			wait_until( timeout_time );
+		}
+	};
+
+	struct ithread {
+		using id = std::thread::id;
+
+	private:
+		std::unique_ptr<fixed_ithread> m_thread = { };
 
 	public:
-		constexpr ithread( ) noexcept = default;
+		ithread( ) = default;
 
-		using id = std::thread::id;
-		template<typename Callable, typename... Args>
-		requires( std::is_constructible_v<ithread_impl::ithread_impl, Callable, Args...> ) //
-		  explicit ithread( Callable &&callable, Args &&...args )
-		  : m_impl( std::make_unique<ithread_impl::ithread_impl>( DAW_FWD( callable ),
-		                                                          DAW_FWD( args )... ) ) {}
+		template<typename Function, typename... Args, impl::NotDecayOf<ithread, Function> = nullptr>
+		explicit ithread( Function &&func, Args &&...args )
+		  : m_thread( std::make_unique<fixed_ithread>( DAW_FWD( func ), DAW_FWD( args )... ) ) {}
 
 		[[nodiscard]] inline bool joinable( ) const noexcept {
-			assert( m_impl );
-			return m_impl->m_sem.try_wait( );
+			assert( m_thread );
+			return m_thread->joinable( );
 		}
 
 		[[nodiscard]] inline std::thread::id get_id( ) const noexcept {
-			assert( m_impl );
-			return m_impl->m_thread.get_id( );
+			assert( m_thread );
+			return m_thread->get_id( );
 		}
 
 		inline static unsigned int hardware_concurrency( ) noexcept {
@@ -150,24 +235,54 @@ namespace daw::parallel {
 		}
 
 		void stop( ) {
-			assert( m_impl );
-			m_impl->m_continue.stop( );
+			assert( m_thread );
+			m_thread->stop( );
 		}
 
 		inline void join( ) {
-			assert( m_impl );
-			m_impl->m_sem.wait( );
+			assert( m_thread );
+			assert( m_thread->joinable( ) );
+			m_thread->join( );
+		}
+
+		void wait( ) {
+			assert( m_thread );
+			m_thread->wait( );
+		}
+
+		template<typename Rep, typename Period>
+		[[nodiscard]] auto wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+			assert( m_thread );
+			return m_thread->wait_for( rel_time );
+		}
+
+		template<typename Clock, typename Duration>
+		[[nodiscard]] auto wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+			assert( m_thread );
+			m_thread->wait_until( timeout_time );
 		}
 
 		void stop_and_wait( ) {
-			assert( m_impl );
-			stop( );
-			join( );
+			assert( m_thread );
+			m_thread->stop_and_wait( );
+		}
+
+		template<typename Rep, typename Period>
+		[[nodiscard]] auto stop_and_wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+			assert( m_thread );
+			return m_thread->stop_and_wait_for( rel_time );
+		}
+
+		template<typename Clock, typename Duration>
+		[[nodiscard]] auto
+		stop_and_wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+			assert( m_thread );
+			m_thread->stop_and_wait_until( timeout_time );
 		}
 
 		inline void detach( ) {
-			assert( m_impl );
-			m_impl->m_thread.detach( );
+			assert( m_thread );
+			m_thread->detach( );
 		}
 	};
 } // namespace daw::parallel

@@ -277,16 +277,6 @@ namespace daw {
 		return lhs.next( fs::impl::make_callable( DAW_FWD( rhs ) ) );
 	}
 
-	/*
-	 * TODO: get rid of me
-	template<typename result_t, typename Function>
-	[[nodiscard]] constexpr decltype( auto )
-	operator|( future_result_t<result_t> const &lhs, Function &&rhs ) {
-	  static_assert( daw::traits::is_callable_v<Function, result_t>,
-	                 "Supplied function must be callable with result of future" );
-	  return lhs.next( fs::impl::make_callable( DAW_FWD( rhs ) ) );
-	}*/
-
 	template<typename result_t, typename Function>
 	[[nodiscard]] constexpr decltype( auto ) operator|( future_result_t<result_t> &&lhs,
 	                                                    Function &&rhs ) {
@@ -443,8 +433,8 @@ namespace daw {
 		  future_result_t<DAW_TYPEOF( ( std::declval<iter_value_type<RandomIterator>>( ) ).get( ) )>;
 		static_assert( FutureResult<iter_value_type<RandomIterator>>,
 		               "RandomIterator's value type must be a future result" );
-
-		auto results = daw::vector<ResultType>( );
+// DAW DAW use daw::vector with resize_and_overwrite
+		auto results = std::vector<ResultType>( );
 		results.reserve( static_cast<size_t>( std::distance( first, last ) ) / 2 );
 
 		impl::reduce_futures2( std::make_move_iterator( first ),
@@ -453,7 +443,7 @@ namespace daw {
 		                       binary_op );
 
 		while( results.size( ) > 1 ) {
-			auto tmp = daw::vector<ResultType>( );
+			auto tmp = std::vector<ResultType>( );
 			tmp.reserve( results.size( ) / 2 );
 
 			impl::reduce_futures2( std::make_move_iterator( results.begin( ) ),

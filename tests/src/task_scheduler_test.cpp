@@ -90,7 +90,9 @@ void create_waitable_task_test_001( ) {
 	real_t ans = 0;
 	auto ts = daw::create_waitable_task( [&ans]( ) { ans = fib( 30 ); } );
 	ts.wait( );
-	daw::expecting( 832040U, ans );
+	if( ans != 832040U ) {
+		std::abort( );
+	}
 }
 
 int main( ) {

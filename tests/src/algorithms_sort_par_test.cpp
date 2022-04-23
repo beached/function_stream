@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2017-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -20,27 +20,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "common.h"
+#include "daw/fs/algorithms.h"
+
+#include <daw/daw_random.h>
+#include <daw/daw_string_view.h>
+
 #include <algorithm>
+#include <benchmark/benchmark.h>
 #include <chrono>
 #include <cstdint>
 #include <iostream>
 
-#ifdef _WIN32
-#define HAS_PAR_STL
-#include <execution>
-#endif
-
-#include <daw/daw_random.h>
-#include <daw/daw_benchmark.h>
-#include <daw/daw_string_view.h>
-
-#include "daw/fs/algorithms.h"
-
-#include "common.h"
-
 template<typename Iterator>
-void test_sort( Iterator const first, Iterator const last,
-                daw::string_view label ) {
+void test_sort( Iterator first, Iterator last, daw::string_view label ) {
 	if( first == last ) {
 		return;
 	}
@@ -51,12 +44,10 @@ void test_sort( Iterator const first, Iterator const last,
 		if( *it < last_val ) {
 			auto const pos = std::distance( first, it );
 			std::cerr << "Sequence '" << label << "' not sorted at position ("
-			          << std::distance( first, it ) << '/'
-			          << std::distance( first, last ) << ")\n";
+			          << std::distance( first, it ) << '/' << std::distance( first, last ) << ")\n";
 
 			auto start = pos > 10 ? std::next( first, pos - 10 ) : first;
-			auto const end =
-			  std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
+			auto const end = std::distance( it, last ) > 10 ? std::next( it, 10 ) : last;
 			if( std::distance( start, end ) > 0 ) {
 				std::cerr << '[' << *start;
 				++start;
@@ -71,31 +62,25 @@ void test_sort( Iterator const first, Iterator const last,
 	}
 }
 
-void sort_test( size_t SZ ) {
+template<std::size_t SZ>
+void parallel_sort_test( benchmark::State &state ) {
 	auto ts = daw::get_task_scheduler( );
 	auto a = daw::make_random_data<int64_t>( SZ );
-
-	auto b = a;
-
-	auto const par_test = [&]( ) {
-		daw::algorithm::parallel::sort(
-		  a.data( ), a.data( ) + static_cast<ptrdiff_t>( a.size( ) ), ts );
-		daw::do_not_optimize( a );
-	};
-
-	auto const par_result_1 = daw::benchmark( par_test );
-	test_sort( a.begin( ), a.end( ), "p_result_1" );
-	daw::do_not_optimize( par_result_1 );
-	a = b;
-
-	auto const par_result_2 = daw::benchmark( par_test );
-	test_sort( a.begin( ), a.end( ), "p_result2" );
-	daw::do_not_optimize( par_result_2 );
+	auto b = std::vector<int64_t>( );
+	for( auto _ : state ) {
+		state.PauseTiming( );
+		{
+			benchmark::DoNotOptimize( a );
+			b = a;
+		}
+		state.ResumeTiming( );
+		daw::algorithm::parallel::sort( std::data( b ), daw::data_end( b ), ts );
+		benchmark::DoNotOptimize( b );
+	}
+	test_sort( std::data( b ), daw::data_end( b ), "parallel sort test" );
 }
 
-int main( ) {
-#ifdef DEBUG
-	std::cout << "Debug build\n";
-#endif
-	sort_test( LARGE_TEST_SZ );
-}
+BENCHMARK_TEMPLATE( parallel_sort_test, 1'024 );
+BENCHMARK_TEMPLATE( parallel_sort_test, 4'096 );
+BENCHMARK_TEMPLATE( parallel_sort_test, 16'384 );
+BENCHMARK_TEMPLATE( parallel_sort_test, 65'536 );

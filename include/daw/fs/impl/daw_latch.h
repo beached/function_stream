@@ -36,10 +36,11 @@ namespace daw {
 	inline constexpr bool is_shared_latch_v = false;
 
 	class latch {
-		std::atomic_int m_value = { 0 };
+		std::atomic_int m_value = { 1 };
 
 		inline void decrement( ) {
-			atomic_fetch_sub( &m_value, 1 );
+			assert( m_value > 0 );
+			--m_value;
 		}
 
 	public:
@@ -200,15 +201,13 @@ namespace daw {
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] decltype( auto )
-		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
+		[[nodiscard]] auto wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
 			assert( m_latch );
 			return m_latch->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] decltype( auto )
-		wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
+		[[nodiscard]] auto wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
 			assert( m_latch );
 			return m_latch->wait_until( timeout_time );
 		}

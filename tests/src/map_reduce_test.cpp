@@ -129,7 +129,7 @@ inline void parse_line( daw::string_view line, Function value_cb ) {
 
 template<typename Range>
 daw::future_result_t<std::int64_t> parse_file( Range str, daw::task_scheduler ts ) {
-	auto str_lines_result = daw::parallel::mpmc_bounded_queue<daw::string_view>{ };
+	auto str_lines_result = daw::parallel::concurrent_queue<daw::string_view>{ };
 
 	(void)ts.add_task( [&, str = DAW_MOVE( str )]( ) {
 		find_newlines( str, [&]( daw::string_view line ) mutable {
@@ -140,7 +140,7 @@ daw::future_result_t<std::int64_t> parse_file( Range str, daw::task_scheduler ts
 		} );
 	} );
 
-	auto parsed_lines_result = daw::parallel::mpmc_bounded_queue<std::int64_t>{ };
+	auto parsed_lines_result = daw::parallel::concurrent_queue<std::int64_t>{ };
 
 	(void)ts.add_task( [&] {
 		while( not str_lines_result.empty( ) ) {

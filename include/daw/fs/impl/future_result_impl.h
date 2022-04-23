@@ -53,7 +53,7 @@ namespace daw {
 
 			task_scheduler m_task_scheduler;
 			next_t m_next = next_t( next_function_t( ) );
-			daw::shared_latch m_semaphore = daw::shared_latch( );
+			daw::shared_latch m_semaphore = daw::shared_latch( 1 );
 			std::atomic<future_status> m_status = future_status::deferred;
 
 			expected_result_t m_result = expected_result_t( );
