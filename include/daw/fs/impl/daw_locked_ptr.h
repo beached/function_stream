@@ -10,6 +10,7 @@
 
 #include <daw/cpp_17.h>
 #include <daw/daw_concepts.h>
+#include <daw/daw_move.h>
 #include <daw/parallel/daw_unique_mutex.h>
 
 #include <ciso646>
@@ -25,7 +26,7 @@ namespace daw {
 			daw::not_null<std::unique_ptr<T> *> m_ptr;
 
 			locked_ptr_t( std::unique_lock<std::mutex> &&lck, std::unique_ptr<T> &value )
-			  : m_lock( std::move( lck ) )
+			  : m_lock( DAW_MOVE( lck ) )
 			  , m_ptr( &value ) {}
 
 			friend lockable_ptr_t;
@@ -51,7 +52,7 @@ namespace daw {
 				return *m_ptr;
 			}
 
-			ptr_type const & get( ) const &noexcept {
+			ptr_type const &get( ) const &noexcept {
 				return *m_ptr;
 			}
 
@@ -81,7 +82,7 @@ namespace daw {
 			daw::not_null<std::unique_ptr<T> const *> m_ptr;
 
 			const_locked_ptr_t( std::unique_lock<std::mutex> &&lck, std::unique_ptr<T> const &value )
-			  : m_lock( std::move( lck ) )
+			  : m_lock( DAW_MOVE( lck ) )
 			  , m_ptr( &value ) {}
 
 			friend lockable_ptr_t;
@@ -103,7 +104,7 @@ namespace daw {
 				m_lock.unlock( );
 			}
 
-			ptr_type & get( ) const &noexcept {
+			ptr_type &get( ) const &noexcept {
 				return *m_ptr;
 			}
 
@@ -153,7 +154,7 @@ namespace daw {
 			if( not lck.owns_lock( ) ) {
 				return { };
 			}
-			return { locked_ptr_t( std::move( lck ), *m_ptr ) };
+			return { locked_ptr_t( DAW_MOVE( lck ), *m_ptr ) };
 		}
 
 		std::optional<const_locked_ptr_t> try_get( ) const {
@@ -161,7 +162,7 @@ namespace daw {
 			if( not lck.owns_lock( ) ) {
 				return { };
 			}
-			return { const_locked_ptr_t( std::move( lck ), *m_ptr ) };
+			return { const_locked_ptr_t( DAW_MOVE( lck ), *m_ptr ) };
 		}
 
 		void reset( ) {

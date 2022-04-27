@@ -26,7 +26,7 @@
 #include <thread>
 #include <vector>
 
-#include <daw/parallel/daw_latch.h>
+#include <daw/fs/impl/daw_latch.h>
 
 #include "daw/fs/message_queue.h"
 
@@ -36,8 +36,8 @@ int main( ) {
 	std::array<size_t, 100> results{ };
 	auto mut_out = std::mutex( );
 
-	auto l = daw::latch( 1 );
-	auto l2 = daw::latch( 1 );
+	auto l = daw::fixed_cnt_sem( 1 );
+	auto l2 = daw::fixed_cnt_sem( 1 );
 
 	auto const producer = [&]( ) {
 		size_t count = 0;

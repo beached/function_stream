@@ -58,7 +58,7 @@ namespace daw {
 	future_result_t<void>::future_result_t( task_scheduler ts )
 	  : m_data( DAW_MOVE( ts ) ) {}
 
-	future_result_t<void>::future_result_t( daw::shared_latch sem,
+	future_result_t<void>::future_result_t( daw::shared_cnt_sem sem,
 	                                        task_scheduler ts )
 	  : m_data( DAW_MOVE( sem ), DAW_MOVE( ts ) ) {}
 

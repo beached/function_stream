@@ -86,7 +86,7 @@ namespace daw {
 
 	template<typename... Functions>
 	constexpr auto make_function_stream( Functions &&...funcs ) noexcept {
-		return function_stream( std::make_tuple( fs::impl::make_callable( funcs )... ) );
+		return function_stream( std::tuple( fs::impl::make_callable( funcs )... ) );
 	}
 
 	template<Waitable... Waitables>

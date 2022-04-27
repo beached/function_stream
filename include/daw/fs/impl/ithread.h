@@ -38,11 +38,11 @@ namespace daw::parallel {
 	class interrupt_token_owner;
 
 	class interrupt_token {
-		daw::not_null<daw::latch const *> m_condition;
+		daw::not_null<daw::fixed_cnt_sem const *> m_condition;
 
 		friend class daw::parallel::interrupt_token_owner;
 
-		explicit inline interrupt_token( daw::latch const &cond ) noexcept
+		explicit inline interrupt_token( daw::fixed_cnt_sem const &cond ) noexcept
 		  : m_condition( &cond ) {}
 
 	public:
@@ -74,7 +74,7 @@ namespace daw::parallel {
 	};
 
 	class interrupt_token_owner {
-		daw::latch m_condition = daw::latch( 1 );
+		daw::fixed_cnt_sem m_condition = daw::fixed_cnt_sem( 1 );
 
 	public:
 		interrupt_token_owner( ) = default;
@@ -96,7 +96,7 @@ namespace daw::parallel {
 		/// Create a thread that can optionally take an interrupt token and signals when complete
 		template<typename Function, typename... Args>
 		std::thread
-		make_thread( latch &sem, interrupt_token_owner &token, Function &&function, Args &&...args ) {
+		make_thread( fixed_cnt_sem &sem, interrupt_token_owner &token, Function &&function, Args &&...args ) {
 			if constexpr( std::is_invocable_v<Function, interrupt_token, Args...> ) {
 				return std::thread(
 				  [&sem, &token]( interrupt_token it, auto func, auto... arguments ) {
@@ -125,12 +125,11 @@ namespace daw::parallel {
 
 	class fixed_ithread {
 		interrupt_token_owner m_continue{ };
-		daw::latch m_sem = daw::latch( 1 );
+		daw::fixed_cnt_sem m_sem = daw::fixed_cnt_sem( 1 );
 		std::thread m_thread;
 
 	public:
-		template<typename Func, typename... Args, impl::NotDecayOf<fixed_ithread, Func> = nullptr>
-		explicit fixed_ithread( Func &&func, Args &&...args )
+		explicit fixed_ithread( not_decay_of<fixed_ithread> auto &&func, auto &&...args )
 		  : m_thread( impl::make_thread( m_sem, m_continue, DAW_FWD( func ), DAW_FWD( args )... ) ) {}
 
 		fixed_ithread( fixed_ithread && ) = delete;

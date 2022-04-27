@@ -77,7 +77,7 @@ namespace daw::impl {
 			    using which_t =
 			      typename impl::which_type_t<pos, decltype( ( *package )->function_list( ) )>::category;
 
-			    call_task<pos>( DAW_MOVE( *package ), which_t{ } );
+			    call_task<pos>( package.move_out( ), which_t{ } );
 		    } ) ) {
 
 			throw daw::unable_to_add_task_exception( );

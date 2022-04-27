@@ -35,76 +35,91 @@
 #include <type_traits>
 
 namespace daw {
-	class [[nodiscard]] task_t {
-		struct impl_t {
-			std::function<void( )> m_function; // from ctor
-			// shared to interoperate with other parts
-			daw::shared_latch m_latch{ 1 };
-
-			explicit impl_t( invocable auto &&func )
-			  : m_function( DAW_FWD( func ) ) {}
-
-			impl_t( invocable auto &&func, daw::shared_latch &&l )
-			  : m_function( DAW_FWD( func ) )
-			  , m_latch( DAW_MOVE( l ) ) {}
-		};
-
-		lockable_ptr_t<impl_t> m_tsk_impl = { };
+	class [[nodiscard]] fixed_task_t {
+		daw::shared_cnt_sem m_latch{ 0 }; // shared to interoperate with other parts
+		std::function<void( )> m_function = { };
 
 	public:
-		task_t( ) = default;
+		fixed_task_t( ) = default;
+		fixed_task_t( fixed_task_t const & ) = delete;
+		fixed_task_t( fixed_task_t && ) = delete;
+		fixed_task_t &operator=( fixed_task_t const & ) = delete;
+		fixed_task_t &operator=( fixed_task_t && ) = delete;
+		~fixed_task_t( ) = default;
 
-		template<not_cvref_of<task_t> Func>
-		requires( invocable<Func> ) //
-		  explicit task_t( Func &&func )
-		  : m_tsk_impl( new impl_t( std::function<void( )>( DAW_FWD( func ) ) ) ) {
-
-			assert( m_tsk_impl );
-#ifndef NDEBUG
-			auto const ti = m_tsk_impl.get( );
-			assert( ti->m_function );
-#endif
+		template<not_cvref_of<fixed_task_t> Task>
+		requires( invocable<Task> ) //
+		  explicit fixed_task_t( Task &&func )
+		  : m_latch( 1 )
+		  , m_function( DAW_FWD( func ) ) {
+			assert( m_function );
 		}
 
-		explicit task_t( invocable auto &&func, LatchTypes auto &&l )
-		  : m_tsk_impl( new impl_t( DAW_FWD( func ), daw::shared_latch( DAW_MOVE( l ) ) ) ) {
+		explicit fixed_task_t( invocable auto &&func, daw::shared_cnt_sem l )
+		  : m_latch( DAW_MOVE( l ) )
+		  , m_function( DAW_FWD( func ) ) {
 
-#ifndef NDEBUG
-			auto const ti = m_tsk_impl.get( );
-			assert( ti );
-			assert( ti->m_function );
-#endif
-		}
-
-		inline void operator( )( ) {
-			assert( m_tsk_impl );
-			auto ti = m_tsk_impl.get( );
-			assert( ti->m_function );
-			ti->m_function( );
-		}
-
-		inline void operator( )( ) const {
-			assert( m_tsk_impl );
-			auto const ti = m_tsk_impl.get( );
-			assert( ti->m_function );
-			ti->m_function( );
-		}
-
-		[[nodiscard]] inline bool is_ready( ) const {
-			assert( m_tsk_impl );
-			auto const ti = m_tsk_impl.get( );
-			if( ti->m_latch ) {
-				return ti->m_latch.try_wait( );
+			assert( m_latch );
+			if( m_function ) {
+				m_latch.add_notifier( );
 			}
-			return true;
 		}
 
-		[[nodiscard]] inline explicit operator bool( ) const noexcept {
-			if( not m_tsk_impl ) {
-				return false;
+		explicit fixed_task_t( invocable auto &&func, daw::unique_cnt_sem l )
+		  : m_latch( DAW_MOVE( l ) )
+		  , m_function( DAW_FWD( func ) ) {
+
+			if( not m_function ) {
+				m_function = [] {};
 			}
-			auto const ti = m_tsk_impl.get( );
-			return static_cast<bool>( ti->m_function );
+			assert( m_latch );
+			m_latch.add_notifier( );
+		}
+
+		inline void execute( ) {
+			auto const ae = on_scope_exit( [m_latch = m_latch]( ) mutable { m_latch.notify( ); } );
+			m_function( );
+		}
+
+		[[nodiscard]] inline bool try_wait( ) const {
+			return m_latch.try_wait( );
+		}
+
+		void wait( ) const {
+			m_latch.wait( );
+		}
+	};
+
+	class [[nodiscard]] unique_task_t {
+		std::unique_ptr<fixed_task_t> m_ftask = std::make_unique<fixed_task_t>( );
+
+	public:
+		unique_task_t( ) = default;
+
+		template<not_cvref_of<unique_task_t> Task>
+		requires( invocable<Task> ) //
+		  explicit unique_task_t( Task &&func )
+		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ) ) ) {}
+
+		explicit unique_task_t( invocable auto &&func, unique_cnt_sem l )
+		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ), DAW_MOVE( l ) ) ) {}
+
+		explicit unique_task_t( invocable auto &&func, shared_cnt_sem l )
+		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ), DAW_MOVE( l ) ) ) {}
+
+		inline void execute( ) const {
+			assert( m_ftask );
+			m_ftask->execute( );
+		}
+
+		[[nodiscard]] inline bool try_wait( ) const {
+			assert( m_ftask );
+			return m_ftask->try_wait( );
+		}
+
+		void wait( ) const {
+			assert( m_ftask );
+			m_ftask->wait( );
 		}
 	}; // namespace daw
 } // namespace daw

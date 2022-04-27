@@ -35,8 +35,8 @@ namespace daw {
 	template<typename>
 	inline constexpr bool is_shared_latch_v = false;
 
-	class latch {
-		std::atomic_int m_value = { 1 };
+	class fixed_cnt_sem {
+		std::atomic_int m_value;
 
 		inline void decrement( ) {
 			assert( m_value > 0 );
@@ -44,10 +44,14 @@ namespace daw {
 		}
 
 	public:
-		explicit latch( ) = default;
-
-		explicit latch( Integer auto count )
+		explicit fixed_cnt_sem( Integer auto count )
 		  : m_value( static_cast<int>( count ) ) {}
+
+		~fixed_cnt_sem( ) = default;
+		fixed_cnt_sem( fixed_cnt_sem const & ) = delete;
+		fixed_cnt_sem( fixed_cnt_sem && ) = delete;
+		fixed_cnt_sem &operator=( fixed_cnt_sem const & ) = delete;
+		fixed_cnt_sem &operator=( fixed_cnt_sem && ) = delete;
 
 		inline void add_notifier( ) {
 			atomic_fetch_add( &m_value, 1 );
@@ -68,16 +72,12 @@ namespace daw {
 		}
 
 		inline void wait( ) const {
-			auto old = m_value.load( std::memory_order_relaxed );
-			while( old > 0 ) {
-				atomic_wait( &m_value, old );
-				old = atomic_load( &m_value );
-			}
-			assert( old == 0 );
+			daw::atomic_wait_if( &m_value, []( int current_value ) { return current_value <= 0; } );
+			assert( m_value.load( std::memory_order_relaxed ) == 0 );
 		}
 
 		[[nodiscard]] inline bool try_wait( ) const {
-			auto const old = m_value.load( std::memory_order_relaxed );
+			auto const old = m_value.load( std::memory_order_acquire );
 			assert( old >= 0 );
 			return old == 0;
 		}
@@ -85,23 +85,12 @@ namespace daw {
 		template<typename Rep, typename Period>
 		[[nodiscard]] inline wait_status
 		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
-			auto const final_time = std::chrono::high_resolution_clock::now( ) + rel_time;
-			auto old = m_value.load( std::memory_order_relaxed );
-			if( old <= 0 ) {
-				assert( old == 0 and "Unexpected negative number." );
-				return wait_status::zero_count;
-			}
-			auto ret = atomic_wait_until( &m_value, old, final_time );
-			old = m_value.load( );
-			while( old > 0 and ret != wait_status::timeout ) {
-				ret = atomic_wait_until( &m_value, old, final_time );
-				old = m_value.load( );
-			}
-			assert( old == 0 and "Unexpected negative number." );
-			if( old != 0 ) {
-				return wait_status::timeout;
-			}
-			return wait_status::zero_count;
+			auto result = daw::atomic_wait_if_for(
+			  &m_value,
+			  []( int current_value ) { return current_value <= 0; },
+			  rel_time );
+			assert( m_value.load( std::memory_order_relaxed ) == 0 );
+			return result;
 		}
 
 		template<typename Clock, typename Duration>
@@ -112,18 +101,16 @@ namespace daw {
 	}; // latch
 
 	template<>
-	inline constexpr bool is_latch_v<latch> = true;
+	inline constexpr bool is_latch_v<fixed_cnt_sem> = true;
 
-	class unique_latch {
-		std::unique_ptr<latch> m_latch = std::make_unique<latch>( );
+	class unique_cnt_sem {
+		std::unique_ptr<fixed_cnt_sem> m_latch;
 
 	public:
-		unique_latch( ) = default;
+		explicit unique_cnt_sem( Integer auto count )
+		  : m_latch( std::make_unique<fixed_cnt_sem>( count ) ) {}
 
-		explicit unique_latch( Integer auto count )
-		  : m_latch( std::make_unique<latch>( count ) ) {}
-
-		inline latch *release( ) {
+		inline fixed_cnt_sem *release( ) {
 			return m_latch.release( );
 		}
 
@@ -166,18 +153,16 @@ namespace daw {
 	};
 
 	template<>
-	inline constexpr bool is_unique_latch_v<unique_latch> = true;
+	inline constexpr bool is_unique_latch_v<unique_cnt_sem> = true;
 
-	class shared_latch {
-		std::shared_ptr<latch> m_latch = std::make_shared<latch>( );
+	class shared_cnt_sem {
+		std::shared_ptr<fixed_cnt_sem> m_latch;
 
 	public:
-		shared_latch( ) = default;
+		explicit shared_cnt_sem( Integer auto count )
+		  : m_latch( std::make_shared<fixed_cnt_sem>( count ) ) {}
 
-		explicit shared_latch( Integer auto count )
-		  : m_latch( std::make_shared<latch>( count ) ) {}
-
-		explicit shared_latch( unique_latch &&other ) noexcept
+		explicit shared_cnt_sem( unique_cnt_sem &&other ) noexcept
 		  : m_latch( other.release( ) ) {}
 
 		void add_notifier( ) {
@@ -218,9 +203,9 @@ namespace daw {
 	};
 
 	template<>
-	inline constexpr bool is_shared_latch_v<shared_latch> = true;
+	inline constexpr bool is_shared_latch_v<shared_cnt_sem> = true;
 
-	inline void wait_all( std::initializer_list<latch> semaphores ) {
+	inline void wait_all( std::initializer_list<fixed_cnt_sem> semaphores ) {
 		for( auto &sem : semaphores ) {
 			sem.wait( );
 		}

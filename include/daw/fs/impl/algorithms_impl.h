@@ -27,6 +27,7 @@
 #include "daw_latch.h"
 
 #include <daw/daw_algorithm.h>
+#include <daw/daw_mutable_capture.h>
 #include <daw/daw_scope_guard.h>
 #include <daw/daw_view.h>
 #include <daw/parallel/daw_spin_lock.h>
@@ -57,13 +58,13 @@ namespace daw::algorithm::parallel::impl {
 	};
 
 	template<typename RandomIterator, typename Func>
-	[[nodiscard]] daw::shared_latch
+	[[nodiscard]] daw::shared_cnt_sem
 	partition_range( std::vector<daw::view<RandomIterator>> ranges, Func &&func, task_scheduler ts ) {
-		auto sem = daw::shared_latch( ranges.size( ) );
+		auto sem = daw::shared_cnt_sem( ranges.size( ) );
 		for( auto rng : ranges ) {
 			if( not schedule_task(
 			      sem,
-			      [func = daw::mutable_capture( func ), rng = DAW_MOVE( rng )]( ) { ( *func )( rng ); },
+			      [func = daw::mutable_capture( func ), rng = DAW_MOVE( rng )] { ( *func )( rng ); },
 			      ts ) ) {
 
 				throw daw::unable_to_add_task_exception{ };
@@ -73,59 +74,48 @@ namespace daw::algorithm::parallel::impl {
 	}
 
 	template<typename RandomIterator, typename Func>
-	[[nodiscard]] daw::shared_latch
+	[[nodiscard]] daw::shared_cnt_sem
 	partition_range_pos( std::vector<daw::view<RandomIterator>> ranges,
 	                     Func func,
 	                     task_scheduler ts,
 	                     size_t const start_pos = 0 ) noexcept {
-		auto sem = daw::shared_latch( 0 );
+		auto sem = daw::shared_cnt_sem( 1 );
+		auto const ae = on_scope_exit( [sem]( ) mutable { sem.notify( ); } );
 		for( size_t n = start_pos; n < ranges.size( ); ++n ) {
-			sem.add_notifier( );
-			try {
-				if( not schedule_task(
-				      sem,
-				      [func = daw::mutable_capture( func ), rng = ranges[n], n]( ) { ( *func )( rng, n ); },
-				      ts ) ) {
+			if( not schedule_task(
+			      sem,
+			      [func = daw::mutable_capture( func ), rng = ranges[n], n]( ) {
+				      func.move_out( )( rng, n );
+			      },
+			      ts ) ) {
 
-					// Unable to add task, consider a better error mechanism like optional
-					// with the latch reduced to match the number of items
-					sem.notify( );
-					std::abort( );
-				}
-			} catch( ... ) {
 				// Unable to add task, consider a better error mechanism like optional
 				// with the latch reduced to match the number of items
-				sem.notify( );
-				std::abort( );
+				std::terminate( );
 			}
 		}
 		return sem;
 	}
 
-	template<typename PartitionPolicy, typename RandomIterator, typename Func>
-	[[nodiscard]] daw::shared_latch
+	template<typename PartitionPolicy, random_access_iterator RandomIterator, typename Func>
+	[[nodiscard]] shared_cnt_sem
 	partition_range( daw::view<RandomIterator> range, Func &&func, task_scheduler ts ) noexcept {
 		if( range.empty( ) ) {
-			return { };
+			return shared_cnt_sem( 0 );
 		}
 		auto const ranges = PartitionPolicy{ }( range, ts.size( ) );
-		auto sem = daw::shared_latch( 0 );
+		auto sem = daw::shared_cnt_sem( 1 );
+		auto const ae = on_scope_exit( [sem]( ) mutable { sem.notify( ); } );
 		for( auto rng : ranges ) {
-			sem.add_notifier( );
-			try {
-				if( not schedule_task(
-				      sem,
-				      [func = daw::mutable_capture( DAW_FWD( func ) ), rng]( ) {
-					      ( *func )( rng.begin( ), rng.end( ) );
-				      },
-				      ts ) ) {
+			if( not schedule_task(
+			      sem,
+			      [func = daw::mutable_capture( DAW_FWD( func ) ), rng]( ) {
+				      func.move_out( )( rng.begin( ), rng.end( ) );
+			      },
+			      ts ) ) {
 
-					sem.notify( );
-					std::abort( );
-				}
-			} catch( ... ) {
-				sem.notify( );
-				std::abort( );
+				// TODO: handle this
+				std::terminate( );
 			}
 		}
 		return sem;
@@ -165,7 +155,7 @@ namespace daw::algorithm::parallel::impl {
 	                              Func func,
 	                              task_scheduler ts ) {
 		auto const ranges = PartitionPolicy{ }( first, last, ts.size( ) );
-		auto sem = daw::shared_latch( ranges.size( ) );
+		auto sem = daw::shared_cnt_sem( ranges.size( ) );
 		Unused( sem );
 		partition_range(
 		  ranges,

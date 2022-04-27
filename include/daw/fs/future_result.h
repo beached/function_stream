@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016-2019 Darrell Wright
+// Copyright (c) Darrell Wright
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to
@@ -30,6 +30,7 @@
 #include <daw/cpp_17.h>
 #include <daw/daw_exception.h>
 #include <daw/daw_expected.h>
+#include <daw/daw_mutable_capture.h>
 #include <daw/daw_traits.h>
 #include <daw/vector.h>
 
@@ -58,10 +59,10 @@ namespace daw {
 		explicit future_result_t( task_scheduler ts )
 		  : m_data( DAW_MOVE( ts ) ) {}
 
-		future_result_t( daw::shared_latch sem, task_scheduler ts )
+		future_result_t( daw::shared_cnt_sem sem, task_scheduler ts )
 		  : m_data( DAW_MOVE( sem ), DAW_MOVE( ts ) ) {}
 
-		explicit future_result_t( daw::shared_latch sem )
+		explicit future_result_t( daw::shared_cnt_sem sem )
 		  : m_data( DAW_MOVE( sem ), get_task_scheduler( ) ) {}
 
 	public:
@@ -192,7 +193,7 @@ namespace daw {
 	public:
 		future_result_t( ) = default;
 		explicit future_result_t( task_scheduler ts );
-		explicit future_result_t( daw::shared_latch sem, task_scheduler ts = get_task_scheduler( ) );
+		explicit future_result_t( daw::shared_cnt_sem sem, task_scheduler ts = get_task_scheduler( ) );
 
 		[[nodiscard]] auto get_handle( ) const {
 			using data_handle_t = daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
@@ -291,15 +292,14 @@ namespace daw {
 		using result_t = daw::remove_cvref_t<decltype( func( DAW_FWD( args )... ) )>;
 		auto result = future_result_t<result_t>( );
 
-		if( not ts.add_task(
-		      [result = daw::mutable_capture( result ),
-		       func = daw::mutable_capture( fs::impl::make_callable( DAW_FWD( func ) ) ),
-		       args = daw::mutable_capture( std::make_tuple( DAW_FWD( args )... ) )]( ) -> void {
-			      result->from_code( [func = daw::mutable_capture( DAW_MOVE( *func ) ),
-			                          args = daw::mutable_capture( DAW_MOVE( *args ) )]( ) {
-				      return std::apply( DAW_MOVE( *func ), DAW_MOVE( *args ) );
-			      } );
-		      } ) ) {
+		if( not ts.add_task( [result = daw::mutable_capture( result ),
+		                      func = daw::mutable_capture( fs::impl::make_callable( DAW_FWD( func ) ) ),
+		                      args = daw::mutable_capture( std::make_tuple( DAW_FWD( args )... ) )] {
+			    result->from_code( [func = daw::mutable_capture( func.move_out( ) ),
+			                        args = daw::mutable_capture( args.move_out( ) )]( ) {
+				    return std::apply( func.move_out( ), args.move_out( ) );
+			    } );
+		    } ) ) {
 			throw daw::unable_to_add_task_exception{ };
 		}
 		return result;
@@ -334,7 +334,7 @@ namespace daw {
 
 	template<typename Function, typename... Args>
 	[[nodiscard]] auto
-	make_future_result( task_scheduler ts, daw::shared_latch sem, Function &&func, Args &&...args ) {
+	make_future_result( task_scheduler ts, daw::shared_cnt_sem sem, Function &&func, Args &&...args ) {
 
 		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
 		using result_t = decltype( DAW_FWD( func )( DAW_FWD( args )... ) );
@@ -391,7 +391,7 @@ namespace daw {
 	};
 
 	namespace impl {
-		template<typename Iterator, typename OutputIterator, typename BinaryOp>
+		template<input_or_output_iterator Iterator, typename OutputIterator, typename BinaryOp>
 		OutputIterator reduce_futures2( Iterator first,
 		                                Iterator last,
 		                                OutputIterator out_it,
@@ -401,7 +401,9 @@ namespace daw {
 			if( sz == 0 ) {
 				return out_it;
 			} else if( sz == 1 ) {
-				*out_it++ = *first++;
+				*out_it = *first;
+				++out_it;
+				++first;
 				return out_it;
 			}
 			bool const odd_count = sz % 2 == 1;
@@ -411,13 +413,16 @@ namespace daw {
 			while( first != last ) {
 				auto l_it = ++first;
 				auto r_it = ++first;
-				*out_it++ = l_it->next( [r = daw::mutable_capture( *r_it ),
+				auto &lhs = *l_it;
+				*out_it =
+				  DAW_MOVE( lhs ).next( [rhs = daw::mutable_capture( DAW_MOVE( *r_it ) ),
 				                         binary_op = daw::mutable_capture( binary_op )]( auto &&result ) {
-					return ( *binary_op )( DAW_FWD( result ), r->get( ) );
-				} );
+					  return binary_op.move_out( )( DAW_FWD( result ), rhs.move_out( ).get( ) );
+				  } );
+				++out_it;
 			}
 			if( odd_count ) {
-				*out_it = *last;
+				*out_it = DAW_MOVE( *last );
 				++out_it;
 			}
 			return out_it;
@@ -433,23 +438,31 @@ namespace daw {
 		  future_result_t<DAW_TYPEOF( ( std::declval<iter_value_type<RandomIterator>>( ) ).get( ) )>;
 		static_assert( FutureResult<iter_value_type<RandomIterator>>,
 		               "RandomIterator's value type must be a future result" );
-// DAW DAW use daw::vector with resize_and_overwrite
-		auto results = std::vector<ResultType>( );
-		results.reserve( static_cast<size_t>( std::distance( first, last ) ) / 2 );
+		auto const rng_sz = static_cast<std::size_t>( std::distance( first, last ) );
+		assert( rng_sz > 0 );
+		auto results =
+		  daw::vector<ResultType>( do_resize_and_overwrite,
+		                           ( rng_sz / 2 ) + ( rng_sz % 2 ),
+		                           [&]( ResultType *ptr, std::size_t sz ) {
+			                           ResultType const *const last_out =
+			                             impl::reduce_futures2( first, last, ptr, binary_op );
+			                           auto const out_sz = static_cast<std::size_t>( last_out - ptr );
+			                           assert( out_sz == sz );
+			                           return sz;
+		                           } );
 
-		impl::reduce_futures2( std::make_move_iterator( first ),
-		                       std::make_move_iterator( last ),
-		                       std::back_inserter( results ),
-		                       binary_op );
-
+		auto tmp = daw::vector<ResultType>( );
 		while( results.size( ) > 1 ) {
-			auto tmp = std::vector<ResultType>( );
-			tmp.reserve( results.size( ) / 2 );
+			tmp.clear( );
+			auto const next_sz = ( results.size( ) / 2 ) + ( results.size( ) % 2 );
+			tmp.resize_and_overwrite( next_sz, [&]( ResultType *ptr, std::size_t sz ) {
+				ResultType const *const last_out =
+				  impl::reduce_futures2( results.begin( ), results.end( ), ptr, binary_op );
+				auto const out_sz = static_cast<std::size_t>( last_out - ptr );
+				assert( out_sz == sz );
+				return sz;
+			} );
 
-			impl::reduce_futures2( std::make_move_iterator( results.begin( ) ),
-			                       std::make_move_iterator( results.end( ) ),
-			                       std::back_inserter( tmp ),
-			                       binary_op );
 			std::swap( results, tmp );
 		}
 		return results.front( );
@@ -474,11 +487,11 @@ namespace daw {
 	template<typename TPFutureResults,
 	         typename Function>
 	requires( daw::traits::is_tuple_v<TPFutureResults> ) //
-	  [[nodiscard]] decltype( auto ) join( TPFutureResults &&results, Function &&next_function ) {
+	  [[nodiscard]] auto join( TPFutureResults &&results, Function &&next_function ) {
 		auto result = make_future_result( [results = daw::mutable_capture( DAW_FWD( results ) ),
 		                                   next_function = daw::mutable_capture(
 		                                     fs::impl::make_callable( DAW_FWD( next_function ) ) )]( ) {
-			return future_apply( DAW_MOVE( *next_function ), DAW_MOVE( *results ) );
+			return future_apply( next_function.move_out( ), results.move_out( ) );
 		} );
 		return result;
 	}

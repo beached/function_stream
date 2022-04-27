@@ -28,6 +28,7 @@
 #include <daw/cpp_17.h>
 #include <daw/daw_expected.h>
 #include <daw/daw_move.h>
+#include <daw/daw_mutable_capture.h>
 #include <daw/daw_traits.h>
 #include <daw/daw_tuple_helper.h>
 
@@ -53,7 +54,7 @@ namespace daw {
 
 			task_scheduler m_task_scheduler;
 			next_t m_next = next_t( next_function_t( ) );
-			daw::shared_latch m_semaphore = daw::shared_latch( 1 );
+			daw::shared_cnt_sem m_semaphore = daw::shared_cnt_sem( 1 );
 			std::atomic<future_status> m_status = future_status::deferred;
 
 			expected_result_t m_result = expected_result_t( );
@@ -61,7 +62,7 @@ namespace daw {
 			explicit member_data_members( task_scheduler ts )
 			  : m_task_scheduler( DAW_MOVE( ts ) ) {}
 
-			member_data_members( daw::shared_latch sem, task_scheduler ts )
+			member_data_members( daw::shared_cnt_sem sem, task_scheduler ts )
 			  : m_task_scheduler( DAW_MOVE( ts ) )
 			  , m_semaphore( DAW_MOVE( sem ) ) {}
 
@@ -111,57 +112,25 @@ namespace daw {
 			}
 		};
 
-		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		requires( N == sizeof...( Functions ) - 1 ) //
-		  [[nodiscard]] bool add_fork_task_impl( daw::shared_latch &sem,
-		                                         task_scheduler &ts,
-		                                         std::tuple<Results...> &results,
-		                                         std::tuple<Functions...> &funcs,
-		                                         Arg &&arg ) {
-
-			daw::exception::DebugAssert( ts, "ts should never be null" );
-			return daw::schedule_task(
-			  sem,
-			  [result = daw::mutable_capture( std::get<N>( results ) ),
-			   func = daw::mutable_capture( std::get<N>( funcs ) ),
-			   arg = daw::mutable_capture( DAW_FWD( arg ) )]( ) {
-				  result->from_code( DAW_MOVE( *func ), DAW_MOVE( *arg ) );
-			  },
-			  ts );
-		}
-
-		template<size_t N, typename... Functions, typename... Results, typename Arg>
-		requires( N < sizeof...( Functions ) - 1 ) //
-		  [[nodiscard]] bool add_fork_task_impl( daw::shared_latch &sem,
-		                                         task_scheduler &ts,
-		                                         std::tuple<Results...> &results,
-		                                         std::tuple<Functions...> &funcs,
-		                                         Arg &&arg ) {
-
-			daw::exception::DebugAssert( ts, "ts should never be null" );
-			if( not daw::schedule_task(
-			      sem,
-			      [result = daw::mutable_capture( std::get<N>( results ) ),
-			       func = daw::mutable_capture( std::get<N>( funcs ) ),
-			       arg = daw::mutable_capture( arg )]( ) {
-				      result->from_code( DAW_MOVE( *func ), DAW_MOVE( *arg ) );
-			      },
-			      ts ) ) {
-				return false;
-			}
-
-			return add_fork_task_impl<N + 1>( sem, ts, results, funcs, DAW_FWD( arg ) );
-		} // namespace impl
-
 		template<typename... Functions, typename... Results, typename Arg>
-		[[nodiscard]] daw::shared_latch add_fork_task( task_scheduler &ts,
-		                                               std::tuple<Results...> &results,
-		                                               std::tuple<Functions...> &funcs,
-		                                               Arg &&arg ) {
+		[[nodiscard]] daw::shared_cnt_sem add_fork_task( task_scheduler &ts,
+		                                                 std::tuple<Results...> &results,
+		                                                 std::tuple<Functions...> &funcs,
+		                                                 Arg &&arg ) {
 
-			auto sem = daw::shared_latch( sizeof...( Functions ) );
-			if( not add_fork_task_impl<0>( sem, ts, results, funcs, DAW_FWD( arg ) ) ) {
-
+			auto sem = daw::shared_cnt_sem( 1 );
+			auto const ae = on_scope_exit( [sem]( ) mutable { sem.notify( ); } );
+			auto const fork_task = [&]<std::size_t N>( std::integral_constant<std::size_t, N> ) {
+				return ts.add_task( [r = daw::mutable_capture( std::get<N>( results ) ),
+				                     func = daw::mutable_capture( std::get<N>( funcs ) ),
+				                     arg = daw::mutable_capture( arg )]( ) //
+				                    { r->from_code( func.move_out( ), arg.move_out( ) ); },
+				                    sem );
+			};
+			auto const fork_tasks = [&]<std::size_t... Is>( std::index_sequence<Is...> ) {
+				return ( fork_task( std::integral_constant<std::size_t, Is>{ } ) and ... );
+			};
+			if( not fork_tasks( std::make_index_sequence<sizeof...( Functions )>{ } ) ) {
 				throw daw::unable_to_add_task_exception{ };
 			}
 			return sem;
@@ -180,8 +149,17 @@ namespace daw {
 			explicit member_data_t( task_scheduler ts )
 			  : m_data( std::make_shared<data_t>( DAW_MOVE( ts ) ) ) {}
 
-			member_data_t( daw::shared_latch sem, task_scheduler ts )
+			explicit member_data_t( daw::shared_cnt_sem sem, task_scheduler ts )
 			  : m_data( std::make_shared<data_t>( DAW_MOVE( sem ), DAW_MOVE( ts ) ) ) {}
+
+			// DAW DAW DAW
+			~member_data_t( ) = default;
+			member_data_t( member_data_t const & ) = default;
+			member_data_t &operator=( member_data_t const & ) = default;
+			/*
+			member_data_t( member_data_t && ) = default copy;
+			member_data_t &operator=( member_data_t && ) = default copy;
+			*/
 
 		private:
 			explicit member_data_t( std::shared_ptr<data_t> &&dptr ) noexcept
@@ -206,6 +184,7 @@ namespace daw {
 
 		public:
 			void set_value( expected_result_t &&value ) {
+				assert( m_data );
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( DAW_MOVE( value ) );
 					return;
@@ -216,6 +195,7 @@ namespace daw {
 			} // namespace impl
 
 			void set_value( expected_result_t const &value ) {
+				assert( m_data );
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( value );
 					return;
@@ -226,6 +206,7 @@ namespace daw {
 			}
 
 			void set_value( base_result_t &&value ) {
+				assert( m_data );
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( daw::construct_a<expected_result_t>( DAW_MOVE( value ) ) );
 					return;
@@ -236,6 +217,7 @@ namespace daw {
 			}
 
 			void set_value( base_result_t const &value ) {
+				assert( m_data );
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( daw::construct_a<expected_result_t>( value ) );
 					return;
@@ -246,6 +228,7 @@ namespace daw {
 			}
 
 			void set_exception( std::exception_ptr ptr ) {
+				assert( m_data );
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
 					pass_next( daw::construct_a<expected_result_t>( ptr ) );
 					return;
@@ -256,6 +239,7 @@ namespace daw {
 			}
 
 			[[nodiscard]] bool is_exception( ) const {
+				assert( m_data );
 				m_data->wait( );
 				// TODO: look into not throwing and allowing values to be retrieved
 				daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued,
@@ -264,6 +248,7 @@ namespace daw {
 			}
 
 			[[nodiscard]] decltype( auto ) get( ) {
+				assert( m_data );
 				m_data->wait( );
 				daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued,
 				                                   "Attempt to use a future that has been continued" );
@@ -271,6 +256,7 @@ namespace daw {
 			}
 
 			[[nodiscard]] decltype( auto ) get( ) const {
+				assert( m_data );
 				m_data->wait( );
 				daw::exception::daw_throw_on_true( m_data->status( ) == future_status::continued,
 				                                   "Attempt to use a future that has been continued" );
@@ -307,10 +293,10 @@ namespace daw {
 						result->set_exception( value.get_exception_ptr( ) );
 						return;
 					}
-					if( not ts->add_task( [result = daw::mutable_capture( DAW_MOVE( *result ) ),
-					                       func = daw::mutable_capture( DAW_MOVE( *func ) ),
-					                       v = daw::mutable_capture( DAW_MOVE( value.get( ) ) )]( ) {
-						    result->from_code( DAW_MOVE( *func ), DAW_MOVE( *v ) );
+					if( not ts->add_task( [result = daw::mutable_capture( result.move_out( ) ),
+					                       func = daw::mutable_capture( func.move_out( ) ),
+					                       v = daw::mutable_capture( DAW_MOVE( value ).get( ) )]( ) {
+						    result->from_code( func.move_out( ), v.move_out( ) );
 					    } ) ) {
 
 						throw daw::unable_to_add_task_exception{ };
@@ -333,8 +319,8 @@ namespace daw {
 				auto nxt = m_data->m_next.get( );
 				assert( not( *nxt ) ); // can only set next function once
 
-				using result_t = std::tuple<future_result_t<
-				  daw::remove_cvref_t<decltype( funcs( std::declval<expected_result_t>( ).get( ) ) )>>...>;
+				using result_t = std::tuple<
+				  future_result_t<DAW_TYPEOF( funcs( std::declval<expected_result_t>( ).get( ) ) )>...>;
 
 				auto const construct_future = [&]( auto &&f ) {
 					Unused( f );
@@ -394,14 +380,17 @@ namespace daw {
 			}
 
 			void wait( ) const {
+				assert( m_data );
 				m_data->wait( );
 			}
 
 			[[nodiscard]] bool try_wait( ) const {
+				assert( m_data );
 				return m_data->try_wait( );
 			}
 
 			[[nodiscard]] auto get_handle( ) const {
+				assert( m_data );
 				class handle_t {
 					std::weak_ptr<data_t> m_handle;
 
@@ -417,7 +406,8 @@ namespace daw {
 
 					[[nodiscard]] std::optional<member_data_t> lock( ) const {
 						if( auto lck = m_handle.lock( ); lck ) {
-							return member_data_t( DAW_MOVE( lck ) );
+							auto m = member_data_t( DAW_MOVE( lck ) );
+							return std::optional<member_data_t>( DAW_MOVE( m ) );
 						}
 						return { };
 					}
@@ -441,7 +431,7 @@ namespace daw {
 			explicit member_data_t( task_scheduler ts )
 			  : m_data( std::make_shared<data_t>( DAW_MOVE( ts ) ) ) {}
 
-			explicit member_data_t( daw::shared_latch sem, task_scheduler ts )
+			explicit member_data_t( daw::shared_cnt_sem sem, task_scheduler ts )
 			  : m_data( std::make_shared<data_t>( DAW_MOVE( sem ), DAW_MOVE( ts ) ) ) {}
 
 		private:
@@ -499,9 +489,9 @@ namespace daw {
 				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
 				        self = *this]( expected_result_t value ) -> void {
 					if( value.has_value( ) ) {
-						if( ts->add_task( [result = daw::mutable_capture( DAW_MOVE( *result ) ),
-						                   func = daw::mutable_capture( DAW_MOVE( *func ) )]( ) {
-							    result->from_code( DAW_MOVE( *func ) );
+						if( ts->add_task( [result = daw::mutable_capture( result.move_out( ) ),
+						                   func = daw::mutable_capture( func.move_out( ) )]( ) {
+							    result->from_code( func.move_out( ) );
 						    } ) ) {
 
 							throw daw::unable_to_add_task_exception{ };
@@ -581,14 +571,13 @@ namespace daw {
 				        tpfuncs = daw::mutable_capture( DAW_MOVE( tpfuncs ) ),
 				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
 				        self = *this]( auto const &value ) {
-					static_assert(
-					  std::is_same_v<expected_result_t, daw::remove_cvref_t<decltype( value )>> );
+					static_assert( std::is_same_v<expected_result_t, DAW_TYPEOF( value )> );
 					if( value.has_value( ) ) {
 						ts->add_task( impl::add_fork_task( ts, result, tpfuncs ) );
 						return;
 					}
 					daw::tuple::apply( result, [ptr = value.get_exception_ptr( )]( auto &&t ) {
-						std::forward<decltype( t )>( t ).set_exception( ptr );
+						DAW_FWD( t ).set_exception( ptr );
 					} );
 				};
 				if( future_status::ready == m_data->status( ) ) {
@@ -668,7 +657,7 @@ namespace daw {
 		struct [[nodiscard]] apply_many_t {
 			template<typename... ResultTypes, typename... Args>
 			void operator( )( daw::task_scheduler &ts,
-			                  daw::shared_latch sem,
+			                  daw::shared_cnt_sem sem,
 			                  std::tuple<ResultTypes...> &results,
 			                  std::tuple<Callables...> const &callables,
 			                  std::shared_ptr<std::tuple<Args...>> const &tp_args ) {
@@ -696,7 +685,7 @@ namespace daw {
 		struct [[nodiscard]] apply_many_t<SZ, SZ, Functions...> {
 			template<typename Results, typename... Args>
 			constexpr void operator( )( daw::task_scheduler const &,
-			                            daw::shared_latch const &,
+			                            daw::shared_cnt_sem const &,
 			                            Results const &,
 			                            std::tuple<Functions...> const &,
 			                            std::shared_ptr<std::tuple<Args...>> const & ) {}
@@ -704,7 +693,7 @@ namespace daw {
 
 		template<typename Result, typename... Functions, typename... Args>
 		void apply_many( daw::task_scheduler &ts,
-		                 daw::shared_latch sem,
+		                 daw::shared_cnt_sem sem,
 		                 Result &result,
 		                 std::tuple<Functions...> const &callables,
 		                 std::shared_ptr<std::tuple<Args...>> tp_args ) {
@@ -741,7 +730,7 @@ namespace daw {
 				  DAW_FWD( args )... );
 
 				auto ts = get_task_scheduler( );
-				auto sem = daw::shared_latch( sizeof...( Functions ) );
+				auto sem = daw::shared_cnt_sem( sizeof...( Functions ) );
 				auto result = future_result_t<result_tp_t>( sem, ts );
 
 				auto th_worker = [result = daw::mutable_capture( result ),
@@ -749,10 +738,10 @@ namespace daw {
 				                  tp_functions = daw::mutable_capture( tp_functions ),
 				                  ts = daw::mutable_capture( ts ),
 				                  tp_args = daw::mutable_capture( DAW_MOVE( tp_args ) )]( ) {
-					auto const oe = daw::on_scope_exit( [&sem]( ) { sem->notify( ); } );
+					auto const oe = daw::on_scope_exit( [sem]( ) { sem->notify( ); } );
 
 					auto tp_result = result_tp_t( );
-					impl::apply_many( *ts, *sem, tp_result, DAW_MOVE( *tp_functions ), DAW_MOVE( *tp_args ) );
+					impl::apply_many( *ts, *sem, tp_result, tp_functions.move_out( ), tp_args.move_out( ) );
 
 					sem->wait( );
 					result->set_value( DAW_MOVE( tp_result ) );
