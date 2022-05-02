@@ -51,7 +51,7 @@ target_sources(daw-display-info
 
 add_library(daw-task-scheduler)
 add_library(daw::daw-task-scheduler ALIAS daw-task-scheduler)
-target_link_libraries(daw-task-scheduler PUBLIC Boost::system daw::daw-header-libraries daw::daw-parallel ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(daw-task-scheduler PUBLIC Boost::headers daw::daw-header-libraries daw::daw-parallel ${CMAKE_THREAD_LIBS_INIT})
 target_compile_features(daw-task-scheduler INTERFACE cxx_std_20)
 target_include_directories(daw-task-scheduler
         PUBLIC
