@@ -268,20 +268,20 @@ namespace daw {
 		return m_ts_impl->run_next_task( id );
 	}
 
-	void fixed_task_scheduler::start( ) {
+	void fixed_task_scheduler::start( ts_handle_t hnd ) {
 		if( started( ) ) {
 			return;
 		}
 		m_continue = true;
 		// assert( m_ts_impl->m_tasks.size( ) == m_ts_impl->m_num_threads );
 		for( std::size_t n = 0; n < m_num_threads; ++n ) {
-			add_queue( n );
+			add_queue( n, DAW_MOVE( hnd ) );
 		}
 	}
 
 	void task_scheduler::start( ) {
 		assert( m_ts_impl );
-		m_ts_impl->start( );
+		m_ts_impl->start( get_handle( ) );
 	}
 
 	void task_scheduler::stop( bool block ) noexcept {

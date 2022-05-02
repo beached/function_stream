@@ -59,7 +59,7 @@ static void bench_daw_par_equal( benchmark::State &s ) {
 	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	for( auto _ : s ) {
-		[&, &a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) __attribute__( ( noinline ) ) {
+		[&, &a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) {
 			benchmark::DoNotOptimize( a );
 			benchmark::DoNotOptimize( b );
 			auto result = daw::algorithm::parallel::equal( a.begin( ),
@@ -86,7 +86,7 @@ static void bench_par_stl_equal( benchmark::State &s ) {
   auto const ary = random_get<SZ>( );
 
   for( auto _ : s ) {
-    [&a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) __attribute__( ( noinline ) ) {
+    [&a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) {
       benchmark::DoNotOptimize( a );
       benchmark::DoNotOptimize( b );
       std::equal( std::execution::par,
@@ -112,7 +112,7 @@ template<std::ptrdiff_t SZ>
 static void bench_stl_equal( benchmark::State &s ) {
 	auto const ary = random_get<SZ>( );
 	for( auto _ : s ) {
-		[&a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) __attribute__( ( noinline ) ) {
+		[&a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) {
 			benchmark::DoNotOptimize( a );
 			benchmark::DoNotOptimize( b );
 			auto result = std::equal( a.begin( ), a.end( ), b.begin( ), b.end( ), std::equal_to<>{ } );

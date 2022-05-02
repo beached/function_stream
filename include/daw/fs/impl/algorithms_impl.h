@@ -187,22 +187,22 @@ namespace daw::algorithm::parallel::impl {
 	};
 
 	struct sorter_t {
-		void operator( )( random_access_iterator auto first,
-		                  random_access_iterator auto last,
+		void operator( )( auto first,
+		                  auto last,
 		                  invocable_result<bool,
-		                                   iter_value_type<decltype( first )>,
-		                                   iter_value_type<decltype( first )>> auto cmp ) const {
+		                                   iter_reference_t<DAW_TYPEOF( first )>,
+		                                   iter_reference_t<DAW_TYPEOF( first )>> auto cmp ) const {
 			std::sort( DAW_MOVE( first ), DAW_MOVE( last ), DAW_MOVE( cmp ) );
 		}
 	};
 	inline constexpr auto sorter = sorter_t{ };
 
 	struct stable_sorter_t {
-		inline void operator( )( random_access_iterator auto first,
-		                         random_access_iterator auto last,
-		                         invocable_result<bool,
-		                                          iter_value_type<decltype( first )>,
-		                                          iter_value_type<decltype( first )>> auto cmp ) const {
+		void operator( )( auto first,
+		                  auto last,
+		                  invocable_result<bool,
+		                                   iter_reference_t<DAW_TYPEOF( first )>,
+		                                   iter_reference_t<DAW_TYPEOF( first )>> auto cmp ) const {
 			std::stable_sort( DAW_MOVE( first ), DAW_MOVE( last ), DAW_FWD( cmp ) );
 		}
 	};
@@ -212,7 +212,7 @@ namespace daw::algorithm::parallel::impl {
 	parallel_sort_merger( Compare cmp ) -> parallel_sort_merger<Compare>;
 
 	template<typename PartitionPolicy = split_range_t<>,
-	         random_access_iterator Iterator,
+	         typename Iterator,
 	         typename Sort,
 	         typename Compare>
 	void parallel_sort( daw::view<Iterator> range, Sort &&srt, Compare &&cmp, task_scheduler ts ) {

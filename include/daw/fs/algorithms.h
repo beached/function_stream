@@ -96,14 +96,12 @@ namespace daw::algorithm::parallel {
 		  DAW_MOVE( ts ) );
 	}
 
-	template<typename RandomIterator, typename Compare = std::less<>>
+	template<random_access_iterator RandomIterator, typename Compare = std::less<>>
 	void sort( RandomIterator first,
 	           RandomIterator last,
 	           task_scheduler ts = get_task_scheduler( ),
 	           Compare &&comp = Compare{ } ) {
 
-		traits::is_random_access_iterator_test<RandomIterator>( );
-		concept_checks::is_binary_predicate_test<Compare, RandomIterator, RandomIterator>( );
 		impl::parallel_sort( daw::view( first, last ),
 		                     impl::sorter,
 		                     daw::traits::lift_func( DAW_FWD( comp ) ),
@@ -122,14 +120,13 @@ namespace daw::algorithm::parallel {
 		                     DAW_MOVE( ts ) );
 	}
 
-	template<typename T, typename RandomIterator, typename BinaryOperation>
+	template<typename T, random_access_iterator RandomIterator, typename BinaryOperation>
 	[[nodiscard]] T reduce( RandomIterator first,
 	                        RandomIterator last,
 	                        T init,
 	                        BinaryOperation &&binary_op,
 	                        task_scheduler ts = get_task_scheduler( ) ) {
 
-		traits::is_random_access_iterator_test<RandomIterator>( );
 		static_assert( concept_checks::is_callable_v<BinaryOperation, RandomIterator, RandomIterator>,
 		               "BinaryOperation passed to reduce must take two values referenced by "
 		               "first. e.g "

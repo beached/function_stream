@@ -47,7 +47,7 @@ static void bench_daw_par_sort( benchmark::State &s ) {
 	ts.start( );
 	auto const &big_vec = get_rnd_array( );
 	for( auto _ : s ) {
-		[&ts]( std::vector<int64_t> v ) __attribute__( ( noinline ) ) {
+		[&ts]( std::vector<int64_t> v ) {
 			daw::algorithm::parallel::sort( std::data( v ), daw::data_end( v ), ts );
 			benchmark::ClobberMemory( );
 		}
@@ -87,7 +87,7 @@ static void bench_stl_sort( benchmark::State &s ) {
 	ts.start( );
 	auto const &big_vec = get_rnd_array( );
 	for( auto _ : s ) {
-		[]( std::vector<int64_t> v ) __attribute__( ( noinline ) ) {
+		[]( std::vector<int64_t> v ) {
 			std::sort( std::data( v ), daw::data_end( v ) );
 			benchmark::ClobberMemory( );
 		}

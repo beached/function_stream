@@ -114,18 +114,18 @@ namespace daw {
 		~fixed_task_scheduler( );
 
 		[[nodiscard]] bool has_empty_queue( ) const;
-		void add_queue( std::size_t n );
 		[[nodiscard]] std::size_t size( ) const;
 
-		[[nodiscard]] auto wait_for_scope( invocable auto &&func ) -> decltype( DAW_FWD( func )( ) ) {
+		[[nodiscard]] auto wait_for_scope( invocable auto &&func, ts_handle_t hnd )
+		  -> decltype( DAW_FWD( func )( ) ) {
 			if( not has_empty_queue( ) ) {
-				add_queue( m_num_threads++ );
+				add_queue( m_num_threads++, DAW_MOVE( hnd ) );
 			}
 			return DAW_FWD( func )( );
 		}
 
 		void add_queue( std::size_t n, ts_handle_t handle );
-		void start( );
+		void start( ts_handle_t hnd );
 		[[nodiscard]] bool started( ) const;
 		[[nodiscard]] unique_task_t wait_for_task_from_pool( std::size_t id );
 		[[nodiscard]] unique_task_t wait_for_task_from_pool( std::size_t id, shared_cnt_sem sem );
@@ -257,7 +257,7 @@ namespace daw {
 	public:
 		[[nodiscard]] auto wait_for_scope( invocable auto &&func ) -> decltype( DAW_FWD( func )( ) ) {
 			assert( m_ts_impl );
-			m_ts_impl->template wait_for_scope( DAW_FWD( func ) );
+			m_ts_impl->wait_for_scope( DAW_FWD( func ), get_handle( ) );
 		}
 
 		template<Waitable Waitable>
