@@ -26,6 +26,7 @@
 #include "impl/daw_latch.h"
 #include "impl/ithread.h"
 #include "impl/task.h"
+#include "impl/task_wrapper.h"
 #include "message_queue.h"
 
 #include <daw/daw_mutable_capture.h>
@@ -48,45 +49,14 @@ namespace daw {
 	template<typename... T>
 	concept Tasks = ( invocable<T> and ... );
 
-	namespace impl {
-		template<typename Iterator, typename Handle>
-		struct temp_task_runner;
-
-		template<typename Handle, invocable Function>
-		struct task_wrapper {
-			std::size_t id;
-			mutable Handle wself;
-			mutable Function func;
-
-			explicit task_wrapper( std::size_t Id, Handle const &hnd, Function const &f )
-			  : id( Id )
-			  , wself( hnd )
-			  , func( f ) {}
-
-			explicit task_wrapper( std::size_t Id, Handle const &hnd, Function &&f )
-			  : id( Id )
-			  , wself( hnd )
-			  , func( DAW_MOVE( f ) ) {}
-
-			void operator( )( ) const {
-				auto self = wself.lock( );
-				if( not self ) {
-					return;
-				}
-				(void)func( );
-				while( self->m_ts_impl->m_continue and self->run_next_task( id ) ) {
-					std::this_thread::yield( );
-				}
-			}
-		};
-
-		template<typename Handle, invocable Function>
-		task_wrapper( std::size_t, Handle, Function ) -> task_wrapper<Handle, Function>;
-	} // namespace impl
-
 	struct unable_to_add_task_exception : std::exception {
 		unable_to_add_task_exception( ) = default;
+		unable_to_add_task_exception( unable_to_add_task_exception const & ) = default;
+		unable_to_add_task_exception &operator=( unable_to_add_task_exception const & ) = default;
+		unable_to_add_task_exception( unable_to_add_task_exception && ) = default;
+		unable_to_add_task_exception &operator=( unable_to_add_task_exception && ) = default;
 
+		~unable_to_add_task_exception( ) override;
 		[[nodiscard]] char const *what( ) const noexcept override;
 	};
 
@@ -97,21 +67,16 @@ namespace daw {
 	make_shared_ts( std::size_t num_threads = daw::parallel::ithread::hardware_concurrency( ),
 	                bool block_on_destruction = true );
 
-	class handle_t {
+	class ts_handle_t {
 		std::weak_ptr<fixed_task_scheduler> m_handle;
 
-		inline explicit handle_t( std::shared_ptr<fixed_task_scheduler> &ts )
-		  : m_handle( ts ) {}
-
-		friend class daw::task_scheduler;
+		explicit ts_handle_t( std::shared_ptr<fixed_task_scheduler> &ts );
+		friend class task_scheduler;
+		friend std::optional<task_scheduler>;
 
 	public:
-		[[nodiscard]] inline bool expired( ) const {
-			return m_handle.expired( );
-		}
-
-		friend std::optional<task_scheduler>;
-		[[nodiscard]] inline std::optional<task_scheduler> lock( ) const;
+		[[nodiscard]] bool expired( ) const;
+		[[nodiscard]] std::optional<task_scheduler> lock( ) const;
 	};
 
 	using task_queue_t = daw::parallel::concurrent_queue<unique_task_t>;
@@ -159,7 +124,8 @@ namespace daw {
 			return DAW_FWD( func )( );
 		}
 
-		void add_queue( std::size_t n, handle_t handle );
+		void add_queue( std::size_t n, ts_handle_t handle );
+		void start( );
 		[[nodiscard]] bool started( ) const;
 		[[nodiscard]] unique_task_t wait_for_task_from_pool( std::size_t id );
 		[[nodiscard]] unique_task_t wait_for_task_from_pool( std::size_t id, shared_cnt_sem sem );
@@ -167,6 +133,30 @@ namespace daw {
 		[[nodiscard]] bool send_task( unique_task_t tsk, std::size_t id );
 		void run_task( unique_task_t tsk ) noexcept;
 		[[nodiscard]] std::size_t get_task_id( );
+		[[nodiscard]] bool run_next_task( std::size_t id );
+
+		struct temp_task_runner {
+			daw::parallel::ithread th;
+			shared_cnt_sem sem;
+
+			temp_task_runner( daw::parallel::ithread &&t, shared_cnt_sem s ) noexcept
+			  : th( DAW_MOVE( t ) )
+			  , sem( DAW_MOVE( s ) ) {
+
+				assert( sem );
+			}
+			temp_task_runner( temp_task_runner && ) noexcept = default;
+			temp_task_runner( temp_task_runner const & ) = delete;
+			temp_task_runner &operator=( temp_task_runner && ) noexcept = default;
+			temp_task_runner &operator=( temp_task_runner const & ) = delete;
+
+			~temp_task_runner( ) {
+				sem.notify( );
+				th.join( );
+			}
+		};
+
+		[[nodiscard]] temp_task_runner start_temp_task_runner( ts_handle_t wself );
 	};
 
 	inline std::shared_ptr<fixed_task_scheduler> make_shared_ts( std::size_t num_threads,
@@ -185,7 +175,7 @@ namespace daw {
 		[[nodiscard]] inline auto get_handle( ) {
 
 			assert( m_ts_impl );
-			return handle_t( m_ts_impl );
+			return ts_handle_t( m_ts_impl );
 		}
 
 		[[nodiscard]] unique_task_t wait_for_task_from_pool( std::size_t id );
@@ -245,28 +235,7 @@ namespace daw {
 		}
 
 	private:
-		struct temp_task_runner {
-			daw::parallel::ithread th;
-			shared_cnt_sem sem;
-
-			temp_task_runner( daw::parallel::ithread &&t, shared_cnt_sem s ) noexcept
-			  : th( DAW_MOVE( t ) )
-			  , sem( DAW_MOVE( s ) ) {
-
-				assert( sem );
-			}
-			temp_task_runner( temp_task_runner && ) noexcept = default;
-			temp_task_runner( temp_task_runner const & ) = delete;
-			temp_task_runner &operator=( temp_task_runner && ) noexcept = default;
-			temp_task_runner &operator=( temp_task_runner const & ) = delete;
-
-			~temp_task_runner( ) {
-				sem.notify( );
-				th.join( );
-			}
-		};
-
-		[[nodiscard]] temp_task_runner start_temp_task_runner( );
+		[[nodiscard]] fixed_task_scheduler::temp_task_runner start_temp_task_runner( );
 
 		struct empty_task {
 			constexpr void operator( )( ) const noexcept {}
@@ -307,14 +276,6 @@ namespace daw {
 			return started( );
 		}
 	};
-
-	std::optional<task_scheduler> handle_t::lock( ) const {
-		if( auto lck = m_handle.lock( ); lck ) {
-			return std::optional<task_scheduler>( std::in_place, DAW_MOVE( lck ) );
-		}
-		return { };
-	}
-	// namespace daw
 
 	task_scheduler get_task_scheduler( );
 

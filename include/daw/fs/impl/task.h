@@ -95,6 +95,20 @@ namespace daw {
 
 	public:
 		unique_task_t( ) = default;
+		unique_task_t( unique_task_t const & ) = delete;
+		unique_task_t &operator=( unique_task_t const & ) = delete;
+		unique_task_t( unique_task_t &&other ) noexcept
+		  : m_ftask( DAW_MOVE( other.m_ftask ) ) {
+			other.m_ftask = std::make_unique<fixed_task_t>( );
+		}
+
+		unique_task_t &operator=( unique_task_t &&rhs ) noexcept {
+			if( this != &rhs ) {
+				m_ftask.reset( rhs.m_ftask.release( ) );
+				rhs.m_ftask.reset( new fixed_task_t( ) );
+			}
+			return *this;
+		}
 
 		template<not_cvref_of<unique_task_t> Task>
 		requires( invocable<Task> ) //

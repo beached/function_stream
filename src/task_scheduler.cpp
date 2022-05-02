@@ -42,19 +42,17 @@ namespace daw {
 		return ts;
 	}
 
-	namespace {
-		template<typename Callable, typename... Args>
-		requires( invocable<Callable, Args...> ) //
-		  parallel::ithread create_thread( Callable &&callable, Args &&...args ) noexcept {
-			try {
-				return parallel::ithread( DAW_FWD( callable ), DAW_FWD( args )... );
-			} catch( std::system_error const &e ) {
-				std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( )
-				          << "\nMessage: " << e.what( ) << '\n';
-				std::abort( );
-			}
+	template<typename Callable, typename... Args>
+	requires( invocable<Callable, Args...> ) //
+	  parallel::ithread create_thread( Callable &&callable, Args &&...args ) noexcept {
+		try {
+			return parallel::ithread( DAW_FWD( callable ), DAW_FWD( args )... );
+		} catch( std::system_error const &e ) {
+			std::cerr << "Error creating thread, aborting.\n Error code: " << e.code( )
+			          << "\nMessage: " << e.what( ) << '\n';
+			std::abort( );
 		}
-	} // namespace
+	}
 
 	fixed_task_scheduler::fixed_task_scheduler( std::size_t num_threads, bool block_on_destruction )
 	  : m_num_threads( num_threads )
@@ -97,11 +95,11 @@ namespace daw {
 		                                    []( auto const &q ) { return q.empty( ); } );
 	}
 
-	void fixed_task_scheduler::add_queue( std::size_t n, handle_t handle ) {
+	void fixed_task_scheduler::add_queue( std::size_t n, ts_handle_t handle ) {
 		auto threads = m_threads.get( );
 		auto thread_map = m_thread_map.get( );
 		auto thr = create_thread(
-		  []( std::size_t id, handle_t wself ) {
+		  []( std::size_t id, ts_handle_t wself ) {
 			  auto self = wself.lock( );
 			  if( not self ) {
 				  return;
@@ -245,20 +243,19 @@ namespace daw {
 		return m_ts_impl->get_task_id( );
 	}
 
-	bool task_scheduler::run_next_task( std::size_t id ) {
-		assert( m_ts_impl );
-		if( auto tsk = m_ts_impl->m_tasks[id].try_pop_front( ); tsk ) {
+	bool fixed_task_scheduler::run_next_task( std::size_t id ) {
+		if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
 			run_task( DAW_MOVE( *tsk ) );
 			return true;
 		}
-		for( std::size_t n = id + 1; n < std::size( m_ts_impl->m_tasks ); ++n ) {
-			if( auto tsk = m_ts_impl->m_tasks[n].try_pop_front( ); tsk ) {
+		for( std::size_t n = id + 1; n < std::size( m_tasks ); ++n ) {
+			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
 				run_task( DAW_MOVE( *tsk ) );
 				return true;
 			}
 		}
 		for( std::size_t n = 0; n < id; ++n ) {
-			if( auto tsk = m_ts_impl->m_tasks[n].try_pop_front( ); tsk ) {
+			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
 				run_task( DAW_MOVE( *tsk ) );
 				return true;
 			}
@@ -266,16 +263,25 @@ namespace daw {
 		return false;
 	}
 
-	void task_scheduler::start( ) {
+	bool task_scheduler::run_next_task( std::size_t id ) {
 		assert( m_ts_impl );
+		return m_ts_impl->run_next_task( id );
+	}
+
+	void fixed_task_scheduler::start( ) {
 		if( started( ) ) {
 			return;
 		}
-		m_ts_impl->m_continue = true;
+		m_continue = true;
 		// assert( m_ts_impl->m_tasks.size( ) == m_ts_impl->m_num_threads );
-		for( std::size_t n = 0; n < m_ts_impl->m_num_threads; ++n ) {
+		for( std::size_t n = 0; n < m_num_threads; ++n ) {
 			add_queue( n );
 		}
+	}
+
+	void task_scheduler::start( ) {
+		assert( m_ts_impl );
+		m_ts_impl->start( );
 	}
 
 	void task_scheduler::stop( bool block ) noexcept {
@@ -283,11 +289,10 @@ namespace daw {
 		m_ts_impl->stop( block );
 	}
 
-	task_scheduler::temp_task_runner task_scheduler::start_temp_task_runner( ) {
-		assert( m_ts_impl );
+	fixed_task_scheduler::temp_task_runner
+	fixed_task_scheduler::start_temp_task_runner( ts_handle_t wself ) {
 		auto sem = shared_cnt_sem( 2 );
 		auto const ae = on_scope_exit( [&sem] { sem.notify( ); } );
-		auto wself = get_handle( );
 		using wself_t = decltype( wself );
 		// *****
 		struct tmp_worker {
@@ -304,33 +309,38 @@ namespace daw {
 			}
 		};
 		// *****
-		size_t const id = m_ts_impl->m_current_id++;
+		size_t const id = m_current_id++;
 
-		return { create_thread( tmp_worker{ id, get_handle( ), sem } ), sem };
+		return { create_thread( tmp_worker{ id, wself, sem } ), sem };
+	}
+
+	fixed_task_scheduler::temp_task_runner task_scheduler::start_temp_task_runner( ) {
+		assert( m_ts_impl );
+		return m_ts_impl->start_temp_task_runner( get_handle( ) );
+	}
+
+	bool fixed_task_scheduler::send_task( unique_task_t tsk, std::size_t id ) {
+		if( not started( ) ) {
+			return true;
+		}
+		if( m_tasks[id].try_push_back( DAW_MOVE( tsk ) ) == parallel::push_back_result::success ) {
+			return true;
+		}
+		for( auto m = ( id + 1 ) % m_num_threads; m != id; m = ( m + 1 ) % m_num_threads ) {
+			if( not started( ) ) {
+				return true;
+			}
+			if( m_tasks[m].try_push_back( DAW_MOVE( tsk ) ) == parallel::push_back_result::success ) {
+				return true;
+			}
+		}
+		auto const res = push_back( m_tasks[id], DAW_MOVE( tsk ), [&]( ) { return started( ); } );
+		return res == parallel::push_back_result::success;
 	}
 
 	bool task_scheduler::send_task( unique_task_t tsk, std::size_t id ) {
 		assert( m_ts_impl );
-		if( not m_ts_impl->m_continue ) {
-			return true;
-		}
-		if( m_ts_impl->m_tasks[id].try_push_back( DAW_MOVE( tsk ) ) ==
-		    parallel::push_back_result::success ) {
-			return true;
-		}
-		for( auto m = ( id + 1 ) % m_ts_impl->m_num_threads; m != id;
-		     m = ( m + 1 ) % m_ts_impl->m_num_threads ) {
-			if( not m_ts_impl->m_continue ) {
-				return true;
-			}
-			if( m_ts_impl->m_tasks[m].try_push_back( DAW_MOVE( tsk ) ) ==
-			    parallel::push_back_result::success ) {
-				return true;
-			}
-		}
-		return push_back( m_ts_impl->m_tasks[id], DAW_MOVE( tsk ), [&]( ) {
-			       return static_cast<bool>( m_ts_impl->m_continue );
-		       } ) == parallel::push_back_result::success;
+		return m_ts_impl->send_task( DAW_MOVE( tsk ), id );
 	}
 
 	void task_scheduler::task_runner( std::size_t id ) {
@@ -340,7 +350,7 @@ namespace daw {
 			auto tsk = unique_task_t( );
 			{
 				auto self = w_self.lock( );
-				if( not self or not self->m_ts_impl->m_continue ) {
+				if( not self or not self->started( ) ) {
 					return;
 				}
 				tsk = self->wait_for_task_from_pool( id );
@@ -356,7 +366,7 @@ namespace daw {
 			auto tsk = unique_task_t( );
 			{
 				auto self = w_self.lock( );
-				if( not self or not self->m_ts_impl->m_continue or not sem.try_wait( ) ) {
+				if( not self or not self->started( ) or not sem.try_wait( ) ) {
 					return;
 				}
 				tsk = self->wait_for_task_from_pool( id, sem );
@@ -367,5 +377,21 @@ namespace daw {
 
 	char const *unable_to_add_task_exception::what( ) const noexcept {
 		return "Unable to add task";
+	}
+
+	unable_to_add_task_exception::~unable_to_add_task_exception( ) = default;
+
+	ts_handle_t::ts_handle_t( std::shared_ptr<fixed_task_scheduler> &ts )
+	  : m_handle( ts ) {}
+
+	std::optional<task_scheduler> ts_handle_t::lock( ) const {
+		if( auto lck = m_handle.lock( ); lck ) {
+			return std::optional<task_scheduler>( std::in_place, DAW_MOVE( lck ) );
+		}
+		return { };
+	}
+
+	bool ts_handle_t::expired( ) const {
+		return m_handle.expired( );
 	}
 } // namespace daw
