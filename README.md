@@ -1,3 +1,4 @@
+# This is in development and extrememly broken
 # Function Stream
 
 A parallel library with task, pipeline and algorithmic parallelism.  Some examples can be found in the [tests](./tests) folder and some benchmarks are in the [Benchmarks](./benchmarks/) folder.  From the benchmarks you can see the average time per item processed.  In many cases it can be quicker to use the sequential versions as the task is memory bound in the easy case where the supplied function is too quick.  This happens for cases where N is small.  If the work is greater than the per item time in sequential, the parallel should be faster.

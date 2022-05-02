@@ -15,7 +15,7 @@ else ()
 endif ()
 
 set(Boost_NO_WARN_NEW_VERSIONS ON)
-find_package(Boost 1.79 REQUIRED)
+find_package(Boost 1.78 REQUIRED)
 find_package(date CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
