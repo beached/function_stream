@@ -77,7 +77,7 @@ namespace daw {
 		}
 
 		inline void execute( ) {
-			auto const ae = on_scope_exit( [m_latch = m_latch]( ) mutable { m_latch.notify( ); } );
+			auto const ae = on_scope_exit( [latch=m_latch]( ) mutable { latch.notify( ); } );
 			m_function( );
 		}
 

@@ -118,9 +118,9 @@ namespace daw {
 
 		[[nodiscard]] auto wait_for_scope( invocable auto &&func, ts_handle_t hnd )
 		  -> decltype( DAW_FWD( func )( ) ) {
-			if( not has_empty_queue( ) ) {
-				add_queue( m_num_threads++, std::move( hnd ) );
-			}
+			// Do not add a queue here: m_tasks cannot be resized while running, and bumping
+			// m_num_threads made get_task_id( ) hand out out of range queue indices
+			Unused( hnd );
 			return DAW_FWD( func )( );
 		}
 
@@ -129,6 +129,7 @@ namespace daw {
 		[[nodiscard]] bool started( ) const;
 		[[nodiscard]] unique_task_t wait_for_task_from_pool( std::size_t id );
 		[[nodiscard]] unique_task_t wait_for_task_from_pool( std::size_t id, shared_cnt_sem sem );
+		[[nodiscard]] std::optional<unique_task_t> try_pop_any( std::size_t id );
 
 		[[nodiscard]] bool send_task( unique_task_t tsk, std::size_t id );
 		void run_task( unique_task_t tsk ) noexcept;

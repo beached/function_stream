@@ -55,7 +55,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>> random_get( ) {
 
 template<std::ptrdiff_t SZ>
 static void bench_daw_par_equal( benchmark::State &s ) {
-	auto const ary = random_get<SZ>( );
+	auto ary = random_get<SZ>( );
 	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	for( auto _ : s ) {
@@ -110,7 +110,7 @@ BENCHMARK_TEMPLATE( bench_par_stl_equal, 2'097'152 );
 */
 template<std::ptrdiff_t SZ>
 static void bench_stl_equal( benchmark::State &s ) {
-	auto const ary = random_get<SZ>( );
+	auto ary = random_get<SZ>( );
 	for( auto _ : s ) {
 		[&a = std::get<0>( ary ), &b = std::get<1>( ary ) ]( ) {
 			benchmark::DoNotOptimize( a );

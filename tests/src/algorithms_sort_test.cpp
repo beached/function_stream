@@ -23,6 +23,7 @@
 #include "common.h"
 #include "daw/fs/algorithms.h"
 
+#include <daw/daw_ensure.h>
 #include <daw/daw_random.h>
 #include <daw/daw_string_view.h>
 
@@ -46,58 +47,77 @@ static void bench_daw_par_sort( benchmark::State &s ) {
 	auto ts = daw::get_task_scheduler( );
 	ts.start( );
 	auto const &big_vec = get_rnd_array( );
+	auto v = std::vector<int64_t>{ };
 	for( auto _ : s ) {
-		[&ts]( std::vector<int64_t> v ) {
-			daw::algorithm::parallel::sort( std::data( v ), daw::data_end( v ), ts );
-			benchmark::ClobberMemory( );
+		{
+			s.PauseTiming( );
+			v.assign( std::data( big_vec ), std::data( big_vec ) + SZ );
+			s.ResumeTiming( );
 		}
-		( std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ ) );
+		daw::algorithm::parallel::sort( std::data( v ), daw::data_end( v ), ts );
+		benchmark::ClobberMemory( );
+	}
+	if( not std::is_sorted( v.begin( ), v.end( ) ) ) {
+		std::cerr << "Invalid sort, not sorted\n";
+		std::abort( );
 	}
 }
-BENCHMARK_TEMPLATE( bench_daw_par_sort, 1'024 );
-/*
-BENCHMARK_TEMPLATE( bench_daw_par_sort, 4'096 );
-BENCHMARK_TEMPLATE( bench_daw_par_sort, 16'384 );
-BENCHMARK_TEMPLATE( bench_daw_par_sort, 65'536 );
-*/
-/*
 #if defined( HAS_PAR_STL )
 template<std::ptrdiff_t SZ>
 static void bench_par_stl_sort( benchmark::State &s ) {
-	auto ts = daw::get_task_scheduler( );
-	ts.start( );
 	auto const &big_vec = get_rnd_array( );
+	auto v = std::vector<int64_t>{ };
 	for( auto _ : s ) {
-		[]( std::vector<int64_t> v ) {
-			std::sort( std::execution::par, std::data( v ), daw::data_end( v ) );
-			benchmark::ClobberMemory( );
+		{
+			s.PauseTiming( );
+			v.assign( std::data( big_vec ), std::data( big_vec ) + SZ );
+			s.ResumeTiming( );
 		}
-		( std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ ) );
+		std::sort( std::execution::par, std::data( v ), daw::data_end( v ) );
+		benchmark::ClobberMemory( );
+	}
+	if( not std::is_sorted( v.begin( ), v.end( ) ) ) {
+		std::cerr << "Invalid sort, not sorted\n";
+		std::abort( );
 	}
 }
-BENCHMARK_TEMPLATE( bench_par_stl_sort, 1'024 );
-BENCHMARK_TEMPLATE( bench_par_stl_sort, 4'096 );
-BENCHMARK_TEMPLATE( bench_par_stl_sort, 16'384 );
-BENCHMARK_TEMPLATE( bench_par_stl_sort, 65'536 );
 #endif
-*/
+
 template<std::ptrdiff_t SZ>
 static void bench_stl_sort( benchmark::State &s ) {
-	auto ts = daw::get_task_scheduler( );
-	ts.start( );
 	auto const &big_vec = get_rnd_array( );
+	auto v = std::vector<int64_t>{ };
 	for( auto _ : s ) {
-		[]( std::vector<int64_t> v ) {
-			std::sort( std::data( v ), daw::data_end( v ) );
-			benchmark::ClobberMemory( );
+		{
+			s.PauseTiming( );
+			v.assign( std::data( big_vec ), std::data( big_vec ) + SZ );
+			s.ResumeTiming( );
 		}
-	  ( std::vector<int64_t>( std::data( big_vec ), std::data( big_vec ) + SZ ) );
+		std::sort( std::data( v ), daw::data_end( v ) );
+		benchmark::ClobberMemory( );
+	}
+	if( not std::is_sorted( v.begin( ), v.end( ) ) ) {
+		std::cerr << "Invalid sort, not sorted\n";
+		std::abort( );
 	}
 }
 BENCHMARK_TEMPLATE( bench_stl_sort, 1'024 );
-/*
+#if defined( HAS_PAR_STL )
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 1'024 );
+#endif
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 1'024 );
 BENCHMARK_TEMPLATE( bench_stl_sort, 4'096 );
+#if defined( HAS_PAR_STL )
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 4'096 );
+#endif
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 4'096 );
 BENCHMARK_TEMPLATE( bench_stl_sort, 16'384 );
+#if defined( HAS_PAR_STL )
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 16'384 );
+#endif
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 16'384 );
 BENCHMARK_TEMPLATE( bench_stl_sort, 65'536 );
-*/
-
+#if defined( HAS_PAR_STL )
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 65'536 );
+#endif
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 65'536 );

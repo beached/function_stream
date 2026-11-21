@@ -67,7 +67,8 @@ namespace daw {
 
 	public:
 		[[nodiscard]] auto get_handle( ) const {
-			using data_handle_t = daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
+			using data_handle_t =
+			  daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
 
 			class handle_t {
 				data_handle_t m_handle;
@@ -100,7 +101,8 @@ namespace daw {
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] future_status wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
+		[[nodiscard]] future_status
+		wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
 			return m_data.wait_for( rel_time );
 		}
 
@@ -141,11 +143,13 @@ namespace daw {
 		template<typename Function, typename... Args>
 		void from_code( Function &&func, Args &&...args ) {
 			static_assert(
-			  std::is_convertible_v<decltype( DAW_FWD( func )( DAW_FWD( args )... ) ), Result>,
+			  std::is_convertible_v<decltype( DAW_FWD( func )( DAW_FWD( args )... ) ),
+				                      Result>,
 			  "Function func with Args does not return a value that is "
 			  "convertible to Result. e.g Result "
 			  "r = func( args... ) must be valid" );
-			m_data.from_code( fs::impl::make_callable( DAW_FWD( func ) ), DAW_FWD( args )... );
+			m_data.from_code( fs::impl::make_callable( DAW_FWD( func ) ),
+			                  DAW_FWD( args )... );
 		}
 
 		[[nodiscard]] bool is_exception( ) const {
@@ -171,7 +175,8 @@ namespace daw {
 		}
 
 		template<typename Function, typename... Functions>
-		[[nodiscard]] decltype( auto ) fork_join( Function &&joiner, Functions &&...funcs ) {
+		[[nodiscard]] decltype( auto ) fork_join( Function &&joiner,
+		                                          Functions &&...funcs ) {
 			return m_data.fork_join( fs::impl::make_callable( DAW_FWD( joiner ) ),
 			                         fs::impl::make_callable( DAW_FWD( funcs ) )... );
 		}
@@ -179,7 +184,8 @@ namespace daw {
 	// future_result_t
 
 	template<>
-	struct [[nodiscard]] future_result_t<void> : public impl::future_result_base_t {
+	struct [[nodiscard]]
+	future_result_t<void> : public impl::future_result_base_t {
 		using result_type_t = void;
 		using result_t = daw::expected_t<result_type_t>;
 		using m_data_t = impl::member_data_t<result_type_t>;
@@ -193,10 +199,12 @@ namespace daw {
 	public:
 		future_result_t( ) = default;
 		explicit future_result_t( task_scheduler ts );
-		explicit future_result_t( daw::shared_cnt_sem sem, task_scheduler ts = get_task_scheduler( ) );
+		explicit future_result_t( daw::shared_cnt_sem sem,
+		                          task_scheduler ts = get_task_scheduler( ) );
 
 		[[nodiscard]] auto get_handle( ) const {
-			using data_handle_t = daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
+			using data_handle_t =
+			  daw::remove_cvref_t<decltype( m_data.get_handle( ) )>;
 			class handle_t {
 				data_handle_t m_handle;
 
@@ -226,7 +234,8 @@ namespace daw {
 		void wait( ) const override;
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] future_status wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
+		[[nodiscard]] future_status
+		wait_for( std::chrono::duration<Rep, Period> rel_time ) const {
 			return wait_for( rel_time );
 		}
 
@@ -252,8 +261,9 @@ namespace daw {
 
 		template<typename Function, typename... Args>
 		void from_code( Function &&func, Args &&...args ) {
-			m_data.from_code( daw::make_void_function( fs::impl::make_callable( DAW_FWD( func ) ) ),
-			                  DAW_FWD( args )... );
+			m_data.from_code(
+			  daw::make_void_function( fs::impl::make_callable( DAW_FWD( func ) ) ),
+			  DAW_FWD( args )... );
 		}
 
 		template<typename Function>
@@ -262,8 +272,10 @@ namespace daw {
 		}
 
 		template<typename Function, typename... Functions>
-		[[nodiscard]] decltype( auto ) fork( Function &&func, Functions &&...funcs ) const {
-			return m_data.fork( fs::impl::make_callable( DAW_FWD( func ), DAW_FWD( funcs ) )... );
+		[[nodiscard]] decltype( auto ) fork( Function &&func,
+		                                     Functions &&...funcs ) const {
+			return m_data.fork(
+			  fs::impl::make_callable( DAW_FWD( func ), DAW_FWD( funcs ) )... );
 		}
 	}; // future_result_t<void>
 
@@ -271,33 +283,38 @@ namespace daw {
 	future_result_t( T ) -> future_result_t<T>;
 
 	template<typename result_t, typename Function>
-	[[nodiscard]] constexpr decltype( auto ) operator|( future_result_t<result_t> &lhs,
-	                                                    Function &&rhs ) {
+	[[nodiscard]] constexpr decltype( auto )
+	operator|( future_result_t<result_t> &lhs, Function &&rhs ) {
 		static_assert( daw::traits::is_callable_v<Function, result_t>,
 		               "Supplied function must be callable with result of future" );
 		return lhs.next( fs::impl::make_callable( DAW_FWD( rhs ) ) );
 	}
 
 	template<typename result_t, typename Function>
-	[[nodiscard]] constexpr decltype( auto ) operator|( future_result_t<result_t> &&lhs,
-	                                                    Function &&rhs ) {
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, result_t>,
-		               "Supplied function must be callable with result of future" );
+	[[nodiscard]] constexpr decltype( auto )
+	operator|( future_result_t<result_t> &&lhs, Function &&rhs ) {
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, result_t>,
+		  "Supplied function must be callable with result of future" );
 		return lhs.next( fs::impl::make_callable( DAW_FWD( rhs ) ) );
 	}
 
 	template<typename Function, typename... Args>
 	requires( invocable<Function, Args...> ) //
-	  [[nodiscard]] auto make_future_result( task_scheduler ts, Function &&func, Args &&...args ) {
-		using result_t = daw::remove_cvref_t<decltype( func( DAW_FWD( args )... ) )>;
+	[[nodiscard]] auto make_future_result( task_scheduler ts, Function &&func,
+	                                       Args &&...args ) {
+		using result_t =
+		  daw::remove_cvref_t<decltype( func( DAW_FWD( args )... ) )>;
 		auto result = future_result_t<result_t>( );
 
-		if( not ts.add_task( [result = daw::mutable_capture( result ),
-		                      func = daw::mutable_capture( fs::impl::make_callable( DAW_FWD( func ) ) ),
-		                      args = daw::mutable_capture( std::make_tuple( DAW_FWD( args )... ) )] {
-			    result->from_code( [func = daw::mutable_capture( func.move_out( ) ),
-			                        args = daw::mutable_capture( args.move_out( ) )]( ) {
-				    return std::apply( func.move_out( ), args.move_out( ) );
+		if( not ts.add_task( [res = daw::mutable_capture( result ),
+		                      fnc = daw::mutable_capture(
+		                        fs::impl::make_callable( DAW_FWD( func ) ) ),
+		                      arg = daw::mutable_capture(
+		                        std::make_tuple( DAW_FWD( args )... ) )] {
+			    res->from_code( [fun = daw::mutable_capture( fnc.move_out( ) ),
+					                 argu = daw::mutable_capture( arg.move_out( ) )]( ) {
+				    return std::apply( fun.move_out( ), argu.move_out( ) );
 			    } );
 		    } ) ) {
 			throw daw::unable_to_add_task_exception{ };
@@ -320,7 +337,8 @@ namespace daw {
 
 			void operator( )( ) {
 				try {
-					result.set_value( std::apply( std::move( func ), std::move( args ) ) );
+					result.set_value(
+					  std::apply( std::move( func ), std::move( args ) ) );
 				} catch( ... ) { result.set_exception( ); }
 			}
 		};
@@ -328,27 +346,34 @@ namespace daw {
 		template<typename Result, typename Function, typename... Args>
 		[[nodiscard]] constexpr future_task_t<Result, Function, Args...>
 		make_future_task( Result &&result, Function &&func, Args &&...args ) {
-			return { DAW_FWD( result ), fs::impl::make_callable( DAW_FWD( func ) ), DAW_FWD( args )... };
+			return { DAW_FWD( result ),
+			         fs::impl::make_callable( DAW_FWD( func ) ),
+			         DAW_FWD( args )... };
 		}
 	} // namespace impl
 
 	template<typename Function, typename... Args>
-	[[nodiscard]] auto
-	make_future_result( task_scheduler ts, daw::shared_cnt_sem sem, Function &&func, Args &&...args ) {
+	[[nodiscard]] auto make_future_result( task_scheduler ts,
+	                                       daw::shared_cnt_sem sem,
+	                                       Function &&func, Args &&...args ) {
 
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
 		using result_t = decltype( DAW_FWD( func )( DAW_FWD( args )... ) );
 		auto result = future_result_t<result_t>( std::move( sem ) );
-		ts.add_task( impl::make_future_task( result,
-		                                     fs::impl::make_callable( DAW_FWD( func ) ),
-		                                     DAW_FWD( args )... ) );
+		ts.add_task(
+		  impl::make_future_task( result,
+			                        fs::impl::make_callable( DAW_FWD( func ) ),
+			                        DAW_FWD( args )... ) );
 
 		return result;
 	} // namespace daw
 
 	template<typename Function, typename... Args>
-	[[nodiscard]] decltype( auto ) make_future_result( Function &&func, Args &&...args ) {
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
+	[[nodiscard]] decltype( auto ) make_future_result( Function &&func,
+	                                                   Args &&...args ) {
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
 		return make_future_result( get_task_scheduler( ),
 		                           fs::impl::make_callable( DAW_FWD( func ) ),
 		                           DAW_FWD( args )... );
@@ -356,7 +381,8 @@ namespace daw {
 
 	template<typename Function, typename... Args>
 	[[nodiscard]] decltype( auto ) async( Function &&func, Args &&...args ) {
-		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
+		static_assert(
+		  daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
 		return make_future_result( DAW_FWD( func ), DAW_FWD( args )... );
 	}
 
@@ -370,7 +396,8 @@ namespace daw {
 	} // namespace async_impl
 
 	template<typename... Functions>
-	[[nodiscard]] decltype( auto ) make_callable_future_result_group( Functions &&...functions ) {
+	[[nodiscard]] decltype( auto )
+	make_callable_future_result_group( Functions &&...functions ) {
 		return async_impl::make_callable_future_result_group_impl(
 		  fs::impl::make_callable( DAW_FWD( functions ) )... );
 	}
@@ -380,20 +407,19 @@ namespace daw {
 	//
 	//  @param functions a list of functions of form Result( )
 	template<typename... Functions>
-	[[nodiscard]] decltype( auto ) make_future_result_group( Functions &&...functions ) {
+	[[nodiscard]] decltype( auto )
+	make_future_result_group( Functions &&...functions ) {
 		return make_callable_future_result_group(
 		  fs::impl::make_callable( DAW_FWD( functions ) )... )( );
 	}
 
 	template<typename T>
-	concept FutureResult = requires {
-		typename T::i_am_a_future_result;
-	};
+	concept FutureResult = requires { typename T::i_am_a_future_result; };
 
 	namespace impl {
-		template<input_or_output_iterator Iterator, typename OutputIterator, typename BinaryOp>
-		OutputIterator reduce_futures2( Iterator first,
-		                                Iterator last,
+		template<input_or_output_iterator Iterator, typename OutputIterator,
+		         typename BinaryOp>
+		OutputIterator reduce_futures2( Iterator first, Iterator last,
 		                                OutputIterator out_it,
 		                                BinaryOp const &binary_op ) {
 			auto const sz = std::distance( first, last );
@@ -401,7 +427,7 @@ namespace daw {
 			if( sz == 0 ) {
 				return out_it;
 			} else if( sz == 1 ) {
-				*out_it = *first;
+				std::construct_at( std::addressof( *out_it ), *first );
 				++out_it;
 				++first;
 				return out_it;
@@ -411,18 +437,21 @@ namespace daw {
 				last = std::next( first, sz - 1 );
 			}
 			while( first != last ) {
-				auto l_it = ++first;
-				auto r_it = ++first;
+				auto l_it = first++;
+				auto r_it = first++;
 				auto &lhs = *l_it;
-				*out_it =
-				  std::move( lhs ).next( [rhs = daw::mutable_capture( std::move( *r_it ) ),
-				                         binary_op = daw::mutable_capture( binary_op )]( auto &&result ) {
-					  return binary_op.move_out( )( DAW_FWD( result ), rhs.move_out( ).get( ) );
-				  } );
+				std::construct_at(
+				  std::addressof( *out_it ),
+				  std::move( lhs ).next(
+				    [rhs = daw::mutable_capture( std::move( *r_it ) ),
+						 bin_op = daw::mutable_capture( binary_op )]( auto &&result ) {
+					    return bin_op.move_out( )( DAW_FWD( result ),
+							                           rhs.move_out( ).get( ) );
+				    } ) );
 				++out_it;
 			}
 			if( odd_count ) {
-				*out_it = std::move( *last );
+				std::construct_at( std::addressof( *out_it ), std::move( *last ) );
 				++out_it;
 			}
 			return out_it;
@@ -430,38 +459,41 @@ namespace daw {
 	} // namespace impl
 
 	template<random_access_iterator RandomIterator,
-	         random_access_iterator RandomIterator2,
-	         typename BinaryOperation>
-	[[nodiscard]] auto
-	reduce_futures( RandomIterator first, RandomIterator2 last, BinaryOperation &&binary_op ) {
-		using ResultType =
-		  future_result_t<DAW_TYPEOF( ( std::declval<iter_value_type<RandomIterator>>( ) ).get( ) )>;
+	         random_access_iterator RandomIterator2, typename BinaryOperation>
+	[[nodiscard]] auto reduce_futures( RandomIterator first, RandomIterator2 last,
+	                                   BinaryOperation &&binary_op ) {
+		using ResultType = future_result_t<DAW_TYPEOF(
+		  ( std::declval<iter_value_type<RandomIterator>>( ) ).get( ) )>;
 		static_assert( FutureResult<iter_value_type<RandomIterator>>,
 		               "RandomIterator's value type must be a future result" );
-		auto const rng_sz = static_cast<std::size_t>( std::distance( first, last ) );
+		auto const rng_sz =
+		  static_cast<std::size_t>( std::distance( first, last ) );
 		assert( rng_sz > 0 );
-		auto results =
-		  daw::vector<ResultType>( do_resize_and_overwrite,
-		                           ( rng_sz / 2 ) + ( rng_sz % 2 ),
-		                           [&]( ResultType *ptr, std::size_t sz ) {
-			                           ResultType const *const last_out =
-			                             impl::reduce_futures2( first, last, ptr, binary_op );
-			                           auto const out_sz = static_cast<std::size_t>( last_out - ptr );
-			                           assert( out_sz == sz );
-			                           return sz;
-		                           } );
+		auto results = daw::vector<ResultType>(
+		  do_resize_and_overwrite,
+		  ( rng_sz / 2 ) + ( rng_sz % 2 ),
+		  [&]( ResultType *ptr, std::size_t sz ) {
+			  ResultType const *const last_out =
+			    impl::reduce_futures2( first, last, ptr, binary_op );
+			  auto const out_sz = static_cast<std::size_t>( last_out - ptr );
+			  (void)out_sz;
+			  assert( out_sz == sz );
+			  return sz;
+		  } );
 
 		auto tmp = daw::vector<ResultType>( );
 		while( results.size( ) > 1 ) {
 			tmp.clear( );
 			auto const next_sz = ( results.size( ) / 2 ) + ( results.size( ) % 2 );
-			tmp.resize_and_overwrite( next_sz, [&]( ResultType *ptr, std::size_t sz ) {
-				ResultType const *const last_out =
-				  impl::reduce_futures2( results.begin( ), results.end( ), ptr, binary_op );
-				auto const out_sz = static_cast<std::size_t>( last_out - ptr );
-				assert( out_sz == sz );
-				return sz;
-			} );
+			tmp.resize_and_overwrite(
+			  next_sz, [&]( ResultType *ptr, std::size_t sz ) {
+				  ResultType const *const last_out = impl::reduce_futures2(
+				    results.begin( ), results.end( ), ptr, binary_op );
+				  auto const out_sz = static_cast<std::size_t>( last_out - ptr );
+				  (void)out_sz;
+				  assert( out_sz == sz );
+				  return sz;
+			  } );
 
 			std::swap( results, tmp );
 		}
@@ -481,18 +513,21 @@ namespace daw {
 		return impl::future_apply_impl(
 		  DAW_FWD( f ),
 		  DAW_FWD( t ),
-		  std::make_index_sequence<daw::tuple_size_v<daw::remove_cvref_t<Tuple>>>{ } );
+		  std::make_index_sequence<
+		    daw::tuple_size_v<daw::remove_cvref_t<Tuple>>>{ } );
 	}
 
 	template<typename TPFutureResults,
 	         typename Function>
 	requires( daw::traits::is_tuple_v<TPFutureResults> ) //
-	  [[nodiscard]] auto join( TPFutureResults &&results, Function &&next_function ) {
-		auto result = make_future_result( [results = daw::mutable_capture( DAW_FWD( results ) ),
-		                                   next_function = daw::mutable_capture(
-		                                     fs::impl::make_callable( DAW_FWD( next_function ) ) )]( ) {
-			return future_apply( next_function.move_out( ), results.move_out( ) );
-		} );
+	[[nodiscard]] auto join( TPFutureResults &&results,
+	                         Function &&next_function ) {
+		auto result = make_future_result(
+		  [res = daw::mutable_capture( DAW_FWD( results ) ),
+			 nxt_function = daw::mutable_capture(
+		     fs::impl::make_callable( DAW_FWD( next_function ) ) )]( ) {
+			  return future_apply( nxt_function.move_out( ), res.move_out( ) );
+		  } );
 		return result;
 	}
 } // namespace daw

@@ -137,67 +137,38 @@ namespace daw {
 		m_ts_impl->add_queue( n, get_handle( ) );
 	}
 
+	std::optional<unique_task_t> fixed_task_scheduler::try_pop_any( std::size_t id ) {
+		// Try own queue first, then steal from the others
+		auto const sz = std::size( m_tasks );
+		for( std::size_t n = 0; n < sz; ++n ) {
+			if( auto tsk = m_tasks[( id + n ) % sz].try_pop_front( ); tsk ) {
+				return tsk;
+			}
+		}
+		return { };
+	}
+
 	unique_task_t fixed_task_scheduler::wait_for_task_from_pool( std::size_t id ) {
-		// Get task.  First try own queue, if not try the others and finally
-		// wait for own queue to fill
-		if( not started( ) ) {
-			return { };
-		}
-		if( id < m_tasks.size( ) ) {
-			if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
+		// Keep polling every queue, not just our own.  Otherwise a task sent to the
+		// queue of a worker that is blocked inside another task is never run
+		while( started( ) ) {
+			if( auto tsk = try_pop_any( id ); tsk ) {
 				return std::move( *tsk );
 			}
+			std::this_thread::yield( );
 		}
-		for( std::size_t n = id + 1; n < std::size( m_tasks ); ++n ) {
-			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
-				return std::move( *tsk );
-			}
-		}
-		for( std::size_t n = 0; n < id; ++n ) {
-			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
-				return std::move( *tsk );
-			}
-		}
-#ifndef DEBUG
-		auto result = pop_front( m_tasks[id], [&]( ) {
-#else
-		auto result = pop_front( m_tasks.at( id ), [&]( ) {
-#endif
-			return started( );
-		} );
-		if( not result ) {
-			return unique_task_t( );
-		}
-		return std::move( *result );
+		return unique_task_t( );
 	}
 
 	[[nodiscard]] unique_task_t fixed_task_scheduler::wait_for_task_from_pool( std::size_t id,
 	                                                                           shared_cnt_sem sem ) {
-		// Get task.  First try own queue, if not try the others and finally
-		// wait for own queue to fill
-		if( not started( ) ) {
-			return { };
-		}
-		if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
-			if( not tsk ) {
-				return unique_task_t( );
-			}
-			return std::move( *tsk );
-		}
-		for( auto m = ( id + 1 ) % m_num_threads; started( ) and m != id;
-		     m = ( m + 1 ) % m_num_threads ) {
-
-			if( auto tsk = m_tasks[m].try_pop_front( ); tsk ) {
+		while( started( ) and not sem.try_wait( ) ) {
+			if( auto tsk = try_pop_any( id ); tsk ) {
 				return std::move( *tsk );
 			}
+			std::this_thread::yield( );
 		}
-		auto result = pop_front( m_tasks[id], [&]( ) {
-			return static_cast<bool>( started( ) and not sem.try_wait( ) );
-		} );
-		if( not result ) {
-			return unique_task_t( );
-		}
-		return std::move( *result );
+		return unique_task_t( );
 	}
 
 	void fixed_task_scheduler::run_task( unique_task_t tsk ) noexcept {
@@ -275,7 +246,7 @@ namespace daw {
 		m_continue = true;
 		// assert( m_ts_impl->m_tasks.size( ) == m_ts_impl->m_num_threads );
 		for( std::size_t n = 0; n < m_num_threads; ++n ) {
-			add_queue( n, std::move( hnd ) );
+			add_queue( n, hnd );
 		}
 	}
 

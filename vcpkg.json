@@ -5,6 +5,7 @@
   "dependencies": [
     "boost-container",
     "benchmark",
-    "date"
+    "date",
+    "tbb"
   ]
 }

@@ -131,7 +131,8 @@ template<typename Range>
 daw::future_result_t<std::int64_t> parse_file( Range str, daw::task_scheduler ts ) {
 	auto str_lines_result = daw::parallel::concurrent_queue<daw::string_view>{ };
 
-	(void)ts.add_task( [&, str = std::move( str )]( ) {
+	(void)ts.add_task( [&, st = std::move( str )]( ) {
+		(void)st;
 		find_newlines( str, [&]( daw::string_view line ) mutable {
 			while( str_lines_result.try_push_back( std::move( line ) ) !=
 			       daw::parallel::push_back_result::success ) {

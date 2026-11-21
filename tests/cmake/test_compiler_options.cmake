@@ -1,13 +1,45 @@
+include( CheckCXXCompilerFlag )
 
 option(DAW_FUNCTION_STREAM_USE_SANITIZERS "Enable address and undefined sanitizers" OFF)
 option(DAW_WERROR "Enable WError for test builds" OFF)
 option(DAW_FUNCTION_STREAM_COVERAGE "Enable code coverage(gcc/clang)" OFF)
+
+function( disable_warning_if_supported warning )
+	string( MAKE_C_IDENTIFIER "${warning}" warning_id )
+
+	check_cxx_compiler_flag(
+			"${warning}"
+			"HAVE_${warning_id}"
+			)
+
+	if( HAVE_${warning_id} )
+		string( REGEX REPLACE "^-W" "-Wno-" disabled_warning "${warning}" )
+		add_compile_options( "${disabled_warning}" )
+	endif()
+endfunction()
+
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")
     if (DAW_FUNCTION_STREAM_COVERAGE)
         add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
         add_link_options(-fprofile-instr-generate -fcoverage-mapping)
     endif ()
+
+		disable_warning_if_supported( "-Wbitwise-instead-of-logical" )
+		disable_warning_if_supported( "-Wc++20-attribute-extensions" )
+		disable_warning_if_supported( "-Wc++20-compat" )
+		disable_warning_if_supported( "-Wc++20-extensions" )
+		disable_warning_if_supported( "-Wc++23-extensions" )
+		disable_warning_if_supported( "-Wc++26-extensions" )
+		disable_warning_if_supported( "-Wc++2b-extensions" )
+		disable_warning_if_supported( "-Wmissing-noreturn" )
+		disable_warning_if_supported( "-Wnrvo" )
+		disable_warning_if_supported( "-Wpoison-system-directories" )
+		disable_warning_if_supported( "-Wreturn-std-move-in-c++11" )
+		disable_warning_if_supported( "-Wreturn-std-move-in-c++11" )
+		disable_warning_if_supported( "-Wundefined-func-template" )
+		disable_warning_if_supported( "-Wunsafe-buffer-usage" )
+		disable_warning_if_supported( "-Wunused-macros" )
     if (MSVC)
         message(STATUS "Clang-CL ${CMAKE_CXX_COMPILER_VERSION} detected")
         add_definitions(-DNOMINMAX -DD_WIN32_WINNT=0x0601)

@@ -8,6 +8,10 @@
 
 find_package(benchmark CONFIG REQUIRED)
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    find_package(TBB CONFIG REQUIRED)
+endif ()
+
 include(cmake/test_compiler_options.cmake)
 include(./cmake/git_properties.cmake)
 if (GIT_FOUND)
@@ -68,6 +72,9 @@ add_dependencies(full algorithms_fill_test_bin)
 
 add_executable(algorithms_find_if_test_bin src/algorithms_find_if_test.cpp)
 target_link_libraries(algorithms_find_if_test_bin daw::daw-task-scheduler daw::daw-function-stream ${CMAKE_THREAD_LIBS_INIT})
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_libraries(algorithms_find_if_test_bin TBB::tbb)
+endif ()
 target_include_directories(algorithms_find_if_test_bin PRIVATE include)
 add_test(algorithms_find_if_test algorithms_find_if_test_bin)
 add_dependencies(full algorithms_find_if_test_bin)
@@ -79,6 +86,9 @@ target_link_libraries(algorithms_sort_test_bin
         daw::daw-function-stream
         daw::daw-task-scheduler
         )
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_libraries(algorithms_sort_test_bin TBB::tbb)
+endif ()
 target_include_directories(algorithms_sort_test_bin PRIVATE include)
 add_test(algorithms_sort_test algorithms_sort_test_bin)
 add_dependencies(full algorithms_sort_test_bin)
@@ -90,6 +100,9 @@ target_link_libraries(algorithms_stable_sort_test_bin
         daw::daw-function-stream
         daw::daw-task-scheduler
         )
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_libraries(algorithms_stable_sort_test_bin TBB::tbb)
+endif ()
 target_include_directories(algorithms_stable_sort_test_bin PRIVATE include)
 add_test(algorithms_stable_sort_test algorithms_stable_sort_test_bin)
 add_dependencies(full algorithms_stable_sort_test_bin)
@@ -148,6 +161,9 @@ target_link_libraries(algorithms_equal_test_bin
         daw::daw-task-scheduler
         daw::daw-function-stream
         )
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_libraries(algorithms_equal_test_bin TBB::tbb)
+endif ()
 target_include_directories(algorithms_equal_test_bin PRIVATE include)
 add_test(algorithms_equal_test algorithms_equal_test_bin)
 add_dependencies(full algorithms_equal_test_bin)
