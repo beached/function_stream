@@ -60,11 +60,11 @@ namespace daw {
 			expected_result_t m_result = expected_result_t( );
 
 			explicit member_data_members( task_scheduler ts )
-			  : m_task_scheduler( DAW_MOVE( ts ) ) {}
+			  : m_task_scheduler( std::move( ts ) ) {}
 
 			member_data_members( daw::shared_cnt_sem sem, task_scheduler ts )
-			  : m_task_scheduler( DAW_MOVE( ts ) )
-			  , m_semaphore( DAW_MOVE( sem ) ) {}
+			  : m_task_scheduler( std::move( ts ) )
+			  , m_semaphore( std::move( sem ) ) {}
 
 			template<typename Rep, typename Period>
 			[[nodiscard]] future_status wait_for( std::chrono::duration<Rep, Period> rel_time ) {
@@ -147,10 +147,10 @@ namespace daw {
 			std::shared_ptr<data_t> m_data;
 
 			explicit member_data_t( task_scheduler ts )
-			  : m_data( std::make_shared<data_t>( DAW_MOVE( ts ) ) ) {}
+			  : m_data( std::make_shared<data_t>( std::move( ts ) ) ) {}
 
 			explicit member_data_t( daw::shared_cnt_sem sem, task_scheduler ts )
-			  : m_data( std::make_shared<data_t>( DAW_MOVE( sem ), DAW_MOVE( ts ) ) ) {}
+			  : m_data( std::make_shared<data_t>( std::move( sem ), std::move( ts ) ) ) {}
 
 			// DAW DAW DAW
 			~member_data_t( ) = default;
@@ -163,14 +163,14 @@ namespace daw {
 
 		private:
 			explicit member_data_t( std::shared_ptr<data_t> &&dptr ) noexcept
-			  : m_data( DAW_MOVE( dptr ) ) {}
+			  : m_data( std::move( dptr ) ) {}
 
 			[[nodiscard]] decltype( auto ) pass_next( expected_result_t &&value ) {
 				auto nxt = m_data->m_next.get( );
 				daw::exception::precondition_check( *nxt,
 				                                    "Attempt to call next function on empty function" );
 
-				return ( *nxt )( DAW_MOVE( value ) );
+				return ( *nxt )( std::move( value ) );
 			}
 
 			[[nodiscard]] decltype( auto ) pass_next( expected_result_t const &value ) {
@@ -186,10 +186,10 @@ namespace daw {
 			void set_value( expected_result_t &&value ) {
 				assert( m_data );
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
-					pass_next( DAW_MOVE( value ) );
+					pass_next( std::move( value ) );
 					return;
 				}
-				m_data->m_result = DAW_MOVE( value );
+				m_data->m_result = std::move( value );
 				m_data->status( future_status::ready );
 				m_data->notify( );
 			} // namespace impl
@@ -208,10 +208,10 @@ namespace daw {
 			void set_value( base_result_t &&value ) {
 				assert( m_data );
 				if( auto nxt = m_data->m_next.get( ); *nxt ) {
-					pass_next( daw::construct_a<expected_result_t>( DAW_MOVE( value ) ) );
+					pass_next( daw::construct_a<expected_result_t>( std::move( value ) ) );
 					return;
 				}
-				m_data->m_result = DAW_MOVE( value );
+				m_data->m_result = std::move( value );
 				m_data->status( future_status::ready );
 				m_data->notify( );
 			}
@@ -295,7 +295,7 @@ namespace daw {
 					}
 					if( not ts->add_task( [result = daw::mutable_capture( result.move_out( ) ),
 					                       func = daw::mutable_capture( func.move_out( ) ),
-					                       v = daw::mutable_capture( DAW_MOVE( value ).get( ) )]( ) {
+					                       v = daw::mutable_capture( std::move( value ).get( ) )]( ) {
 						    result->from_code( func.move_out( ), v.move_out( ) );
 					    } ) ) {
 
@@ -303,7 +303,7 @@ namespace daw {
 					}
 				};
 				if( future_status::ready == m_data->status( ) ) {
-					pass_next( DAW_MOVE( m_data->m_result ) );
+					pass_next( std::move( m_data->m_result ) );
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
@@ -347,7 +347,7 @@ namespace daw {
 				};
 				m_data->status( future_status::continued );
 				if( future_status::ready == m_data->status( ) ) {
-					pass_next( DAW_MOVE( m_data->m_result ) );
+					pass_next( std::move( m_data->m_result ) );
 				} else {
 					nxt.release( );
 					m_data->notify( );
@@ -406,8 +406,8 @@ namespace daw {
 
 					[[nodiscard]] std::optional<member_data_t> lock( ) const {
 						if( auto lck = m_handle.lock( ); lck ) {
-							auto m = member_data_t( DAW_MOVE( lck ) );
-							return std::optional<member_data_t>( DAW_MOVE( m ) );
+							auto m = member_data_t( std::move( lck ) );
+							return std::optional<member_data_t>( std::move( m ) );
 						}
 						return { };
 					}
@@ -429,14 +429,14 @@ namespace daw {
 			std::shared_ptr<data_t> m_data;
 
 			explicit member_data_t( task_scheduler ts )
-			  : m_data( std::make_shared<data_t>( DAW_MOVE( ts ) ) ) {}
+			  : m_data( std::make_shared<data_t>( std::move( ts ) ) ) {}
 
 			explicit member_data_t( daw::shared_cnt_sem sem, task_scheduler ts )
-			  : m_data( std::make_shared<data_t>( DAW_MOVE( sem ), DAW_MOVE( ts ) ) ) {}
+			  : m_data( std::make_shared<data_t>( std::move( sem ), std::move( ts ) ) ) {}
 
 		private:
 			explicit member_data_t( std::shared_ptr<data_t> &&dptr ) noexcept
-			  : m_data( DAW_MOVE( dptr ) ) {}
+			  : m_data( std::move( dptr ) ) {}
 
 			void pass_next( expected_result_t &&value ) {
 				auto nxt = m_data->m_next.get( );
@@ -446,7 +446,7 @@ namespace daw {
 				daw::exception::precondition_check( not value.has_exception( ),
 				                                    "Unexpected exception in expected_t" );
 
-				( *nxt )( DAW_MOVE( value ) );
+				( *nxt )( std::move( value ) );
 			}
 
 			void pass_next( expected_result_t const &value ) {
@@ -501,7 +501,7 @@ namespace daw {
 					}
 				};
 				if( future_status::ready == m_data->status( ) ) {
-					pass_next( DAW_MOVE( m_data->m_result ) );
+					pass_next( std::move( m_data->m_result ) );
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
@@ -526,7 +526,7 @@ namespace daw {
 				auto result = daw::construct_a<result_t>( construct_future( funcs )... );
 
 				auto tpfuncs = std::tuple<daw::remove_cvref_t<Functions>...>( DAW_FWD( funcs )... );
-				*nxt = [result, tpfuncs = DAW_MOVE( tpfuncs ), ts = m_data->m_task_scheduler, self = *this](
+				*nxt = [result, tpfuncs = std::move( tpfuncs ), ts = m_data->m_task_scheduler, self = *this](
 				         cvref_of<expected_result_t> auto &&value ) mutable {
 					if( value.has_value( ) ) {
 						ts.add_task( impl::add_fork_task( ts, result, tpfuncs ) );
@@ -537,7 +537,7 @@ namespace daw {
 					}
 				};
 				if( future_status::ready == m_data->status( ) ) {
-					pass_next( DAW_MOVE( m_data->m_result ) );
+					pass_next( std::move( m_data->m_result ) );
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
@@ -568,7 +568,7 @@ namespace daw {
 				auto tpfuncs = std::tuple( DAW_FWD( funcs )... );
 
 				*nxt = [result = daw::mutable_capture( result ),
-				        tpfuncs = daw::mutable_capture( DAW_MOVE( tpfuncs ) ),
+				        tpfuncs = daw::mutable_capture( std::move( tpfuncs ) ),
 				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
 				        self = *this]( auto const &value ) {
 					static_assert( std::is_same_v<expected_result_t, DAW_TYPEOF( value )> );
@@ -581,7 +581,7 @@ namespace daw {
 					} );
 				};
 				if( future_status::ready == m_data->status( ) ) {
-					pass_next( DAW_MOVE( m_data->m_result ) );
+					pass_next( std::move( m_data->m_result ) );
 					m_data->status( future_status::continued );
 				} else {
 					m_data->status( future_status::continued );
@@ -619,7 +619,7 @@ namespace daw {
 					std::weak_ptr<data_t> m_handle;
 
 					explicit handle_t( std::weak_ptr<data_t> wptr )
-					  : m_handle( DAW_MOVE( wptr ) ) {}
+					  : m_handle( std::move( wptr ) ) {}
 
 					friend member_data_t;
 
@@ -630,7 +630,7 @@ namespace daw {
 
 					[[nodiscard]] std::optional<member_data_t> lock( ) const {
 						if( auto lck = m_handle.lock( ); lck ) {
-							return member_data_t( DAW_MOVE( lck ) );
+							return member_data_t( std::move( lck ) );
 						}
 						return { };
 					}
@@ -737,17 +737,17 @@ namespace daw {
 				                  sem = daw::mutable_capture( sem ),
 				                  tp_functions = daw::mutable_capture( tp_functions ),
 				                  ts = daw::mutable_capture( ts ),
-				                  tp_args = daw::mutable_capture( DAW_MOVE( tp_args ) )]( ) {
+				                  tp_args = daw::mutable_capture( std::move( tp_args ) )]( ) {
 					auto const oe = daw::on_scope_exit( [sem]( ) { sem->notify( ); } );
 
 					auto tp_result = result_tp_t( );
 					impl::apply_many( *ts, *sem, tp_result, tp_functions.move_out( ), tp_args.move_out( ) );
 
 					sem->wait( );
-					result->set_value( DAW_MOVE( tp_result ) );
+					result->set_value( std::move( tp_result ) );
 				};
 				try {
-					if( not ts.add_task( DAW_MOVE( th_worker ) ) ) {
+					if( not ts.add_task( std::move( th_worker ) ) ) {
 						throw daw::unable_to_add_task_exception{ };
 					}
 				} catch( std::system_error const &e ) {

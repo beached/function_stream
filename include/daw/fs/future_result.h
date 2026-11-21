@@ -51,19 +51,19 @@ namespace daw {
 		m_data_t m_data = m_data_t( get_task_scheduler( ) );
 
 		explicit future_result_t( m_data_t d ) noexcept
-		  : m_data( DAW_MOVE( d ) ) {}
+		  : m_data( std::move( d ) ) {}
 
 	public:
 		future_result_t( ) = default;
 
 		explicit future_result_t( task_scheduler ts )
-		  : m_data( DAW_MOVE( ts ) ) {}
+		  : m_data( std::move( ts ) ) {}
 
 		future_result_t( daw::shared_cnt_sem sem, task_scheduler ts )
-		  : m_data( DAW_MOVE( sem ), DAW_MOVE( ts ) ) {}
+		  : m_data( std::move( sem ), std::move( ts ) ) {}
 
 		explicit future_result_t( daw::shared_cnt_sem sem )
-		  : m_data( DAW_MOVE( sem ), get_task_scheduler( ) ) {}
+		  : m_data( std::move( sem ), get_task_scheduler( ) ) {}
 
 	public:
 		[[nodiscard]] auto get_handle( ) const {
@@ -73,7 +73,7 @@ namespace daw {
 				data_handle_t m_handle;
 
 				explicit handle_t( data_handle_t hnd )
-				  : m_handle( DAW_MOVE( hnd ) ) {}
+				  : m_handle( std::move( hnd ) ) {}
 
 				friend future_result_t<Result>;
 
@@ -86,7 +86,7 @@ namespace daw {
 
 				[[nodiscard]] std::optional<future_result_t> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
-						return future_result_t( DAW_MOVE( *lck ) );
+						return future_result_t( std::move( *lck ) );
 					}
 					return { };
 				}
@@ -188,7 +188,7 @@ namespace daw {
 		m_data_t m_data = m_data_t( get_task_scheduler( ) );
 
 		explicit future_result_t( m_data_t d ) noexcept
-		  : m_data( DAW_MOVE( d ) ) {}
+		  : m_data( std::move( d ) ) {}
 
 	public:
 		future_result_t( ) = default;
@@ -201,7 +201,7 @@ namespace daw {
 				data_handle_t m_handle;
 
 				explicit handle_t( data_handle_t hnd )
-				  : m_handle( DAW_MOVE( hnd ) ) {}
+				  : m_handle( std::move( hnd ) ) {}
 
 				friend future_result_t;
 
@@ -214,7 +214,7 @@ namespace daw {
 
 				[[nodiscard]] std::optional<future_result_t> lock( ) const {
 					if( auto lck = m_handle.lock( ); lck ) {
-						return future_result_t( DAW_MOVE( *lck ) );
+						return future_result_t( std::move( *lck ) );
 					}
 					return { };
 				}
@@ -320,7 +320,7 @@ namespace daw {
 
 			void operator( )( ) {
 				try {
-					result.set_value( std::apply( DAW_MOVE( func ), DAW_MOVE( args ) ) );
+					result.set_value( std::apply( std::move( func ), std::move( args ) ) );
 				} catch( ... ) { result.set_exception( ); }
 			}
 		};
@@ -338,7 +338,7 @@ namespace daw {
 
 		static_assert( daw::traits::is_callable_v<std::remove_reference_t<Function>, Args...> );
 		using result_t = decltype( DAW_FWD( func )( DAW_FWD( args )... ) );
-		auto result = future_result_t<result_t>( DAW_MOVE( sem ) );
+		auto result = future_result_t<result_t>( std::move( sem ) );
 		ts.add_task( impl::make_future_task( result,
 		                                     fs::impl::make_callable( DAW_FWD( func ) ),
 		                                     DAW_FWD( args )... ) );
@@ -415,14 +415,14 @@ namespace daw {
 				auto r_it = ++first;
 				auto &lhs = *l_it;
 				*out_it =
-				  DAW_MOVE( lhs ).next( [rhs = daw::mutable_capture( DAW_MOVE( *r_it ) ),
+				  std::move( lhs ).next( [rhs = daw::mutable_capture( std::move( *r_it ) ),
 				                         binary_op = daw::mutable_capture( binary_op )]( auto &&result ) {
 					  return binary_op.move_out( )( DAW_FWD( result ), rhs.move_out( ).get( ) );
 				  } );
 				++out_it;
 			}
 			if( odd_count ) {
-				*out_it = DAW_MOVE( *last );
+				*out_it = std::move( *last );
 				++out_it;
 			}
 			return out_it;

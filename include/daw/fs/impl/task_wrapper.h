@@ -45,7 +45,7 @@ namespace daw::impl {
 		explicit task_wrapper( std::size_t Id, Handle const &hnd, Function &&f )
 		  : id( Id )
 		  , wself( hnd )
-		  , func( DAW_MOVE( f ) ) {}
+		  , func( std::move( f ) ) {}
 
 		void operator( )( ) const {
 			auto self = wself.lock( );

@@ -45,7 +45,7 @@ namespace daw::algorithm::parallel {
 
 		impl::parallel_for_each( daw::view( first, last ),
 		                         daw::traits::lift_func( unary_op ),
-		                         DAW_MOVE( ts ) );
+		                         std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename UnaryOperation>
@@ -63,7 +63,7 @@ namespace daw::algorithm::parallel {
 		auto const last = std::next( first, static_cast<intmax_t>( N ) );
 		impl::parallel_for_each( daw__view( first, last ),
 		                         daw::traits::lift_func( unary_op ),
-		                         DAW_MOVE( ts ) );
+		                         std::move( ts ) );
 	}
 
 	template<typename RandomIterator>
@@ -76,7 +76,7 @@ namespace daw::algorithm::parallel {
 
 		impl::parallel_for_each_index( daw::view( first, last ),
 		                               daw::traits::lift_func( indexed_op ),
-		                               DAW_MOVE( ts ) );
+		                               std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename T>
@@ -93,7 +93,7 @@ namespace daw::algorithm::parallel {
 		impl::parallel_for_each(
 		  daw::view( first, last ),
 		  [&value]( auto &item ) { item = value; },
-		  DAW_MOVE( ts ) );
+		  std::move( ts ) );
 	}
 
 	template<random_access_iterator RandomIterator, typename Compare = std::less<>>
@@ -105,7 +105,7 @@ namespace daw::algorithm::parallel {
 		impl::parallel_sort( daw::view( first, last ),
 		                     impl::sorter,
 		                     daw::traits::lift_func( DAW_FWD( comp ) ),
-		                     DAW_MOVE( ts ) );
+		                     std::move( ts ) );
 	}
 
 	template<typename Compare = std::less<>>
@@ -117,7 +117,7 @@ namespace daw::algorithm::parallel {
 		impl::parallel_sort( daw::view( first, last ),
 		                     impl::stable_sorter,
 		                     daw::traits::lift_func( DAW_FWD( comp ) ),
-		                     DAW_MOVE( ts ) );
+		                     std::move( ts ) );
 	}
 
 	template<typename T, random_access_iterator RandomIterator, typename BinaryOperation>
@@ -143,9 +143,9 @@ namespace daw::algorithm::parallel {
 		               "e.g. *first = binary_op( *first, *(first + 1) ) must be valid." );
 
 		return impl::parallel_reduce( daw::view( first, last ),
-		                              DAW_MOVE( init ),
+		                              std::move( init ),
 		                              daw::traits::lift_func( DAW_FWD( binary_op ) ),
-		                              DAW_MOVE( ts ) );
+		                              std::move( ts ) );
 	}
 
 	template<typename T, typename RandomIterator>
@@ -157,9 +157,9 @@ namespace daw::algorithm::parallel {
 		traits::is_random_access_iterator_test<RandomIterator>( );
 		return daw::algorithm::parallel::reduce( first,
 		                                         last,
-		                                         DAW_MOVE( init ),
+		                                         std::move( init ),
 		                                         std::plus<>{ },
-		                                         DAW_MOVE( ts ) );
+		                                         std::move( ts ) );
 	}
 
 	template<typename RandomIterator>
@@ -170,7 +170,7 @@ namespace daw::algorithm::parallel {
 		using value_type = typename std::iterator_traits<RandomIterator>::value_type;
 		return daw::algorithm::parallel::reduce( daw::view( first, last ),
 		                                         value_type{ },
-		                                         DAW_MOVE( ts ) );
+		                                         std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename Compare = std::less<>>
@@ -185,7 +185,7 @@ namespace daw::algorithm::parallel {
 
 		return impl::parallel_min_element( daw::view( first, last ),
 		                                   daw::traits::lift_func( DAW_FWD( comp ) ),
-		                                   DAW_MOVE( ts ) );
+		                                   std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename Compare = std::less<>>
@@ -199,7 +199,7 @@ namespace daw::algorithm::parallel {
 
 		return impl::parallel_max_element( daw::view( first, last ),
 		                                   daw::traits::lift_func( DAW_FWD( comp ) ),
-		                                   DAW_MOVE( ts ) );
+		                                   std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename RandomOutputIterator, typename UnaryOperation>
@@ -225,7 +225,7 @@ namespace daw::algorithm::parallel {
 		impl::parallel_map( daw::view( first, last ),
 		                    first_out,
 		                    daw::traits::lift_func( DAW_FWD( unary_op ) ),
-		                    DAW_MOVE( ts ) );
+		                    std::move( ts ) );
 	}
 
 	template<typename RandomIterator1,
@@ -260,7 +260,7 @@ namespace daw::algorithm::parallel {
 		                    first2,
 		                    first_out,
 		                    daw::traits::lift_func( DAW_FWD( binary_op ) ),
-		                    DAW_MOVE( ts ) );
+		                    std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename UnaryOperation>
@@ -285,7 +285,7 @@ namespace daw::algorithm::parallel {
 		impl::parallel_map( daw::view( first, last ),
 		                    first,
 		                    daw::traits::lift_func( DAW_FWD( unary_op ) ),
-		                    DAW_MOVE( ts ) );
+		                    std::move( ts ) );
 	}
 
 	template<typename RandomIterator,
@@ -321,7 +321,7 @@ namespace daw::algorithm::parallel {
 		                                  *it_init,
 		                                  daw::traits::lift_func( DAW_FWD( map_function ) ),
 		                                  daw::traits::lift_func( DAW_FWD( reduce_function ) ),
-		                                  DAW_MOVE( ts ) );
+		                                  std::move( ts ) );
 	}
 
 	/// @brief Perform MapReduce on range and return result
@@ -369,7 +369,7 @@ namespace daw::algorithm::parallel {
 		                                  init,
 		                                  daw::traits::lift_func( DAW_FWD( map_function ) ),
 		                                  daw::traits::lift_func( DAW_FWD( reduce_function ) ),
-		                                  DAW_MOVE( ts ) );
+		                                  std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename RandomOutputIterator, typename BinaryOperation>
@@ -395,7 +395,7 @@ namespace daw::algorithm::parallel {
 		impl::parallel_scan( daw::view( first, last ),
 		                     daw::view( first_out, last_out ),
 		                     daw::traits::lift_func( DAW_FWD( binary_op ) ),
-		                     DAW_MOVE( ts ) );
+		                     std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename BinaryOperation>
@@ -420,7 +420,7 @@ namespace daw::algorithm::parallel {
 		                     first,
 		                     last,
 		                     daw::traits::lift_func( DAW_FWD( binary_op ) ),
-		                     DAW_MOVE( ts ) );
+		                     std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename UnaryPredicate>
@@ -434,7 +434,7 @@ namespace daw::algorithm::parallel {
 
 		return impl::parallel_find_if( daw::view( first, last ),
 		                               daw::traits::lift_func( DAW_FWD( pred ) ),
-		                               DAW_MOVE( ts ) );
+		                               std::move( ts ) );
 	}
 
 	template<typename RandomIterator1, typename RandomIterator2, typename BinaryPredicate>
@@ -456,7 +456,7 @@ namespace daw::algorithm::parallel {
 		                             first2,
 		                             last2,
 		                             daw::traits::lift_func( DAW_FWD( pred ) ),
-		                             DAW_MOVE( ts ) );
+		                             std::move( ts ) );
 	}
 
 	template<typename RandomIterator1, typename RandomIterator2>
@@ -473,7 +473,7 @@ namespace daw::algorithm::parallel {
 		concept_checks::is_equality_comparable_test<RandomIterator1, RandomIterator2>( );
 
 		auto pred = []( auto const &lhs, auto const &rhs ) { return lhs == rhs; };
-		return impl::parallel_equal( first1, last1, first2, last2, DAW_MOVE( pred ), DAW_MOVE( ts ) );
+		return impl::parallel_equal( first1, last1, first2, last2, std::move( pred ), std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename UnaryPredicate>
@@ -487,7 +487,7 @@ namespace daw::algorithm::parallel {
 
 		return impl::parallel_count( daw::view( first, last ),
 		                             daw::traits::lift_func( DAW_FWD( pred ) ),
-		                             DAW_MOVE( ts ) );
+		                             std::move( ts ) );
 	}
 
 	template<typename RandomIterator, typename T>
@@ -503,7 +503,7 @@ namespace daw::algorithm::parallel {
 		  first,
 		  last,
 		  [&value]( auto const &rhs ) { return value == rhs; },
-		  DAW_MOVE( ts ) );
+		  std::move( ts ) );
 	}
 
 	template<size_t minimum_size = 1>
@@ -519,7 +519,7 @@ namespace daw::algorithm::parallel {
 
 		traits::is_random_access_iterator_test<RandomIterator>( );
 		auto ranges = PartitionPolicy{ }( daw::view( first, last ), ts.size( ) );
-		impl::partition_range( ranges, daw::traits::lift_func( DAW_FWD( func ) ), DAW_MOVE( ts ) )
+		impl::partition_range( ranges, daw::traits::lift_func( DAW_FWD( func ) ), std::move( ts ) )
 		  .wait( );
 	}
 
@@ -533,7 +533,7 @@ namespace daw::algorithm::parallel {
 
 		traits::is_random_access_iterator_test<RandomIterator>( );
 		auto ranges = PartitionPolicy{ }( daw::view( first, last ), ts.size( ) );
-		impl::partition_range_pos( ranges, daw::traits::lift_func( DAW_FWD( func ) ), DAW_MOVE( ts ) )
+		impl::partition_range_pos( ranges, daw::traits::lift_func( DAW_FWD( func ) ), std::move( ts ) )
 		  .wait( );
 	}
 } // namespace daw::algorithm::parallel

@@ -10,6 +10,7 @@
 
 #include "daw_atomic_wait.h"
 
+#include <daw/ciso646.h>
 #include <daw/cpp_17.h>
 #include <daw/daw_concepts.h>
 #include <daw/daw_cpp_feature_check.h>
@@ -19,7 +20,6 @@
 
 #include <atomic>
 #include <cassert>
-#include <ciso646>
 #include <cstdint>
 #include <memory>
 #include <semaphore>
@@ -72,7 +72,9 @@ namespace daw {
 		}
 
 		inline void wait( ) const {
-			daw::atomic_wait_if( &m_value, []( int current_value ) { return current_value <= 0; } );
+			daw::atomic_wait_if( &m_value, []( int current_value ) {
+				return current_value <= 0;
+			} );
 			assert( m_value.load( std::memory_order_relaxed ) == 0 );
 		}
 
@@ -87,15 +89,17 @@ namespace daw {
 		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
 			auto result = daw::atomic_wait_if_for(
 			  &m_value,
-			  []( int current_value ) { return current_value <= 0; },
+			  []( int current_value ) {
+				  return current_value <= 0;
+			  },
 			  rel_time );
 			assert( m_value.load( std::memory_order_relaxed ) == 0 );
 			return result;
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] inline wait_status
-		wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
+		[[nodiscard]] inline wait_status wait_until(
+		  std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
 			return wait_for( timeout_time - Clock::now( ) );
 		}
 	}; // latch
@@ -135,14 +139,15 @@ namespace daw {
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] wait_status wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
+		[[nodiscard]] wait_status
+		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) const {
 			assert( m_latch );
 			return m_latch->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] wait_status
-		wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
+		[[nodiscard]] wait_status wait_until(
+		  std::chrono::time_point<Clock, Duration> const &timeout_time ) const {
 			assert( m_latch );
 			return m_latch->wait_until( timeout_time );
 		}
@@ -186,13 +191,15 @@ namespace daw {
 		}
 
 		template<typename Rep, typename Period>
-		[[nodiscard]] auto wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
+		[[nodiscard]] auto
+		wait_for( std::chrono::duration<Rep, Period> const &rel_time ) {
 			assert( m_latch );
 			return m_latch->wait_for( rel_time );
 		}
 
 		template<typename Clock, typename Duration>
-		[[nodiscard]] auto wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
+		[[nodiscard]] auto
+		wait_until( std::chrono::time_point<Clock, Duration> const &timeout_time ) {
 			assert( m_latch );
 			return m_latch->wait_until( timeout_time );
 		}

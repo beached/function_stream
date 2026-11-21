@@ -57,7 +57,7 @@ void k_means_run( daw::span<T> view, daw::span<size_t> labels,
           if( auto tmp_dist =
                 dist_func( view[range[n]], view[centres[m]] ) < cur_dist ) {
             cur_cent = m;
-            cur_dist = DAW_MOVE( tmp_dist );
+            cur_dist = std::move( tmp_dist );
           }
         }
         range[n] = m;

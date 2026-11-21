@@ -64,7 +64,7 @@ namespace daw::algorithm::parallel::impl {
 		for( auto rng : ranges ) {
 			if( not schedule_task(
 			      sem,
-			      [func = daw::mutable_capture( func ), rng = DAW_MOVE( rng )] { ( *func )( rng ); },
+			      [func = daw::mutable_capture( func ), rng = std::move( rng )] { ( *func )( rng ); },
 			      ts ) ) {
 
 				throw daw::unable_to_add_task_exception{ };
@@ -192,7 +192,7 @@ namespace daw::algorithm::parallel::impl {
 		                  invocable_result<bool,
 		                                   iter_reference_t<DAW_TYPEOF( first )>,
 		                                   iter_reference_t<DAW_TYPEOF( first )>> auto cmp ) const {
-			std::sort( DAW_MOVE( first ), DAW_MOVE( last ), DAW_MOVE( cmp ) );
+			std::sort( std::move( first ), std::move( last ), std::move( cmp ) );
 		}
 	};
 	inline constexpr auto sorter = sorter_t{ };
@@ -203,7 +203,7 @@ namespace daw::algorithm::parallel::impl {
 		                  invocable_result<bool,
 		                                   iter_reference_t<DAW_TYPEOF( first )>,
 		                                   iter_reference_t<DAW_TYPEOF( first )>> auto cmp ) const {
-			std::stable_sort( DAW_MOVE( first ), DAW_MOVE( last ), DAW_FWD( cmp ) );
+			std::stable_sort( std::move( first ), std::move( last ), DAW_FWD( cmp ) );
 		}
 	};
 	inline constexpr auto stable_sorter = stable_sorter_t{ };
@@ -399,7 +399,7 @@ namespace daw::algorithm::parallel::impl {
 			  while( not rng.empty( ) ) {
 				  result = reduce_function( result, map_function( rng.pop_front( ) ) );
 			  }
-			  results[n] = DAW_MOVE( result );
+			  results[n] = std::move( result );
 		  },
 		  ts );
 

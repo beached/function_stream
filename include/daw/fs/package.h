@@ -63,7 +63,7 @@ namespace daw {
 			constexpr package_impl_t( bool continueonclientdestruction,
 			                          result_t result, functions_t functions,
 			                          Args &&... args )
-			  : m_function_list( DAW_MOVE( functions ) )
+			  : m_function_list( std::move( functions ) )
 			  , m_targs( DAW_FWD( args )... )
 			  , m_result( result )
 			  , m_continue_on_result_destruction( continueonclientdestruction ) {}
@@ -93,12 +93,12 @@ namespace daw {
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
 		                     functions_t &&functions, Args &&... args )
-		  : m_impl( continueonclientdestruction, DAW_MOVE( result ),
-		            DAW_MOVE( functions ), DAW_FWD( args )... ) {}
+		  : m_impl( continueonclientdestruction, std::move( result ),
+		            std::move( functions ), DAW_FWD( args )... ) {}
 
 		constexpr package_t( bool continueonclientdestruction, result_t result,
 		                     functions_t const &functions, Args &&... args )
-		  : m_impl( continueonclientdestruction, DAW_MOVE( result ), functions,
+		  : m_impl( continueonclientdestruction, std::move( result ), functions,
 		            DAW_FWD( args )... ) {}
 
 		[[nodiscard]] constexpr functions_t const &function_list( ) const noexcept {
@@ -124,8 +124,8 @@ namespace daw {
 		template<typename... NewArgs>
 		[[nodiscard]] decltype( auto ) next_package( NewArgs && ... nargs ) {
 			return make_shared_package( continue_on_result_destruction( ),
-			                            DAW_MOVE( m_impl->m_result ),
-			                            DAW_MOVE( m_impl->m_function_list ),
+			                            std::move( m_impl->m_result ),
+			                            std::move( m_impl->m_function_list ),
 			                            DAW_FWD( nargs )... );
 		}
 

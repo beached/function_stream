@@ -56,7 +56,7 @@ namespace daw {
 		}
 
 		explicit fixed_task_t( invocable auto &&func, daw::shared_cnt_sem l )
-		  : m_latch( DAW_MOVE( l ) )
+		  : m_latch( std::move( l ) )
 		  , m_function( DAW_FWD( func ) ) {
 
 			assert( m_latch );
@@ -66,7 +66,7 @@ namespace daw {
 		}
 
 		explicit fixed_task_t( invocable auto &&func, daw::unique_cnt_sem l )
-		  : m_latch( DAW_MOVE( l ) )
+		  : m_latch( std::move( l ) )
 		  , m_function( DAW_FWD( func ) ) {
 
 			if( not m_function ) {
@@ -98,7 +98,7 @@ namespace daw {
 		unique_task_t( unique_task_t const & ) = delete;
 		unique_task_t &operator=( unique_task_t const & ) = delete;
 		unique_task_t( unique_task_t &&other ) noexcept
-		  : m_ftask( DAW_MOVE( other.m_ftask ) ) {
+		  : m_ftask( std::move( other.m_ftask ) ) {
 			other.m_ftask = std::make_unique<fixed_task_t>( );
 		}
 
@@ -116,10 +116,10 @@ namespace daw {
 		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ) ) ) {}
 
 		explicit unique_task_t( invocable auto &&func, unique_cnt_sem l )
-		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ), DAW_MOVE( l ) ) ) {}
+		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ), std::move( l ) ) ) {}
 
 		explicit unique_task_t( invocable auto &&func, shared_cnt_sem l )
-		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ), DAW_MOVE( l ) ) ) {}
+		  : m_ftask( std::make_unique<fixed_task_t>( DAW_FWD( func ), std::move( l ) ) ) {}
 
 		inline void execute( ) const {
 			assert( m_ftask );

@@ -30,10 +30,10 @@ namespace daw {
 
 		void member_data_t<void>::set_value(
 		  member_data_t<void>::expected_result_t result ) {
-			m_data->m_result = DAW_MOVE( result );
+			m_data->m_result = std::move( result );
 
 			if( auto nxt = m_data->m_next.get( ); *nxt ) {
-				pass_next( DAW_MOVE( m_data->m_result ) );
+				pass_next( std::move( m_data->m_result ) );
 				return;
 			}
 			m_data->status( future_status::ready );
@@ -43,7 +43,7 @@ namespace daw {
 		void member_data_t<void>::set_value( ) {
 			expected_result_t result;
 			result = true;
-			set_value( DAW_MOVE( result ) );
+			set_value( std::move( result ) );
 		}
 
 		void member_data_t<void>::set_exception( ) {
@@ -56,11 +56,11 @@ namespace daw {
 	} // namespace impl
 
 	future_result_t<void>::future_result_t( task_scheduler ts )
-	  : m_data( DAW_MOVE( ts ) ) {}
+	  : m_data( std::move( ts ) ) {}
 
 	future_result_t<void>::future_result_t( daw::shared_cnt_sem sem,
 	                                        task_scheduler ts )
-	  : m_data( DAW_MOVE( sem ), DAW_MOVE( ts ) ) {}
+	  : m_data( std::move( sem ), std::move( ts ) ) {}
 
 	/* TODO: Remove
 std::weak_ptr<future_result_t<void>::m_data_t>

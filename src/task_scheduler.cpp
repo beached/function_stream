@@ -107,9 +107,9 @@ namespace daw {
 			  self->task_runner( id );
 		  },
 		  n,
-		  DAW_MOVE( handle ) );
+		  std::move( handle ) );
 		auto id = thr.get_id( );
-		threads->push_back( DAW_MOVE( thr ) );
+		threads->push_back( std::move( thr ) );
 		( *thread_map )[id] = n;
 	}
 
@@ -145,17 +145,17 @@ namespace daw {
 		}
 		if( id < m_tasks.size( ) ) {
 			if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
-				return DAW_MOVE( *tsk );
+				return std::move( *tsk );
 			}
 		}
 		for( std::size_t n = id + 1; n < std::size( m_tasks ); ++n ) {
 			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
-				return DAW_MOVE( *tsk );
+				return std::move( *tsk );
 			}
 		}
 		for( std::size_t n = 0; n < id; ++n ) {
 			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
-				return DAW_MOVE( *tsk );
+				return std::move( *tsk );
 			}
 		}
 #ifndef DEBUG
@@ -168,7 +168,7 @@ namespace daw {
 		if( not result ) {
 			return unique_task_t( );
 		}
-		return DAW_MOVE( *result );
+		return std::move( *result );
 	}
 
 	[[nodiscard]] unique_task_t fixed_task_scheduler::wait_for_task_from_pool( std::size_t id,
@@ -182,13 +182,13 @@ namespace daw {
 			if( not tsk ) {
 				return unique_task_t( );
 			}
-			return DAW_MOVE( *tsk );
+			return std::move( *tsk );
 		}
 		for( auto m = ( id + 1 ) % m_num_threads; started( ) and m != id;
 		     m = ( m + 1 ) % m_num_threads ) {
 
 			if( auto tsk = m_tasks[m].try_pop_front( ); tsk ) {
-				return DAW_MOVE( *tsk );
+				return std::move( *tsk );
 			}
 		}
 		auto result = pop_front( m_tasks[id], [&]( ) {
@@ -197,7 +197,7 @@ namespace daw {
 		if( not result ) {
 			return unique_task_t( );
 		}
-		return DAW_MOVE( *result );
+		return std::move( *result );
 	}
 
 	void fixed_task_scheduler::run_task( unique_task_t tsk ) noexcept {
@@ -206,7 +206,7 @@ namespace daw {
 				return;
 			}
 			if( tsk.try_wait( ) ) {
-				(void)send_task( DAW_MOVE( tsk ), get_task_id( ) );
+				(void)send_task( std::move( tsk ), get_task_id( ) );
 			} else {
 				tsk.execute( );
 			}
@@ -230,12 +230,12 @@ namespace daw {
 
 	unique_task_t task_scheduler::wait_for_task_from_pool( std::size_t id, shared_cnt_sem sem ) {
 		assert( m_ts_impl );
-		return m_ts_impl->wait_for_task_from_pool( id, DAW_MOVE( sem ) );
+		return m_ts_impl->wait_for_task_from_pool( id, std::move( sem ) );
 	}
 
 	void task_scheduler::run_task( unique_task_t tsk ) noexcept {
 		assert( m_ts_impl );
-		m_ts_impl->run_task( DAW_MOVE( tsk ) );
+		m_ts_impl->run_task( std::move( tsk ) );
 	}
 
 	size_t task_scheduler::get_task_id( ) {
@@ -245,18 +245,18 @@ namespace daw {
 
 	bool fixed_task_scheduler::run_next_task( std::size_t id ) {
 		if( auto tsk = m_tasks[id].try_pop_front( ); tsk ) {
-			run_task( DAW_MOVE( *tsk ) );
+			run_task( std::move( *tsk ) );
 			return true;
 		}
 		for( std::size_t n = id + 1; n < std::size( m_tasks ); ++n ) {
 			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
-				run_task( DAW_MOVE( *tsk ) );
+				run_task( std::move( *tsk ) );
 				return true;
 			}
 		}
 		for( std::size_t n = 0; n < id; ++n ) {
 			if( auto tsk = m_tasks[n].try_pop_front( ); tsk ) {
-				run_task( DAW_MOVE( *tsk ) );
+				run_task( std::move( *tsk ) );
 				return true;
 			}
 		}
@@ -275,7 +275,7 @@ namespace daw {
 		m_continue = true;
 		// assert( m_ts_impl->m_tasks.size( ) == m_ts_impl->m_num_threads );
 		for( std::size_t n = 0; n < m_num_threads; ++n ) {
-			add_queue( n, DAW_MOVE( hnd ) );
+			add_queue( n, std::move( hnd ) );
 		}
 	}
 
@@ -323,24 +323,24 @@ namespace daw {
 		if( not started( ) ) {
 			return true;
 		}
-		if( m_tasks[id].try_push_back( DAW_MOVE( tsk ) ) == parallel::push_back_result::success ) {
+		if( m_tasks[id].try_push_back( std::move( tsk ) ) == parallel::push_back_result::success ) {
 			return true;
 		}
 		for( auto m = ( id + 1 ) % m_num_threads; m != id; m = ( m + 1 ) % m_num_threads ) {
 			if( not started( ) ) {
 				return true;
 			}
-			if( m_tasks[m].try_push_back( DAW_MOVE( tsk ) ) == parallel::push_back_result::success ) {
+			if( m_tasks[m].try_push_back( std::move( tsk ) ) == parallel::push_back_result::success ) {
 				return true;
 			}
 		}
-		auto const res = push_back( m_tasks[id], DAW_MOVE( tsk ), [&]( ) { return started( ); } );
+		auto const res = push_back( m_tasks[id], std::move( tsk ), [&]( ) { return started( ); } );
 		return res == parallel::push_back_result::success;
 	}
 
 	bool task_scheduler::send_task( unique_task_t tsk, std::size_t id ) {
 		assert( m_ts_impl );
-		return m_ts_impl->send_task( DAW_MOVE( tsk ), id );
+		return m_ts_impl->send_task( std::move( tsk ), id );
 	}
 
 	void task_scheduler::task_runner( std::size_t id ) {
@@ -355,7 +355,7 @@ namespace daw {
 				}
 				tsk = self->wait_for_task_from_pool( id );
 			}
-			run_task( DAW_MOVE( tsk ) );
+			run_task( std::move( tsk ) );
 		}
 	}
 
@@ -371,7 +371,7 @@ namespace daw {
 				}
 				tsk = self->wait_for_task_from_pool( id, sem );
 			}
-			run_task( DAW_MOVE( tsk ) );
+			run_task( std::move( tsk ) );
 		}
 	}
 
@@ -386,7 +386,7 @@ namespace daw {
 
 	std::optional<task_scheduler> ts_handle_t::lock( ) const {
 		if( auto lck = m_handle.lock( ); lck ) {
-			return std::optional<task_scheduler>( std::in_place, DAW_MOVE( lck ) );
+			return std::optional<task_scheduler>( std::in_place, std::move( lck ) );
 		}
 		return { };
 	}

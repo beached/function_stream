@@ -12,8 +12,8 @@
 #include <daw/daw_concepts.h>
 #include <daw/daw_move.h>
 #include <daw/parallel/daw_unique_mutex.h>
+#include <daw/ciso646.h>
 
-#include <ciso646>
 #include <mutex>
 #include <optional>
 #include <utility>
@@ -25,8 +25,9 @@ namespace daw {
 			std::unique_lock<std::mutex> m_lock;
 			daw::not_null<std::unique_ptr<T> *> m_ptr;
 
-			locked_ptr_t( std::unique_lock<std::mutex> &&lck, std::unique_ptr<T> &value )
-			  : m_lock( DAW_MOVE( lck ) )
+			locked_ptr_t( std::unique_lock<std::mutex> &&lck,
+			              std::unique_ptr<T> &value )
+			  : m_lock( std::move( lck ) )
 			  , m_ptr( &value ) {}
 
 			friend lockable_ptr_t;
@@ -48,27 +49,27 @@ namespace daw {
 				m_lock.unlock( );
 			}
 
-			ptr_type &get( ) &noexcept {
+			ptr_type &get( ) & noexcept {
 				return *m_ptr;
 			}
 
-			ptr_type const &get( ) const &noexcept {
+			ptr_type const &get( ) const & noexcept {
 				return *m_ptr;
 			}
 
-			reference operator*( ) &noexcept {
+			reference operator*( ) & noexcept {
 				return *get( );
 			}
 
-			const_reference operator*( ) const &noexcept {
+			const_reference operator*( ) const & noexcept {
 				return *get( );
 			}
 
-			pointer operator->( ) &noexcept {
+			pointer operator->( ) & noexcept {
 				return get( ).get( );
 			}
 
-			const_pointer operator->( ) const &noexcept {
+			const_pointer operator->( ) const & noexcept {
 				return get( ).get( );
 			}
 
@@ -81,8 +82,9 @@ namespace daw {
 			std::unique_lock<std::mutex> m_lock;
 			daw::not_null<std::unique_ptr<T> const *> m_ptr;
 
-			const_locked_ptr_t( std::unique_lock<std::mutex> &&lck, std::unique_ptr<T> const &value )
-			  : m_lock( DAW_MOVE( lck ) )
+			const_locked_ptr_t( std::unique_lock<std::mutex> &&lck,
+			                    std::unique_ptr<T> const &value )
+			  : m_lock( std::move( lck ) )
 			  , m_ptr( &value ) {}
 
 			friend lockable_ptr_t;
@@ -104,15 +106,15 @@ namespace daw {
 				m_lock.unlock( );
 			}
 
-			ptr_type &get( ) const &noexcept {
+			ptr_type &get( ) const & noexcept {
 				return *m_ptr;
 			}
 
-			const_reference operator*( ) const &noexcept {
+			const_reference operator*( ) const & noexcept {
 				return *get( );
 			}
 
-			const_pointer operator->( ) const &noexcept {
+			const_pointer operator->( ) const & noexcept {
 				return get( ).get( );
 			}
 
@@ -121,7 +123,8 @@ namespace daw {
 			}
 		}; // locked_ptr_t
 
-		mutable daw::basic_unique_mutex<std::mutex> m_mutex = daw::basic_unique_mutex<std::mutex>( );
+		mutable daw::basic_unique_mutex<std::mutex> m_mutex =
+		  daw::basic_unique_mutex<std::mutex>( );
 		std::unique_ptr<T> m_ptr = nullptr;
 
 	public:
@@ -142,27 +145,31 @@ namespace daw {
 		}
 
 		locked_ptr_t get( ) {
-			return locked_ptr_t( std::unique_lock<std::mutex>( m_mutex.get( ) ), m_ptr );
+			return locked_ptr_t( std::unique_lock<std::mutex>( m_mutex.get( ) ),
+			                     m_ptr );
 		}
 
 		const_locked_ptr_t get( ) const {
-			return const_locked_ptr_t( std::unique_lock<std::mutex>( m_mutex.get( ) ), m_ptr );
+			return const_locked_ptr_t( std::unique_lock<std::mutex>( m_mutex.get( ) ),
+			                           m_ptr );
 		}
 
 		std::optional<locked_ptr_t> try_get( ) {
-			auto lck = std::unique_lock<std::mutex>( m_mutex.get( ), std::try_to_lock );
+			auto lck =
+			  std::unique_lock<std::mutex>( m_mutex.get( ), std::try_to_lock );
 			if( not lck.owns_lock( ) ) {
 				return { };
 			}
-			return { locked_ptr_t( DAW_MOVE( lck ), *m_ptr ) };
+			return { locked_ptr_t( std::move( lck ), *m_ptr ) };
 		}
 
 		std::optional<const_locked_ptr_t> try_get( ) const {
-			auto lck = std::unique_lock<std::mutex>( m_mutex.get( ), std::try_to_lock );
+			auto lck =
+			  std::unique_lock<std::mutex>( m_mutex.get( ), std::try_to_lock );
 			if( not lck.owns_lock( ) ) {
 				return { };
 			}
-			return { const_locked_ptr_t( DAW_MOVE( lck ), *m_ptr ) };
+			return { const_locked_ptr_t( std::move( lck ), *m_ptr ) };
 		}
 
 		void reset( ) {

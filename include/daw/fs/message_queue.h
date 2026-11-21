@@ -58,14 +58,14 @@ namespace daw::parallel {
 			if( not lck ) {
 				return push_back_result::failed;
 			}
-			m_queue.push_back( DAW_MOVE( data ) );
+			m_queue.push_back( std::move( data ) );
 			m_cv.notify_one( );
 			return push_back_result::success;
 		}
 
 		void push_back( T &&data ) {
 			auto lck = std::unique_lock( m_mut );
-			m_queue.push_back( DAW_MOVE( data ) );
+			m_queue.push_back( std::move( data ) );
 			m_cv.notify_one( );
 		}
 
@@ -74,7 +74,7 @@ namespace daw::parallel {
 			if( not lck or m_queue.empty( ) ) {
 				return { };
 			}
-			auto result = DAW_MOVE( m_queue.front( ) );
+			auto result = std::move( m_queue.front( ) );
 			m_queue.pop_front( );
 			return result;
 		}
@@ -84,7 +84,7 @@ namespace daw::parallel {
 			if( not lck or m_queue.empty( ) ) {
 				return false;
 			}
-			value = DAW_MOVE( m_queue.front( ) );
+			value = std::move( m_queue.front( ) );
 			m_queue.pop_front( );
 			return true;
 		}
@@ -92,14 +92,14 @@ namespace daw::parallel {
 		void pop_front( T &value ) {
 			auto lck = std::unique_lock( m_mut );
 			m_cv.wait( lck, [&] { return not m_queue.empty( ); } );
-			value = DAW_MOVE( m_queue.front( ) );
+			value = std::move( m_queue.front( ) );
 			m_queue.pop_front( );
 		}
 
 		[[nodiscard]] std::optional<T> pop_front( ) {
 			auto lck = std::unique_lock( m_mut );
 			m_cv.wait( lck, [&] { return not m_queue.empty( ); } );
-			auto result = std::optional<T>( DAW_MOVE( m_queue.front( ) ) );
+			auto result = std::optional<T>( std::move( m_queue.front( ) ) );
 			m_queue.pop_front( );
 			return result;
 		}
@@ -138,9 +138,9 @@ namespace daw::parallel {
 
 	template<typename Queue, typename T, typename Predicate>
 	[[nodiscard]] push_back_result push_back( Queue &q, T &&value, Predicate &&pred ) noexcept {
-		auto result = q.try_push_back( DAW_MOVE( value ) );
+		auto result = q.try_push_back( std::move( value ) );
 		while( result == push_back_result::failed and pred( ) ) {
-			result = q.try_push_back( DAW_MOVE( value ) );
+			result = q.try_push_back( std::move( value ) );
 		}
 		return result;
 	}

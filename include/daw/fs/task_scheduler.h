@@ -119,7 +119,7 @@ namespace daw {
 		[[nodiscard]] auto wait_for_scope( invocable auto &&func, ts_handle_t hnd )
 		  -> decltype( DAW_FWD( func )( ) ) {
 			if( not has_empty_queue( ) ) {
-				add_queue( m_num_threads++, DAW_MOVE( hnd ) );
+				add_queue( m_num_threads++, std::move( hnd ) );
 			}
 			return DAW_FWD( func )( );
 		}
@@ -140,8 +140,8 @@ namespace daw {
 			shared_cnt_sem sem;
 
 			temp_task_runner( daw::parallel::ithread &&t, shared_cnt_sem s ) noexcept
-			  : th( DAW_MOVE( t ) )
-			  , sem( DAW_MOVE( s ) ) {
+			  : th( std::move( t ) )
+			  , sem( std::move( s ) ) {
 
 				assert( sem );
 			}
@@ -194,7 +194,7 @@ namespace daw {
 		[[nodiscard]] bool add_task( invocable auto &&task, shared_cnt_sem sem, std::size_t id ) {
 
 			return send_task(
-			  unique_task_t( impl::task_wrapper( id, get_handle( ), DAW_FWD( task ) ), DAW_MOVE( sem ) ),
+			  unique_task_t( impl::task_wrapper( id, get_handle( ), DAW_FWD( task ) ), std::move( sem ) ),
 			  id );
 		}
 
@@ -206,7 +206,7 @@ namespace daw {
 
 	public:
 		inline explicit task_scheduler( std::shared_ptr<ts_t> ts )
-		  : m_ts_impl( DAW_MOVE( ts ) ) {
+		  : m_ts_impl( std::move( ts ) ) {
 
 			assert( m_ts_impl );
 		}
@@ -219,7 +219,7 @@ namespace daw {
 		}
 
 		[[nodiscard]] bool add_task( invocable auto &&task, shared_cnt_sem sem ) {
-			return add_task( DAW_FWD( task ), DAW_MOVE( sem ), get_task_id( ) );
+			return add_task( DAW_FWD( task ), std::move( sem ), get_task_id( ) );
 		}
 
 		[[nodiscard]] bool run_next_task( std::size_t id );
@@ -243,7 +243,7 @@ namespace daw {
 
 	public:
 		[[nodiscard]] inline auto add_task( shared_cnt_sem sem ) noexcept {
-			return add_task( empty_task( ), DAW_MOVE( sem ) );
+			return add_task( empty_task( ), std::move( sem ) );
 		}
 
 	private:
@@ -289,14 +289,14 @@ namespace daw {
 	                                  invocable auto &&task,
 	                                  task_scheduler ts = get_task_scheduler( ) ) {
 
-		return ts.add_task( DAW_FWD( task ), DAW_MOVE( sem ) );
+		return ts.add_task( DAW_FWD( task ), std::move( sem ) );
 	}
 
 	[[nodiscard]] shared_cnt_sem create_waitable_task( invocable auto &&task,
 	                                                   task_scheduler ts = get_task_scheduler( ) ) {
 		auto sem = shared_cnt_sem( 1 );
 		auto const ae = on_scope_exit( [sem]( ) mutable { sem.notify( ); } );
-		if( not schedule_task( sem, DAW_FWD( task ), DAW_MOVE( ts ) ) ) {
+		if( not schedule_task( sem, DAW_FWD( task ), std::move( ts ) ) ) {
 			throw unable_to_add_task_exception( );
 		}
 		return sem;

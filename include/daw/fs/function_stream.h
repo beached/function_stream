@@ -56,7 +56,7 @@ namespace daw {
 		  : m_funcs( DAW_FWD( f ), DAW_FWD( funcs )... ) {}
 
 		explicit constexpr function_stream( std::tuple<Functions...> &&funcs )
-		  : m_funcs( DAW_MOVE( funcs ) ) {}
+		  : m_funcs( std::move( funcs ) ) {}
 
 		explicit constexpr function_stream( std::tuple<Functions...> const &funcs )
 		  : m_funcs( funcs ) {}
@@ -104,7 +104,7 @@ namespace daw {
 		template<typename... Functions>
 		[[nodiscard]] static constexpr future_generator_t<Functions...>
 		make_future_generator( std::tuple<Functions...> &&tp_funcs ) {
-			return future_generator_t<Functions...>{ DAW_MOVE( tp_funcs ) };
+			return future_generator_t<Functions...>{ std::move( tp_funcs ) };
 		}
 
 		template<typename... Functions>
@@ -129,7 +129,7 @@ namespace daw {
 		  : m_funcs{ tp_funcs } {}
 
 		explicit constexpr future_generator_t( std::tuple<Funcs...> &&tp_funcs )
-		  : m_funcs{ DAW_MOVE( tp_funcs ) } {}
+		  : m_funcs{ std::move( tp_funcs ) } {}
 
 		template<typename... Args>
 		[[nodiscard]] constexpr decltype( auto ) operator( )( Args &&...args ) const {

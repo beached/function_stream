@@ -45,13 +45,13 @@ int main( ) {
 		for( size_t n = 1; n <= 100; ++n ) {
 			auto v = n;
 			auto tmp_n = n;
-			auto r = push_back( q, DAW_MOVE( tmp_n ), []( auto &&... ) { return true; } );
+			auto r = push_back( q, std::move( tmp_n ), []( auto &&... ) { return true; } );
 			++count;
 			while( r != daw::parallel::push_back_result::success ) {
 				++count;
 				n = v;
 				tmp_n = n;
-				r = push_back( q, DAW_MOVE( tmp_n ), []( auto &&... ) { return true; } );
+				r = push_back( q, std::move( tmp_n ), []( auto &&... ) { return true; } );
 			}
 			l.notify( );
 		}
@@ -76,7 +76,7 @@ int main( ) {
 						auto const lck = std::lock_guard( mut_out );
 						std::cout << std::this_thread::get_id( ) << " -> adding task\n";
 					}
-					(void)push_back( q, DAW_MOVE( *val ), []( ) { return true; } );
+					(void)push_back( q, std::move( *val ), []( ) { return true; } );
 				}
 			}
 			{

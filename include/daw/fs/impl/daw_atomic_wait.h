@@ -86,7 +86,7 @@ namespace daw {
 	                   T const &old,
 	                   std::chrono::time_point<Clock, Duration> const &timeout_time,
 	                   std::memory_order order = std::memory_order_acquire ) {
-		return daw::atomic_wait_for( object, DAW_MOVE( old ), timeout_time - Clock::now( ), order );
+		return daw::atomic_wait_for( object, std::move( old ), timeout_time - Clock::now( ), order );
 	}
 
 	template<typename T>
@@ -130,7 +130,7 @@ namespace daw {
 	                      std::chrono::time_point<Clock, Duration> const &timeout_time,
 	                      std::memory_order order = std::memory_order_acquire ) {
 		return daw::atomic_wait_if_for( object,
-		                                DAW_MOVE( predicate ),
+		                                std::move( predicate ),
 		                                timeout_time - Clock::now( ),
 		                                order );
 	}

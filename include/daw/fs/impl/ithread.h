@@ -101,7 +101,7 @@ namespace daw::parallel {
 				return std::thread(
 				  [&sem, &token]( interrupt_token it, auto func, auto... arguments ) {
 					  auto const on_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
-					  return DAW_MOVE( func )( it, DAW_MOVE( arguments )... );
+					  return std::move( func )( it, std::move( arguments )... );
 				  },
 				  DAW_FWD( function ),
 				  token.get_interrupt_token( ),
@@ -112,7 +112,7 @@ namespace daw::parallel {
 				return std::thread(
 				  [&sem]( auto func, auto... arguments ) {
 					  auto const on_exit = daw::on_scope_exit( [&sem]( ) { sem.notify( ); } );
-					  return DAW_MOVE( func )( DAW_MOVE( arguments )... );
+					  return std::move( func )( std::move( arguments )... );
 				  },
 				  DAW_FWD( function ),
 				  DAW_FWD( args )... );
