@@ -52,10 +52,11 @@ namespace daw::impl {
 			if( not self ) {
 				return;
 			}
+			// Do not run further tasks from here.  Each one would run nested inside this
+			// one, and under load the queues never empty, so the nesting grew until the
+			// worker's stack overflowed.  The worker loop in task_runner picks up the next
+			// task once this one returns
 			(void)func( );
-			while( self->started( ) and self->run_next_task( id ) ) {
-				std::this_thread::yield( );
-			}
 		}
 	};
 

@@ -148,6 +148,150 @@ namespace daw {
 			return sem;
 		}
 
+		/// Shared state for future_result_t::fork_join.  Every fork function is
+		/// run as its own task on the scheduler.  Each task stores its result in
+		/// its slot and then decrements remaining.  The task that brings it to
+		/// zero calls the joiner with all of the results.  No worker blocks
+		/// waiting on the others.
+		/// ArgsTuple is std::tuple<Value> for a non-void source future and
+		/// std::tuple<> for a void one.
+		template<typename Joiner, typename ArgsTuple, typename... Functions>
+		struct [[nodiscard]] fork_join_state_t {
+			static_assert( sizeof...( Functions ) > 0,
+			               "fork_join requires at least one fork function" );
+
+			template<typename F>
+			using fork_result_t = daw::remove_cvref_t<decltype( std::apply(
+			  std::declval<F &>( ), std::declval<ArgsTuple const &>( ) ) )>;
+
+			static_assert( ( not std::is_void_v<fork_result_t<Functions>> and ... ),
+			               "fork_join fork functions must return a value to pass "
+			               "to the joiner" );
+
+			static_assert(
+			  std::is_invocable_v<Joiner &, fork_result_t<Functions>...>,
+			  "fork_join joiner must be callable with the results of the fork "
+			  "functions, in order" );
+
+			using join_result_t = daw::remove_cvref_t<
+			  std::invoke_result_t<Joiner &, fork_result_t<Functions>...>>;
+
+			ArgsTuple args;
+			Joiner joiner;
+			std::tuple<Functions...> funcs;
+			std::tuple<daw::expected_t<fork_result_t<Functions>>...> results{ };
+			std::atomic<std::size_t> remaining{ sizeof...( Functions ) };
+			future_result_t<join_result_t> out;
+
+			fork_join_state_t( ArgsTuple a, Joiner j, std::tuple<Functions...> fs,
+			                   future_result_t<join_result_t> o )
+			  : args( std::move( a ) )
+			  , joiner( std::move( j ) )
+			  , funcs( std::move( fs ) )
+			  , out( std::move( o ) ) {}
+
+			static void start( std::shared_ptr<fork_join_state_t> const &st,
+			                   task_scheduler &ts ) {
+				[&]<std::size_t... Is>( std::index_sequence<Is...> ) {
+					( schedule<Is>( st, ts ), ... );
+				}( std::index_sequence_for<Functions...>{ } );
+			}
+
+		private:
+			template<std::size_t N>
+			static void schedule( std::shared_ptr<fork_join_state_t> const &st,
+			                      task_scheduler &ts ) {
+				if( not ts.add_task( [st]( ) {
+					    st->template run<N>( );
+				    } ) ) {
+					// The scheduler would not take the task (e.g. it is stopping).
+					// Run it here so that the joined future is still completed
+					st->template run<N>( );
+				}
+			}
+
+			template<std::size_t N>
+			void run( ) {
+				std::get<N>( results ) = daw::expected_from_code( [&]( ) {
+					return std::apply( std::get<N>( funcs ), std::as_const( args ) );
+				} );
+				if( remaining.fetch_sub( 1, std::memory_order_acq_rel ) == 1 ) {
+					join( );
+				}
+			}
+
+			void join( ) {
+				// get( ) rethrows if a fork function threw; from_code then stores
+				// that exception in out
+				out.from_code( [&]( ) -> join_result_t {
+					return std::apply(
+					  [&]( auto &...ex ) -> join_result_t {
+						  return joiner( std::move( ex ).get( )... );
+					  },
+					  results );
+				} );
+			}
+		};
+
+		/// Installs a fork_join continuation in a member_data_t.  Shared by the
+		/// void and non-void specializations, which befriend it for pass_next
+		struct fork_join_installer {
+		template<typename MemberData, typename ArgsTuple, typename Function,
+		         typename... Functions>
+		[[nodiscard]] static auto install( MemberData &self, Function &&joiner,
+		                                   Functions &&...funcs ) {
+			using state_t =
+			  fork_join_state_t<daw::remove_cvref_t<Function>, ArgsTuple,
+			                    daw::remove_cvref_t<Functions>...>;
+			using join_result_t = typename state_t::join_result_t;
+			using expected_result_t = typename MemberData::expected_result_t;
+
+			assert( self.m_data );
+			auto result =
+			  future_result_t<join_result_t>( self.m_data->m_task_scheduler );
+
+			auto nxt = self.m_data->m_next.get( );
+			daw::exception::precondition_check( not( *nxt ),
+			                                    "Can only set next function once" );
+
+			*nxt = [out = result,
+			        jn = daw::remove_cvref_t<Function>( DAW_FWD( joiner ) ),
+			        fns = std::tuple<daw::remove_cvref_t<Functions>...>(
+			          DAW_FWD( funcs )... ),
+			        ts = self.m_data->m_task_scheduler](
+			         expected_result_t value ) mutable {
+				if( value.has_exception( ) ) {
+					out.set_exception( value.get_exception_ptr( ) );
+					return;
+				}
+				auto args = [&] {
+					if constexpr( std::tuple_size_v<ArgsTuple> == 0 ) {
+						return ArgsTuple( );
+					} else {
+						return ArgsTuple( std::move( value ).get( ) );
+					}
+				}( );
+				// The continuation only runs once, so jn and fns can be moved from
+				state_t::start( std::make_shared<state_t>( std::move( args ),
+				                                           std::move( jn ),
+				                                           std::move( fns ),
+				                                           std::move( out ) ),
+				                ts );
+			};
+			// Check for ready before marking continued, as next( ) does.  set_value
+			// holds the m_next lock while publishing, so this cannot race with it
+			if( future_status::ready == self.m_data->status( ) ) {
+				self.pass_next( std::move( self.m_data->m_result ) );
+				self.m_data->status( future_status::continued );
+			} else {
+				self.m_data->status( future_status::continued );
+				nxt.release( );
+				self.m_data->notify( );
+			}
+			return result;
+		}
+		};
+
 		template<typename Result>
 		struct [[nodiscard]] member_data_t {
 			using base_result_t = Result;
@@ -158,6 +302,8 @@ namespace daw {
 			  impl::member_data_members<expected_result_t, next_function_t>;
 
 			std::shared_ptr<data_t> m_data;
+
+			friend struct fork_join_installer;
 
 			explicit member_data_t( task_scheduler ts )
 			  : m_data( std::make_shared<data_t>( std::move( ts ) ) ) {}
@@ -387,10 +533,11 @@ namespace daw {
 						                   } );
 					}
 				};
-				m_data->status( future_status::continued );
 				if( future_status::ready == m_data->status( ) ) {
 					pass_next( std::move( m_data->m_result ) );
+					m_data->status( future_status::continued );
 				} else {
+					m_data->status( future_status::continued );
 					nxt.release( );
 					m_data->notify( );
 				}
@@ -399,28 +546,11 @@ namespace daw {
 
 			template<typename Function, typename... Functions>
 			[[nodiscard]] auto fork_join( Function &&joiner, Functions &&...funcs ) {
-
-				// TODO: finish implementing
-				Unused( joiner );
-				Unused( funcs... );
-				assert( m_data );
-				auto nxt = m_data->m_next.get( );
-				assert( *nxt ); // can only set next function once
-
 				static_assert(
-				  ( std::is_invocable_v<
-				      Functions,
-				      decltype( std::declval<expected_result_t>( ).get( ) )> and
-					  ... ) );
-
-				/* TODO Finish
-				using result_temp_t =
-				  std::tuple<future_result_t<daw::remove_cvref_t<decltype(
-				    funcs( std::declval<expected_result_t>( ).get( ) ) )>>...>;
-				*/
-				// using result_final_t =
-				// not implemented
-				std::abort( );
+				  ( std::is_invocable_v<Functions &, base_result_t const &> and ... ),
+				  "Each fork function must be callable with the future's value" );
+				return impl::fork_join_installer::install<member_data_t, std::tuple<base_result_t>>(
+				  *this, DAW_FWD( joiner ), DAW_FWD( funcs )... );
 			}
 
 			void wait( ) const {
@@ -472,6 +602,8 @@ namespace daw {
 			  impl::member_data_members<expected_result_t, next_function_t>;
 
 			std::shared_ptr<data_t> m_data;
+
+			friend struct fork_join_installer;
 
 			explicit member_data_t( task_scheduler ts )
 			  : m_data( std::make_shared<data_t>( std::move( ts ) ) ) {}
@@ -538,7 +670,7 @@ namespace daw {
 				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
 				        self = *this]( expected_result_t value ) -> void {
 					if( value.has_value( ) ) {
-						if( ts->add_task(
+						if( not ts->add_task(
 						      [res = daw::mutable_capture( rslt.move_out( ) ),
 									 fun = daw::mutable_capture( fn.move_out( ) )]( ) {
 							      res->from_code( fun.move_out( ) );
@@ -607,50 +739,10 @@ namespace daw {
 
 			template<typename Function, typename... Functions>
 			[[nodiscard]] auto fork_join( Function &&joiner, Functions &&...funcs ) {
-				// TODO: finish implementing
-				Unused( joiner );
-				static_assert( ( std::is_invocable_v<Functions> and ... ) );
-				auto nxt = m_data->m_next.get( );
-				daw::exception::precondition_check( not( *nxt ),
-				                                    "Can only set next function once" );
-
-				auto const construct_future = [&]( auto &&f ) {
-					// Default constructs a future of the result type with the task
-					// scheduler
-					Unused( f );
-					return future_result_t<daw::remove_cvref_t<decltype( f( ) )>>(
-					  m_data->m_task_scheduler );
-				};
-
-				// Create a place to put results of functions
-				auto result = std::tuple( construct_future( funcs )... );
-
-				auto tpfuncs = std::tuple( DAW_FWD( funcs )... );
-
-				*nxt = [res = daw::mutable_capture( result ),
-				        tpfns = daw::mutable_capture( std::move( tpfuncs ) ),
-				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				        self = *this]( auto const &value ) {
-					static_assert(
-					  std::is_same_v<expected_result_t, DAW_TYPEOF( value )> );
-					if( value.has_value( ) ) {
-						ts->add_task( impl::add_fork_task( ts, res, tpfns ) );
-						return;
-					}
-					daw::tuple::apply( res,
-					                   [ptr = value.get_exception_ptr( )]( auto &&t ) {
-						                   DAW_FWD( t ).set_exception( ptr );
-					                   } );
-				};
-				if( future_status::ready == m_data->status( ) ) {
-					pass_next( std::move( m_data->m_result ) );
-					m_data->status( future_status::continued );
-				} else {
-					m_data->status( future_status::continued );
-					nxt.release( );
-					m_data->notify( );
-				}
-				return result;
+				static_assert( ( std::is_invocable_v<Functions &> and ... ),
+				               "Each fork function must be callable with no arguments" );
+				return impl::fork_join_installer::install<member_data_t, std::tuple<>>(
+				  *this, DAW_FWD( joiner ), DAW_FWD( funcs )... );
 			}
 
 			inline void wait( ) const {
@@ -730,7 +822,7 @@ namespace daw {
 				// TODO this looks weird
 				if( not schedule_task(
 				      sem,
-				      [res = daw::mutable_capture( results ),
+				      [res = std::addressof( results ),
 							 call = std::addressof( callables ),
 							 tp_args]( ) {
 					      try {
@@ -793,27 +885,28 @@ namespace daw {
 				  DAW_FWD( args )... );
 
 				auto ts = get_task_scheduler( );
-				auto sem = daw::shared_cnt_sem( sizeof...( Functions ) );
-				auto result = future_result_t<result_tp_t>( sem, ts );
+				auto result = future_result_t<result_tp_t>( ts );
 
 				auto th_worker = [res = daw::mutable_capture( result ),
-				                  semi = daw::mutable_capture( sem ),
 				                  tp_funcs = daw::mutable_capture( tp_functions ),
 				                  tsk_sch = daw::mutable_capture( ts ),
 				                  tp_arg =
 				                    daw::mutable_capture( std::move( tp_args ) )]( ) {
-					auto const oe = daw::on_scope_exit( [semi]( ) {
-						semi->notify( );
-					} );
-
+					// tp_result and funcs are referenced by the sub tasks, so they must
+					// outlive them.  We wait on sem below before leaving this scope
 					auto tp_result = result_tp_t( );
-					impl::apply_many( *tsk_sch,
-					                  *semi,
-					                  tp_result,
-					                  tp_funcs.move_out( ),
-					                  tp_arg.move_out( ) );
-
-					semi->wait( );
+					auto const funcs = tp_funcs.move_out( );
+					// Each scheduled sub task adds a notifier, the initial count of 1 is
+					// released once they have all been scheduled
+					auto sem = daw::shared_cnt_sem( 1 );
+					{
+						auto const oe = daw::on_scope_exit( [sem]( ) mutable {
+							sem.notify( );
+						} );
+						impl::apply_many( *tsk_sch, sem, tp_result, funcs,
+						                  tp_arg.move_out( ) );
+					}
+					sem.wait( );
 					res->set_value( std::move( tp_result ) );
 				};
 				try {

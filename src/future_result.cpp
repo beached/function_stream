@@ -30,12 +30,15 @@ namespace daw {
 
 		void member_data_t<void>::set_value(
 		  member_data_t<void>::expected_result_t result ) {
-			m_data->m_result = std::move( result );
-
-			if( auto nxt = m_data->m_next.get( ); *nxt ) {
-				pass_next( std::move( m_data->m_result ) );
+			// Hold the lock on m_next until the result is published so that a
+			// concurrent next( )/fork( )/fork_join( ) either sees ready or installs
+			// its continuation before we check for one
+			auto nxt = m_data->m_next.get( );
+			if( *nxt ) {
+				pass_next( std::move( result ) );
 				return;
 			}
+			m_data->m_result = std::move( result );
 			m_data->status( future_status::ready );
 			m_data->notify( );
 		}

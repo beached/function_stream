@@ -53,7 +53,10 @@ int main( ) {
 				tmp_n = n;
 				r = push_back( q, std::move( tmp_n ), []( auto &&... ) { return true; } );
 			}
-			l.notify( );
+			// l is a one-shot latch (count 1): open it once the first value is queued
+			if( n == 1 ) {
+				l.notify( );
+			}
 		}
 		l2.notify( );
 		auto const lck = std::lock_guard( mut_out );
@@ -61,32 +64,19 @@ int main( ) {
 	};
 	auto const consumer = [&]( size_t i ) {
 		results[i] = 0;
-		size_t count = 0;
-		(void)count;
 		l.wait( );
-		for( size_t n = 0; n < 100; ++n ) {
-			auto val = q.pop_front( );
-			++count;
-			while( not val and not l2.try_wait( ) ) {
-				++count;
-				val = q.try_pop_front( );
-				if( val and ( *val % 2 != 0 ) ) {
-					*val *= 2;
-					{
-						auto const lck = std::lock_guard( mut_out );
-						std::cout << std::this_thread::get_id( ) << " -> adding task\n";
-					}
-					(void)push_back( q, std::move( *val ), []( ) { return true; } );
-				}
+		// Drain until the producer has finished and the queue is empty.
+		// try_pop_front can fail spuriously under lock contention, so only stop
+		// once the producer is done (l2) and the queue reports empty.
+		while( true ) {
+			if( auto val = q.try_pop_front( ); val ) {
+				results[i] += *val;
+				continue;
 			}
-			{
-				auto const lck = std::lock_guard( mut_out );
-				std::cout << std::this_thread::get_id( ) << " -> adding result\n";
-			}
-			if( not l2.try_wait( ) ) {
+			if( l2.try_wait( ) and q.empty( ) ) {
 				return;
 			}
-			results[i] += *val;
+			std::this_thread::yield( );
 		}
 	};
 
@@ -101,5 +91,10 @@ int main( ) {
 	}
 	auto const result = std::accumulate( begin( results ), end( results ), 0ULL );
 	std::cout << result << '\n';
+	// The producer pushes 1..100 exactly once, so every value must be consumed once
+	if( result != 5050ULL ) {
+		std::cerr << "Expected 5050, got " << result << '\n';
+		return 1;
+	}
 	//}
 }

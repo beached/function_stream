@@ -102,7 +102,7 @@ namespace daw::impl {
 
 	template<size_t pos, typename Package>
 	void call_task( Package &&package, function_tag ) {
-		if( package->continue_processing( ) ) {
+		if( not package->continue_processing( ) ) {
 			return;
 		}
 		auto func = std::get<pos>( package->function_list( ) );

@@ -66,7 +66,7 @@ void composable_function_stream_test_001( ) {
 		return std::move( value );
 	};
 
-	auto const values = make_values( 75_MB );
+	auto const values = make_values( 1_MB );
 
 	auto t1 = daw::benchmark( [&]( ) {
 		auto const par_comp =

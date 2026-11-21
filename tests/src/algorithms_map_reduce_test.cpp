@@ -214,25 +214,31 @@ void map_reduce_test2( size_t SZ ) {
 	display_info( seq_max, par_max, SZ, sizeof( value_t ), "map_reduce2" );
 }
 
+// Kept small so the test finishes quickly, even in Debug builds
+inline constexpr size_t MR_MAX_ITEMS = 1'048'576;
+inline constexpr size_t MR_LARGE_TEST_SZ = 2 * MR_MAX_ITEMS;
+// map_reduce3's map function loops 10'000 times per element, so keep it much smaller
+inline constexpr size_t MR3_MAX_ITEMS = 8'192;
+
 void map_reduce_int64_t( ) {
 	std::cout << "map_reduce tests - int64_t\n";
-	for( size_t n = 128; n < MAX_ITEMS * 2; n *= 2 ) {
+	for( size_t n = 128; n < MR_MAX_ITEMS * 2; n *= 2 ) {
 		map_reduce_test<int64_t>( n );
 	}
-	map_reduce_test<int64_t>( LARGE_TEST_SZ * 10 );
+	map_reduce_test<int64_t>( MR_LARGE_TEST_SZ );
 }
 
 void map_reduce2_int64_t( ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
-	for( size_t n = 128; n < MAX_ITEMS * 2; n *= 2 ) {
+	for( size_t n = 128; n < MR_MAX_ITEMS * 2; n *= 2 ) {
 		map_reduce_test2<int64_t>( n );
 	}
-	map_reduce_test2<int64_t>( LARGE_TEST_SZ * 10 );
+	map_reduce_test2<int64_t>( MR_LARGE_TEST_SZ );
 }
 
 void map_reduce3_int64_t( ) {
 	std::cout << "map_reduce3 tests - int64_t\n";
-	for( size_t n = 128; n < MAX_ITEMS * 2; n *= 2 ) {
+	for( size_t n = 128; n < MR3_MAX_ITEMS * 2; n *= 2 ) {
 		map_reduce_test3<int64_t>( n );
 	}
 }

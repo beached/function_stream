@@ -23,6 +23,8 @@
 #include <cmath>
 #include <exception>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 #include <daw/daw_benchmark.h>
 #include <daw/daw_size_literals.h>
@@ -49,7 +51,8 @@ void future_result_test_001( ) {
 	double const expected_value =
 	  139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125.0;
 	double const actual_value = f1.get( );
-	daw::expecting( daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
+	daw::expecting(
+	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
 void future_result_test_002( ) {
@@ -57,14 +60,16 @@ void future_result_test_002( ) {
 	auto f2 = f1.next( fib );
 	double const expected_value = 21;
 	double const actual_value = f2.get( );
-	daw::expecting( daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
+	daw::expecting(
+	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
 void future_result_test_003( ) {
 	auto f2 = daw::async( fib, 6 ).next( fib ).next( fib );
 	double const expected_value = 10946;
 	double const actual_value = f2.get( );
-	daw::expecting( daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
+	daw::expecting(
+	  daw::math::nearly_equal( expected_value, actual_value, 0.00000000000001 ) );
 }
 
 void future_result_test_004( ) {
@@ -80,11 +85,14 @@ void future_result_test_004( ) {
 	auto fib4 = fib2;
 	auto fib5 = fib2;
 
-	auto f3 = daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
+	auto f3 =
+	  daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
 
 	daw::expecting( f3.is_exception( ) );
 	daw::expecting( 3, count );
-	daw::expecting_exception( [&f3]( ) { (void)f3.get( ); } );
+	daw::expecting_exception( [&f3]( ) {
+		(void)f3.get( );
+	} );
 }
 
 void future_result_test_005( ) {
@@ -100,16 +108,25 @@ void future_result_test_005( ) {
 	auto fib4 = fib2;
 	auto fib5 = fib2;
 
-	auto const f4 = daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
+	auto const f4 =
+	  daw::async( fib, 6 ).next( fib2 ).next( fib3 ).next( fib4 ).next( fib5 );
 
 	daw::expecting( f4.is_exception( ) );
 	daw::expecting( 3, count );
-	daw::expecting_exception( [&f4]( ) { (void)f4.get( ); } );
+	daw::expecting_exception( [&f4]( ) {
+		(void)f4.get( );
+	} );
 }
 
 void future_result_test_006( ) {
-	auto f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 )
-	            .next( []( ) { return 5; } )
+	auto f5 = daw::async(
+	            []( int i ) {
+		            std::cout << i << '\n';
+	            },
+	            6 )
+	            .next( []( ) {
+		            return 5;
+	            } )
 	            .next( []( int i ) {
 		            std::cout << "done " << i << '\n';
 		            return i;
@@ -119,8 +136,14 @@ void future_result_test_006( ) {
 }
 
 void future_result_test_007( ) {
-	auto const f5 = daw::async( []( int i ) { std::cout << i << '\n'; }, 6 )
-	                  .next( []( ) { return 5; } )
+	auto const f5 = daw::async(
+	                  []( int i ) {
+		                  std::cout << i << '\n';
+	                  },
+	                  6 )
+	                  .next( []( ) {
+		                  return 5;
+	                  } )
 	                  .next( []( int i ) {
 		                  std::cout << "done " << i << '\n';
 		                  return i;
@@ -130,21 +153,35 @@ void future_result_test_007( ) {
 }
 
 void future_result_test_008( ) {
-	auto const f5 =
-	  daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) | []( ) { return 5; } | []( int i ) {
-		  std::cout << "done " << i << '\n';
-		  return i;
-	  };
+	auto const f5 = daw::async(
+	                  []( int i ) {
+		                  std::cout << i << '\n';
+	                  },
+	                  6 ) |
+	                []( ) {
+		                return 5;
+	                } |
+	                []( int i ) {
+		                std::cout << "done " << i << '\n';
+		                return i;
+	                };
 
 	daw::expecting( 5, f5.get( ) );
 }
 
 void future_result_test_009( ) {
-	auto f5 =
-	  daw::async( []( int i ) { std::cout << i << '\n'; }, 6 ) | []( ) { return 5; } | []( int i ) {
-		  std::cout << "done " << i << '\n';
-		  return i;
-	  };
+	auto f5 = daw::async(
+	            []( int i ) {
+		            std::cout << i << '\n';
+	            },
+	            6 ) |
+	          []( ) {
+		          return 5;
+	          } |
+	          []( int i ) {
+		          std::cout << "done " << i << '\n';
+		          return i;
+	          };
 
 	daw::expecting( 5, f5.get( ) );
 }
@@ -156,40 +193,136 @@ void future_result_test_010( ) {
 		                  return i * 6;
 	                  },
 	                  6 )
-	                  .fork( []( int i ) { return i / 6; }, []( int i ) { return i; } );
+	                  .fork(
+	                    []( int i ) {
+		                    return i / 6;
+	                    },
+	                    []( int i ) {
+		                    return i;
+	                    } );
 
 	std::get<0>( f5 ).wait( );
 	std::get<1>( f5 ).wait( );
 	daw::expecting( 6, std::get<0>( f5 ).get( ) );
 	daw::expecting( 36, std::get<1>( f5 ).get( ) );
 
-	auto f6 = join( f5, []( int lhs, int rhs ) { return lhs + rhs; } );
+	auto f6 = join( f5, []( int lhs, int rhs ) {
+		return lhs + rhs;
+	} );
 	auto result = f6.get( );
 	daw::expecting( result, 42 );
 }
 
 void fork_join_test_001( ) {
-	/*
-	auto const f1 =
-	  daw::async( []( ) { return std::string( "Hello" ); } )
-	    .fork_join(
-	      []( char a, char b, char c, char d, char e ) {
-	        auto result = std::string( );
-	        result += a;
-	        result += b;
-	        result += c;
-	        result += d;
-	        result += e;
-	        return result;
-	      },
-	      []( std::string const &s ) -> char { return s[0] | ' '; },
-	      []( std::string const &s ) -> char { return s[1] | ' '; },
-	      []( std::string const &s ) -> char { return s[2] | ' '; },
-	      []( std::string const &s ) -> char { return s[3] | ' '; },
-	      []( std::string const &s ) -> char { return s[4] | ' '; } );
+	auto const f1 = daw::async( []( ) {
+		                return std::string( "Hello" );
+	                } )
+	                  .fork_join(
+	                    []( char a, char b, char c, char d, char e ) {
+		                    auto result = std::string( );
+		                    result += a;
+		                    result += b;
+		                    result += c;
+		                    result += d;
+		                    result += e;
+		                    return result;
+	                    },
+	                    []( std::string const &s ) -> char {
+		                    return s[0] | ' ';
+	                    },
+	                    []( std::string const &s ) -> char {
+		                    return s[1] | ' ';
+	                    },
+	                    []( std::string const &s ) -> char {
+		                    return s[2] | ' ';
+	                    },
+	                    []( std::string const &s ) -> char {
+		                    return s[3] | ' ';
+	                    },
+	                    []( std::string const &s ) -> char {
+		                    return s[4] | ' ';
+	                    } );
 
-	daw::expecting( f1.get( ) = "hello" );
-	      */
+	daw::expecting( f1.get( ), std::string( "hello" ) );
+}
+
+// fork_join on a future that is already ready runs the continuation straight
+// away instead of waiting for a set_value that has already happened
+void fork_join_test_002( ) {
+	auto f = daw::async( []( ) {
+		return 6;
+	} );
+	f.wait( );
+	auto const f2 = f.fork_join(
+	  []( int a, int b, int c ) {
+		  return a + b + c;
+	  },
+	  []( int i ) {
+		  return i;
+	  },
+	  []( int i ) {
+		  return i * 2;
+	  },
+	  []( int i ) {
+		  return i * 3;
+	  } );
+	daw::expecting( f2.get( ), 36 );
+}
+
+// An exception thrown by a fork function ends up in the joined future
+void fork_join_test_003( ) {
+	auto const f = daw::async( []( ) {
+		               return 1;
+	               } )
+	                 .fork_join(
+	                   []( int a, int b ) {
+		                   return a + b;
+	                   },
+	                   []( int i ) {
+		                   return i;
+	                   },
+	                   []( int ) -> int {
+		                   throw std::runtime_error( "fork failed" );
+	                   } );
+	f.wait( );
+	daw::expecting( f.is_exception( ) );
+	bool caught = false;
+	try {
+		(void)f.get( );
+	} catch( std::runtime_error const & ) { caught = true; }
+	daw::expecting( caught );
+}
+
+// An exception in the source future skips the fork functions and is passed on
+void fork_join_test_004( ) {
+	auto const f = daw::async( []( ) -> int {
+		               throw std::runtime_error( "source failed" );
+	               } )
+	                 .fork_join(
+	                   []( int a ) {
+		                   return a;
+	                   },
+	                   []( int ) -> int {
+		                   std::abort( ); // must not run
+	                   } );
+	f.wait( );
+	daw::expecting( f.is_exception( ) );
+}
+
+// fork_join on a void future calls the fork functions with no arguments
+void fork_join_test_005( ) {
+	auto const f = daw::async( []( ) {} )
+	                 .fork_join(
+	                   []( int a, std::string b ) {
+		                   return b + std::to_string( a );
+	                   },
+	                   []( ) {
+		                   return 42;
+	                   },
+	                   []( ) {
+		                   return std::string( "answer=" );
+	                   } );
+	daw::expecting( f.get( ), std::string( "answer=42" ) );
 }
 
 int main( ) {
@@ -204,4 +337,8 @@ int main( ) {
 	future_result_test_009( );
 	future_result_test_010( );
 	fork_join_test_001( );
+	fork_join_test_002( );
+	fork_join_test_003( );
+	fork_join_test_004( );
+	fork_join_test_005( );
 }

@@ -277,6 +277,13 @@ namespace daw {
 			return m_data.fork(
 			  fs::impl::make_callable( DAW_FWD( func ), DAW_FWD( funcs ) )... );
 		}
+
+		template<typename Function, typename... Functions>
+		[[nodiscard]] decltype( auto ) fork_join( Function &&joiner,
+		                                          Functions &&...funcs ) {
+			return m_data.fork_join( fs::impl::make_callable( DAW_FWD( joiner ) ),
+			                         fs::impl::make_callable( DAW_FWD( funcs ) )... );
+		}
 	}; // future_result_t<void>
 
 	template<typename T>

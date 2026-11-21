@@ -106,18 +106,28 @@ BENCHMARK_TEMPLATE( bench_stl_sort, 1'024 );
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 1'024 );
 #endif
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 1'024 );
+
 BENCHMARK_TEMPLATE( bench_stl_sort, 4'096 );
 #if defined( HAS_PAR_STL )
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 4'096 );
 #endif
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 4'096 );
+
 BENCHMARK_TEMPLATE( bench_stl_sort, 16'384 );
 #if defined( HAS_PAR_STL )
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 16'384 );
 #endif
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 16'384 );
+
 BENCHMARK_TEMPLATE( bench_stl_sort, 65'536 );
 #if defined( HAS_PAR_STL )
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 65'536 );
 #endif
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 65'536 );
+
+
+BENCHMARK_TEMPLATE( bench_stl_sort, 131'072 );
+#if defined( HAS_PAR_STL )
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 131'072 );
+#endif
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 131'072 );

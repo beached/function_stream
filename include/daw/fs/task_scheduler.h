@@ -309,7 +309,10 @@ namespace daw {
 	/// @returns a semaphore that will stop waiting when all tasks complete
 	[[nodiscard]] shared_cnt_sem create_task_group( Tasks auto &&...tasks ) {
 		auto ts = get_task_scheduler( );
-		auto sem = shared_cnt_sem( sizeof...( tasks ) );
+		// Each scheduled task adds its own notifier; the initial count of 1 keeps the
+		// semaphore from reaching 0 before every task has been scheduled
+		auto sem = shared_cnt_sem( 1 );
+		auto const ae = on_scope_exit( [sem]( ) mutable { sem.notify( ); } );
 
 		auto const st = [&]( auto &&task ) {
 			if( not schedule_task( sem, DAW_FWD( task ), ts ) ) {

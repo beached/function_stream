@@ -62,7 +62,12 @@ namespace daw::algorithm::parallel::impl {
 	[[nodiscard]] daw::shared_cnt_sem
 	partition_range( std::vector<daw::view<RandomIterator>> ranges, Func &&func,
 	                 task_scheduler ts ) {
-		auto sem = daw::shared_cnt_sem( ranges.size( ) );
+		// Each scheduled task adds its own notifier; the initial count of 1 keeps the
+		// semaphore from reaching 0 before every task has been scheduled
+		auto sem = daw::shared_cnt_sem( 1 );
+		auto const ae = on_scope_exit( [sem]( ) mutable {
+			sem.notify( );
+		} );
 		for( auto rng : ranges ) {
 			if( not schedule_task(
 			      sem,
