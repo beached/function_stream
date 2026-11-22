@@ -28,6 +28,12 @@ target_include_directories(task_scheduler_test_bin PRIVATE include)
 add_test(task_scheduler_test task_scheduler_test_bin)
 add_dependencies(full task_scheduler_test_bin)
 
+add_executable(unique_task_test_bin src/unique_task_test.cpp)
+target_link_libraries(unique_task_test_bin daw::daw-task-scheduler ${CMAKE_THREAD_LIBS_INIT})
+target_include_directories(unique_task_test_bin PRIVATE include)
+add_test(unique_task_test unique_task_test_bin)
+add_dependencies(full unique_task_test_bin)
+
 add_executable(message_queue_test_bin src/message_queue_test.cpp)
 target_link_libraries(message_queue_test_bin daw::daw-task-scheduler daw::daw-header-libraries ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(message_queue_test_bin PRIVATE include)

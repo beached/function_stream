@@ -468,10 +468,13 @@ namespace daw {
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );
 
+				// Do not capture *this: the continuation is stored in this future's own state,
+				// so a copy of it here would keep that state alive forever (a reference cycle).
+				// Whoever invokes the continuation already holds the state
 				*nxt = [res = daw::mutable_capture( result ),
 				        fn = daw::mutable_capture( DAW_FWD( func ) ),
-				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				        self = *this]( expected_result_t value ) -> void {
+				        ts = daw::mutable_capture( m_data->m_task_scheduler )](
+				         expected_result_t value ) -> void {
 					if( not value.has_value( ) ) {
 						res->set_exception( value.get_exception_ptr( ) );
 						return;
@@ -514,12 +517,15 @@ namespace daw {
 					return fut_t( m_data->m_task_scheduler );
 				};
 				auto result = result_t( construct_future( funcs )... );
+				// Do not capture *this: the continuation is stored in this future's own state,
+				// so a copy of it here would keep that state alive forever (a reference cycle).
+				// Whoever invokes the continuation already holds the state
 				*nxt = [res = mutable_capture( result ),
 				        tpfns = daw::mutable_capture(
 				          std::tuple<daw::remove_cvref_t<Functions>...>(
 				            DAW_FWD( funcs )... ) ),
-				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				        self = *this]( cvref_of<expected_result_t> auto &&value ) {
+				        ts = daw::mutable_capture( m_data->m_task_scheduler )](
+				         cvref_of<expected_result_t> auto &&value ) {
 					if( value.has_value( ) ) {
 						if( not ts->add_task(
 						      impl::add_fork_task( *ts, *res, *tpfns, value.get( ) ) ) ) {
@@ -665,10 +671,13 @@ namespace daw {
 				auto result =
 				  future_result_t<next_result_t>( m_data->m_task_scheduler );
 
+				// Do not capture *this: the continuation is stored in this future's own state,
+				// so a copy of it here would keep that state alive forever (a reference cycle).
+				// Whoever invokes the continuation already holds the state
 				*nxt = [rslt = daw::mutable_capture( result ),
 				        fn = daw::mutable_capture( DAW_FWD( func ) ),
-				        ts = daw::mutable_capture( m_data->m_task_scheduler ),
-				        self = *this]( expected_result_t value ) -> void {
+				        ts = daw::mutable_capture( m_data->m_task_scheduler )](
+				         expected_result_t value ) -> void {
 					if( value.has_value( ) ) {
 						if( not ts->add_task(
 						      [res = daw::mutable_capture( rslt.move_out( ) ),
@@ -712,11 +721,13 @@ namespace daw {
 
 				auto tpfuncs =
 				  std::tuple<daw::remove_cvref_t<Functions>...>( DAW_FWD( funcs )... );
+				// Do not capture *this: the continuation is stored in this future's own state,
+				// so a copy of it here would keep that state alive forever (a reference cycle).
+				// Whoever invokes the continuation already holds the state
 				*nxt = [result,
 				        tpfns = std::move( tpfuncs ),
-				        ts = m_data->m_task_scheduler,
-				        self =
-				          *this]( cvref_of<expected_result_t> auto &&value ) mutable {
+				        ts = m_data->m_task_scheduler](
+				         cvref_of<expected_result_t> auto &&value ) mutable {
 					if( value.has_value( ) ) {
 						ts.add_task( impl::add_fork_task( ts, result, tpfns ) );
 					} else {
