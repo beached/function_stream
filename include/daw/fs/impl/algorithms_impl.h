@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <exception>
 #include <iterator>
 #include <memory>
@@ -561,6 +562,118 @@ namespace daw::algorithm::parallel::impl {
 	};
 	inline constexpr auto stable_sorter = stable_sorter_t{ };
 
+	/// Shared state for one parallel_sort: the chunk sorts are the leaves of a binary tree
+	/// of merges.  Each merge node counts down from 2 as its two halves finish, and the
+	/// thread that finishes second does the merge itself and moves on to the parent.  The
+	/// first one just returns.  So a merge runs as soon as both halves are ready, on a
+	/// thread that is already running, without a handoff through the task queues and
+	/// without any thread blocking on the other half.  Whoever completes the root
+	/// signals the caller
+	template<typename Iterator, typename Sort, typename Compare>
+	class parallel_sort_state {
+		static constexpr std::size_t no_parent = static_cast<std::size_t>( -1 );
+
+		struct merge_node {
+			std::size_t parent = no_parent;
+			// Merges [first, mid) with [mid, last)
+			Iterator first{ };
+			Iterator mid{ };
+			Iterator last{ };
+			std::atomic<int> pending = 2;
+		};
+
+		std::vector<daw::view<Iterator>> m_chunks;
+		std::vector<std::size_t> m_leaf_parent;
+		// Constructed with its final size and never resized, as merge_node cannot move
+		std::vector<merge_node> m_nodes;
+		Sort m_sort;
+		Compare m_cmp;
+		std::atomic<bool> m_done = false;
+
+	public:
+		sort_error_t error;
+
+	private:
+		parallel_sort_merger<Compare, Iterator> m_merger;
+
+		/// Builds the subtree over chunks [lo, hi) and returns the range it covers
+		daw::view<Iterator> build( std::size_t lo, std::size_t hi, std::size_t parent,
+		                           std::size_t &next_node ) {
+			if( hi - lo == 1 ) {
+				m_leaf_parent[lo] = parent;
+				return m_chunks[lo];
+			}
+			std::size_t const idx = next_node++;
+			std::size_t const mid = lo + ( hi - lo ) / 2;
+			auto &node = m_nodes[idx];
+			node.parent = parent;
+			// Not const: begin( ) on a const view returns a const iterator
+			auto left = build( lo, mid, idx, next_node );
+			auto right = build( mid, hi, idx, next_node );
+			node.first = left.begin( );
+			node.mid = right.begin( );
+			node.last = right.end( );
+			return daw::view<Iterator>( node.first, node.last );
+		}
+
+		/// Called when one half of node idx is done.  Merges and climbs while this
+		/// thread is the second to arrive
+		void complete( std::size_t idx ) {
+			while( idx != no_parent ) {
+				auto &node = m_nodes[idx];
+				// acq_rel: the second to arrive sees the other half's sorted data
+				if( node.pending.fetch_sub( 1, std::memory_order_acq_rel ) != 1 ) {
+					return;
+				}
+				// Records any exception in error instead of throwing
+				(void)m_merger( daw::view<Iterator>( node.first, node.mid ),
+				                daw::view<Iterator>( node.mid, node.last ) );
+				idx = node.parent;
+			}
+			m_done.store( true, std::memory_order_release );
+			m_done.notify_all( );
+		}
+
+	public:
+		parallel_sort_state( std::vector<daw::view<Iterator>> chunks, Sort srt, Compare cmp,
+		                     Iterator base, std::iter_value_t<Iterator> *buffer,
+		                     task_scheduler ts )
+		  : m_chunks( std::move( chunks ) )
+		  , m_leaf_parent( m_chunks.size( ), no_parent )
+		  , m_nodes( m_chunks.empty( ) ? 0 : m_chunks.size( ) - 1 )
+		  , m_sort( std::move( srt ) )
+		  , m_cmp( cmp )
+		  , m_merger{ std::move( cmp ), base, buffer, &error, std::move( ts ) } {
+
+			assert( not m_chunks.empty( ) );
+			std::size_t next_node = 0;
+			(void)build( 0, m_chunks.size( ), no_parent, next_node );
+			assert( next_node == m_nodes.size( ) );
+		}
+
+		parallel_sort_state( parallel_sort_state const & ) = delete;
+		parallel_sort_state &operator=( parallel_sort_state const & ) = delete;
+
+		[[nodiscard]] std::size_t size( ) const {
+			return m_chunks.size( );
+		}
+
+		/// Sorts chunk n, then does whatever merges this thread is the second to reach
+		void run_leaf( std::size_t n ) {
+			if( not error.has_failed( ) ) {
+				try {
+					m_sort( m_chunks[n].begin( ), m_chunks[n].end( ), m_cmp );
+				} catch( ... ) { error.set( std::current_exception( ) ); }
+			}
+			complete( m_leaf_parent[n] );
+		}
+
+		/// Returns once every chunk sort and merge has finished
+		void wait( ) const {
+			m_done.wait( false, std::memory_order_acquire );
+		}
+	};
+
 	template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 	         typename Sort, typename Compare>
 	void parallel_sort( daw::view<Iterator> range, Sort &&srt, Compare &&cmp,
@@ -571,45 +684,40 @@ namespace daw::algorithm::parallel::impl {
 		}
 		auto ranges = PartitionPolicy( )( range, ts.size( ) );
 		// Scratch space for the merges, only needed when there is something to merge.
-		// Allocated before any task is scheduled, so a bad_alloc leaves nothing running
+		// Allocated before any task is scheduled, so a bad_alloc leaves nothing running.
+		// It outlives every merge because we wait for the whole tree below
 		auto const buffer = merge_buffer_t<std::iter_value_t<Iterator>>(
 		  ranges.size( ) > 1 ? range.size( ) : 0 );
 
-		auto sorters = std::vector<future_result_t<daw::view<Iterator>>>( );
-		sorters.reserve( ranges.size( ) );
-
-		// Must outlive every task, which holds because we wait for all of them below
-		auto error = sort_error_t( );
-
-		auto const sort_fn =
-		  [comp = mutable_capture( cmp ),
-			 sort = mutable_capture( DAW_FWD( srt ) ),
-			 err = &error]( daw::view<Iterator> r ) {
-			  if( not err->has_failed( ) ) {
-				  try {
-					  ( *sort )( r.begin( ), r.end( ), *comp );
-				  } catch( ... ) { err->set( std::current_exception( ) ); }
-			  }
-			  return r;
-		  };
-
-		daw::algorithm::transform( ranges.begin( ),
-		                           ranges.end( ),
-		                           std::back_inserter( sorters ),
-		                           [tsk_sch = daw::mutable_capture( ts ),
-		                            sort_fn]( daw::view<Iterator> rng ) {
-			                           return make_future_result(
-			                             *tsk_sch, sort_fn, rng );
-		                           } );
-
-		using merger_t = parallel_sort_merger<daw::remove_cvref_t<Compare>, Iterator>;
-		ts.wait_for( reduce_futures(
-		  sorters.begin( ),
-		  sorters.end( ),
-		  merger_t{ cmp, range.begin( ), buffer.data( ), &error, ts } ) );
+		using state_t = parallel_sort_state<Iterator, daw::remove_cvref_t<Sort>,
+		                                    daw::remove_cvref_t<Compare>>;
+		// Shared with the tasks: the thread that completes the root still touches the
+		// state while signalling us, after which we may already have returned
+		auto const state = std::make_shared<state_t>( std::move( ranges ),
+		                                              DAW_FWD( srt ),
+		                                              cmp,
+		                                              range.begin( ),
+		                                              buffer.data( ),
+		                                              ts );
+		// Every leaf must run or the tree never completes, so a leaf that cannot be
+		// scheduled is run here instead
+		for( std::size_t n = 1; n < state->size( ); ++n ) {
+			bool scheduled = false;
+			try {
+				scheduled = ts.add_task( [state, n]( ) {
+					state->run_leaf( n );
+				} );
+			} catch( ... ) { }
+			if( not scheduled ) {
+				state->run_leaf( n );
+			}
+		}
+		// Sort the first chunk on this thread rather than leaving it idle
+		state->run_leaf( 0 );
+		state->wait( );
 		// Every sort and merge has finished, so it is now safe to report a failure
-		if( error.ptr ) {
-			std::rethrow_exception( error.ptr );
+		if( state->error.ptr ) {
+			std::rethrow_exception( state->error.ptr );
 		}
 	}
 
