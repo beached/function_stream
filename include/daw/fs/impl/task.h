@@ -91,23 +91,22 @@ namespace daw {
 	};
 
 	class [[nodiscard]] unique_task_t {
-		std::unique_ptr<fixed_task_t> m_ftask = std::make_unique<fixed_task_t>( );
+		// Empty (null) when default constructed or moved from.  Moves used to allocate a
+		// fresh fixed_task_t (plus its latch) for the moved from object, about 18 heap
+		// allocations per task on its way through the queues
+		std::unique_ptr<fixed_task_t> m_ftask = nullptr;
 
 	public:
 		unique_task_t( ) = default;
 		unique_task_t( unique_task_t const & ) = delete;
 		unique_task_t &operator=( unique_task_t const & ) = delete;
-		unique_task_t( unique_task_t &&other ) noexcept
-		  : m_ftask( std::move( other.m_ftask ) ) {
-			other.m_ftask = std::make_unique<fixed_task_t>( );
-		}
+		unique_task_t( unique_task_t && ) noexcept = default;
+		unique_task_t &operator=( unique_task_t && ) noexcept = default;
+		~unique_task_t( ) = default;
 
-		unique_task_t &operator=( unique_task_t &&rhs ) noexcept {
-			if( this != &rhs ) {
-				m_ftask.reset( rhs.m_ftask.release( ) );
-				rhs.m_ftask.reset( new fixed_task_t( ) );
-			}
-			return *this;
+		/// False for an empty task (default constructed or moved from)
+		[[nodiscard]] explicit operator bool( ) const noexcept {
+			return static_cast<bool>( m_ftask );
 		}
 
 		template<not_cvref_of<unique_task_t> Task>

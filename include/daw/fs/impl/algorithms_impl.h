@@ -33,7 +33,11 @@
 #include <daw/parallel/daw_spin_lock.h>
 
 #include <algorithm>
+#include <atomic>
+#include <exception>
 #include <iterator>
+#include <memory>
+#include <mutex>
 #include <numeric>
 #include <optional>
 
@@ -188,21 +192,125 @@ namespace daw::algorithm::parallel::impl {
 		  .wait( );
 	}
 
-	template<typename Compare>
-	struct parallel_sort_merger {
-		Compare cmp;
+	/// Records the first exception thrown while sorting or merging.  parallel_sort
+	/// catches exceptions instead of letting them travel through the futures, because a
+	/// failed future completes the next one straight away, while other sorts and merges
+	/// are still using the caller's range and the merge buffer
+	struct sort_error_t {
+		std::atomic<bool> failed = false;
+		std::mutex mut;
+		std::exception_ptr ptr;
 
-		template<typename Iterator>
-		constexpr daw::view<Iterator>
-		operator( )( daw::view<Iterator> rng_left,
-		             daw::view<Iterator> rng_right ) const {
+		void set( std::exception_ptr p ) {
+			auto const lck = std::lock_guard( mut );
+			if( not ptr ) {
+				ptr = std::move( p );
+			}
+			failed.store( true, std::memory_order_relaxed );
+		}
+
+		[[nodiscard]] bool has_failed( ) const {
+			return failed.load( std::memory_order_relaxed );
+		}
+	};
+
+	/// Uninitialized scratch space for parallel_sort's merges, one slot per element of
+	/// the range being sorted.  Allocated once per sort instead of std::inplace_merge
+	/// allocating a temporary buffer for every merge
+	template<typename T>
+	class merge_buffer_t {
+		T *m_ptr = nullptr;
+		std::size_t m_size = 0;
+
+	public:
+		explicit merge_buffer_t( std::size_t size )
+		  : m_ptr( size > 0 ? std::allocator<T>{ }.allocate( size ) : nullptr )
+		  , m_size( size ) {}
+
+		merge_buffer_t( merge_buffer_t const & ) = delete;
+		merge_buffer_t &operator=( merge_buffer_t const & ) = delete;
+
+		~merge_buffer_t( ) {
+			if( m_ptr ) {
+				std::allocator<T>{ }.deallocate( m_ptr, m_size );
+			}
+		}
+
+		[[nodiscard]] T *data( ) const noexcept {
+			return m_ptr;
+		}
+	};
+
+	/// Merges two adjacent sorted ranges through a shared scratch buffer.  A merge of
+	/// [left.begin, right.end) only uses the buffer slots at the same offsets from base,
+	/// so merges of disjoint ranges can run concurrently.  The merge is stable, so this
+	/// also serves stable_sort
+	template<typename Compare, typename Iterator>
+	struct parallel_sort_merger {
+		using value_type = std::iter_value_t<Iterator>;
+
+		Compare cmp;
+		Iterator base;
+		value_type *buffer;
+		sort_error_t *error;
+
+		daw::view<Iterator> operator( )( daw::view<Iterator> rng_left,
+		                                 daw::view<Iterator> rng_right ) const {
 			daw::exception::dbg_precondition_check(
 			  rng_left.end( ) == rng_right.begin( ), "Ranges must be contigous" );
 
-			std::inplace_merge(
-			  rng_left.begin( ), rng_left.end( ), rng_right.end( ), cmp );
+			auto const result = daw::view<Iterator>( rng_left.begin( ), rng_right.end( ) );
+			if( error->has_failed( ) ) {
+				// The sort will throw anyway, skip the work
+				return result;
+			}
+			try {
+				merge( rng_left, rng_right );
+			} catch( ... ) { error->set( std::current_exception( ) ); }
+			return result;
+		}
 
-			return daw::view<Iterator>( rng_left.begin( ), rng_right.end( ) );
+	private:
+		void merge( daw::view<Iterator> rng_left, daw::view<Iterator> rng_right ) const {
+			if( rng_left.empty( ) or rng_right.empty( ) or
+			    not cmp( *rng_right.begin( ), *std::prev( rng_left.end( ) ) ) ) {
+				// Already in order
+				return;
+			}
+			// Move the left half out to its slots in the buffer, then merge it with the
+			// right half (still in place) back into the range.  The write position never
+			// passes the read position in the right half, so nothing is overwritten early
+			value_type *const buf_first =
+			  buffer + std::distance( base, rng_left.begin( ) );
+			value_type *const buf_last =
+			  std::uninitialized_move( rng_left.begin( ), rng_left.end( ), buf_first );
+			auto const destroy_buffer = daw::on_scope_exit( [&]( ) noexcept {
+				std::destroy( buf_first, buf_last );
+			} );
+
+			value_type *lhs = buf_first;
+			auto rhs = rng_right.begin( );
+			auto const rhs_last = rng_right.end( );
+			auto out = rng_left.begin( );
+			try {
+				while( lhs != buf_last and rhs != rhs_last ) {
+					// Take from the right only when strictly less, keeping it stable
+					if( cmp( *rhs, *lhs ) ) {
+						*out = std::move( *rhs );
+						++rhs;
+					} else {
+						*out = std::move( *lhs );
+						++lhs;
+					}
+					++out;
+				}
+			} catch( ... ) {
+				// Put the remaining buffered elements back so none are lost
+				std::move( lhs, buf_last, out );
+				throw;
+			}
+			// Whatever remains of the right half is already in its final place
+			std::move( lhs, buf_last, out );
 		}
 	};
 
@@ -226,9 +334,6 @@ namespace daw::algorithm::parallel::impl {
 	};
 	inline constexpr auto stable_sorter = stable_sorter_t{ };
 
-	template<typename Compare>
-	parallel_sort_merger( Compare cmp ) -> parallel_sort_merger<Compare>;
-
 	template<typename PartitionPolicy = split_range_t<>, typename Iterator,
 	         typename Sort, typename Compare>
 	void parallel_sort( daw::view<Iterator> range, Sort &&srt, Compare &&cmp,
@@ -238,14 +343,26 @@ namespace daw::algorithm::parallel::impl {
 			return;
 		}
 		auto ranges = PartitionPolicy( )( range, ts.size( ) );
+		// Scratch space for the merges, only needed when there is something to merge.
+		// Allocated before any task is scheduled, so a bad_alloc leaves nothing running
+		auto const buffer = merge_buffer_t<std::iter_value_t<Iterator>>(
+		  ranges.size( ) > 1 ? range.size( ) : 0 );
 
 		auto sorters = std::vector<future_result_t<daw::view<Iterator>>>( );
 		sorters.reserve( ranges.size( ) );
 
+		// Must outlive every task, which holds because we wait for all of them below
+		auto error = sort_error_t( );
+
 		auto const sort_fn =
 		  [comp = mutable_capture( cmp ),
-			 sort = mutable_capture( DAW_FWD( srt ) )]( daw::view<Iterator> r ) {
-			  ( *sort )( r.begin( ), r.end( ), *comp );
+			 sort = mutable_capture( DAW_FWD( srt ) ),
+			 err = &error]( daw::view<Iterator> r ) {
+			  if( not err->has_failed( ) ) {
+				  try {
+					  ( *sort )( r.begin( ), r.end( ), *comp );
+				  } catch( ... ) { err->set( std::current_exception( ) ); }
+			  }
 			  return r;
 		  };
 
@@ -258,8 +375,15 @@ namespace daw::algorithm::parallel::impl {
 			                             *tsk_sch, sort_fn, rng );
 		                           } );
 
+		using merger_t = parallel_sort_merger<daw::remove_cvref_t<Compare>, Iterator>;
 		ts.wait_for( reduce_futures(
-		  sorters.begin( ), sorters.end( ), parallel_sort_merger{ cmp } ) );
+		  sorters.begin( ),
+		  sorters.end( ),
+		  merger_t{ cmp, range.begin( ), buffer.data( ), &error } ) );
+		// Every sort and merge has finished, so it is now safe to report a failure
+		if( error.ptr ) {
+			std::rethrow_exception( error.ptr );
+		}
 	}
 
 	template<typename PartitionPolicy = split_range_t<>, typename T,

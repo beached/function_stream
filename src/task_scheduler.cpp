@@ -173,7 +173,8 @@ namespace daw {
 
 	void fixed_task_scheduler::run_task( unique_task_t tsk ) noexcept {
 		try {
-			if( not started( ) ) {
+			// An empty task is returned by wait_for_task_from_pool when stopping
+			if( not started( ) or not tsk ) {
 				return;
 			}
 			if( tsk.try_wait( ) ) {

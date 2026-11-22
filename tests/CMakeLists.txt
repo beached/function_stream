@@ -124,6 +124,12 @@ target_include_directories(algorithms_sort_seq_test_bin PRIVATE include)
 add_test(algorithms_sort_seq_test algorithms_sort_seq_test_bin)
 add_dependencies(full algorithms_sort_seq_test_bin)
 
+add_executable(algorithms_sort_correctness_test_bin src/algorithms_sort_correctness_test.cpp)
+target_link_libraries(algorithms_sort_correctness_test_bin daw::daw-task-scheduler daw::daw-function-stream ${CMAKE_THREAD_LIBS_INIT})
+target_include_directories(algorithms_sort_correctness_test_bin PRIVATE include)
+add_test(algorithms_sort_correctness_test algorithms_sort_correctness_test_bin)
+add_dependencies(full algorithms_sort_correctness_test_bin)
+
 add_executable(algorithms_reduce_test_bin src/algorithms_reduce_test.cpp)
 target_link_libraries(algorithms_reduce_test_bin daw::daw-task-scheduler daw::daw-display-info daw::daw-function-stream ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(algorithms_reduce_test_bin PRIVATE include)

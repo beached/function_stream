@@ -76,10 +76,6 @@ static void bench_par_stl_sort( benchmark::State &s ) {
 		std::sort( std::execution::par, std::data( v ), daw::data_end( v ) );
 		benchmark::ClobberMemory( );
 	}
-	if( not std::is_sorted( v.begin( ), v.end( ) ) ) {
-		std::cerr << "Invalid sort, not sorted\n";
-		std::abort( );
-	}
 }
 #endif
 
@@ -95,10 +91,6 @@ static void bench_stl_sort( benchmark::State &s ) {
 		}
 		std::sort( std::data( v ), daw::data_end( v ) );
 		benchmark::ClobberMemory( );
-	}
-	if( not std::is_sorted( v.begin( ), v.end( ) ) ) {
-		std::cerr << "Invalid sort, not sorted\n";
-		std::abort( );
 	}
 }
 BENCHMARK_TEMPLATE( bench_stl_sort, 1'024 );
