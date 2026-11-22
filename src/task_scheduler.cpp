@@ -60,7 +60,6 @@ namespace daw {
 	  , m_block_on_destruction( block_on_destruction ) {
 
 		m_tasks.resize( m_num_threads );
-		std::cout << m_tasks.size( ) << '\n';
 	}
 
 	fixed_task_scheduler::~fixed_task_scheduler( ) {

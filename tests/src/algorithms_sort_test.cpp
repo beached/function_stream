@@ -93,17 +93,29 @@ static void bench_stl_sort( benchmark::State &s ) {
 		benchmark::ClobberMemory( );
 	}
 }
-BENCHMARK_TEMPLATE( bench_stl_sort, 1'024 );
+BENCHMARK_TEMPLATE( bench_stl_sort, 1024 );
 #if defined( HAS_PAR_STL )
-BENCHMARK_TEMPLATE( bench_par_stl_sort, 1'024 );
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 1024 );
 #endif
-BENCHMARK_TEMPLATE( bench_daw_par_sort, 1'024 );
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 1024 );
 
-BENCHMARK_TEMPLATE( bench_stl_sort, 4'096 );
+BENCHMARK_TEMPLATE( bench_stl_sort, 2048 );
 #if defined( HAS_PAR_STL )
-BENCHMARK_TEMPLATE( bench_par_stl_sort, 4'096 );
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 2048 );
 #endif
-BENCHMARK_TEMPLATE( bench_daw_par_sort, 4'096 );
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 2048 );
+
+BENCHMARK_TEMPLATE( bench_stl_sort, 4096 );
+#if defined( HAS_PAR_STL )
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 4096 );
+#endif
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 4096 );
+
+BENCHMARK_TEMPLATE( bench_stl_sort, 8129 );
+#if defined( HAS_PAR_STL )
+BENCHMARK_TEMPLATE( bench_par_stl_sort, 8129 );
+#endif
+BENCHMARK_TEMPLATE( bench_daw_par_sort, 8129 );
 
 BENCHMARK_TEMPLATE( bench_stl_sort, 16'384 );
 #if defined( HAS_PAR_STL )
@@ -116,7 +128,6 @@ BENCHMARK_TEMPLATE( bench_stl_sort, 65'536 );
 BENCHMARK_TEMPLATE( bench_par_stl_sort, 65'536 );
 #endif
 BENCHMARK_TEMPLATE( bench_daw_par_sort, 65'536 );
-
 
 BENCHMARK_TEMPLATE( bench_stl_sort, 131'072 );
 #if defined( HAS_PAR_STL )
