@@ -40,6 +40,8 @@
 #include <mutex>
 #include <numeric>
 #include <optional>
+#include <thread>
+#include <vector>
 
 namespace daw::algorithm::parallel::impl {
 	template<size_t MinRangeSize = 1>
@@ -241,6 +243,194 @@ namespace daw::algorithm::parallel::impl {
 		}
 	};
 
+	/// Merges with fewer elements than twice this are done by one thread.  Larger ones are
+	/// split into pieces of at least this many elements
+	inline constexpr std::size_t parallel_merge_min_piece = 2048;
+
+	/// One merge of two adjacent sorted runs, split into independent pieces that several
+	/// threads can work on.  Each piece is a stable merge of a subrange of the left run
+	/// with a subrange of the right run, and the pieces' outputs are consecutive.
+	///
+	/// A piece's output overlaps other pieces' inputs, so it cannot merge in place:
+	///   phase A: merge each piece from the range into its slots in the scratch buffer
+	///   phase B: once every piece has finished phase A, move each piece back
+	/// Work items (K phase A pieces, then K phase B pieces) are claimed from an atomic
+	/// counter by the merging thread and by helper tasks.  An item is only claimed by a
+	/// running thread, so waiting for claimed items never waits on queued work
+	template<typename Compare, typename Iterator>
+	class parallel_merge_job {
+		using value_type = std::iter_value_t<Iterator>;
+		using diff_t = std::iter_difference_t<Iterator>;
+
+		struct piece {
+			// Offsets into the left run (from first) and the right run (from mid).  The
+			// output starts at offset xs + ys from first
+			diff_t xs = 0;
+			diff_t xe = 0;
+			diff_t ys = 0;
+			diff_t ye = 0;
+			// Set when phase A failed and the piece already put its elements back
+			bool restored = false;
+		};
+
+		Compare m_cmp;
+		Iterator m_first;
+		Iterator m_mid;
+		value_type *m_buffer; // slot for *m_first
+		std::vector<piece> m_pieces;
+		std::atomic<std::size_t> m_next_item = 0;
+		std::atomic<std::size_t> m_done_a = 0;
+		std::atomic<std::size_t> m_done_b = 0;
+		std::atomic<bool> m_failed = false;
+		std::mutex m_error_mut;
+		std::exception_ptr m_error;
+
+		/// How many of the first p elements of the stable merge come from the left run
+		[[nodiscard]] diff_t co_rank( diff_t p, diff_t nl, diff_t nr ) {
+			diff_t lo = std::max<diff_t>( 0, p - nr );
+			diff_t hi = std::min( p, nl );
+			while( lo < hi ) {
+				diff_t const i = lo + ( hi - lo ) / 2;
+				diff_t const j = p - i;
+				// left[i] is output before right[j - 1] (ties take the left), so more of
+				// the first p come from the left
+				if( j > 0 and i < nl and not m_cmp( m_mid[j - 1], m_first[i] ) ) {
+					lo = i + 1;
+				} else {
+					hi = i;
+				}
+			}
+			return lo;
+		}
+
+		void record_error( std::exception_ptr ptr ) {
+			auto const lck = std::lock_guard( m_error_mut );
+			if( not m_error ) {
+				m_error = std::move( ptr );
+			}
+			m_failed.store( true, std::memory_order_release );
+		}
+
+		void merge_piece( piece &pc ) {
+			value_type *const out_first = m_buffer + ( pc.xs + pc.ys );
+			value_type *out = out_first;
+			auto lhs = m_first + pc.xs;
+			auto const lhs_last = m_first + pc.xe;
+			auto rhs = m_mid + pc.ys;
+			auto const rhs_last = m_mid + pc.ye;
+			try {
+				while( lhs != lhs_last and rhs != rhs_last ) {
+					// Take from the right only when strictly less, keeping it stable
+					if( m_cmp( *rhs, *lhs ) ) {
+						::new( static_cast<void *>( out ) ) value_type( std::move( *rhs ) );
+						++rhs;
+					} else {
+						::new( static_cast<void *>( out ) ) value_type( std::move( *lhs ) );
+						++lhs;
+					}
+					++out;
+				}
+				out = std::uninitialized_move( lhs, lhs_last, out );
+				out = std::uninitialized_move( rhs, rhs_last, out );
+			} catch( ... ) {
+				// Put what was moved out back into the input slots it came from, so no
+				// element is lost.  The order does not matter as the sort will throw
+				value_type *src = out_first;
+				for( auto dst = m_first + pc.xs; dst != lhs; ++dst, ++src ) {
+					*dst = std::move( *src );
+				}
+				for( auto dst = m_mid + pc.ys; dst != rhs; ++dst, ++src ) {
+					*dst = std::move( *src );
+				}
+				std::destroy( out_first, out );
+				pc.restored = true;
+				record_error( std::current_exception( ) );
+			}
+		}
+
+		void finish_piece( piece const &pc ) {
+			if( pc.restored ) {
+				return;
+			}
+			value_type *const out_first = m_buffer + ( pc.xs + pc.ys );
+			diff_t const nx = pc.xe - pc.xs;
+			value_type *const out_last = out_first + nx + ( pc.ye - pc.ys );
+			if( m_failed.load( std::memory_order_acquire ) ) {
+				// Another piece failed and went back to its own input slots, so this one
+				// must too rather than write over them
+				std::move( out_first, out_first + nx, m_first + pc.xs );
+				std::move( out_first + nx, out_last, m_mid + pc.ys );
+			} else {
+				std::move( out_first, out_last, m_first + ( pc.xs + pc.ys ) );
+			}
+			std::destroy( out_first, out_last );
+		}
+
+	public:
+		/// Splits the merge of [first, mid) and [mid, last) into piece_count pieces.  Can
+		/// throw if the comparator does, before anything is moved
+		parallel_merge_job( Compare cmp, Iterator first, Iterator mid, Iterator last,
+		                    value_type *buffer, std::size_t piece_count )
+		  : m_cmp( std::move( cmp ) )
+		  , m_first( first )
+		  , m_mid( mid )
+		  , m_buffer( buffer )
+		  , m_pieces( piece_count ) {
+
+			diff_t const nl = std::distance( first, mid );
+			diff_t const nr = std::distance( mid, last );
+			diff_t const n = nl + nr;
+			auto const k = static_cast<diff_t>( piece_count );
+			diff_t prev_i = 0;
+			diff_t prev_j = 0;
+			for( diff_t idx = 1; idx <= k; ++idx ) {
+				diff_t const p = ( n * idx ) / k;
+				diff_t const i = idx == k ? nl : co_rank( p, nl, nr );
+				diff_t const j = p - i;
+				m_pieces[static_cast<std::size_t>( idx - 1 )] = { prev_i, i, prev_j, j, false };
+				prev_i = i;
+				prev_j = j;
+			}
+		}
+
+		parallel_merge_job( parallel_merge_job const & ) = delete;
+		parallel_merge_job &operator=( parallel_merge_job const & ) = delete;
+
+		/// Runs work items until there are none left to claim.  Safe to call after the
+		/// merge has finished, it then does nothing
+		void work( ) {
+			std::size_t const k = m_pieces.size( );
+			while( true ) {
+				std::size_t const item = m_next_item.fetch_add( 1, std::memory_order_acq_rel );
+				if( item >= 2 * k ) {
+					return;
+				}
+				if( item < k ) {
+					merge_piece( m_pieces[item] );
+					m_done_a.fetch_add( 1, std::memory_order_acq_rel );
+				} else {
+					// Every phase A item is claimed, and so is being run, by now
+					while( m_done_a.load( std::memory_order_acquire ) < k ) {
+						std::this_thread::yield( );
+					}
+					finish_piece( m_pieces[item - k] );
+					m_done_b.fetch_add( 1, std::memory_order_acq_rel );
+				}
+			}
+		}
+
+		/// Waits for the claimed items still running on other threads.  Call after work( )
+		void wait( ) const {
+			while( m_done_b.load( std::memory_order_acquire ) < m_pieces.size( ) ) {
+				std::this_thread::yield( );
+			}
+		}
+
+		[[nodiscard]] std::exception_ptr error( ) const {
+			return m_error;
+		}
+	};
+
 	/// Merges two adjacent sorted ranges through a shared scratch buffer.  A merge of
 	/// [left.begin, right.end) only uses the buffer slots at the same offsets from base,
 	/// so merges of disjoint ranges can run concurrently.  The merge is stable, so this
@@ -253,6 +443,7 @@ namespace daw::algorithm::parallel::impl {
 		Iterator base;
 		value_type *buffer;
 		sort_error_t *error;
+		mutable task_scheduler ts;
 
 		daw::view<Iterator> operator( )( daw::view<Iterator> rng_left,
 		                                 daw::view<Iterator> rng_right ) const {
@@ -275,6 +466,12 @@ namespace daw::algorithm::parallel::impl {
 			if( rng_left.empty( ) or rng_right.empty( ) or
 			    not cmp( *rng_right.begin( ), *std::prev( rng_left.end( ) ) ) ) {
 				// Already in order
+				return;
+			}
+			auto const total = static_cast<std::size_t>( rng_left.size( ) + rng_right.size( ) );
+			auto const pieces = std::min( total / parallel_merge_min_piece, ts.size( ) );
+			if( pieces > 1 ) {
+				parallel_merge( rng_left, rng_right, pieces );
 				return;
 			}
 			// Move the left half out to its slots in the buffer, then merge it with the
@@ -311,6 +508,36 @@ namespace daw::algorithm::parallel::impl {
 			}
 			// Whatever remains of the right half is already in its final place
 			std::move( lhs, buf_last, out );
+		}
+
+		void parallel_merge( daw::view<Iterator> rng_left, daw::view<Iterator> rng_right,
+		                     std::size_t pieces ) const {
+			using job_t = parallel_merge_job<Compare, Iterator>;
+			// Shared because helper tasks may only start after the merge is done.  They
+			// then find nothing to claim and only touch the job, never the data
+			auto const job = std::make_shared<job_t>( cmp,
+			                                          rng_left.begin( ),
+			                                          rng_right.begin( ),
+			                                          rng_right.end( ),
+			                                          buffer + std::distance( base, rng_left.begin( ) ),
+			                                          pieces );
+			for( std::size_t n = 1; n < pieces; ++n ) {
+				try {
+					if( not ts.add_task( [job]( ) {
+						    job->work( );
+					    } ) ) {
+						break;
+					}
+				} catch( ... ) {
+					// Fewer helpers only means this thread does more of the work
+					break;
+				}
+			}
+			job->work( );
+			job->wait( );
+			if( auto err = job->error( ); err ) {
+				std::rethrow_exception( err );
+			}
 		}
 	};
 
@@ -379,7 +606,7 @@ namespace daw::algorithm::parallel::impl {
 		ts.wait_for( reduce_futures(
 		  sorters.begin( ),
 		  sorters.end( ),
-		  merger_t{ cmp, range.begin( ), buffer.data( ), &error } ) );
+		  merger_t{ cmp, range.begin( ), buffer.data( ), &error, ts } ) );
 		// Every sort and merge has finished, so it is now safe to report a failure
 		if( error.ptr ) {
 			std::rethrow_exception( error.ptr );
